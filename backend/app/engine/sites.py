@@ -7,6 +7,18 @@ ALL_SITES        both; precomputed and listed by the API.
 
 kind: artemis | control | apollo | clps | international
 `approximate: True` flags coordinates that are a region estimate rather than a published point.
+
+artemis_list (kind "artemis" only): which NASA list of Artemis III candidate landing regions names the region.
+  "2024"        one of the 9 regions of NASA's October 2024 update ("NASA Provides Update on Artemis III Moon
+                Landing Regions", news release, 2024-10-28), still the list in George et al., "Artemis III Site
+                Selection Update: Downselection From Thirteen to Nine Candidate Regions", LPSC 2026 (NTRS
+                20250011660): Peak near Cabeus B, Haworth, Malapert Massif, Mons Mouton Plateau, Mons Mouton,
+                Nobile Rim 1, Nobile Rim 2, de Gerlache Rim 2, Slater Plain.
+  "2022"        only in NASA's original 13 regions (August 2022); not among the 9. NASA: the downselection "does
+                not imply that removed regions are unsuitable for future exploration".
+  "unconfirmed" our point is an estimate inside "de Gerlache Rim": NASA's 2022 list had Rim 1 and Rim 2 and the
+                2024 list keeps only Rim 2; which one this point falls in is not checked.
+Names, coordinates and sources are not changed by this (rescue, comparison and the site files use them).
 """
 
 _ARTEMIS_REGION_ESTIMATE = (
@@ -17,6 +29,7 @@ _ARTEMIS_REGION_ESTIMATE = (
 SITES = [
     {
         "id": "connecting-ridge",
+        "artemis_list": "2022",
         "name": "Connecting Ridge",
         "kind": "artemis",
         "lat": -89.53432,
@@ -25,6 +38,7 @@ SITES = [
     },
     {
         "id": "peak-near-shackleton",
+        "artemis_list": "2022",
         "name": "Peak Near Shackleton",
         "kind": "artemis",
         "lat": -89.01701,
@@ -33,6 +47,7 @@ SITES = [
     },
     {
         "id": "malapert-massif",
+        "artemis_list": "2024",
         "name": "Malapert Massif",
         "kind": "artemis",
         "lat": -85.9635,
@@ -43,15 +58,15 @@ SITES = [
             "blocks Earth 100% of the time; the summit sees Earth 99.9%."
         ),
     },
-    {"id": "de-gerlache-rim", "name": "de Gerlache Rim", "kind": "artemis", "lat": -89.05, "lon": 280.00,
+    {"id": "de-gerlache-rim", "artemis_list": "unconfirmed", "name": "de Gerlache Rim", "kind": "artemis", "lat": -89.05, "lon": 280.00,
      "approximate": True, "source": _ARTEMIS_REGION_ESTIMATE},
-    {"id": "haworth-rim", "name": "Haworth Rim", "kind": "artemis", "lat": -86.60, "lon": 350.00,
+    {"id": "haworth-rim", "artemis_list": "2024", "name": "Haworth Rim", "kind": "artemis", "lat": -86.60, "lon": 350.00,
      "approximate": True, "source": _ARTEMIS_REGION_ESTIMATE},
-    {"id": "nobile-rim-1", "name": "Nobile Rim 1", "kind": "artemis", "lat": -85.40, "lon": 38.00,
+    {"id": "nobile-rim-1", "artemis_list": "2024", "name": "Nobile Rim 1", "kind": "artemis", "lat": -85.40, "lon": 38.00,
      "approximate": True, "source": _ARTEMIS_REGION_ESTIMATE},
-    {"id": "mons-mouton", "name": "Mons Mouton", "kind": "artemis", "lat": -84.60, "lon": 31.00,
+    {"id": "mons-mouton", "artemis_list": "2024", "name": "Mons Mouton", "kind": "artemis", "lat": -84.60, "lon": 31.00,
      "approximate": True, "source": _ARTEMIS_REGION_ESTIMATE},
-    {"id": "faustini-rim-a", "name": "Faustini Rim A", "kind": "artemis", "lat": -86.95, "lon": 92.00,
+    {"id": "faustini-rim-a", "artemis_list": "2022", "name": "Faustini Rim A", "kind": "artemis", "lat": -86.95, "lon": 92.00,
      "approximate": True, "source": _ARTEMIS_REGION_ESTIMATE},
     {
         "id": "shackleton-floor",

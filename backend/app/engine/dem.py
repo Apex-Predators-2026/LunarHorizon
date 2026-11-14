@@ -22,7 +22,7 @@ import numpy as np
 import rasterio
 
 from .geo import latlon_to_xy, latlon_to_xy_np
-from .net import CACHE_DIR
+from .net import CACHE_DIR, require_online
 from .terrain import INVALID_BELOW, TREK
 
 BLOCK = 1024  # pixels per block side (at most)
@@ -172,6 +172,7 @@ class _BlockStore:
             "f": "image",
         }
         url = f"{TREK}/{src.service}/ImageServer/exportImage?" + urllib.parse.urlencode(params)
+        require_online(url)  # offline mode: fail at once, not after the retries below
         # Moon Trek occasionally answers 500/502 for a request that works moments later.
         # A block (<= 1024^2 px) normally arrives in seconds; 120 s per attempt keeps a stalled
         # connection from tying up a terrain request for many minutes (the 3D view retries).
