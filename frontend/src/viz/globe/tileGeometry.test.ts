@@ -1,9 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { MOON_RADIUS_M, SiteFrame, TILE_N, tileAt } from './cubeSphere'
-import { buildTileMesh } from './tileGeometry'
+import { MOON_RADIUS_M, SiteFrame, TILE_N, tileAt, tileVertexUV, uvToVec, type Vec3 } from './cubeSphere'
+import { buildTileMesh, innerHeights, tileTopology } from './tileGeometry'
 
 const site = new SiteFrame(-89.53432, 209.94767, 1654)
 const flat = (h: number) => new Float32Array(TILE_N * TILE_N).fill(h)
+
+// Smooth synthetic terrain (+-30 m ridges ~0.5 km apart), defined by position on the Moon, so
+// neighbouring tiles see exactly the same heights where they overlap.
+const terrain = (d: Vec3) => 1654 + 30 * Math.sin(d[0] * 20000) * Math.cos(d[1] * 17000)
+function heightsFor(face: number, z: number, x: number, y: number, pad: number) {
+  const m = TILE_N + 2 * pad
+  const h = new Float32Array(m * m)
+  for (let jj = 0; jj < m; jj++)
+    for (let ii = 0; ii < m; ii++) h[jj * m + ii] = terrain(uvToVec(face, ...tileVertexUV(z, x, y, ii - pad, jj - pad)))
+  return h
+}
+const normalAt = (m: { normals: Float32Array }, k: number): Vec3 => [m.normals[3 * k], m.normals[3 * k + 1], m.normals[3 * k + 2]]
+// atan2(|a x b|, a . b): exact near 0 (acos of a float32 dot product bottoms out at ~0.02 deg).
+const angleDeg = (a: Vec3, b: Vec3) => {
+  const cx = a[1] * b[2] - a[2] * b[1]
+  const cy = a[2] * b[0] - a[0] * b[2]
+  const cz = a[0] * b[1] - a[1] * b[0]
+  return (Math.atan2(Math.hypot(cx, cy, cz), a[0] * b[0] + a[1] * b[1] + a[2] * b[2]) * 180) / Math.PI
+}
 
 describe('buildTileMesh', () => {
   it('places the tile containing the site around the origin, on the sphere', () => {
@@ -43,5 +62,56 @@ describe('buildTileMesh', () => {
     const r = (k: number) => Math.hypot(...[0, 1, 2].map((a) => m.positions[3 * k + a] + m.centre[a] - c[a]))
     expect(r(m.skirtStart)).toBeLessThan(r(m.borderOf[0]))
     expect(r(m.borderOf[0])).toBeCloseTo(MOON_RADIUS_M, -1)
+  })
+
+  it('shares one 16-bit index buffer between all tiles', () => {
+    const a = buildTileMesh(5, 3, 2, 5, flat(0), site)
+    const b = buildTileMesh(0, 7, 40, 90, flat(100), site)
+    expect(a.indices).toBe(b.indices)
+    expect(a.indices).toBe(tileTopology().indices)
+    expect(a.indices).toBeInstanceOf(Uint16Array)
+  })
+})
+
+describe('tile normals', () => {
+  const [f, x, y] = tileAt(site.latDeg, site.lonDeg, 12)
+
+  it('are unit length and point away from the Moon', () => {
+    const m = buildTileMesh(f, 12, x, y, heightsFor(f, 12, x, y, 1), site, TILE_N, 1)
+    const c = site.moonCentre
+    for (let k = 0; k < m.positions.length / 3; k += 37) {
+      const nrm = normalAt(m, k)
+      expect(Math.hypot(...nrm)).toBeCloseTo(1, 6)
+      const out = [0, 1, 2].map((a) => m.positions[3 * k + a] + m.centre[a] - c[a])
+      expect(nrm[0] * out[0] + nrm[1] * out[1] + nrm[2] * out[2]).toBeGreaterThan(0)
+    }
+  })
+
+  it('padding changes no vertex, only the normals at the edges', () => {
+    const plain = buildTileMesh(f, 12, x, y, heightsFor(f, 12, x, y, 0), site)
+    const padded = buildTileMesh(f, 12, x, y, heightsFor(f, 12, x, y, 1), site, TILE_N, 1)
+    expect(padded.centre).toEqual(plain.centre)
+    for (let k = 0; k < plain.positions.length; k++) expect(padded.positions[k]).toBeCloseTo(plain.positions[k], 3)
+    const mid = (TILE_N >> 1) * TILE_N + (TILE_N >> 1)
+    expect(angleDeg(normalAt(padded, mid), normalAt(plain, mid))).toBeLessThan(1e-4)
+  })
+
+  it('match exactly on an edge shared by two padded tiles (no lighting seams)', () => {
+    const build = (dx: number, pad: number) => buildTileMesh(f, 12, x + dx, y, heightsFor(f, 12, x + dx, y, pad), site, TILE_N, pad)
+    const worst = (pad: number) => {
+      const a = build(0, pad)
+      const b = build(1, pad)
+      let max = 0
+      // a's right column (i = N - 1) is b's left column (i = 0).
+      for (let j = 0; j < TILE_N; j++) max = Math.max(max, angleDeg(normalAt(a, j * TILE_N + TILE_N - 1), normalAt(b, j * TILE_N)))
+      return max
+    }
+    expect(worst(1)).toBeLessThan(1e-4)
+    expect(worst(0)).toBeGreaterThan(1) // what the unpadded edges looked like
+  })
+
+  it('cuts the tile itself out of a padded array', () => {
+    const padded = heightsFor(f, 12, x, y, 1)
+    expect(innerHeights(padded, TILE_N, 1)).toEqual(heightsFor(f, 12, x, y, 0))
   })
 })
