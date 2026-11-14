@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import type { Horizon } from '../types'
 import { buildHorizonCurtain } from './geometry'
@@ -21,6 +21,13 @@ export function HorizonCurtain({ horizon, radius }: { horizon: Horizon; radius: 
     line.setAttribute('position', new THREE.BufferAttribute(topLine, 3))
     return { mesh, line }
   }, [horizon, radius])
+  useEffect(
+    () => () => {
+      mesh.dispose()
+      line.dispose()
+    },
+    [mesh, line],
+  )
 
   return (
     <group>
