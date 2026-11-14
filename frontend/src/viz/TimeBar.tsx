@@ -257,38 +257,38 @@ export function TimeBar({
   const step = (hours: number) => seek(now + hours * HOUR_MS)
   const totalHours = Math.round((stop - start) / HOUR_MS)
 
-  const btn = 'rounded-lg border border-opal-300 bg-white px-2 py-0.5 transition-colors hover:bg-calcite-peach/40 disabled:opacity-40'
-  const select = 'rounded-lg border border-opal-300 bg-white px-1 py-0.5'
+  const btn = 'md-compact border border-opal-300 bg-white transition-colors hover:bg-calcite-peach/40 disabled:opacity-40'
+  const select = 'h-10 rounded-full border border-opal-300 bg-white px-3'
 
   return (
-    <div className="lp-light pointer-events-auto relative max-h-[48vh] overflow-y-auto rounded-t-[20px] bg-opal-50 px-4 pb-2 pt-3 text-xs shadow-lg shadow-black/30">
+    <div className="lp-light pointer-events-auto relative max-h-[48vh] overflow-y-auto rounded-t-[24px] bg-opal-50 px-4 pb-3 pt-4 text-xs shadow-lg shadow-black/30">
       {onHide && (
         <button
           type="button"
           onClick={onHide}
           aria-label="Hide timeline panel"
           data-tip="Hide"
-          className="absolute right-2.5 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-calcite-peach/40 hover:text-slate-100"
+          className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-calcite-peach/40 hover:text-slate-100"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M2 4l4 4 4-4" />
           </svg>
         </button>
       )}
-      <div className="mb-1.5 flex flex-wrap items-center gap-1.5 pr-7">
+      <div className="mb-2 flex flex-wrap items-center gap-2 pr-10">
         <button type="button" className={btn} onClick={() => step(-windowDays * 24)} data-tip="Previous window">⏮</button>
         <button type="button" className={btn} onClick={() => step(-24)}>−1 d</button>
         <button type="button" className={btn} onClick={() => step(-1)}>−1 h</button>
         <button type="button" className={btn} onClick={() => step(1)}>+1 h</button>
         <button type="button" className={btn} onClick={() => step(24)}>+1 d</button>
         <button type="button" className={btn} onClick={() => step(windowDays * 24)} data-tip="Next window">⏭</button>
-        <label className="ml-2 flex items-center gap-1 text-slate-400">
+        <label className="ml-2 flex items-center gap-2 text-slate-400">
           Speed
           <select className={select} value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
             {SPEEDS.map((s) => <option key={s.label} value={s.hoursPerSec}>{s.label}</option>)}
           </select>
         </label>
-        <label className="flex items-center gap-1 text-slate-400">
+        <label className="flex items-center gap-2 text-slate-400">
           Window
           <select className={select} value={windowDays} onChange={(e) => onWindowDays(Number(e.target.value))}>
             {WINDOW_DAYS.map((d) => <option key={d} value={d}>{d} days</option>)}
@@ -316,7 +316,7 @@ export function TimeBar({
         <span className="shrink-0 text-[10px] tabular-nums text-slate-500">{site.data_stop_utc.slice(0, 10)}</span>
       </div>
 
-      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         {views}
         <span className="min-w-0 flex-1 text-right text-[10px] leading-tight text-slate-500">
           {site.lat.toFixed(4)}°, {site.lon.toFixed(4)}°E · ground {Math.round(site.ground_height_m)} m · terrain: Moon Trek LOLA ·

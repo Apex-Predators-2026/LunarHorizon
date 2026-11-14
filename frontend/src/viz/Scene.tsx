@@ -369,7 +369,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
           <ColorKey layers={layers} />
         </div>
-        <div ref={sideRef} className="absolute bottom-16 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-3">
+        <div ref={sideRef} className="absolute bottom-16 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4">
           {site && <MiniMapPanel horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />}
           <FloatingSidebar>
             <div className="space-y-4">

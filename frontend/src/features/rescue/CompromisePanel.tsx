@@ -80,7 +80,7 @@ export function CompromisePanel() {
         </label>
         <button type="button" disabled={loading || !s.original} onClick={() => void s.findCompromise()}
           data-tip="Find the landing that best balances what science and engineering each want."
-          className="col-span-2 rounded bg-sky-600 py-1.5 font-medium text-white hover:bg-sky-500 disabled:opacity-50">
+          className="md-btn col-span-2 bg-sky-600 text-white hover:bg-sky-500 disabled:opacity-50">
           {loading ? 'Searching…' : 'Find best compromise'}
         </button>
       </div>

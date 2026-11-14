@@ -86,7 +86,7 @@ export function PlanForm() {
   const site = catalog?.sites.find((s) => s.id === siteId)
 
   return (
-    <form onSubmit={submit} className="space-y-2 text-xs">
+    <form onSubmit={submit} className="space-y-4 text-xs">
       <SelectField
         label="Landing site"
         tip="Where the lander touches down. Pick a candidate site to plan the mission for."
@@ -135,8 +135,8 @@ export function PlanForm() {
           onChange={(e) => setDuration(Number(e.target.value))}
         />
       </div>
-      <details className="rounded border border-slate-800 p-2">
-        <summary className="cursor-pointer text-slate-300" data-tip="What the spacecraft needs to survive and communicate: sunlight, battery, Earth contact. The plan is checked against these.">Spacecraft requirements</summary>
+      <details className="rounded-xl border border-slate-800 px-4 py-2">
+        <summary className="flex min-h-10 cursor-pointer items-center text-slate-300" data-tip="What the spacecraft needs to survive and communicate: sunlight, battery, Earth contact. The plan is checked against these.">Spacecraft requirements</summary>
         <div className="mt-2 grid grid-cols-1 gap-2">
           {REQUIREMENT_FIELDS.map((f) => (
             <TextField
@@ -156,7 +156,7 @@ export function PlanForm() {
           ))}
         </div>
       </details>
-      <button type="submit" disabled={!site} data-tip="Save this plan and show it on the map and in the timeline." className="w-full rounded border border-slate-600 py-1.5 text-slate-200 hover:bg-slate-800 disabled:opacity-50">
+      <button type="submit" disabled={!site} data-tip="Save this plan and show it on the map and in the timeline." className="md-btn w-full border border-slate-600 text-slate-200 hover:bg-slate-800 disabled:opacity-50">
         {original ? 'Update plan' : 'Set plan'}
       </button>
     </form>
