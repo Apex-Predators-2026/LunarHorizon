@@ -115,6 +115,7 @@ export function GlobeControls({
     }
 
     const onDown = (e: PointerEvent) => {
+      n.dispatchEvent({ type: 'start' }) // the user takes over (e.g. stops a view flight)
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       el.setPointerCapture(e.pointerId)
       zoom.current = null // a new gesture stops any zoom still easing in
@@ -216,6 +217,7 @@ export function GlobeControls({
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault()
+      n.dispatchEvent({ type: 'start' })
       const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1)
       // In: towards the cursor. Out: away from the view's centre, so the Moon doesn't drift sideways.
       let focus: THREE.Vector3
