@@ -36,16 +36,16 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
           <label key={c.key} className="block text-xs text-slate-300">
             <span className="flex justify-between"><span>{c.label}</span>
               <span className="tabular-nums text-slate-400">{total > 0 ? Math.round((weights[c.key] / total) * 100) : 0}%</span></span>
-            <input type="range" min={0} max={5} step={0.5} value={weights[c.key]} className="w-full accent-cyan-500"
+            <input type="range" min={0} max={5} step={0.5} value={weights[c.key]} className="w-full"
               onChange={(e) => setWeights({ [c.key]: Number(e.target.value) } as Partial<Record<CriterionKey, number>>)} />
-            <span className="block text-[10px] text-slate-500">{c.basis}</span>
+            <span className="block text-[11px] text-slate-500">{c.basis}</span>
           </label>
         ))}
         <label className="block text-xs text-slate-300">
           Max science traverse (km)
           <input type="number" min={1} max={200} className={input} value={traverseKm}
             onChange={(e) => Number(e.target.value) > 0 && setTraverseKm(Number(e.target.value))} />
-          <span className="block text-[10px] text-slate-500">Science index = 1 − distance to nearest PSR edge ÷ this distance (as in Mission Rescue’s compromise).</span>
+          <span className="block text-[11px] text-slate-500">Science index = 1 − distance to nearest PSR edge ÷ this distance (as in Mission Rescue’s compromise).</span>
         </label>
       </div>
 
@@ -62,7 +62,7 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                     <PolarAngleAxis dataKey="criterion" tick={{ fill: STATE.ink, fontSize: 10 }} />
                     <PolarRadiusAxis domain={[0, 100]} tick={{ fill: STATE.axis, fontSize: 9 }} stroke={STATE.grid} angle={90} />
                     <Tooltip isAnimationActive={false} content={({ active, payload, label }) => active && payload?.length ? (
-                      <div className="rounded-md border border-[#2a3c63] bg-[#08111f]/95 px-2.5 py-2 text-xs">
+                      <div className="cmp-tip">
                         <div className="mb-1 text-slate-300">{label}</div>
                         {rows.map((r) => (
                           <div key={r.entry.scenario.id} className="flex items-center gap-2"><ScenarioChip s={r.entry.scenario} size="sm" />
@@ -79,27 +79,27 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                 </ResponsiveContainer>
               </div>
               <div>
-                <h3 className="mb-2 text-xs font-semibold text-slate-200">Preference ranking (weighted contributions)</h3>
+                <h3 className="mb-2 text-xs font-medium text-slate-200">Preference ranking (weighted contributions)</h3>
                 <ol className="space-y-2">
                   {rows.map((r) => (
                     <li key={r.entry.scenario.id}>
                       <div className="mb-0.5 flex items-center gap-2 text-xs">
-                        <span className="w-5 font-bold text-slate-500">#{r.rank}</span>
+                        <span className="w-5 font-medium text-slate-500">#{r.rank}</span>
                         <ScenarioChip s={r.entry.scenario} size="sm" />
                         <span className="min-w-0 flex-1 truncate text-slate-200">{r.entry.scenario.site.name}</span>
-                        <span className="tabular-nums font-semibold text-slate-100">{(r.weighted * 100).toFixed(0)}</span>
+                        <span className="tabular-nums font-medium text-slate-100">{(r.weighted * 100).toFixed(0)}</span>
                       </div>
                       <div className="flex h-3 overflow-hidden rounded bg-slate-800" aria-hidden="true">
                         {CRITERIA.map((c, i) => (
                           <div key={c.key} title={`${c.label}: +${(r.contributions[c.key] * 100).toFixed(1)}`}
                             style={{ width: `${r.contributions[c.key] * 100}%`, background: ['#e8b84a', '#5aa9f0', '#b58cf0', '#4fbf8f'][i] }}
-                            className="border-r-2 border-[#0b1426] last:border-r-0" />
+                            className="border-r-2 border-surface last:border-r-0" />
                         ))}
                       </div>
                     </li>
                   ))}
                 </ol>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400">
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-400">
                   {CRITERIA.map((c, i) => (
                     <span key={c.key} className="flex items-center gap-1"><span className="h-2 w-3 rounded-sm" style={{ background: ['#e8b84a', '#5aa9f0', '#b58cf0', '#4fbf8f'][i] }} />{c.label}</span>
                   ))}
@@ -117,7 +117,7 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                 </thead>
                 <tbody>
                   {rows.map((r) => (
-                    <tr key={r.entry.scenario.id} className="border-t border-[#1c2a48]">
+                    <tr key={r.entry.scenario.id} className="border-t border-line">
                       <td className="py-1"><ScenarioChip s={r.entry.scenario} size="sm" /></td>
                       {CRITERIA.map((c) => (
                         <td key={c.key} className="py-1 pl-2 text-slate-300">
@@ -128,7 +128,7 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                   ))}
                 </tbody>
               </table>
-              <p className="mt-1 text-[10px] text-slate-500">
+              <p className="mt-1 text-[11px] text-slate-500">
                 Safety index = average over the power gap and the blackout of max(0, 1 − gap ÷ (2 × limit)): 100 with no outage, 50 exactly at the limit, 0 at twice the limit.
               </p>
             </div>
