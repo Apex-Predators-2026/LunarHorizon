@@ -4,7 +4,7 @@ import { flyTo } from './cameraTilt'
 import { latLonToVec, MOON_RADIUS_M, type SiteFrame, type Vec3 } from './globe/cubeSphere'
 import { packFaceImages } from './globe/imageryPack'
 import { faceSampler, mapViewFor, project, renderMap, unproject, useCameraView, type LatLon, type MapView } from './globe/miniMap'
-import { fmtDistance, KIND_COLOR } from './globe/overlays'
+import { fmtDistance, siteColor } from './globe/overlays'
 import { azElToVector } from './geometry'
 
 const SIZE = 220 // CSS px, like the sky plot (the card keeps its size when switching tabs)
@@ -161,7 +161,7 @@ export function MoonMiniMap({
                 <circle cx={x} cy={y} r={2} fill="#ffffff" />
               </g>
             ) : (
-              <circle key={s.id} cx={x} cy={y} r={2.6} fill={KIND_COLOR[s.kind ?? 'control'] ?? KIND_COLOR.control} stroke="#05080f" strokeWidth={0.8} />
+              <circle key={s.id} cx={x} cy={y} r={2.6} fill={siteColor(s)} stroke="#05080f" strokeWidth={0.8} />
             ),
           )}
           <text x={8} y={16} fontSize={10} fill="#e2e8f0" stroke="#05080f" strokeWidth={2.5} paintOrder="stroke">
