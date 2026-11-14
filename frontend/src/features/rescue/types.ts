@@ -56,9 +56,9 @@ export interface MetricDelta {
 export interface Robustness {
   checked_points: number
   passing_points: number
-  pass_rate: number
+  pass_rate: number | null // null = nothing could be checked
   worst_score: number | null // null = none of the checks was scored
-  verdict: 'robust' | 'sensitive' | 'fragile'
+  verdict: 'robust' | 'sensitive' | 'fragile' | 'unchecked'
   note: string
 }
 
@@ -212,7 +212,14 @@ export interface CompromiseResponse {
 // ---------------------------------------------------------------- GET /api/rescue/sites
 
 export interface RescueCatalog {
-  sites: (Site & { description: string; source: string; approximate: boolean; has_real_data: boolean })[]
+  sites: (Site & {
+    description: string
+    source: string
+    approximate: boolean
+    has_real_data: boolean
+    data_start_utc: string | null // the period the site's real data covers (null = no real data)
+    data_end_utc: string | null
+  })[]
   psrs: { id: string; name: string; lat: number; lon: number; radius_km: number; ice_interest: number }[]
   note: string
 }

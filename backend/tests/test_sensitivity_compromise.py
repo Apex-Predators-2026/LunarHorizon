@@ -61,3 +61,34 @@ def test_compromise_weights_shift_the_choice(ev):
                                        science=ScienceGoal(target_psr_id="faustini-psr", min_science_score=0)), ev)
     assert sci.best.science_score >= eng.best.science_score
     assert eng.best.engineering_score >= sci.best.engineering_score
+
+
+def test_compromise_suggestions_never_contradict(ev, pns_scenario):
+    # Sites are within the traverse distance but none is close enough for the science minimum.
+    psr = PSRS_BY_ID["shackleton-psr"]
+    target = custom_site("Shackleton floor centre", psr.lat, psr.lon)
+    goal = ScienceGoal(target=target, max_traverse_km=20, min_science_score=0.99)
+    r = compromise(CompromiseRequest(scenario=pns_scenario, science=goal,
+                                     search=SearchOptions(date_window_days=10)), ev)
+    assert r.status == "tradeoff_required"
+    text = " ".join(r.suggestions)
+    assert any(o.distance_to_science_km <= 20 for o in r.pareto_front + [r.best_for_science])
+    assert "No candidate is within" not in text
+    assert "No candidate meets the science minimum (needs to be within 0.2 km of" in text
+    # The suggested science minimum is rounded down, so following it never still fails.
+    import re
+    m = re.search(r"lower the science minimum to (\d\.\d\d)", text)
+    if m:
+        closest = max((o for o in r.pareto_front if o.meets_engineering), key=lambda o: o.science_score)
+        assert float(m.group(1)) <= closest.science_score + 1e-9
+
+
+def test_describe_violation_equal_rounded_values_use_one_decimal():
+    from app.models import Violation
+    from app.rescue.explain import describe_violation
+    v = Violation(constraint="min_earth_visibility_fraction", required=0.40, actual=0.396, unit="fraction",
+                  shortfall=0.004, relative_shortfall=0.01, message="m")
+    out = describe_violation(v)
+    assert "40.0%" in out and "39.6%" in out and "(needs at least 40.0%)" in out
+    v2 = v.model_copy(update={"actual": 0.35})
+    assert "35%" in describe_violation(v2) and ".0%" not in describe_violation(v2)

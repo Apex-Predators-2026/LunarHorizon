@@ -118,7 +118,7 @@ export function PlanForm() {
         <p className="text-slate-500">
           {site.description}
           {site.has_real_data
-            ? ' Real Horizons + LOLA data covers 2027-01-01 to 2029-01-01; missions outside that are reported as unknown.'
+            ? ` Real Horizons + LOLA data covers ${site.data_start_utc?.slice(0, 10)} to ${site.data_end_utc?.slice(0, 10)}; missions outside that are reported as unknown.`
             : ' No real data yet: results are unknown unless simulation mode is on.'}
         </p>
       )}
