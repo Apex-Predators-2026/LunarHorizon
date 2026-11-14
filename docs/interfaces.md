@@ -195,8 +195,12 @@ What rescue relies on:
 7. Each sample of evenly spaced data covers one time step (`[t, t + step)`). With
    `panel_threshold = 0`, the Sun still has to be at least partly visible to count as lit.
 
-Until Brandon's checker exists, `backend/app/rescue/viability/placeholder.py` implements
-this contract. To swap it, change one import in `backend/app/rescue/viability/__init__.py`.
+Rescue (and the comparison service, which imports the same name) uses the canonical engine
+through `app.viability.compat.rescue.evaluate_timeline`, set in
+`backend/app/rescue/viability/__init__.py`. The earlier placeholder (`placeholder.py`) is kept for
+reference and its own tests; its `CHECKS` table still words rescue's loosening suggestions.
+In rescue responses, `Alternative.rank_score`, `Robustness.worst_score`, `SensitivityPoint.score`
+and `SensitivityResponse.score_min/score_max` are `null` when the engine gave no score.
 
 ### Timelines from the data engine
 

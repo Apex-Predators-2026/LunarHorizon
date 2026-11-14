@@ -21,10 +21,10 @@
   },
   "passes": true,
   "eligibility": "pass",
-  "score": 86.58,
+  "score": 92.782369,
   "metrics": {
-   "sunlight_fraction": 0.7719940476190476,
-   "equivalent_sun_hours": 129.695,
+   "sunlight_fraction": 0.771294755952381,
+   "equivalent_sun_hours": 129.577519,
    "longest_dark_gap_hours": 3.0,
    "earth_visibility_fraction": 1.0,
    "longest_comms_gap_hours": 0.0,
@@ -32,12 +32,12 @@
    "initial_comms_hours": 168.0,
    "hours_to_first_sunset": 98.0,
    "hours_to_first_earthset": null,
-   "mean_sun_clearance_deg": 0.6030654761904761,
-   "mean_earth_clearance_deg": 4.939720238095238,
+   "mean_sun_clearance_deg": 0.5973630952380953,
+   "mean_earth_clearance_deg": 4.903130952380953,
    "mean_solar_elevation_deg": 0.6376547619047619
   },
   "violations": [],
-  "source": "placeholder-v1",
+  "source": "viability-engine/0.6.0-phase6",
   "data_source": "precomputed:peak-near-shackleton.json"
  },
  "points": [
@@ -48,7 +48,7 @@
    "lat": -89.01701,
    "lon": 126.27302,
    "passes": true,
-   "score": 87.31,
+   "score": 94.063329,
    "failing_constraints": []
   },
   {
@@ -58,7 +58,7 @@
    "lat": -89.01701,
    "lon": 126.27302,
    "passes": true,
-   "score": 86.21,
+   "score": 92.634272,
    "failing_constraints": []
   }
  ],
@@ -68,10 +68,10 @@
   -24.0,
   24.0
  ],
- "score_min": 86.21,
- "score_max": 87.31,
+ "score_min": 92.634272,
+ "score_max": 94.063329,
  "most_sensitive_constraint": null,
  "skipped_points": 4,
  "verdict": "robust",
- "explanation": "100% of tested date slips still pass. Safe window: -24 h to +24 h. 4 point(s) skipped: only synthetic data exists there (landing-position checks need terrain for points around the site)."
+ "explanation": "100% of tested date slips still pass. Safe window: -24 h to +24 h. 4 point(s) skipped: no real data there (landing-position checks need terrain for points around the site)."
 }
