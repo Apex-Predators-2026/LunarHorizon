@@ -67,9 +67,19 @@ export function zoomAbout(camera: CameraLike, target: THREE.Vector3, focus: THRE
   camera.updateMatrixWorld()
 }
 
+/** Rotate the camera (position, orientation, up) by `q` about the point `about`. */
+function rotateCameraAbout(camera: CameraLike, about: THREE.Vector3, q: THREE.Quaternion) {
+  camera.position.sub(about).applyQuaternion(q).add(about)
+  camera.quaternion.premultiply(q)
+  camera.up.applyQuaternion(q)
+  camera.updateMatrixWorld()
+}
+
 /**
  * Turn (heading, about the local vertical at `pivot`) and tilt (towards / away from straight down)
- * the camera around a point on the surface, keeping its distance and the horizon level.
+ * the camera around the surface point it is looking at, keeping its distance. The camera's own
+ * orientation turns with it (never re-aimed from scratch), so the view can't suddenly roll, even
+ * when looking straight down; a level horizon stays level.
  * Tilt stays between `minTilt` (looking almost straight down) and `maxTilt` (almost level), radians
  * from the vertical.
  */
@@ -83,20 +93,21 @@ export function orbitAbout(
   maxTilt = (85 * Math.PI) / 180,
 ) {
   const up = pivot.clone().sub(centre).normalize()
+  if (camera.position.distanceTo(pivot) === 0) return
+  // Heading: everything turns about the vertical through the pivot.
+  rotateCameraAbout(camera, pivot, new THREE.Quaternion().setFromAxisAngle(up, dHeading))
+  // Tilt: about the horizontal axis across the view, clamped.
   const offset = camera.position.clone().sub(pivot)
-  const dist = offset.length()
-  if (dist === 0) return
-  // Heading: spin the offset about the vertical.
-  offset.applyAxisAngle(up, dHeading)
-  // Tilt: angle between the offset and the vertical, clamped.
   const tilt = Math.acos(THREE.MathUtils.clamp(offset.clone().normalize().dot(up), -1, 1))
   const next = THREE.MathUtils.clamp(tilt + dTilt, minTilt, maxTilt)
   const side = new THREE.Vector3().crossVectors(up, offset)
-  if (side.lengthSq() < 1e-12) side.set(1, 0, 0).cross(up) // straight above: any horizontal axis
-  offset.applyAxisAngle(side.normalize(), next - tilt)
-  camera.position.copy(pivot).add(offset.setLength(dist))
-  camera.up.copy(up)
-  lookAt(camera, pivot)
+  if (side.lengthSq() < 1e-6 * offset.lengthSq()) {
+    // Straight above: tilt about the camera's own right-hand direction, made horizontal.
+    side.set(1, 0, 0).applyQuaternion(camera.quaternion)
+    side.addScaledVector(up, -side.dot(up))
+  }
+  if (side.lengthSq() === 0 || next === tilt) return
+  rotateCameraAbout(camera, pivot, new THREE.Quaternion().setFromAxisAngle(side.normalize(), next - tilt))
 }
 
 export const MAX_TILT = (85 * Math.PI) / 180
@@ -131,8 +142,10 @@ export function nadirAngle(camera: CameraLike, centre: THREE.Vector3): number {
 }
 
 /**
- * Pitch the camera in place (same position, horizon level) until it looks at most `limit` away
- * from straight down. True if it moved.
+ * Pitch the camera in place until it looks at most `limit` away from straight down. True if it
+ * moved. It turns by the smallest rotation that does this (about the axis across the view), so
+ * the view never rolls; re-aiming with a "level" up vector would be ill-defined when looking
+ * nearly straight down, and flipped the view between horizontal and vertical.
  */
 export function limitNadirAngle(camera: CameraLike, centre: THREE.Vector3, limit: number): boolean {
   const angle = nadirAngle(camera, centre)
@@ -141,9 +154,10 @@ export function limitNadirAngle(camera: CameraLike, centre: THREE.Vector3, limit
   const down = centre.clone().sub(camera.position).normalize()
   const axis = new THREE.Vector3().crossVectors(forward, down)
   if (axis.lengthSq() < 1e-12) return false // looking straight up: leave it
-  forward.applyAxisAngle(axis.normalize(), angle - limit)
-  camera.up.copy(down).negate()
-  lookAt(camera, camera.position.clone().add(forward))
+  const q = new THREE.Quaternion().setFromAxisAngle(axis.normalize(), angle - limit)
+  camera.quaternion.premultiply(q)
+  camera.up.applyQuaternion(q)
+  camera.updateMatrixWorld()
   return true
 }
 
@@ -167,7 +181,11 @@ export class GlobeNavigation extends THREE.EventDispatcher<{ change: object; sta
   }
   /** Aim the camera at `target` with the horizon level there (used after setting a view preset). */
   update() {
-    const up = this.target.distanceTo(this.centre) > 1 ? this.target.clone().sub(this.centre).normalize() : new THREE.Vector3(0, 1, 0)
+    // Level at the target, except where that is ill-defined (target near the Moon's centre, or
+    // looking along the vertical): then keep the camera's current roll rather than jump.
+    const forward = this.target.clone().sub(this.camera.position).normalize()
+    let up = this.target.distanceTo(this.centre) > 1000 ? this.target.clone().sub(this.centre).normalize() : new THREE.Vector3(0, 1, 0)
+    if (Math.abs(up.dot(forward)) > 0.995) up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.camera.quaternion)
     this.camera.up.copy(up)
     lookAt(this.camera, this.target)
     this.dispatchEvent({ type: 'change' })
