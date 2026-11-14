@@ -26,7 +26,9 @@ import {
   limitNadirAngle,
   lookAt,
   lookOffset,
+  MAX_TILT,
   maxNadirAngleAt,
+  maxTiltForNadir,
   nadirAngle,
   orbitAbout,
   raySphere,
@@ -327,7 +329,14 @@ export function GlobeControls({
         }
         changed()
       } else if (mode.kind === 'orbit') {
-        orbitAbout(camera, mode.pivot, n.centre, -dx * TURN_RAD_PER_PX, -dy * TURN_RAD_PER_PX)
+        // Tilt only as far as this height allows (straight down from far away): otherwise the tilt
+        // swings the camera round the pivot and the levelling then turns the view back, so the camera
+        // drifts and dives while the Moon slides off-centre. A tilt beyond the limit already (e.g.
+        // after a preset) is kept, just not increased.
+        const pivotRadius = mode.pivot.distanceTo(n.centre)
+        const allowed = maxTiltForNadir(maxNadirAngleAt(altitude()), pivotRadius, camera.position.distanceTo(mode.pivot))
+        const maxTilt = Math.max(allowed, tiltAt(camera, mode.pivot, n.centre))
+        orbitAbout(camera, mode.pivot, n.centre, -dx * TURN_RAD_PER_PX, -dy * TURN_RAD_PER_PX, 0.02, Math.min(MAX_TILT, maxTilt))
         n.target.copy(mode.pivot)
         relevel()
         changed()
