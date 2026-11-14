@@ -142,9 +142,30 @@ function Strip({
       <svg
         width={width}
         height={STRIP_H}
-        className="cursor-crosshair touch-none"
-        role="img"
-        aria-label="Sunlight and Earth visibility over the time window. Click to choose a time."
+        className="cursor-crosshair touch-none rounded focus-visible:outline-2 focus-visible:outline-coral"
+        role="slider"
+        tabIndex={0}
+        aria-label="Sunlight and Earth visibility over the time window. Click, drag, or use Left and Right arrow keys to choose a time."
+        aria-valuemin={win[0]}
+        aria-valuemax={win[1]}
+        aria-valuenow={now}
+        aria-valuetext={fmtTime(now)}
+        onKeyDown={(ev) => {
+          const stepMs = (ev.shiftKey ? 24 : 1) * HOUR_MS
+          if (ev.key === 'ArrowLeft') {
+            ev.preventDefault()
+            onSeek(Math.max(win[0], now - stepMs))
+          } else if (ev.key === 'ArrowRight') {
+            ev.preventDefault()
+            onSeek(Math.min(win[1], now + stepMs))
+          } else if (ev.key === 'Home') {
+            ev.preventDefault()
+            onSeek(win[0])
+          } else if (ev.key === 'End') {
+            ev.preventDefault()
+            onSeek(win[1])
+          }
+        }}
         onPointerDown={(ev) => {
           dragging.current = true
           ev.currentTarget.setPointerCapture(ev.pointerId)
@@ -276,12 +297,12 @@ export function TimeBar({
         </button>
       )}
       <div className="mb-2 flex flex-wrap items-center gap-2 pr-10">
-        <button type="button" className={btn} onClick={() => step(-windowDays * 24)} data-tip="Previous window">⏮</button>
-        <button type="button" className={btn} onClick={() => step(-24)}>−1 d</button>
-        <button type="button" className={btn} onClick={() => step(-1)}>−1 h</button>
-        <button type="button" className={btn} onClick={() => step(1)}>+1 h</button>
-        <button type="button" className={btn} onClick={() => step(24)}>+1 d</button>
-        <button type="button" className={btn} onClick={() => step(windowDays * 24)} data-tip="Next window">⏭</button>
+        <button type="button" className={btn} onClick={() => step(-windowDays * 24)} aria-label={`Previous ${windowDays}-day window`} data-tip="Previous window">⏮</button>
+        <button type="button" className={btn} onClick={() => step(-24)} aria-label="Step back 1 day" data-tip="Back 1 day">−1 d</button>
+        <button type="button" className={btn} onClick={() => step(-1)} aria-label="Step back 1 hour" data-tip="Back 1 hour">−1 h</button>
+        <button type="button" className={btn} onClick={() => step(1)} aria-label="Step forward 1 hour" data-tip="Forward 1 hour">+1 h</button>
+        <button type="button" className={btn} onClick={() => step(24)} aria-label="Step forward 1 day" data-tip="Forward 1 day">+1 d</button>
+        <button type="button" className={btn} onClick={() => step(windowDays * 24)} aria-label={`Next ${windowDays}-day window`} data-tip="Next window">⏭</button>
         <label className="ml-2 flex items-center gap-2 text-slate-400">
           Speed
           <select className={select} value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
