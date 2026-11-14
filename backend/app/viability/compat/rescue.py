@@ -12,7 +12,7 @@ module provides exactly that signature on top of ``app.viability.engine.evaluate
 No viability quantity is computed here: every metric, constraint result and score comes
 from the canonical engine. This module only converts units and shapes.
 
-STATUS: the canonical engine raises ``NotImplementedError`` until Phases 2-6 exist, so
+STATUS: the canonical engine raises ``NotImplementedError`` until Phases 3-6 exist, so
 ``evaluate_timeline`` is NOT yet usable end-to-end. Rescue keeps using its placeholder; to
 switch later, change the import in ``app/rescue/viability/__init__.py`` (Member 5's file).
 
@@ -34,7 +34,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 from pydantic import ValidationError
@@ -172,11 +172,23 @@ def _classify_source(source: str) -> _SourceInfo:
     raise RescueCompatError(f"unrecognised timeline source {source!r}; cannot tell real from synthetic data")
 
 
-def timeline_to_series(timeline: Timeline, *, max_gap_factor: float = DEFAULT_MAX_GAP_FACTOR) -> ScientificTimeSeries:
+def timeline_to_series(
+    timeline: Timeline,
+    *,
+    max_gap_factor: float = DEFAULT_MAX_GAP_FACTOR,
+    mission_end_utc: datetime | None = None,
+) -> ScientificTimeSeries:
     """Rescue ``Timeline`` (numpy arrays) -> validated ``ScientificTimeSeries``.
 
     Uses the same per-sample converters as the site-file adapter, so null/NaN, 360-degree
     azimuths, partial disks and inconsistencies are handled identically.
+
+    Coverage ends at the last sample, unless ``mission_end_utc`` is exactly one step after
+    it. That is rescue's documented layout (``Evaluator.evaluate_many`` passes
+    ``duration * 24`` hourly samples starting at landing, each the start of a one-step bin,
+    and rescue states the timeline covers the mission). Coverage then ends at mission end,
+    so under sample-and-hold the final bin is represented instead of becoming unknown. Any
+    other layout is left as is: coverage is never extended by more than one step or on a guess.
     """
     info = _classify_source(timeline.source)
     if not timeline.step_hours > 0:
@@ -208,12 +220,23 @@ def timeline_to_series(timeline: Timeline, *, max_gap_factor: float = DEFAULT_MA
 
     step_s = timeline.step_hours * _HOUR_S
     sid = internal_site_id(site.id)
+    coverage_end = times[-1]
+    bin_note = "Coverage ends at the last sample (no bin layout assumed)."
+    if mission_end_utc is not None:
+        if mission_end_utc.tzinfo is None:
+            raise RescueCompatError("mission_end_utc must be timezone-aware UTC")
+        end = mission_end_utc.astimezone(UTC)
+        if end - times[-1] == timedelta(seconds=step_s):
+            coverage_end = end
+            bin_note = (
+                "Coverage extended by one step to mission end: rescue's bin layout (last sample = mission end - step)."
+            )
     payload = {
         "dataset_id": internal_site_id(f"rescue_{sid}_{times[0]:%Y%m%dT%H%M}_{n}"),
         "site": {"id": sid, "name": site.name.strip() or site.id, "lat": site.lat, "lon": lon},
         "observer_height_m": None,  # not carried by rescue's Timeline
         "coverage_start_utc": times[0],
-        "coverage_end_utc": times[-1],
+        "coverage_end_utc": coverage_end,
         "calculation_basis": CalculationBasis.TERRAIN_AWARE,
         "angle_type": info.angle_type,
         "sun_criterion": VisibilityCriterion.APPARENT_DISK,
@@ -228,7 +251,7 @@ def timeline_to_series(timeline: Timeline, *, max_gap_factor: float = DEFAULT_MA
             "notes": (
                 f"Converted by {COMPAT_VERSION} from rescue Timeline (source={timeline.source!r}, "
                 f"site.id={site.id!r}, site.lon={site.lon}). Rescue samples are hourly bins starting "
-                "at landing; the last sample is one step before mission end."
+                f"at landing; the last sample is one step before mission end. {bin_note}"
             ),
         },
         "samples": samples,
@@ -399,12 +422,13 @@ def evaluate_timeline_detailed(
     scenario: Scenario, timeline: Timeline, *, engine: Engine = evaluate_scenario
 ) -> tuple[ViabilityResult, ViabilityAssessment]:
     """Rescue result plus the full canonical assessment (with PASS/FAIL/UNKNOWN intact)."""
-    assessment = engine(scenario_to_mission(scenario), timeline_to_series(timeline))
+    mission = scenario_to_mission(scenario)
+    assessment = engine(mission, timeline_to_series(timeline, mission_end_utc=mission.mission_end_utc))
     return assessment_to_result(assessment, scenario, timeline.source), assessment
 
 
 def evaluate_timeline(scenario: Scenario, timeline: Timeline, *, engine: Engine = evaluate_scenario) -> ViabilityResult:
-    """Drop-in for rescue's ``evaluate_timeline``. Raises NotImplementedError until Phase 2-6."""
+    """Drop-in for rescue's ``evaluate_timeline``. Raises NotImplementedError until Phases 3-6."""
     return evaluate_timeline_detailed(scenario, timeline, engine=engine)[0]
 
 

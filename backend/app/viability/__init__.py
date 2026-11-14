@@ -4,6 +4,7 @@ Independent of the frontend, NASA APIs, 3D rendering and optimisation search.
 Consumers import contracts from here; see docs/viability-engine.md.
 """
 
+from .analysis import analyze_environment, analyze_scenario
 from .conventions import SCHEMA_VERSION
 from .engine import ENGINE_VERSION, evaluate_scenario
 from .enums import (
@@ -11,12 +12,15 @@ from .enums import (
     Body,
     CalculationBasis,
     CommunicationMode,
+    Condition,
+    ConditionState,
     ConstraintId,
     ConstraintStatus,
     Eligibility,
     MetricStatus,
     PowerSource,
     RiskLevel,
+    SamplingPolicy,
     UnknownDataPolicy,
     VisibilityCriterion,
     VisibilityState,
@@ -39,8 +43,10 @@ from .mission import (
     SpacecraftConfiguration,
 )
 from .outputs import (
+    ConditionSummary,
     ConstraintEvaluation,
     DataQualitySummary,
+    EnvironmentAnalysis,
     Explanation,
     Metric,
     MetricsSummary,
@@ -53,6 +59,7 @@ from .outputs import (
     VisibilityWindow,
     derive_eligibility,
 )
+from .windows import PreparedSeries, extract_windows, prepare_series
 
 __all__ = [
     "ENGINE_VERSION",
@@ -62,11 +69,15 @@ __all__ = [
     "BodyObservation",
     "CalculationBasis",
     "CommunicationMode",
+    "Condition",
+    "ConditionState",
+    "ConditionSummary",
     "ConstraintEvaluation",
     "ConstraintId",
     "ConstraintStatus",
     "DataQualitySummary",
     "Eligibility",
+    "EnvironmentAnalysis",
     "Explanation",
     "HorizonProfile",
     "LandingSite",
@@ -77,6 +88,7 @@ __all__ = [
     "MissionScenario",
     "OperationalMargin",
     "PowerSource",
+    "PreparedSeries",
     "Provenance",
     "RankedScenario",
     "RankingPreferences",
@@ -84,6 +96,7 @@ __all__ = [
     "RiskIndicator",
     "RiskLevel",
     "SamplingInfo",
+    "SamplingPolicy",
     "ScientificSample",
     "ScientificTimeSeries",
     "ScoreBreakdown",
@@ -95,6 +108,10 @@ __all__ = [
     "VisibilityState",
     "VisibilityWindow",
     "WindowKind",
+    "analyze_environment",
+    "analyze_scenario",
     "derive_eligibility",
     "evaluate_scenario",
+    "extract_windows",
+    "prepare_series",
 ]

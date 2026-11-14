@@ -33,6 +33,8 @@ from pydantic import (
 )
 
 SCHEMA_VERSION = "0.1.0-draft"
+# Version of the viability computations (re-exported by engine.py). Phase 2 = windows/metrics.
+ENGINE_VERSION = "0.2.0-phase2"
 
 # Sanity cap on a single mission window. Not a physical limit; guards against typos.
 MAX_MISSION_DURATION_S = 10 * 365.25 * 86400.0
@@ -41,7 +43,10 @@ MAX_MISSION_DURATION_S = 10 * 365.25 * 86400.0
 def _reject_numeric_timestamp(value: Any) -> Any:
     # Epoch numbers are ambiguous (s vs ms) and carry no explicit zone; require ISO 8601.
     if isinstance(value, (int, float)):
-        raise ValueError("numeric timestamps are not accepted; use ISO 8601 UTC, e.g. '2027-01-01T00:00:00Z'")
+        # ValueError (not TypeError): pydantic turns only ValueError into a ValidationError.
+        raise ValueError(  # noqa: TRY004
+            "numeric timestamps are not accepted; use ISO 8601 UTC, e.g. '2027-01-01T00:00:00Z'"
+        )
     return value
 
 

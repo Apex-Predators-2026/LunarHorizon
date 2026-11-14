@@ -111,12 +111,57 @@ class Unit(StrEnum):
 
 
 class WindowKind(StrEnum):
-    SUNLIGHT = "sunlight"
-    DARKNESS = "darkness"
-    EARTH_VISIBLE = "earth_visible"
-    COMMUNICATION_BLACKOUT = "communication_blackout"
-    SIMULTANEOUS_SUN_EARTH = "simultaneous_sun_earth"
-    UNKNOWN_DATA = "unknown_data"
+    """Kinds of maximal intervals reported by the window analysis (Phase 2).
+
+    Every kind except UNKNOWN_DATA is a confirmed or unknown state of one ``Condition``
+    (see ``windows.WINDOW_KINDS``). Unknown periods are never folded into darkness/blackout.
+    """
+
+    SUNLIGHT = "sunlight"  # any part of the solar disk visible (direct sunlight)
+    DARKNESS = "darkness"  # confirmed: no direct sunlight
+    FULL_SUNLIGHT = "full_sunlight"  # whole solar disk visible
+    PARTIAL_SUNLIGHT = "partial_sunlight"  # part of the solar disk visible
+    POWER_LIT = "power_lit"  # visible disk fraction meets the spacecraft threshold
+    POWER_DARK = "power_dark"  # confirmed: below the threshold (power-dark)
+    EARTH_VISIBLE = "earth_visible"  # direct-to-Earth line-of-sight opportunity
+    COMMUNICATION_BLACKOUT = "communication_blackout"  # confirmed: Earth obstructed
+    SIMULTANEOUS_SUN_EARTH = "simultaneous_sun_earth"  # power-lit AND Earth visible
+    SUN_UNKNOWN = "sun_unknown"  # Sun state unknown (missing data or coverage gap)
+    POWER_UNKNOWN = "power_unknown"
+    EARTH_UNKNOWN = "earth_unknown"
+    SIMULTANEOUS_UNKNOWN = "simultaneous_unknown"
+    UNKNOWN_DATA = "unknown_data"  # no sample represents this time (gap / outside coverage)
+
+
+class SamplingPolicy(StrEnum):
+    """How instantaneous samples are turned into time intervals (see windows.py).
+
+    Neither policy interpolates: transition times are resolved only to the sample spacing.
+    """
+
+    # Sample i holds over [t_i, t_{i+1}). Team convention (Member 1 ``intervals()``,
+    # Member 5 hourly bins). Transitions are reported up to one spacing late.
+    SAMPLE_HOLD = "sample_hold"
+    # Sample i holds from the midpoint with its predecessor to the midpoint with its
+    # successor. Symmetric; transition timing error at most half a spacing.
+    NEAREST_SAMPLE = "nearest_sample"
+
+
+class Condition(StrEnum):
+    """Binary operational conditions evaluated over a mission (tri-state per instant)."""
+
+    DIRECT_SUNLIGHT = "direct_sunlight"  # any part of the solar disk visible
+    FULL_SUNLIGHT = "full_sunlight"  # entire solar disk visible
+    PARTIAL_SUNLIGHT = "partial_sunlight"  # some but not all of the solar disk visible
+    POWER_ELIGIBLE = "power_eligible"  # disk fraction meets solar_power_min_disk_fraction
+    EARTH_VISIBLE = "earth_visible"  # direct-to-Earth line-of-sight opportunity
+    SIMULTANEOUS = "simultaneous"  # POWER_ELIGIBLE and EARTH_VISIBLE at the same time
+
+
+class ConditionState(StrEnum):
+    MET = "met"
+    NOT_MET = "not_met"
+    UNKNOWN = "unknown"
 
 
 class RiskLevel(StrEnum):

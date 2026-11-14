@@ -34,12 +34,15 @@ from .conventions import (
 from .enums import (
     AngleType,
     CalculationBasis,
+    Condition,
+    ConditionState,
     ConstraintId,
     ConstraintStatus,
     Eligibility,
     ExplanationCategory,
     MetricStatus,
     RiskLevel,
+    SamplingPolicy,
     ScoreComponent,
     Severity,
     Unit,
@@ -134,26 +137,42 @@ class VisibilityWindow(ContractModel):
 
 
 class MetricsSummary(ContractModel):
-    sunlight_duration: Metric  # whole disk (or centre, per criterion) visible
-    partial_sunlight_duration: Metric  # apparent_disk only; NOT_APPLICABLE for centre criterion
+    """Assessment-level metrics over the evaluated range (definitions: docs §5b).
+
+    Durations are time-weighted under the stated ``SamplingPolicy``; percentages use the whole
+    evaluated range as denominator, so unknown time widens the bounds instead of shrinking the
+    denominator. "Power-lit" uses ``spacecraft.solar_power_min_disk_fraction`` when set, and
+    otherwise equals direct sunlight (any part of the disk visible).
+    """
+
+    sunlight_duration: Metric  # direct sunlight: any part of the solar disk visible
     sunlight_percent: Metric
-    earth_visible_duration: Metric
+    full_sunlight_duration: Metric  # whole solar disk visible
+    full_sunlight_percent: Metric
+    partial_sunlight_duration: Metric  # part of the disk visible (0 < fraction < 1)
+    partial_sunlight_percent: Metric
+    power_lit_duration: Metric  # threshold-qualified illumination (see class docstring)
+    power_lit_percent: Metric
+    earth_visible_duration: Metric  # direct-to-Earth line-of-sight opportunity (geometric)
     earth_visible_percent: Metric
-    simultaneous_duration: Metric
+    simultaneous_duration: Metric  # power-lit AND Earth visible
     simultaneous_percent: Metric
-    # "Darkness" means power-dark when spacecraft.solar_power_min_disk_fraction is set.
+    longest_simultaneous_window: Metric
+    # "Darkness" means power-dark (below the threshold) when the threshold is set; otherwise
+    # it equals longest_without_direct_sunlight.
     longest_continuous_darkness: Metric
+    longest_without_direct_sunlight: Metric
     longest_communication_blackout: Metric
     mean_solar_disk_fraction: Metric  # time-average of visible_fraction (unit: fraction)
     initial_sunlight_duration: Metric  # continuous power-lit time from evaluated start
     initial_earth_visibility_duration: Metric  # continuous Earth visibility from evaluated start
-    # Time from evaluated start to the first lit->dark (visible->blocked) transition.
-    # NOT_APPLICABLE (with reason) when no such transition occurs within the range.
+    # Time from evaluated start to the first power-lit->dark (visible->blocked) transition.
+    # NOT_APPLICABLE when no such transition occurs within the range.
     time_to_first_sunset: Metric
     time_to_first_earthset: Metric
-    mean_sun_clearance: Metric  # mean (elevation - horizon) while the Sun counts as visible
-    mean_earth_clearance: Metric  # mean (elevation - horizon) while the Earth is visible
-    mean_solar_elevation: Metric  # mean Sun elevation above the local horizontal plane
+    mean_sun_clearance: Metric  # time-mean (elevation - horizon) while in direct sunlight
+    mean_earth_clearance: Metric  # time-mean (elevation - horizon) while the Earth is visible
+    mean_solar_elevation: Metric  # time-mean Sun elevation above the local horizontal plane
 
 
 class ConstraintEvaluation(ContractModel):
@@ -223,10 +242,86 @@ class DataQualitySummary(ContractModel):
     angle_type: AngleType
     sun_criterion: VisibilityCriterion
     earth_criterion: VisibilityCriterion
-    sample_count: int = Field(ge=0, strict=True)
-    largest_sample_gap_s: DurationS | None  # None when fewer than two samples
+    sampling_policy: SamplingPolicy
+    evaluated_duration_s: DurationS
+    sample_count: int = Field(ge=0, strict=True)  # samples that represent part of the range
+    # Largest spacing between consecutive samples spanning the range; None if < 2 samples.
+    largest_sample_gap_s: DurationS | None
+    uncovered_duration_s: DurationS  # range time no sample represents (gaps, outside coverage)
+    coverage_gap_count: int = Field(ge=0, strict=True)  # maximal uncovered intervals in range
+    sun_unknown_duration_s: DurationS  # uncovered time + samples with unknown Sun state
+    earth_unknown_duration_s: DurationS
     sun_coverage_percent: Percent  # share of evaluated range with a known Sun state
     earth_coverage_percent: Percent
+    assumptions: list[NonEmptyStr] = Field(default_factory=list)  # e.g. sampling rule used
+    warnings: list[NonEmptyStr] = Field(default_factory=list)  # data issues found in range
+
+
+class ConditionSummary(ContractModel):
+    """Phase 2 time-series statistics of one ``Condition`` over the evaluated range.
+
+    Durations are KNOWN when no part of the range has an unknown state for this condition,
+    BOUNDED otherwise (unknown time counted as not met for ``lower`` and as met for ``upper``),
+    and UNAVAILABLE when the condition is unknown over the whole range. Window counts include
+    only confirmed windows; unknown periods may hide or merge further windows.
+    """
+
+    condition: Condition
+    definition: NonEmptyStr  # the rule used, in words
+    met_duration: Metric
+    not_met_duration: Metric
+    unknown_duration_s: DurationS
+    met_percent: Metric
+    initial_state: ConditionState  # state at the evaluated start (e.g. right after landing)
+    initial_met_duration: Metric  # continuous met time from the evaluated start
+    time_to_first_transition: Metric  # first change of state after the evaluated start
+    time_to_first_loss: Metric  # first met -> not-met transition (sunset / Earthset)
+    longest_met: Metric
+    longest_met_window: VisibilityWindow | None  # longest confirmed met window
+    longest_not_met: Metric  # longest outage
+    longest_not_met_window: VisibilityWindow | None  # longest confirmed outage
+    met_window_count: int = Field(ge=0, strict=True)
+    not_met_window_count: int = Field(ge=0, strict=True)
+    not_met_windows_per_day: NonNegativeFloat  # confirmed outages per 86 400 s of range
+
+
+class EnvironmentAnalysis(ContractModel):
+    """Phase 2 result: sunlight / Earth-visibility analysis of one site over one time range.
+
+    It contains no pass/fail verdict, risk level or score (Phases 3-5).
+    """
+
+    schema_version: str = SCHEMA_VERSION
+    engine_version: NonEmptyStr
+    site: LandingSite
+    evaluated_start_utc: UTCDatetime
+    evaluated_end_utc: UTCDatetime
+    solar_power_min_disk_fraction: Fraction | None
+    metrics: MetricsSummary
+    conditions: list[ConditionSummary]
+    windows: list[VisibilityWindow]
+    data_quality: DataQualitySummary
+
+    @model_validator(mode="after")
+    def _invariants(self) -> Self:
+        if self.evaluated_end_utc <= self.evaluated_start_utc:
+            raise ValueError("evaluated_end_utc must be after evaluated_start_utc")
+        kinds = [c.condition for c in self.conditions]
+        if len(kinds) != len(set(kinds)):
+            raise ValueError("each condition may appear at most once")
+        for w in self.windows:
+            if w.start_utc < self.evaluated_start_utc or w.end_utc > self.evaluated_end_utc:
+                raise ValueError("all windows must lie within the evaluated range")
+        return self
+
+    def condition(self, condition: Condition) -> ConditionSummary:
+        for c in self.conditions:
+            if c.condition is condition:
+                return c
+        raise KeyError(condition)
+
+    def windows_of(self, kind: WindowKind) -> list[VisibilityWindow]:
+        return [w for w in self.windows if w.kind is kind]
 
 
 class ViabilityAssessment(ContractModel):

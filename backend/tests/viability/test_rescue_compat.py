@@ -1,8 +1,9 @@
 """Compatibility between Mission Rescue (Member 5) and the canonical viability contract.
 
 Inputs use rescue's own types and providers (synthetic placeholder + real precomputed files).
-Outputs are hand-built canonical assessments: the canonical engine (Phases 2-6) does not exist
+Outputs are hand-built canonical assessments: the full canonical engine (Phases 3-6) does not exist
 yet, so end-to-end tests use a TEST DOUBLE engine, clearly labelled, to exercise the plumbing.
+Phase 2 metrics are compared directly against rescue's placeholder on the same timelines.
 """
 
 from __future__ import annotations
@@ -23,8 +24,10 @@ from app.rescue.explain import why_fails
 from app.rescue.timeline import PrecomputedTimelineProvider, SyntheticTimelineProvider, Timeline
 from app.rescue.viability import CHECK_BY_CONSTRAINT
 from app.rescue.viability import evaluate_timeline as rescue_default_evaluate
+from app.rescue.viability.placeholder import compute_metrics as placeholder_compute_metrics
 from app.rescue.viability.placeholder import evaluate_timeline as placeholder_evaluate
 from app.viability.adapters import load_site_file
+from app.viability.analysis import analyze_scenario
 from app.viability.compat.rescue import (
     CONSTRAINT_TO_RESCUE,
     SOURCE,
@@ -42,6 +45,7 @@ from app.viability.enums import (
     ConstraintId,
     ConstraintStatus,
     Eligibility,
+    MetricStatus,
     PowerSource,
     RiskLevel,
     Unit,
@@ -53,13 +57,14 @@ from app.viability.mission import MissionScenario
 from app.viability.outputs import (
     ConstraintEvaluation,
     DataQualitySummary,
+    EnvironmentAnalysis,
     Metric,
     ScoreBreakdown,
     ViabilityAssessment,
     derive_eligibility,
 )
 
-from .helpers import unavailable_metrics
+from .helpers import full_coverage_quality_fields, unavailable_metrics
 
 V, P, NV, U = VisibilityState.VISIBLE, VisibilityState.PARTIAL, VisibilityState.NOT_VISIBLE, VisibilityState.UNKNOWN
 H = 3600.0
@@ -132,10 +137,7 @@ def _assessment(
             angle_type=series.angle_type,
             sun_criterion=series.sun_criterion,
             earth_criterion=series.earth_criterion,
-            sample_count=len(series.samples),
-            largest_sample_gap_s=3600.0,
-            sun_coverage_percent=100.0,
-            earth_coverage_percent=100.0,
+            **full_coverage_quality_fields(len(series.samples), mission.duration_s),
         ),
         limitations=list(STANDARD_LIMITATIONS),
     )
@@ -417,7 +419,7 @@ def test_every_mapped_constraint_is_known_to_rescue() -> None:
 
 
 def test_real_engine_not_available_yet(pns: Scenario) -> None:
-    with pytest.raises(NotImplementedError, match="Phases 2-6"):
+    with pytest.raises(NotImplementedError, match="Phases 3-6"):
         evaluate_timeline(pns, _synthetic_timeline(pns))
 
 
@@ -446,3 +448,95 @@ def test_rescue_evaluator_runs_through_compat_layer_with_test_double(pns: Scenar
     reasons = why_fails(result)  # rescue's own explanation code accepts the result
     assert len(reasons) == 6 and all(r.startswith("UNKNOWN") for r in reasons)
     json.loads(result.model_dump_json())
+
+
+# --- Phase 2: sampling semantics through the compat layer ----------------------------------
+
+
+def test_bin_layout_extends_coverage_by_exactly_one_step(pns: Scenario) -> None:
+    tl = _synthetic_timeline(pns)
+    end = LANDING + timedelta(days=7)
+    assert timeline_to_series(tl).coverage_end_utc == end - timedelta(hours=1)  # default: faithful
+    s = timeline_to_series(tl, mission_end_utc=end)
+    assert s.coverage_end_utc == end
+    assert "extended by one step" in (s.provenance.notes or "")
+    # Any other layout is left alone (never extended by more than one step or on a guess).
+    assert timeline_to_series(tl, mission_end_utc=end + timedelta(hours=1)).coverage_end_utc == end - timedelta(hours=1)
+    with pytest.raises(RescueCompatError, match="timezone-aware"):
+        timeline_to_series(tl, mission_end_utc=end.replace(tzinfo=None))
+
+
+def test_rescue_mission_has_no_unknown_last_hour(pns: Scenario) -> None:
+    tl = _synthetic_timeline(pns)
+    mission = scenario_to_mission(pns)
+    a = analyze_scenario(mission, timeline_to_series(tl, mission_end_utc=mission.mission_end_utc))
+    assert a.data_quality.uncovered_duration_s == 0.0 and a.data_quality.sample_count == 168
+    # Without the bin rule the final hour would be unknown and every metric merely bounded.
+    b = analyze_scenario(mission, timeline_to_series(tl))
+    assert b.data_quality.uncovered_duration_s == 3600.0
+
+
+def test_engine_receives_bin_extended_series(pns: Scenario) -> None:
+    seen: list[ScientificTimeSeries] = []
+
+    class Captured(Exception):
+        pass
+
+    def spy(mission: MissionScenario, series: ScientificTimeSeries) -> ViabilityAssessment:
+        seen.append(series)
+        raise Captured
+
+    with pytest.raises(Captured):
+        evaluate_timeline(pns, _synthetic_timeline(pns), engine=spy)
+    assert seen[0].coverage_end_utc == LANDING + timedelta(days=7)
+
+
+def _canonical_as_placeholder(a: EnvironmentAnalysis) -> dict[str, float | None]:
+    m = a.metrics
+
+    def h(x: Metric) -> float | None:
+        if x.status is MetricStatus.NOT_APPLICABLE:
+            return None
+        assert x.status is MetricStatus.KNOWN and x.value is not None
+        return x.value / 3600.0
+
+    def deg(x: Metric) -> float | None:
+        return x.value if x.status is MetricStatus.KNOWN else None
+
+    assert m.earth_visible_percent.value is not None
+    return {
+        "sunlight_fraction": m.mean_solar_disk_fraction.value,
+        "longest_dark_gap_hours": h(m.longest_continuous_darkness),
+        "earth_visibility_fraction": m.earth_visible_percent.value / 100.0,
+        "longest_comms_gap_hours": h(m.longest_communication_blackout),
+        "initial_sun_hours": h(m.initial_sunlight_duration),
+        "initial_comms_hours": h(m.initial_earth_visibility_duration),
+        "hours_to_first_sunset": h(m.time_to_first_sunset),
+        "hours_to_first_earthset": h(m.time_to_first_earthset),
+        "mean_sun_clearance_deg": deg(m.mean_sun_clearance),
+        "mean_earth_clearance_deg": deg(m.mean_earth_clearance),
+        "mean_solar_elevation_deg": m.mean_solar_elevation.value,
+    }
+
+
+@pytest.mark.parametrize("site_id", ["connecting-ridge", "malapert-massif", "peak-near-shackleton"])
+@pytest.mark.parametrize("day", [0, 61, 200, 333, 512, 700])
+def test_phase2_metrics_match_rescue_placeholder_on_real_data(site_id: str, day: int) -> None:
+    """Section 5a item 6: same timelines, same numbers (panel_threshold 0.25 > 0, see item 3)."""
+    provider = PrecomputedTimelineProvider(fallback=SyntheticTimelineProvider(), data_dir=SITES_DIR)
+    landing = datetime(2027, 1, 1, tzinfo=UTC) + timedelta(days=day)
+    sc = Scenario(site=get_site(site_id).to_site(), landing_utc=landing, duration_days=14)
+    n = 14 * 24
+    tl = provider.timeline(sc.site, landing, landing + timedelta(hours=n - 1), 1.0).slice(0, n)
+    assert tl.source.startswith("precomputed:")
+    mission = scenario_to_mission(sc)
+    ours = _canonical_as_placeholder(
+        analyze_scenario(mission, timeline_to_series(tl, mission_end_utc=mission.mission_end_utc))
+    )
+    theirs = placeholder_compute_metrics(tl, sc.requirements).model_dump()
+    for key, value in ours.items():
+        expected = theirs[key]
+        if expected is None or value is None:
+            assert value is None and expected is None, key
+        else:
+            assert value == pytest.approx(expected, rel=1e-12, abs=1e-12), key
