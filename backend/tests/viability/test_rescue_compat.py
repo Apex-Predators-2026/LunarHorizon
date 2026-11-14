@@ -36,6 +36,7 @@ from app.viability.compat.rescue import (
     assessment_to_result,
     constraint_to_violation,
     evaluate_timeline,
+    evaluate_timeline_detailed,
     internal_site_id,
     make_evaluate_fn,
     precomputed_dataset_end,
@@ -48,6 +49,7 @@ from app.viability.enums import (
     CommunicationMode,
     ConstraintId,
     ConstraintStatus,
+    DataBasis,
     Eligibility,
     MetricStatus,
     PowerSource,
@@ -119,6 +121,8 @@ def _assessment(
     metrics: dict[str, Metric] | None = None,
 ) -> ViabilityAssessment:
     eligibility = derive_eligibility(c.status for c in constraints)
+    if eligibility is Eligibility.UNKNOWN:
+        score = None  # contract invariant (docs §5e, D4): UNKNOWN eligibility is never scored
     return ViabilityAssessment(
         engine_version="test-double",
         scenario_id=mission.scenario_id,
@@ -230,8 +234,9 @@ def test_naive_landing_follows_shared_model_policy() -> None:
     # an equivalent aware time arrives as UTC.
     with pytest.raises(ValueError, match="timezone"):
         Scenario(site=get_site("peak-near-shackleton").to_site(), landing_utc=datetime(2027, 1, 7), duration_days=7)
-    s = Scenario(site=get_site("peak-near-shackleton").to_site(), landing_utc=datetime(2027, 1, 7, tzinfo=UTC),
-                 duration_days=7)
+    s = Scenario(
+        site=get_site("peak-near-shackleton").to_site(), landing_utc=datetime(2027, 1, 7, tzinfo=UTC), duration_days=7
+    )
     assert scenario_to_mission(s).mission_start_utc == LANDING
 
 
@@ -466,9 +471,16 @@ def test_every_mapped_constraint_is_known_to_rescue() -> None:
 # --- integration with rescue's own code ---------------------------------------------------
 
 
-def test_real_engine_not_available_yet(pns: Scenario) -> None:
-    with pytest.raises(NotImplementedError, match="Phases 3-6"):
-        evaluate_timeline(pns, _synthetic_timeline(pns))
+def test_real_engine_runs_end_to_end_through_compat_layer(pns: Scenario) -> None:
+    """Phase 5 integration: evaluate_scenario exists, so the compat default engine is the real one. The
+    timeline here is SYNTHETIC (and labelled so by data_source); this only checks the interface."""
+    result, assessment = evaluate_timeline_detailed(pns, _synthetic_timeline(pns))
+    assert result.source.startswith("viability-engine/") and result.data_source == "synthetic-placeholder"
+    assert result.eligibility == assessment.eligibility.value and result.passes == (
+        assessment.eligibility.value == "pass"
+    )
+    assert result.score == assessment.score.score  # exact score or None, never a bound
+    assert assessment.data_basis is DataBasis.SYNTHETIC
 
 
 def test_rescue_still_uses_its_placeholder() -> None:
@@ -484,8 +496,9 @@ def test_rescue_evaluator_runs_through_compat_layer_with_test_double(pns: Scenar
         cons = _all_constraints({cid: ConstraintStatus.UNKNOWN for cid in CONSTRAINT_TO_RESCUE})
         return _assessment(mission, series, cons, score=None, metrics=KNOWN_GOOD)
 
-    ev = Evaluator(provider=SyntheticTimelineProvider(), evaluate=make_evaluate_fn(test_double_engine),
-                   simulation=True)  # synthetic data must be opted into explicitly
+    ev = Evaluator(
+        provider=SyntheticTimelineProvider(), evaluate=make_evaluate_fn(test_double_engine), simulation=True
+    )  # synthetic data must be opted into explicitly
     result = ev.evaluate(pns)
 
     ((mission, series),) = calls

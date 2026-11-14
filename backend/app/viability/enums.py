@@ -199,6 +199,51 @@ class ScoreComponent(StrEnum):
     CLEARANCE_MARGIN = "clearance_margin"
 
 
+class ScoreComponentStatus(StrEnum):
+    """Why a score component does or does not take part in the score (Phase 5; docs §5e).
+
+    Decided from the scenario configuration only (preferences, spacecraft limits, engine
+    version), never from the measurements. Checked in this order: UNSUPPORTED, NOT_CONFIGURED,
+    ZERO_WEIGHT, ACTIVE.
+    """
+
+    ACTIVE = "active"  # definable and weight > 0: part of the score
+    ZERO_WEIGHT = "zero_weight"  # definable, but its preference weight is 0
+    NOT_CONFIGURED = "not_configured"  # needs a limit the scenario does not set (e.g. no darkness limit)
+    UNSUPPORTED = "unsupported"  # this engine version cannot evaluate it (clearance)
+
+
+class ScoreStatus(StrEnum):
+    """State of a desirability score (Phase 5; docs §5e). A missing score is never zero."""
+
+    KNOWN = "known"  # exact score in ``score`` (and ``score_bounds`` as a KNOWN metric)
+    BOUNDED = "bounded"  # data partly unknown: ``score`` is null, ``score_bounds`` = [lower, upper]
+    ELIGIBILITY_UNKNOWN = "eligibility_unknown"  # not scored because eligibility is UNKNOWN
+    NO_SCORABLE_COMPONENTS = "no_scorable_components"  # no ACTIVE component under this configuration
+
+
+class DataBasis(StrEnum):
+    """Scientific basis of an assessment, derived from ``DataQualitySummary`` (docs §5e).
+
+    Scenarios with different data bases are never ranked together, under any policy.
+    """
+
+    REAL_TERRAIN_AWARE = "real_terrain_aware"  # NASA-derived geometry with terrain horizons
+    REAL_GEOMETRIC_ONLY = "real_geometric_only"  # NASA-derived geometry, terrain ignored (horizon = 0 deg)
+    SYNTHETIC = "synthetic"  # synthetic geometry (fixtures, placeholders, simulation mode)
+
+
+class ComparabilityPolicy(StrEnum):
+    """Which scenarios may share one ranking (Phase 5; docs §5e). Data basis must always match."""
+
+    # Default. Same data basis, scoring method, effective weights and configuration key (spacecraft
+    # limits and type, panel threshold, every hard requirement, mission duration).
+    STRICT = "strict"
+    # Explicit opt-in. Same data basis, scoring method and effective weights; hard requirements and
+    # mission duration may differ, so the scores do not express the same requirement set.
+    SAME_METHOD_AND_WEIGHTS = "same_method_and_weights"
+
+
 class ExplanationCategory(StrEnum):
     SUMMARY = "summary"
     CONSTRAINT = "constraint"
