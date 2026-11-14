@@ -11,7 +11,7 @@ import { HorizonCompare } from './HorizonCompare'
 import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
-import { resultKey } from './scenario'
+import { resultKey, selectionKey, validateScenario } from './scenario'
 import { ScenarioManager } from './ScenarioManager'
 import { SummaryPanel } from './SummaryPanel'
 import { SyncTimeline } from './SyncTimeline'
@@ -67,14 +67,20 @@ export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}
     refresh()
   }, [keys, refresh])
 
+  const rankingSetKey = useCompareStore((s) => s.rankingSetKey)
+  const rankingGroups = useCompareStore((s) => s.rankingGroups)
+  // A canonical ranking belongs to one selected set; while the set is being re-ranked no rank is shown.
+  const rankingCurrent = rankingSetKey === selectionKey(selected.filter((s) => !validateScenario(s).length), allowDemo)
+
   const entries: Entry[] = useMemo(() => {
     const offsets = axisOffsets(selected, align)
     return selected.map((s) => {
       const state = results[resultKey(s, allowDemo)]
       const result = state?.state === 'done' && state.result.status === 'ok' ? state.result : null
-      return { scenario: s, state, result, offsetHours: offsets[s.id] ?? 0 }
+      const ranking = rankingCurrent && result ? result.ranking : null
+      return { scenario: s, state, result, offsetHours: offsets[s.id] ?? 0, ranking }
     })
-  }, [selected, results, allowDemo, align])
+  }, [selected, results, allowDemo, align, rankingCurrent])
 
   const full = useMemo(() => fullDomain(entries), [entries])
   const view = useView(full)
@@ -180,7 +186,7 @@ export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}
               <Section id="cmp-performance" title="Availability, outages and ranking">
                 <AvailabilityCharts entries={entries} />
                 <div className="mt-6 border-t border-line pt-6">
-                  <MissionPerformance entries={entries} />
+                  <MissionPerformance entries={entries} groups={rankingCurrent ? rankingGroups : []} ranking={!rankingCurrent && entries.some((e) => e.result) ? 'updating' : 'ready'} />
                 </div>
               </Section>
 
