@@ -7,6 +7,8 @@ only fills in during simulation mode.
 """
 from __future__ import annotations
 
+import threading
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Callable
@@ -18,11 +20,14 @@ from ..models import MissionRequirements, Scenario, Site, ViabilityMetrics, Viab
 from .catalog import SITES, custom_site, get_site, is_catalog, nearest_catalog_site
 from .timeline import Timeline, TimelineProvider, default_provider
 from .viability import evaluate_timeline as default_evaluate
+from .fastpath import evaluate_windows
 from .schemas import AltKind, SearchOptions
 
 TIMELINE_STEP_HOURS = 1.0
 
 EvaluateFn = Callable[[Scenario, Timeline], ViabilityResult]
+
+DEFAULT_CACHE_SIZE = 2048  # evaluations kept per Evaluator (a few KB each)
 
 
 @dataclass
@@ -104,11 +109,37 @@ class Evaluator:
     default fallback (used by unit tests); each call can still override it."""
 
     def __init__(self, provider: TimelineProvider | None = None, evaluate: EvaluateFn | None = None,
-                 simulation: bool = False):
+                 simulation: bool = False, cache_size: int = DEFAULT_CACHE_SIZE, fast_windows: bool = True):
         self.provider = provider or default_provider()
         self.evaluate_fn = evaluate or default_evaluate
         self.simulation = simulation
-        self.evaluations = 0
+        self.evaluations = 0  # real evaluator calls (cache hits are not counted)
+        self.cache_hits = 0
+        self.fast_windows = fast_windows  # reuse converted samples across overlapping windows (default engine only)
+        # Bounded LRU of finished evaluations. The key holds everything a result depends on (site, start,
+        # duration, requirements, simulation flag), so real and synthetic results never share an entry.
+        # cache_size=0 turns it off. Entries are never handed out: callers get deep copies.
+        self.cache_size = max(0, cache_size)
+        self._cache: OrderedDict[tuple, ViabilityResult] = OrderedDict()
+        self._lock = threading.Lock()  # the router's one Evaluator serves a thread pool
+
+    def _cache_get(self, key: tuple) -> ViabilityResult | None:
+        with self._lock:
+            hit = self._cache.get(key)
+            if hit is None:
+                return None
+            self._cache.move_to_end(key)
+            self.cache_hits += 1
+            stored = hit
+        return stored.model_copy(deep=True)  # entries are immutable in practice; copy outside the lock
+
+    def _cache_put(self, key: tuple, res: ViabilityResult) -> None:
+        copy = res.model_copy(deep=True)
+        with self._lock:
+            self._cache[key] = copy
+            self._cache.move_to_end(key)
+            while len(self._cache) > self.cache_size:
+                self._cache.popitem(last=False)
 
     def coverage(self, site: Site) -> tuple[np.datetime64, np.datetime64] | None:
         cov = getattr(self.provider, "coverage", None)
@@ -145,16 +176,37 @@ class Evaluator:
             groups.append([k for k in range(len(starts)) if k not in in_cov])
 
         results: dict[int, ViabilityResult] = {}
+        keys: dict[int, tuple] = {}
+        if self.cache_size:
+            base = (site.id, site.name, round(site.lat, 9), round(site.lon, 9), duration_days,
+                    req.model_dump_json(), sim)
+            for k in covered if not sim else range(len(starts)):
+                keys[k] = (*base, starts[k])
+                hit = self._cache_get(keys[k])
+                if hit is not None:
+                    results[k] = hit
         for group in groups:
+            group = [k for k in group if k not in results]  # cached starts need no timeline
             if not group:
                 continue
             tl = self.provider.timeline(site, min(starts[k] for k in group), max(starts[k] for k in group) + span, step)
+            jobs = []
             for k in group:
                 t = starts[k]
                 i = tl.index_of(t)
                 scen = Scenario(site=site, landing_utc=t, duration_days=duration_days, requirements=req)
-                results[k] = self.evaluate_fn(scen, tl.slice(i, i + n))
-                self.evaluations += 1
+                jobs.append((k, scen, i, i + n))
+            if self.evaluate_fn is default_evaluate and self.fast_windows and len(jobs) > 1:
+                # Same canonical engine, but the shared samples of overlapping windows are converted once.
+                evaluated = evaluate_windows(tl, [(scen, i, j) for _, scen, i, j in jobs])
+            else:
+                evaluated = [self.evaluate_fn(scen, tl.slice(i, j)) for _, scen, i, j in jobs]
+            for (k, _scen, _i, _j), res in zip(jobs, evaluated):
+                with self._lock:
+                    self.evaluations += 1
+                if k in keys:
+                    self._cache_put(keys[k], res)  # stores its own copy; res is fresh and unshared
+                results[k] = res
         return [results[k] if k in results else no_data_result(site, t, duration_days, req, cov)
                 for k, t in enumerate(starts)]
 
