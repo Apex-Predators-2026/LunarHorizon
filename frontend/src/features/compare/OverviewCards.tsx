@@ -8,8 +8,8 @@ import { useCompareStore } from './useCompareStore'
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-slate-500">{label}</div>
-      <div className={`text-sm font-semibold tabular-nums ${warn ? 'text-amber-300' : 'text-slate-100'}`}>{value}</div>
+      <div className="text-[11px] text-slate-500">{label}</div>
+      <div className={`text-sm font-medium tabular-nums ${warn ? 'text-amber-300' : 'text-slate-100'}`}>{value}</div>
     </div>
   )
 }
@@ -26,12 +26,12 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
         const v = r?.viability
         return (
           <article key={s.id} aria-label={`Scenario ${s.label} overview`}
-            className={`relative overflow-hidden rounded-xl border bg-[#0a1324] p-3 ${activeId === s.id ? 'border-cyan-600' : 'border-[#1c2a48]'}`}>
+            className={`relative overflow-hidden rounded-xl border bg-surface p-3 ${activeId === s.id ? 'border-cyan-600' : 'border-line'}`}>
             <div className="absolute inset-x-0 top-0 h-0.5" style={{ background: seriesColor(s.colorSlot) }} aria-hidden="true" />
             <header className="flex items-start gap-2">
               <ScenarioChip s={s} />
               <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-semibold text-slate-100" title={s.name}>{s.name}</h3>
+                <h3 className="truncate text-sm font-medium text-slate-100" title={s.name}>{s.name}</h3>
                 <p className="text-[11px] text-slate-400">
                   {s.site.name} · {fmtUtc(s.landing_utc)} · {s.duration_days} d
                 </p>
@@ -42,7 +42,7 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
               {e.state?.state === 'error' && <span className="text-[11px] text-red-300">Error</span>}
               {e.state?.state === 'done' && <DataKindBadge kind={e.state.result.data_kind} />}
               {v && <PassBadge passes={v.passes} />}
-              {baselineId === s.id && <span className="rounded bg-cyan-900/70 px-1.5 py-0.5 text-[10px] text-cyan-200">baseline</span>}
+              {baselineId === s.id && <span className="rounded bg-cyan-900/70 px-1.5 py-0.5 text-[11px] text-cyan-200">baseline</span>}
             </div>
             {r?.solar && r.earth && v ? (
               <div className="mt-3 grid grid-cols-3 gap-2">
@@ -61,7 +61,7 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
               </p>
             )}
             {r?.site_context && (
-              <p className="mt-2 text-[10px] text-slate-500">
+              <p className="mt-2 text-[11px] text-slate-500">
                 Elevation {r.site_context.ground_height_m != null ? `${Math.round(r.site_context.ground_height_m)} m` : 'n/a'}
                 {r.site_context.horizon_max_deg != null && ` · terrain horizon up to ${r.site_context.horizon_max_deg.toFixed(1)}°`}
                 {r.science_context && ` · ${r.science_context.distance_to_psr_edge_km.toFixed(1)} km to ${r.science_context.nearest_psr_name} (approx.)`}

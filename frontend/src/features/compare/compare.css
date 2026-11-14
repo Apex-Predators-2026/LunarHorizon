@@ -1,0 +1,163 @@
+/*
+ * Scenario Comparison only. Applies the Mission Planner's light-surface conventions (Opaline surfaces,
+ * charcoal ink, one coral accent, M3 shapes, state layers and motion) to this page. Everything is
+ * scoped to .cmp-page, which the dashboard root carries together with the team's .lp-light and .md-host
+ * scopes, so no other page (and nothing shared) changes. Data colours keep their meaning: Sun yellow,
+ * Earth blue, blackout red and the scenario A-D identity colours.
+ */
+.cmp-page {
+  /* Surfaces and hairlines (the theme tokens re-pointed for this page). */
+  --color-canvas: #f5f5f7;
+  --color-surface: #ffffff;
+  --color-raised: #ffffff;
+  --color-inset: #f5f5f7;
+  --color-line: rgba(60, 64, 68, 0.12);
+  --color-line-strong: rgba(60, 64, 68, 0.24);
+  --color-ink: #1f2326;
+  --color-ink-2: #3c4044;
+  --color-ink-3: #5b6168;
+  --color-ink-4: #6b7076;
+  --color-accent: #d9472f;
+  --color-accent-strong: #b42e1a;
+  /* Text that the old dark theme set near-white. */
+  --color-slate-50: #1f2326;
+  --color-white: #ffffff;
+  /* The old cyan accent becomes the coral ramp, as .lp-light does for sky. */
+  --color-cyan-100: #8f2513;
+  --color-cyan-200: #a8301c;
+  --color-cyan-300: #b42e1a;
+  --color-cyan-400: #c23a23;
+  --color-cyan-500: #ff634a;
+  --color-cyan-600: #d9472f;
+  --color-cyan-700: #d9472f;
+  --color-cyan-800: #f3b4ab;
+  --color-cyan-900: #f8cfc8;
+  --color-cyan-950: #ffe3de;
+
+  background: var(--color-opal-50);
+  color: var(--color-calcite-ink);
+  font-family: var(--font-inter);
+  font-size: 14px;
+}
+
+/* Section: one white surface with a hairline, M3 large-container radius. */
+.cmp-page .cmp-section {
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 24px;
+}
+
+/* M3 common buttons, 40 dp, pill. Filled for the one primary action; outlined and text for the rest. */
+.cmp-page .cmp-btn,
+.cmp-page .cmp-btn-primary,
+.cmp-page .cmp-btn-text {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  transition:
+    background-color var(--md-dur-short4) var(--md-ease-standard),
+    border-color var(--md-dur-short4) var(--md-ease-standard),
+    color var(--md-dur-short4) var(--md-ease-standard);
+}
+.cmp-page .cmp-btn {
+  border: 1px solid var(--color-line-strong);
+  color: var(--color-calcite-ink);
+  background: transparent;
+}
+.cmp-page .cmp-btn:hover:not(:disabled) { background: rgba(60, 64, 68, 0.08); }
+.cmp-page .cmp-btn[aria-pressed='true'],
+.cmp-page .cmp-btn[aria-expanded='true'] { background: rgba(60, 64, 68, 0.1); border-color: var(--color-calcite-ink); }
+.cmp-page .cmp-btn-primary {
+  border: 0;
+  padding: 0 24px;
+  background: #d9472f;
+  color: #ffffff;
+}
+.cmp-page .cmp-btn-primary:hover:not(:disabled) { background: #c23a23; }
+.cmp-page .cmp-btn-text {
+  padding: 0 12px;
+  margin: 0 -12px;
+  background: transparent;
+  color: #b42e1a;
+}
+.cmp-page .cmp-btn-text:hover:not(:disabled) { background: rgba(217, 71, 47, 0.08); }
+/* Neutral text button: low-emphasis actions repeated on every row (M3 text button, ink colour). */
+.cmp-page .cmp-btn-quiet {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-calcite-ink);
+  white-space: nowrap;
+  transition: background-color var(--md-dur-short4) var(--md-ease-standard), color var(--md-dur-short4) var(--md-ease-standard);
+}
+.cmp-page .cmp-btn-quiet:hover:not(:disabled) { background: rgba(60, 64, 68, 0.08); }
+.cmp-page .cmp-btn-quiet[aria-pressed='true'],
+.cmp-page .cmp-btn-quiet[aria-expanded='true'] { background: rgba(217, 71, 47, 0.1); color: #b42e1a; }
+.cmp-page .cmp-btn-quiet:disabled { opacity: 0.38; cursor: not-allowed; }
+.cmp-page .cmp-btn-quiet.cmp-danger:hover:not(:disabled) { background: rgba(168, 32, 32, 0.08); color: #a82020; }
+.cmp-page :is(.cmp-btn, .cmp-btn-primary, .cmp-btn-text):disabled { opacity: 0.38; cursor: not-allowed; }
+.cmp-page :is(.cmp-btn, .cmp-btn-primary, .cmp-btn-text):active:not(:disabled) { transform: scale(0.98); }
+
+/* Dense outlined field (desktop variant of the M3 outlined text field, label above). */
+.cmp-page .cmp-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--color-line-strong);
+  border-radius: 4px;
+  background: #ffffff;
+  color: var(--color-ink);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--md-dur-short4) var(--md-ease-standard);
+}
+.cmp-page .cmp-input:hover { border-color: var(--color-calcite-ink); }
+.cmp-page .cmp-input:focus { border-color: var(--color-coral); box-shadow: inset 0 0 0 1px var(--color-coral); }
+.cmp-page select.cmp-input { padding-right: 8px; }
+
+/* Chart tooltip: an M3 rich tooltip, a raised surface that floats over the chart. */
+.cmp-page .cmp-tip {
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--color-calcite-ink);
+  box-shadow: 0 2px 6px rgba(31, 35, 38, 0.12), 0 1px 2px rgba(31, 35, 38, 0.08);
+}
+
+/* Section links: quiet text with a state layer; the bar is a plain surface (no blur). */
+.cmp-page .cmp-navlink {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: var(--color-ink-3);
+  white-space: nowrap;
+  transition: background-color var(--md-dur-short4) var(--md-ease-standard), color var(--md-dur-short4) var(--md-ease-standard);
+}
+.cmp-page .cmp-navlink:hover { background: rgba(60, 64, 68, 0.08); color: var(--color-calcite-ink); }
+
+/* Native checkboxes and sliders take the accent (the planner styles its own the same way). */
+.cmp-page input[type='checkbox'] { accent-color: #d9472f; }
+.cmp-page :focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
