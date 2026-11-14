@@ -1,6 +1,22 @@
 import * as THREE from 'three'
 import { describe, expect, it } from 'vitest'
-import { grabPoint, grabRotation, limitNadirAngle, lookAt, maxNadirAngleAt, nadirAngle, orbitAbout, raySphere, rotateAbout, zoomAbout } from './globeNav'
+import {
+  grabPoint,
+  grabRotation,
+  limitNadirAngle,
+  lookAt,
+  lookOffset,
+  maxNadirAngleAt,
+  nadirAngle,
+  orbitAbout,
+  raySphere,
+  rotateAbout,
+  setLookOffset,
+  tiltAt,
+  tiltTo,
+  TOP_DOWN_TILT,
+  zoomAbout,
+} from './globeNav'
 
 const R = 1_737_400
 const centre = new THREE.Vector3(0, -R, 0) // like the site frame: the Moon's centre straight below the site
@@ -118,5 +134,71 @@ describe('view limit by altitude (Moon centred when zoomed out)', () => {
     const q = c.quaternion.clone()
     expect(limitNadirAngle(c, centre, maxNadirAngleAt(50))).toBe(false)
     expect(c.quaternion.equals(q)).toBe(true)
+  })
+})
+
+describe('top-down toggle (look straight down, and back)', () => {
+  it('swings a tilted site view to straight down over the same point, at the same distance, and back again', () => {
+    const pivot = new THREE.Vector3(0, 0, 0) // the lander, in the middle of the view
+    const c = camera([2600, 1400, 3400], pivot) // the Site view preset
+    const start = c.position.clone()
+    const before = tiltAt(c, pivot, centre)
+    expect(before).toBeGreaterThan(1) // ~72 deg from straight down: looking across the ground
+    const d = c.position.distanceTo(pivot)
+
+    tiltTo(c, pivot, centre, TOP_DOWN_TILT)
+    expect(tiltAt(c, pivot, centre)).toBeCloseTo(TOP_DOWN_TILT, 6)
+    expect(c.position.distanceTo(pivot)).toBeCloseTo(d, 3)
+    expect(nadirAngle(c, centre)).toBeLessThan(0.01) // looking straight down
+    expect(distanceToRay(rayAt(c, 0, 0), pivot)).toBeLessThan(0.01) // the same point is still in the middle
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(c.quaternion)
+    expect(Math.abs(right.y)).toBeLessThan(1e-6) // no roll
+
+    tiltTo(c, pivot, centre, before) // and back to the tilt it had
+    expect(c.position.distanceTo(start)).toBeLessThan(0.01)
+  })
+
+  it('moves in small steps for the animation (each step from where the last one left off)', () => {
+    const pivot = new THREE.Vector3(0, 0, 0)
+    const c = camera([2600, 1400, 3400], pivot)
+    const from = tiltAt(c, pivot, centre)
+    for (let k = 1; k <= 10; k++) tiltTo(c, pivot, centre, from + (TOP_DOWN_TILT - from) * (k / 10))
+    expect(tiltAt(c, pivot, centre)).toBeCloseTo(TOP_DOWN_TILT, 6)
+  })
+})
+
+describe('top-down toggle at eye level (the Sun and Earth views)', () => {
+  it('looks straight down at the ground just ahead, then back to exactly the view it had', () => {
+    // 12 m up, looking at the horizon (slightly above level), like the Sun view.
+    const c = camera([45, 12, -3], new THREE.Vector3(-4955, 100, 300))
+    const start = { pos: c.position.clone(), q: c.quaternion.clone() }
+    const ahead = new THREE.Vector3(-4955, 0, 300).sub(new THREE.Vector3(45, 0, -3)).normalize()
+    const pivot = new THREE.Vector3(45, 0, -3).addScaledVector(ahead, 60) // on the ground, 60 m ahead
+    const tilt0 = tiltAt(c, pivot, centre)
+    const off0 = lookOffset(c, pivot)
+    expect(off0).toBeGreaterThan(0.2) // the view is well above the pivot
+
+    // The animation: tilt and look offset together, in steps.
+    for (let k = 1; k <= 20; k++) {
+      const e = k / 20
+      tiltTo(c, pivot, centre, tilt0 + (TOP_DOWN_TILT - tilt0) * e)
+      setLookOffset(c, pivot, off0 * (1 - e))
+    }
+    expect(nadirAngle(c, centre)).toBeLessThan(0.01) // straight down
+    expect(distanceToRay(rayAt(c, 0, 0), pivot)).toBeLessThan(0.01) // at the spot ahead
+
+    for (let k = 1; k <= 20; k++) {
+      const e = k / 20
+      tiltTo(c, pivot, centre, TOP_DOWN_TILT + (tilt0 - TOP_DOWN_TILT) * e)
+      setLookOffset(c, pivot, off0 * e)
+    }
+    expect(c.position.distanceTo(start.pos)).toBeLessThan(0.01)
+    expect(c.quaternion.angleTo(start.q)).toBeLessThan(1e-6)
+  })
+
+  it('measures no offset when the pivot is in the middle of the view', () => {
+    const pivot = new THREE.Vector3(0, 0, 0)
+    const c = camera([2600, 1400, 3400], pivot)
+    expect(Math.abs(lookOffset(c, pivot))).toBeLessThan(1e-9)
   })
 })
