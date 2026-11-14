@@ -1,6 +1,6 @@
 import { OrbitControls, Stars } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { createRef, useCallback, useMemo, useRef, useState, type RefObject } from 'react'
+import { createRef, useCallback, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import * as THREE from 'three'
 import { useAppStore } from '../store'
 import type { SiteInfo } from '../types'
@@ -21,7 +21,8 @@ import { SkyPlot } from './SkyPlot'
 import { SunLight } from './SunLight'
 import { TimeBar } from './TimeBar'
 import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor } from './timeline'
-import { ViewerHud } from './ViewerHud'
+import { FloatingSidebar } from './FloatingSidebar'
+import { SimControls, SiteSelect, useViewerSetup } from './ViewerHud'
 
 const SHADOW_HALF_WIDTH_M = 6000 // shadow map covers ~12 km around the lander
 const CURTAIN_RADIUS_M = 28000 // engine skyline (from 300 km of terrain), drawn this far out in eye views
@@ -36,7 +37,7 @@ const labelClass =
  * sky plot. Everything shown comes from the backend (terrain tiles, horizon mask, hourly timeline),
  * so the 3D view and the charts always show the same numbers.
  */
-export function Scene() {
+export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const siteId = useAppStore((s) => s.siteId)
   const timeUtc = useAppStore((s) => s.timeUtc)
   const playing = useAppStore((s) => s.playing)
@@ -107,6 +108,8 @@ export function Scene() {
   const eye = site?.observer_height_m ?? 2
   const error = sites.error ?? horizon.error ?? timeline.error ?? status.error
   const loading = sites.loading || horizon.loading || timeline.loading
+
+  useViewerSetup(sites.data)
 
   const sunLabel = useRef<HTMLDivElement>(null)
   const earthLabel = useRef<HTMLDivElement>(null)
@@ -253,40 +256,56 @@ export function Scene() {
         )
       })}
 
-      <MapTools
-        layers={layers}
-        onLayers={setLayers}
-        pin={pin}
-        onArmPin={(armed) => setPin(armed ? { phase: 'armed' } : { phase: 'idle' })}
-        siteId={siteId}
-        timeUtc={timeUtc}
-      />
-
-      <ViewerHud
-        sites={sites.data}
-        current={s}
-        events={events}
-        error={error}
-        loading={loading}
-        view={view}
-        onView={setView}
-        terrainStats={terrainStats}
-      />
-      {site && (
-        <div className="pointer-events-auto absolute right-3 top-3 w-[236px] rounded-md border border-slate-700 bg-slate-950/80 p-2 backdrop-blur">
-          <SkyPlot horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />
+      {/* Floating UI. Containers ignore the pointer so the 3D view stays interactive around them. */}
+      <div
+        className="pointer-events-none absolute inset-0 [--lp-side-w:clamp(280px,23.5vw,360px)]"
+        style={{ fontFamily: 'var(--font-inter)' }}
+      >
+        <div className="absolute bottom-4 right-[4vw] top-[clamp(64px,9.5vh,105px)] flex w-[var(--lp-side-w)] flex-col gap-3">
+          {site && (
+            <div className="lp-light pointer-events-auto flex shrink-0 justify-center rounded-[20px] bg-opal-50 p-3 shadow-lg shadow-black/30">
+              <SkyPlot horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />
+            </div>
+          )}
+          <FloatingSidebar>
+            <div className="space-y-4">
+              <SiteSelect sites={sites.data} error={error} loading={loading} />
+              {sidebar}
+            </div>
+          </FloatingSidebar>
         </div>
-      )}
-      {site && win && (
-        <TimeBar
-          site={site}
-          steps={timeline.data ?? []}
-          win={win}
-          windowDays={windowDays}
-          onWindowDays={setWindowDays}
-          loading={timeline.loading}
-        />
-      )}
+        {/* Bottom stack: map tools (pin / layers / JPL check) sit just above the timeline panel. */}
+        <div className="absolute bottom-0 left-3 right-3 flex flex-col md:left-[3.6vw] md:right-[calc(4vw+var(--lp-side-w)+16px)]">
+          <MapTools
+            layers={layers}
+            onLayers={setLayers}
+            pin={pin}
+            onArmPin={(armed) => setPin(armed ? { phase: 'armed' } : { phase: 'idle' })}
+            siteId={siteId}
+            timeUtc={timeUtc}
+          />
+          {site && win && (
+            <TimeBar
+              site={site}
+              steps={timeline.data ?? []}
+              win={win}
+              windowDays={windowDays}
+              onWindowDays={setWindowDays}
+              loading={timeline.loading}
+              aside={
+                <SimControls
+                  sites={sites.data}
+                  current={s}
+                  events={events}
+                  view={view}
+                  onView={setView}
+                  terrainStats={terrainStats}
+                />
+              }
+            />
+          )}
+        </div>
+      </div>
     </div>
   )
 }

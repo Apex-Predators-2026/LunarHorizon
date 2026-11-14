@@ -19,7 +19,7 @@ export type PinState =
 
 const btn = 'rounded border px-2 py-1 text-xs'
 const on = 'border-sky-500 bg-sky-500/20 text-sky-200'
-const off = 'border-slate-700 text-slate-300 hover:bg-slate-800'
+const off = 'border-opal-300 bg-white text-slate-300 hover:bg-calcite-peach/40'
 
 function fmtLat(lat: number) {
   return `${Math.abs(lat).toFixed(3)}°${lat < 0 ? 'S' : 'N'}`
@@ -55,11 +55,11 @@ export function MapTools({
   return (
     // Bottom centre, just above the time bar (the top corners hold the HUD and the sky plot);
     // column-reverse so messages and the verify panel open upwards.
-    <div className="pointer-events-none absolute bottom-[172px] left-1/2 flex -translate-x-1/2 flex-col-reverse items-center gap-1.5">
-      <div className="pointer-events-auto flex flex-wrap items-center gap-1 rounded-md border border-slate-700 bg-slate-950/85 p-1.5 backdrop-blur">
+    <div className="lp-light pointer-events-none mb-2 flex flex-col-reverse items-center gap-1.5">
+      <div className="pointer-events-auto flex flex-wrap items-center gap-1 rounded-xl bg-opal-50 p-1.5 shadow-lg shadow-black/30">
         <button
           type="button"
-          className={`${btn} ${armed ? 'border-orange-400 bg-orange-500/20 text-orange-200' : off}`}
+          className={`${btn} ${armed ? 'border-calcite-orange bg-calcite-orange/20 text-slate-100' : off}`}
           aria-pressed={armed}
           disabled={pin.phase === 'working'}
           onClick={() => onArmPin(!armed)}
@@ -108,7 +108,7 @@ export function MapTools({
       )}
 
       {verify && !verify.loading && (
-        <div className="pointer-events-auto w-[30rem] rounded-md border border-slate-700 bg-slate-950/90 p-2 text-xs text-slate-200">
+        <div className="pointer-events-auto w-[30rem] max-w-full rounded-xl border border-opal-300 bg-opal-50 p-2 text-xs text-slate-200">
           <div className="mb-1 flex items-center justify-between">
             <span className="font-medium">Live check against JPL Horizons</span>
             <button type="button" className="text-slate-400 hover:text-slate-100" onClick={() => setVerify(null)} aria-label="Close">
