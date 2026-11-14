@@ -38,6 +38,7 @@ from app.viability import (
     analyze_scenario,
     build_constraint_assessment,
     evaluate_scenario,
+    generate_explanations,
     partition_comparable,
     prepare_series,
     rank_assessments,
@@ -200,7 +201,7 @@ def test_real_site_pipeline_is_the_composition_of_the_phases(site: str, prepared
     checks = build_constraint_assessment(scenario, env)
     margins = margins_from_assessment(checks)
     risks = assess_risks(scenario, checks, margins)
-    assert a.engine_version == ENGINE_VERSION == "0.5.0-phase5"
+    assert a.engine_version == ENGINE_VERSION == "0.6.0-phase6"
     assert a.constraints == checks.constraints and a.eligibility is checks.eligibility
     assert a.metrics == env.metrics and a.windows == env.windows and a.data_quality == env.data_quality
     assert a.margins == margins and a.risks == risks and a.overall_risk is overall_risk(risks)
@@ -211,7 +212,11 @@ def test_real_site_pipeline_is_the_composition_of_the_phases(site: str, prepared
     assert (
         a.score.method_version == SCORING_METHOD_VERSION and a.score.configuration_key == scenario.configuration_key()
     )
-    assert a.explanations == []  # Phase 6 not started: an empty list means "not generated", not "nothing to say"
+    # Phase 6: explanations are generated from (and only from) the fields checked above.
+    assert a.explanations == generate_explanations(
+        a.eligibility, a.constraints, a.margins, a.risks, a.data_quality, score=a.score, overall_risk=a.overall_risk
+    )
+    assert a.explanations
 
 
 @pytest.mark.parametrize("site", SITES)
@@ -655,7 +660,7 @@ def test_public_exports_and_reexports() -> None:
 
     assert pkg.rank_assessments is ranking_module.rank_assessments is scoring_module.rank_assessments
     assert pkg.score_scenario is scoring_module.score_scenario and pkg.evaluate_scenario is evaluate_scenario
-    assert pkg.ENGINE_VERSION == ENGINE_VERSION == "0.5.0-phase5"
+    assert pkg.ENGINE_VERSION == ENGINE_VERSION == "0.6.0-phase6"
     for name in ("RankingComparabilityError", "partition_comparable", "ranking_explanations", "SCORING_METHOD_VERSION"):
         assert name in pkg.__all__
 
