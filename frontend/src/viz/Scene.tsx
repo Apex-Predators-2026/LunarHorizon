@@ -129,7 +129,9 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   // Re-render the HUD only when the stats actually change.
   const onStats = useCallback((s: TileStats) => {
     setTerrainStats((prev) =>
-      prev && prev.visible === s.visible && prev.loading === s.loading && prev.deepest === s.deepest ? prev : s,
+      prev && prev.visible === s.visible && prev.loading === s.loading && prev.deepest === s.deepest && prev.retrying === s.retrying
+        ? prev
+        : s,
     )
   }, [])
 
