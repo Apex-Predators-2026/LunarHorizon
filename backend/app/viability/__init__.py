@@ -34,6 +34,15 @@ from .enums import (
     VisibilityState,
     WindowKind,
 )
+from .explain import (
+    EXPLANATION_METHOD_VERSION,
+    STANDARD_LIMITATIONS,
+    ExplanationDetail,
+    build_explanation_details,
+    explain_assessment,
+    explain_assessment_details,
+    generate_explanations,
+)
 from .inputs import (
     BodyObservation,
     HorizonProfile,
@@ -75,8 +84,10 @@ from .windows import PreparedSeries, extract_windows, prepare_series
 
 __all__ = [
     "ENGINE_VERSION",
+    "EXPLANATION_METHOD_VERSION",
     "SCHEMA_VERSION",
     "SCORING_METHOD_VERSION",
+    "STANDARD_LIMITATIONS",
     "AngleType",
     "Body",
     "BodyObservation",
@@ -96,6 +107,7 @@ __all__ = [
     "Eligibility",
     "EnvironmentAnalysis",
     "Explanation",
+    "ExplanationDetail",
     "HorizonProfile",
     "LandingSite",
     "Metric",
@@ -135,10 +147,14 @@ __all__ = [
     "analyze_scenario",
     "assess_constraints",
     "build_constraint_assessment",
+    "build_explanation_details",
     "derive_eligibility",
     "evaluate_constraints",
     "evaluate_scenario",
+    "explain_assessment",
+    "explain_assessment_details",
     "extract_windows",
+    "generate_explanations",
     "partition_comparable",
     "prepare_series",
     "rank_assessments",
