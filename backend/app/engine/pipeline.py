@@ -15,7 +15,7 @@ from .geo import latlon_to_xy
 from .horizon import RINGS, compute_horizon_latlon
 from .visibility import build_timeline
 
-START, STOP, STEP = "2027-01-01", "2029-01-01", "1h"
+START, STOP, STEP = "2026-01-01", "2031-01-01", "1h"  # 5 years hourly (Horizons fetched per year)
 OBSERVER_HEIGHT_M = 2.0
 # Bump when the file format or the calculation changes, so readers can tell files apart.
 #   1.0  first release

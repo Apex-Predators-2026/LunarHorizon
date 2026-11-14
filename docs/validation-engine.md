@@ -13,8 +13,8 @@ team's validation work (Member 6); it covers the engine's science, not the viabi
 
 | Check | Reference | Result | Verdict |
 |---|---|---|---|
-| 1. Sun / Earth positions | Skyfield + JPL **DE421** + Moon ME frame (independent software and ephemeris) | Max difference **0.00071°** for Sun and Earth at all 24 sites, every 6 h over 2 years | ✅ Matches (difference = our 0.001° file rounding) |
-| 1b. Visible/blocked verdicts | Same positions, run through our horizon | **0 of 140,400** sampled verdicts differ | ✅ |
+| 1. Sun / Earth positions | Skyfield + JPL **DE421** + Moon ME frame (independent software and ephemeris) | Max difference **0.00072°** for Sun and Earth at all 24 sites, every 6 h over 5 years (2026–2030) | ✅ Matches (difference = our 0.001° file rounding) |
+| 1b. Visible/blocked verdicts | Same positions, run through our horizon | **0 of 350,640** sampled verdicts differ | ✅ |
 | 2. Horizon geometry | Independent geometry on the same elevation data: straight lines in the polar map plane + central-angle formula (the engine's original method) | Max difference **0.001–0.046°** over all 720 directions at the 12 south-polar sites | ✅ Matches (largest furthest from the pole, where the flat-map method's own approximation grows) |
 | 2b. Azimuth convention | Same, with our horizon mirrored east↔west | A mirror would be off by **1.5–30°** | ✅ Convention confirmed |
 | 3. Illumination, area average | LROC WAC time-weighted illumination map (observed, 2010–11) | Mean bias **−3.9** (Connecting Ridge), **−0.5** (Peak Near Shackleton), **+0.7** (de Gerlache Rim) points over 121 points; r = 0.66–0.88 | ✅ No systematic bias |
@@ -43,7 +43,7 @@ better than about ±10 percentage points**, and prefer area or margin-based reas
 - **Reference:** Skyfield 1.55 with JPL DE421 and the Moon's Mean-Earth frame `MOON_ME_DE421`
   (`moon_080317.tf`, `moon_pa_de421_1900-2050.bpc`), apparent positions (light-time and aberration).
   Different software and a different ephemeris; only the frame definition is shared.
-- **Sampling:** every 6 hours, 2027-01-01 to 2029-01-01, all 4 sites: 2,925 samples per body per site.
+- **Sampling:** every 6 hours, 2026-01-01 to 2031-01-01, all 24 sites: 7,305 samples per body per site.
 
 | Body | Max separation | RMS | Max elevation difference |
 |---|---|---|---|
@@ -147,7 +147,7 @@ Nothing is recalculated in the browser except placing objects at the given azimu
 | Earth = its centre point (visible if the centre clears the terrain) | Earth is ~1.9° wide; partly visible Earth counts as blocked or visible by its centre | Margin column lets users add their own buffer |
 | Horizons places the site on the 1737.4 km sphere, not at its true height | Parallax | < 0.001° |
 | Hourly samples | Rise/set times known to ±30 min | Fine for planning; finer steps on request |
-| Data covers 2027-01-01 to 2029-01-01 | Dates outside this range have no real data | Other dates need a re-run of `precompute.py` |
+| Data covers 2026-01-01 to 2031-01-01 (extended from 2027–2028; every hour of the old range is unchanged) | Dates outside this range have no real data | Other dates need a re-run of `precompute.py` |
 | Unknown terrain (custom sites only) is `null`, never guessed | Some hours can be "unknown" | Curated sites: 0% unknown |
 | 3D view: by default terrain casts shadows only within ~6 km of the lander (one shadow map; none in the Low graphics setting). The "Far shadows" option (cascaded shadow maps) extends them to everything on screen | Without it, distant ground can look lit when it is in shadow. With it, only terrain that is drawn casts shadows, so a mountain off screen or behind the camera can't shadow the view | Display only: the numbers, the lander's lighting and the skyline use the engine's full 300 km horizon |
 | Sunlight % at one point | Sharp edges make single points sensitive to tens of metres | See check 3: quote to about ±10 points |

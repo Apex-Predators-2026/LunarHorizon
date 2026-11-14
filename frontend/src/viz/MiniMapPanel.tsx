@@ -16,7 +16,7 @@ export function MiniMapPanel(props: { horizon: Horizon | null; steps: TimelineSt
       <div
         ref={cardRef}
         {...handlers}
-        title="Drag to move"
+        data-tip="Drag to move"
         className={`lp-light pointer-events-auto flex touch-none select-none justify-center rounded-[20px] bg-opal-50 transition-shadow ${
           dragging ? 'cursor-grabbing shadow-2xl shadow-black/50' : 'cursor-grab shadow-lg shadow-black/30'
         }`}

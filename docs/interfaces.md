@@ -26,7 +26,7 @@ Coordinates: degrees, latitude negative = south, longitude east. Curated sites a
 
 ## Precomputed site file: `data/sites/<id>.json`
 Produced by `backend/scripts/precompute.py` (`app/engine/pipeline.py`). Columnar arrays to keep files small
-(~1.6 MB for 2 years hourly). The timeline arrays all have the same length; index `i` across them is one `TimelineStep`.
+(~4 MB for 5 years hourly, 2026-01-01 to 2031-01-01). The timeline arrays all have the same length; index `i` across them is one `TimelineStep`.
 
 ```jsonc
 {
@@ -85,7 +85,7 @@ Interactive docs with every field: http://localhost:8000/docs. The frontend dev 
 | `POST /api/sites/custom` `{lat, lon, name?}` | `SiteInfo`: analyses **any point on the Moon**. ~20–60 s in a new area (terrain downloads), then cached. Its `id` works with every endpoint below. |
 | `GET /api/sites/{id}` | `SiteInfo` |
 | `GET /api/sites/{id}/horizon` | `Horizon`: 720 directions |
-| `GET /api/sites/{id}/timeline?start=&end=&step_hours=` | `TimelineStep[]`; times ISO UTC, e.g. `2027-03-01T00:00Z`; data covers 2027-01-01 to 2029-01-01 |
+| `GET /api/sites/{id}/timeline?start=&end=&step_hours=` | `TimelineStep[]`; times ISO UTC, e.g. `2027-03-01T00:00Z`; data covers 2026-01-01 to 2031-01-01 |
 | `GET /api/sites/{id}/status?time=` | `SiteStatus`: conditions at that hour + next sunset/sunrise/Earthset/Earthrise (null if none before 2029) |
 | `GET /api/sites/{id}/terrain?size=256&half_width_m=5000` | `TerrainGrid`: heights in the site's local north/east frame (superseded in the 3D view by the tiles below; kept for compatibility) |
 | `GET /api/sites/{id}/verify?time=` | `VerifyResult`: that hour's stored Sun/Earth positions vs a **live** JPL Horizons query and a local DE421 calculation |
@@ -210,7 +210,7 @@ used (`precomputed:<file>` or `synthetic-placeholder`).
 By default (`include_synthetic` unset or `false`), a mission that real data does not fully
 cover is reported as `eligibility: "unknown"`, with `score: null`, `data_source: "no-real-data"`
 and one violation `{constraint: "data_coverage", is_unknown: true}` explaining the covered period.
-That applies to missions that run past the end of the data (2029-01-01), start before it, or are
+That applies to missions that run past the end of the data (2031-01-01), start before it, or are
 at sites/points with no real data at all. Its metrics are reported at worst-case bounds.
 Rescue, sensitivity and compromise don't search places with no real data
 (`stats.synthetic_candidates_excluded`), and count out-of-range dates as undecided
