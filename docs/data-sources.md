@@ -15,6 +15,14 @@ Everything is in the Moon's **Mean-Earth/polar-axis (ME)** frame on the 1737.4 k
   `app/engine/ephemeris.py` checks this line and refuses any other frame.
 - **LOLA terrain (Moon Trek):** LOLA products are in MOON_ME (the PGDA polar DEMs state "MOON_ME reference frame of DE421").
 - **Site coordinates:** from LOLA/LROC-based sources (Quickmap), also ME.
+- **Artemis III regions:** NASA named 13 candidate regions in August 2022 and narrowed them to 9 in October 2024
+  ("NASA Provides Update on Artemis III Moon Landing Regions", 2024-10-28): Peak near Cabeus B, Haworth, Malapert
+  Massif, Mons Mouton Plateau, Mons Mouton, Nobile Rim 1, Nobile Rim 2, de Gerlache Rim 2, Slater Plain. Still the
+  list in George et al., "Artemis III Site Selection Update", LPSC 2026 (NTRS 20250011660), which adds that removed
+  regions are not unsuitable for future exploration. Our sites: Malapert Massif, Haworth (Rim), Nobile Rim 1, Mons
+  Mouton are in the 2024 list; Connecting Ridge, Peak Near Shackleton, Faustini Rim A only in the 2022 list (kept:
+  Connecting Ridge and Peak Near Shackleton are the Gracy & Lee 2024 validation sites); de Gerlache Rim is an
+  approximate point that may be in Rim 1 or Rim 2. The app shows this (`artemis_list`, marker colour, legend).
 - Why it matters: the principal-axis (PA) frame differs from ME by ~0.9 km on the surface. Near the pole that shift
   can rotate the local north direction by degrees, which would misalign Sun/Earth azimuths with the horizon mask.
 - Residual: Horizons' ME comes from DE441 and LOLA's from DE421. The two ME realisations differ by metres, which is

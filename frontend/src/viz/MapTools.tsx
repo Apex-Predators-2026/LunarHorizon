@@ -9,7 +9,7 @@ import { useUiPrefs } from './uiPrefs'
 import type { ViewMode } from './CameraRig'
 import { InteractiveGrainGradient } from '../ui/InteractiveGrainGradient'
 import type { MeasureAnalysis, MeasureWaypoint, ProfileSample } from './globe/measure'
-import { KIND_COLOR } from './globe/overlays'
+import { ARTEMIS_FORMER_COLOR, KIND_COLOR } from './globe/overlays'
 import { parseCoordinates } from './coordinates'
 import { GRAPHICS, type GraphicsQuality } from './graphics'
 import { toggleTopDown, useCameraTilt } from './cameraTilt'
@@ -664,10 +664,19 @@ export function ColorKey({ layers }: { layers: Layers }) {
     <div className="md-reveal pointer-events-none mt-4 max-w-[30rem] text-[10px] leading-snug text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }} aria-label="Colour key">
       {layers.sites && (
         <p className="flex flex-wrap gap-x-3">
-          {(['artemis', 'apollo', 'clps', 'international', 'custom'] as const).map((k) => (
-            <span key={k} className="flex items-center gap-1">
-              {dot(KIND_COLOR[k])}
-              {{ artemis: 'Artemis candidates', apollo: 'Apollo', clps: 'Commercial (CLPS)', international: 'Other countries', custom: 'Your pins' }[k]}
+          {(
+            [
+              [KIND_COLOR.artemis, "Artemis III (NASA's 2024 list)"],
+              [ARTEMIS_FORMER_COLOR, 'Earlier Artemis candidates (2022)'],
+              [KIND_COLOR.apollo, 'Apollo'],
+              [KIND_COLOR.clps, 'Commercial (CLPS)'],
+              [KIND_COLOR.international, 'Other countries'],
+              [KIND_COLOR.custom, 'Your pins'],
+            ] as const
+          ).map(([colour, label]) => (
+            <span key={label} className="flex items-center gap-1">
+              {dot(colour)}
+              {label}
             </span>
           ))}
         </p>
