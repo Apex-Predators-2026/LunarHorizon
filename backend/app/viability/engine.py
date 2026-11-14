@@ -29,6 +29,7 @@ from __future__ import annotations
 from .analysis import analyze_scenario
 from .constraints import build_constraint_assessment
 from .conventions import ENGINE_VERSION
+from .enums import SamplingPolicy
 from .explain import STANDARD_LIMITATIONS, generate_explanations
 from .inputs import ScientificTimeSeries
 from .margins import margins_from_assessment
@@ -36,18 +37,30 @@ from .mission import MissionScenario
 from .outputs import ViabilityAssessment
 from .risk import assess_risks, overall_risk
 from .scoring import score_scenario
+from .windows import PreparedSeries
 
 __all__ = ["ENGINE_VERSION", "evaluate_scenario"]
 
 
-def evaluate_scenario(scenario: MissionScenario, series: ScientificTimeSeries) -> ViabilityAssessment:
+def evaluate_scenario(
+    scenario: MissionScenario,
+    series: ScientificTimeSeries | PreparedSeries,
+    *,
+    policy: SamplingPolicy | None = None,
+) -> ViabilityAssessment:
     """Full viability assessment of one scenario on one scientific time series (see the module docstring).
 
     Raises ``ValueError`` if the series is for a different site. Eligibility comes from the hard constraints
     only; margins, risks and the score are derived from the same Phase 2 environment and never feed back
     into it. Explanations (Phase 6A) are derived from all of the above and change none of it.
+
+    ``series`` may also be a ``PreparedSeries`` (``prepare_series``) to reuse the prepared step functions across
+    many scenarios; the result is identical. ``policy`` selects the Phase 2 sampling interpretation and is used only
+    by the Part 2B sampling-sensitivity report: ``None`` (the default) keeps the engine default, sample-and-hold
+    (or the policy a ``PreparedSeries`` was prepared with), and a mismatch with a prepared series raises
+    ``ValueError``. Every later stage is the same for every policy.
     """
-    env = analyze_scenario(scenario, series)
+    env = analyze_scenario(scenario, series, policy=policy)
     checks = build_constraint_assessment(scenario, env)
     margins = margins_from_assessment(checks)
     risks = assess_risks(scenario, checks, margins)

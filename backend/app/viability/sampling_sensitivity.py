@@ -6,8 +6,8 @@ supported sampling policy?* The canonical result is always the engine default (s
 
 How both results are computed
 -----------------------------
-``evaluate_scenario_under_policy`` composes the canonical, tested pipeline stages in the same order as
-``engine.evaluate_scenario``, passing ``policy`` to ``analysis.analyze_scenario`` (its supported parameter)::
+``evaluate_scenario_under_policy`` calls ``engine.evaluate_scenario(scenario, series, policy=policy)``, the
+canonical entry point, whose ``policy`` keyword reaches ``analysis.analyze_scenario`` (its supported parameter)::
 
     env      = analyze_scenario(scenario, series, policy=policy)     # Phase 2 (the only policy-dependent step)
     checks   = build_constraint_assessment(scenario, env)            # Phase 3
@@ -17,8 +17,8 @@ How both results are computed
     text     = generate_explanations(...)                            # Phase 6A
 
 No constraint, margin, risk, scoring or explanation rule is re-implemented here. With the default policy the
-result equals ``evaluate_scenario(scenario, series)`` exactly (tested), which guards against the two wirings
-drifting apart. The scenario (site, landing time, duration, spacecraft, thresholds, preferences), the samples,
+result equals ``evaluate_scenario(scenario, series)`` exactly (tested); there is a single wiring, so the baseline
+cannot drift from the canonical result. The scenario (site, landing time, duration, spacecraft, thresholds, preferences), the samples,
 the risk policy and the score method are identical for both runs; only ``SamplingPolicy`` differs.
 
 Interpretation (normative)
@@ -53,9 +53,8 @@ from typing import Final, Self
 
 from pydantic import Field, model_validator
 
-from .analysis import analyze_scenario
-from .constraints import build_constraint_assessment
-from .conventions import ENGINE_VERSION, ContractModel, Identifier, NonEmptyStr, StrictBool, StrictFloat, UTCDatetime
+from .conventions import ContractModel, Identifier, NonEmptyStr, StrictBool, StrictFloat, UTCDatetime
+from .engine import evaluate_scenario
 from .enums import (
     ConstraintId,
     ConstraintStatus,
@@ -68,13 +67,9 @@ from .enums import (
     Unit,
     UnknownReason,
 )
-from .explain import STANDARD_LIMITATIONS, generate_explanations
 from .inputs import Provenance, ScientificTimeSeries
-from .margins import margins_from_assessment
 from .mission import LandingSite, MissionScenario
 from .outputs import Metric, MetricsSummary, ViabilityAssessment
-from .risk import assess_risks, overall_risk
-from .scoring import score_scenario
 from .windows import DEFAULT_SAMPLING_POLICY, PreparedSeries, prepare_series
 
 __all__ = [
@@ -354,38 +349,12 @@ def evaluate_scenario_under_policy(
     series: ScientificTimeSeries | PreparedSeries,
     policy: SamplingPolicy,
 ) -> ViabilityAssessment:
-    """``engine.evaluate_scenario`` with an explicit sampling policy (same stages, same order; composition only).
+    """``engine.evaluate_scenario(scenario, series, policy=policy)``: the canonical pipeline, nothing mirrored.
 
     A ``PreparedSeries`` must have been prepared with ``policy`` (``ValueError`` otherwise). With the default
     policy the result equals ``evaluate_scenario(scenario, series)`` exactly.
     """
-    env = analyze_scenario(scenario, series, policy=policy)
-    checks = build_constraint_assessment(scenario, env)
-    margins = margins_from_assessment(checks)
-    risks = assess_risks(scenario, checks, margins)
-    score = score_scenario(scenario, env.metrics, margins, checks.eligibility, data_basis=env.data_quality.data_basis)
-    level = overall_risk(risks)
-    explanations = generate_explanations(
-        checks.eligibility, checks.constraints, margins, risks, env.data_quality, score=score, overall_risk=level
-    )
-    return ViabilityAssessment(
-        engine_version=ENGINE_VERSION,
-        scenario_id=scenario.scenario_id,
-        site=env.site,
-        evaluated_start_utc=env.evaluated_start_utc,
-        evaluated_end_utc=env.evaluated_end_utc,
-        eligibility=checks.eligibility,
-        constraints=checks.constraints,
-        metrics=env.metrics,
-        windows=env.windows,
-        margins=margins,
-        risks=risks,
-        overall_risk=level,
-        score=score,
-        explanations=explanations,
-        data_quality=env.data_quality,
-        limitations=list(STANDARD_LIMITATIONS),
-    )
+    return evaluate_scenario(scenario, series, policy=policy)
 
 
 def sampling_sensitivity_report(
