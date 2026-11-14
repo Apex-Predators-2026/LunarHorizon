@@ -27,12 +27,14 @@ from app.viability.outputs import EnvironmentAnalysis, Metric
 from app.viability.windows import PreparedSeries
 
 from .helpers import raw_longest_outages
+from .real_data import DATA_END, DATA_HOURS, DATA_START
 
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
-START, END = datetime(2027, 1, 1, tzinfo=UTC), datetime(2029, 1, 1, tzinfo=UTC)
+# Whole-file checks: the window is each committed file's own coverage (read from the files, never pinned).
+START, END = DATA_START, DATA_END
 H = 3600.0
-N_HOURS = 17544  # 17 545 instantaneous samples, the last one exactly at coverage end
+N_HOURS = DATA_HOURS  # DATA_HOURS + 1 instantaneous samples, the last one exactly at coverage end
 
 
 @pytest.fixture(scope="module")
@@ -117,8 +119,8 @@ def test_agrees_with_andrews_summary_where_definitions_match(
     site: str, raw: dict[str, dict[str, Any]], analyses: dict[str, EnvironmentAnalysis]
 ) -> None:
     summary, m = raw[site]["summary"], analyses[site].metrics
-    # His values: means over all 17 545 samples, shown to 0.1 %. Ours: time-weighted over
-    # 17 544 h; the endpoint sample changes a percentage by <= 0.006 pp.
+    # His values: means over all N_HOURS + 1 samples, shown to 0.1 %. Ours: time-weighted over
+    # N_HOURS h; the endpoint sample changes a percentage by <= 100 / N_HOURS pp (<= 0.006 pp for >= 2 years).
     # sunlit_pct == our direct sunlight: both use the authoritative sun_visible flag (format 1.1),
     # so only display rounding and the endpoint differ (before 1.1: up to 0.11 pp from slivers).
     sunlit = v(m.sunlight_percent)

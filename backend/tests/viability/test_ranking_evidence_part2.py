@@ -65,6 +65,7 @@ from app.viability.ranking_evidence import (
 )
 
 from .helpers import assessment_kwargs, hourly
+from .real_data import DATA_END  # last sample instant of the committed files (read from them)
 from .test_phase5_integration import GOOD, HALF, T0, UNKNOWN_TAIL, pretend_real_geometric, run, scenario_for
 from .test_ranking_phase5 import bounded_score, known_score, make, no_components_score
 
@@ -75,7 +76,6 @@ ABOVE = [V] * 44 + [N] * 4  # exact ~94.2: inside UNKNOWN_TAIL's bounds [~90.8, 
 DEAD = [V] * 2 + [N] * 46  # breaks the 40 h darkness limit -> FAIL
 ALL_UNKNOWN = [U] * 48  # terrain unknown throughout -> UNKNOWN
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
-DATA_END = datetime(2029, 1, 1, tzinfo=UTC)
 
 
 # --- helpers -----------------------------------------------------------------------------------------
