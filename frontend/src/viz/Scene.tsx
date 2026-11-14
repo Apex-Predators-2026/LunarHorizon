@@ -102,6 +102,8 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     () => (site ? new SiteFrame(site.lat, site.lon, site.ground_height_m) : null),
     [site],
   )
+  // The Moon's spin axis (towards the north pole) in that frame: "north-up" for the top-down view.
+  const moonAxis = useMemo((): [number, number, number] | null => (frame ? [frame.east[2], frame.up[2], -frame.north[2]] : null), [frame])
   // The side panels cover the right of the view: shift the picture so the Moon/lander sits in the
   // middle of the free area to their left (half the panels' width, re-measured on resize).
   const sideRef = useRef<HTMLDivElement>(null)
@@ -451,6 +453,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             zooms towards the cursor. TileTree also keeps the camera itself above the ground. */}
         <GlobeControls
           moonCentre={frame?.moonCentre ?? null}
+          moonAxis={moonAxis}
           groundRadius={MOON_RADIUS_M + (site?.ground_height_m ?? 0)}
           maxDistance={MAX_CAMERA_DISTANCE_M}
         />
