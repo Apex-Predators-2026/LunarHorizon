@@ -3,6 +3,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ComparisonDashboard } from './features/compare'
 import { PlanDialogHost, PlanFab, PlansPanel } from './features/plans/PlansPanel'
 import { MissionRescue } from './features/rescue'
+import { GlassDemo } from './ui/GlassDemo'
+import { GlassDefs } from './ui/GlassSurface'
 import { GradientPreview } from './ui/GradientPreview'
 import { installMangoTexture } from './ui/mangoShader'
 import { initMaterialMotion } from './viz/materialMotion'
@@ -73,10 +75,17 @@ export default function App() {
   useEffect(() => installMangoTexture(), [])
 
   if (window.location.hash === '#mango') return <GradientPreview />
+  if (window.location.hash === '#glass') return (
+    <>
+      <GlassDefs />
+      <GlassDemo />
+    </>
+  )
 
   return (
     <div className="relative h-full overflow-hidden bg-black">
       {/* The header is rendered once for both pages (floating over the 3D view, or above the comparison). */}
+      <GlassDefs />
       <header className={`md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${compare ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
         <TopNav view={view} onView={setView} />
       </header>
