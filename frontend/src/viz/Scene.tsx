@@ -343,26 +343,29 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         </div>
         {/* Bottom stack: map tools (pin / layers / JPL check) sit just above the timeline panel. */}
         <div className="absolute bottom-0 left-3 right-3 flex flex-col md:left-[3.6vw] md:right-[calc(4vw+var(--lp-side-w)+16px)]">
-          <MapTools
-            layers={layers}
-            onLayers={setLayers}
-            pin={pin}
-            onArmPin={(armed) => setPin(armed ? { phase: 'armed' } : { phase: 'idle' })}
-            onCoordinates={analyseSpot}
-            siteId={siteId}
-            timeUtc={timeUtc}
-            view={view}
-            onView={setView}
-            graphics={graphicsQuality}
-            onGraphics={setGraphicsQuality}
-            farShadows={farShadows && gfx.shadows}
-            farShadowsAvailable={gfx.shadows}
-            onFarShadows={setFarShadows}
-          />
+          {/* Lifted above the "show timeline" arrow while the panel is hidden. */}
+          <div className={`md-slide transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>
+            <MapTools
+              layers={layers}
+              onLayers={setLayers}
+              pin={pin}
+              onArmPin={(armed) => setPin(armed ? { phase: 'armed' } : { phase: 'idle' })}
+              onCoordinates={analyseSpot}
+              siteId={siteId}
+              timeUtc={timeUtc}
+              view={view}
+              onView={setView}
+              graphics={graphicsQuality}
+              onGraphics={setGraphicsQuality}
+              farShadows={farShadows && gfx.shadows}
+              farShadowsAvailable={gfx.shadows}
+              onFarShadows={setFarShadows}
+            />
+          </div>
           {site && win && (
             <div
               ref={barRef}
-              className={`relative transition-[transform,margin] ${
+              className={`md-slide relative transition-[transform,margin] ${
                 barHidden ? 'duration-[250ms] ease-[var(--md-ease-emph-accel)]' : 'duration-[400ms] ease-[var(--md-ease-emph-decel)]'
               }`}
               style={barHidden ? { transform: `translateY(${barH}px)`, marginBottom: -barH } : undefined}

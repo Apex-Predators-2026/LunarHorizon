@@ -482,3 +482,11 @@
   to { opacity: 0; transform: translateX(-50%) scale(0.9) translateY(4px); }
 }
 .md-menu-out { animation: md-menu-out var(--md-dur-short3) var(--md-ease-emph-accel) both; }
+
+/* The bottom panel's slide away / back is a spatial cue the user asked for, so it keeps a gentle
+   transition even when the OS reports "reduce motion" (e.g. Windows animations switched off). */
+@media (prefers-reduced-motion: reduce) {
+  .md-slide {
+    transition-duration: 300ms !important;
+  }
+}
