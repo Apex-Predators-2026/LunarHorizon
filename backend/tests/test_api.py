@@ -51,6 +51,15 @@ def test_timeline_range_and_step():
     assert s["earth"]["visible"] == (s["earth"]["margin_deg"] > 0)
 
 
+def test_timeline_has_sun_visible_and_radius():
+    steps = client.get("/api/sites/peak-near-shackleton/timeline", params={"step_hours": 1}).json()
+    s = steps[0]["sun"]
+    assert isinstance(s["visible"], bool)
+    assert 0.25 < s["angular_radius_deg"] < 0.28  # apparent solar radius
+    # The flag is authoritative: it is never contradicted by a clearly positive fraction.
+    assert all(st["sun"]["visible"] for st in steps if st["sun"]["visible_fraction"] > 0)
+
+
 def test_bad_time_422():
     assert client.get("/api/sites/connecting-ridge/timeline", params={"start": "yesterday"}).status_code == 422
 

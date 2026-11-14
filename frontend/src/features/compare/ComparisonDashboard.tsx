@@ -37,7 +37,8 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
   )
 }
 
-export function ComparisonDashboard() {
+/** `onOpen3D` switches the app to the 3D view; the selected site/time are already in the shared app store. */
+export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}) {
   const scenarios = useCompareStore((s) => s.scenarios)
   const selectedIds = useCompareStore((s) => s.selectedIds)
   const results = useCompareStore((s) => s.results)
@@ -152,7 +153,7 @@ export function ComparisonDashboard() {
                     <SyncTimeline {...timelineProps} />
                     <div className="mt-4 border-t border-[#1c2a48] pt-3">
                       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300/90">Conditions at the selected time</h3>
-                      <ConditionsPanel entries={entries} align={align} originMs={originMs} />
+                      <ConditionsPanel entries={entries} align={align} originMs={originMs} onOpen3D={onOpen3D} />
                     </div>
                     <Explain title="Why can Earth disappear below the local horizon?">
                       <p>From the Moon, Earth stays in nearly the same spot in the sky, but near the south pole that spot is only a few degrees above the horizon. Libration makes Earth wobble by several degrees over a month, so at some sites it periodically dips behind nearby terrain, causing a direct-to-Earth blackout that lasts until it rises again.</p>

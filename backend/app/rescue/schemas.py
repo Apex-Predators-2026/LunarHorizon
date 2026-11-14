@@ -129,7 +129,7 @@ class LooseningSuggestion(BaseModel):
     total_relative_change: float
     keeps_original_plan: bool = Field(description="True if this relaxes requirements so the changed plan itself passes")
     unlocks: Scenario
-    unlocks_score: float
+    unlocks_score: float | None
     message: str
 
 
@@ -138,6 +138,7 @@ class SearchStats(BaseModel):
     locations_considered: int
     passing: int
     synthetic_candidates_excluded: int = Field(0, description="Candidates skipped because they only had synthetic data")
+    undecided: int = Field(0, description="Candidates whose viability could not be decided (eligibility 'unknown')")
     date_range_start: datetime
     date_range_end: datetime
 

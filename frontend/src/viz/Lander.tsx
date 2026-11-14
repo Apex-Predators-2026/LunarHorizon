@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import type { SiteStatus } from '../types'
+import type { TimelineStep } from '../types'
 
 const DEG = Math.PI / 180
 export const BEACON_HEIGHT = 120
@@ -17,7 +17,7 @@ export function Lander({
   observerHeight,
   showBeacon,
 }: {
-  status: SiteStatus | null
+  status: TimelineStep | null
   observerHeight: number
   showBeacon: boolean
 }) {

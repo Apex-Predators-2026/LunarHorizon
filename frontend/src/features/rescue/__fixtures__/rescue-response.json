@@ -22,6 +22,7 @@
    }
   },
   "passes": true,
+  "eligibility": "pass",
   "score": 86.58,
   "metrics": {
    "sunlight_fraction": 0.7719940476190476,
@@ -62,6 +63,7 @@
    }
   },
   "passes": false,
+  "eligibility": "fail",
   "score": 50.45,
   "metrics": {
    "sunlight_fraction": 0.8991190476190477,
@@ -85,7 +87,8 @@
     "unit": "fraction",
     "shortfall": 0.4,
     "relative_shortfall": 1.0,
-    "message": "Earth visibility is 0%, below the 40% requirement."
+    "message": "Earth visibility is 0%, below the 40% requirement.",
+    "is_unknown": false
    },
    {
     "constraint": "max_comms_gap_hours",
@@ -94,7 +97,8 @@
     "unit": "h",
     "shortfall": 72.0,
     "relative_shortfall": 0.75,
-    "message": "Longest comms blackout is 168 h, above the 96 h requirement."
+    "message": "Longest comms blackout is 168 h, above the 96 h requirement.",
+    "is_unknown": false
    },
    {
     "constraint": "min_initial_comms_hours",
@@ -103,7 +107,8 @@
     "unit": "h",
     "shortfall": 12.0,
     "relative_shortfall": 1.0,
-    "message": "Earth contact right after landing is 0 h, below the 12 h requirement."
+    "message": "Earth contact right after landing is 0 h, below the 12 h requirement.",
+    "is_unknown": false
    }
   ],
   "source": "placeholder-v1",
@@ -154,6 +159,7 @@
      }
     },
     "passes": true,
+    "eligibility": "pass",
     "score": 90.18,
     "metrics": {
      "sunlight_fraction": 1.0,
@@ -302,6 +308,7 @@
      }
     },
     "passes": true,
+    "eligibility": "pass",
     "score": 90.18,
     "metrics": {
      "sunlight_fraction": 1.0,
@@ -450,6 +457,7 @@
      }
     },
     "passes": false,
+    "eligibility": "fail",
     "score": 70.39,
     "metrics": {
      "sunlight_fraction": 0.5688988095238094,
@@ -473,7 +481,8 @@
       "unit": "h",
       "shortfall": 2.0,
       "relative_shortfall": 0.04,
-      "message": "Longest power gap (battery limit) is 52 h, above the 50 h requirement."
+      "message": "Longest power gap (battery limit) is 52 h, above the 50 h requirement.",
+      "is_unknown": false
      }
     ],
     "source": "placeholder-v1",
@@ -528,6 +537,7 @@
      }
     },
     "passes": false,
+    "eligibility": "fail",
     "score": 59.65,
     "metrics": {
      "sunlight_fraction": 0.6775892857142857,
@@ -551,7 +561,8 @@
       "unit": "fraction",
       "shortfall": 0.0011904761904761862,
       "relative_shortfall": 0.0029761904761904656,
-      "message": "Earth visibility is 40%, below the 40% requirement."
+      "message": "Earth visibility is 40%, below the 40% requirement.",
+      "is_unknown": false
      },
      {
       "constraint": "max_comms_gap_hours",
@@ -560,7 +571,8 @@
       "unit": "h",
       "shortfall": 5.0,
       "relative_shortfall": 0.052083333333333336,
-      "message": "Longest comms blackout is 101 h, above the 96 h requirement."
+      "message": "Longest comms blackout is 101 h, above the 96 h requirement.",
+      "is_unknown": false
      }
     ],
     "source": "placeholder-v1",
@@ -754,6 +766,7 @@
   "locations_considered": 3,
   "passing": 94,
   "synthetic_candidates_excluded": 1281,
+  "undecided": 0,
   "date_range_start": "2027-10-25T00:00:00Z",
   "date_range_end": "2027-11-24T00:00:00Z"
  },

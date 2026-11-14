@@ -16,6 +16,7 @@ from .net import CACHE_DIR, fetch_cached
 
 HORIZONS_API = "https://ssd.jpl.nasa.gov/api/horizons.api"
 BODIES = {"sun": "10", "earth": "399"}
+MOON_FRAME = "MEAN_ME"  # Horizons' name for the Moon's Mean-Earth/polar-axis frame
 
 
 @dataclass
@@ -45,6 +46,12 @@ def _parse(text: str, body: str) -> Ephemeris:
     if "$$SOE" not in text:
         raise RuntimeError(f"Horizons returned no ephemeris for {body}:\n{text[:1500]}")
     head, rest = text.split("$$SOE", 1)
+    # Site coordinates and the LOLA terrain are in the Mean-Earth/polar-axis (ME) frame. Horizons
+    # says which frame it placed the site in; refuse anything else (PA vs ME is ~1 km at the pole,
+    # enough to rotate azimuths by degrees near the pole).
+    frame_line = next((ln for ln in head.splitlines() if ln.startswith("Center pole/equ")), None)
+    if frame_line is not None and MOON_FRAME not in frame_line:
+        raise RuntimeError(f"Horizons placed the site in an unexpected frame ({frame_line.strip()}); expected {MOON_FRAME}")
     header = [h.strip() for h in head.strip().splitlines()[-2].split(",")]
     lines = rest.split("$$EOE", 1)[0].strip().splitlines()
 

@@ -1,4 +1,115 @@
 @import "tailwindcss";
 
-html, body, #root { height: 100%; }
-body { background: #0b0d12; color: #e6e8ee; }
+/*
+ * Design tokens (Phase 1 of the UI/UX pass). See docs/design-system.md.
+ * Each token becomes a Tailwind utility, e.g. --color-surface -> bg-surface / border-surface,
+ * --text-label -> text-label, --radius-panel -> rounded-panel.
+ * Chart code that needs raw hex values imports the same numbers from src/ui/tokens.ts.
+ */
+@theme {
+  /* Surfaces: darkest at the back, one step lighter per layer. */
+  --color-canvas: #070b14;
+  --color-surface: #0c1220;
+  --color-raised: #121b2d;
+  --color-inset: #060a12;
+
+  /* Lines */
+  --color-line: #1d2940;
+  --color-line-strong: #2b3a57;
+
+  /* Text, highest to lowest emphasis. ink-4 is for disabled/decorative text only (< 4.5:1). */
+  --color-ink: #e6eaf2;
+  --color-ink-2: #b4bdd0;
+  --color-ink-3: #8691a9;
+  --color-ink-4: #5b6680;
+
+  /* Interaction accent: navigation, focus, the active selection. Not used for data. */
+  --color-accent: #22b8cf;
+  --color-accent-strong: #5ad1e3;
+
+  /* Status: only for state, always shown with an icon and a word. */
+  --color-ok: #3fb950;
+  --color-warn: #d9a21b;
+  --color-crit: #f0605a;
+  --color-unknown: #8691a9;
+
+  /* Data: fixed meaning everywhere (charts, timelines, 3D overlays). */
+  --color-sun: #e8b84a;
+  --color-earth: #5aa9f0;
+  --color-night: #111a2e;
+  --color-blackout: #d03b3b;
+
+  /* Typography: system faces only (no web-font download). */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --text-micro: 10px;
+  --text-micro--line-height: 14px;
+  --text-label: 11px;
+  --text-label--line-height: 16px;
+  --text-body: 13px;
+  --text-body--line-height: 20px;
+  --text-title: 14px;
+  --text-title--line-height: 20px;
+  --text-heading: 18px;
+  --text-heading--line-height: 24px;
+  --text-figure: 22px;
+  --text-figure--line-height: 28px;
+
+  /* Corners: precise, not pill-shaped. */
+  --radius-control: 3px;
+  --radius-panel: 4px;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  html {
+    /* Native controls (date pickers, scrollbars, selects) render in their dark variants. */
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  }
+
+  /* One visible, consistent keyboard focus ring for every control. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+
+  /* Thin, low-contrast scrollbars on panels. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Numbers that line up in columns (measurements, times, scores). */
+@utility nums {
+  font-variant-numeric: tabular-nums;
+}

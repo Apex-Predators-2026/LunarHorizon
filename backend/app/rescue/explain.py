@@ -32,6 +32,10 @@ def fmt_delta(d: float, unit: str) -> str:
     return f"{sign}{abs(d) * 100:.0f} pts" if unit == "fraction" else f"{sign}{abs(d):.0f} h"
 
 
+def fmt_score(score: float | None) -> str:
+    return "n/a" if score is None else f"{score:.0f}"
+
+
 def fmt_time(t: datetime) -> str:
     return t.strftime("%Y-%m-%d %H:%M UTC")
 
@@ -52,9 +56,9 @@ def metric_deltas(before: ViabilityResult, after: ViabilityResult) -> list[Metri
         d = None if a is None or b is None else a - b
         better = None if d is None or abs(d) < 1e-9 else (d > 0) == higher
         out.append(MetricDelta(metric=metric, label=label, unit=unit, before=b, after=a, delta=d, better=better))
-    d = after.score - before.score
+    d = None if after.score is None or before.score is None else after.score - before.score
     out.append(MetricDelta(metric="score", label="Viability score", unit="points", before=before.score,
-                           after=after.score, delta=d, better=None if abs(d) < 1e-9 else d > 0))
+                           after=after.score, delta=d, better=None if d is None or abs(d) < 1e-9 else d > 0))
     return out
 
 
@@ -92,7 +96,7 @@ def headline_for(c: Candidate, changed: ViabilityResult) -> str:
     if not parts:
         parts.append("no change from the delayed plan")
     return (f"Land at {where} on {fmt_time(c.scenario.landing_utc)} ({'; '.join(parts)}) — "
-            f"passes all requirements, score {c.result.score:.0f} (delayed plan: {changed.score:.0f}).")
+            f"passes all requirements, score {fmt_score(c.result.score)} (delayed plan: {fmt_score(changed.score)}).")
 
 
 def why_fails(res: ViabilityResult) -> list[str]:

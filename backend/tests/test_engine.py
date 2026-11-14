@@ -72,6 +72,36 @@ def test_ridge_blocks_only_its_direction():
     assert mask.distance_m[0] == pytest.approx(2000, abs=50)
 
 
+def test_missing_terrain_makes_only_that_direction_unknown():
+    # Hole with no data in any tier, 3 km to the east of the site (local east = +x here).
+    def z(x, y):
+        out = np.zeros_like(x)
+        out[(x > 2_900) & (x < 3_100) & (np.abs(y - 50_000) < 100)] = np.nan
+        return out
+
+    mask = compute_horizon(_tiers(z), 0.0, 50_000.0, observer_height_m=2.0, az_step_deg=1)
+    assert np.isnan(mask.at(90))  # looking through the hole: unknown, not a guess
+    assert np.isnan(mask.distance_m[90])
+    assert not np.isnan(mask.at(0)) and not np.isnan(mask.at(180)) and not np.isnan(mask.at(270))
+    assert np.isnan(mask.elevation_deg).sum() <= 6  # only a few degrees around east
+
+
+def test_timeline_marks_unknown_hours():
+    from app.engine.ephemeris import Ephemeris
+    from app.engine.horizon import HorizonMask
+    from app.engine.visibility import build_timeline
+
+    az = np.arange(0, 360, 90.0)
+    mask = HorizonMask(az, np.array([1.0, np.nan, 1.0, 1.0]), np.array([1e3, np.nan, 1e3, 1e3]), 0.0, 2.0)
+    t = np.array(["2027-01-01T00", "2027-01-01T01"], dtype="datetime64[s]")
+    sun = Ephemeris("sun", t, np.array([0.0, 90.0]), np.array([2.0, 2.0]), np.array([0.27, 0.27]))
+    earth = Ephemeris("earth", t, np.array([90.0, 180.0]), np.array([5.0, 5.0]), np.array([np.nan, np.nan]))
+    tl = build_timeline(sun, earth, mask)
+    assert tl.sun_known.tolist() == [True, False]  # Sun due east at hour 1 -> unknown
+    assert tl.sunlit.tolist() == [True, False]
+    assert tl.earth_known.tolist() == [False, True]
+
+
 # ---------- visibility ----------
 
 def test_disk_fraction():
@@ -109,6 +139,17 @@ $$SOE
  2027-Jan-01 02:00,*, ,   0.100000,     0.790350,  1919.48,
 $$EOE
 """
+
+
+def _with_frame(frame: str) -> str:
+    # In real responses this line sits near the top of the header, well above the column names.
+    return f"Center pole/equ : {frame} (high precision)        {{East-longitude positive}}\n" + SAMPLE
+
+
+def test_frame_guard_accepts_mean_earth_and_rejects_others():
+    assert len(_parse(_with_frame("MEAN_ME"), "sun").times) == 3
+    with pytest.raises(RuntimeError, match="unexpected frame"):
+        _parse(_with_frame("IAU_MOON"), "sun")
 
 
 def test_parse_and_interpolate_across_north():

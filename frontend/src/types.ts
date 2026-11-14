@@ -12,12 +12,15 @@ export interface Site {
 // Data engine (Andrew): site info, horizon, timelines, terrain.
 // ---------------------------------------------------------------------------
 
+// Percentages are over hours where the answer is known (null if nothing is known).
 export interface SiteSummaryStats {
-  sunlit_pct: number
-  mean_sun_fraction_pct: number
-  earth_visible_pct: number
-  horizon_min_deg: number
-  horizon_max_deg: number
+  sunlit_pct: number | null
+  mean_sun_fraction_pct: number | null
+  earth_visible_pct: number | null
+  horizon_min_deg: number | null
+  horizon_max_deg: number | null
+  unknown_horizon_pct: number // directions with missing terrain data
+  unknown_hours_pct: number // hours where Sun or Earth visibility is unknown
 }
 
 // A Site plus what the data engine knows about it (returned by /api/sites).
@@ -30,10 +33,13 @@ export interface SiteInfo extends Site {
   data_stop_utc: string
 }
 
+// null in the fields below means "unknown": terrain data is missing in that direction
+// (only possible for custom sites; curated sites are always fully known).
+
 export interface Horizon {
   azimuth_deg: number[] // clockwise from north, every 0.5 deg
-  elevation_deg: number[] // terrain horizon elevation per azimuth
-  distance_m: number[] // how far away the blocking terrain is
+  elevation_deg: (number | null)[] // terrain horizon elevation per azimuth
+  distance_m: (number | null)[] // how far away the blocking terrain is
   ground_height_m: number
   observer_height_m: number
 }
@@ -41,16 +47,18 @@ export interface Horizon {
 export interface BodyState {
   azimuth_deg: number
   elevation_deg: number
-  horizon_deg: number // terrain horizon elevation at this azimuth
+  horizon_deg: number | null // terrain horizon elevation at this azimuth
 }
 
 export interface SunState extends BodyState {
-  visible_fraction: number // portion of the solar disk above terrain, 0..1
+  visible_fraction: number | null // portion of the solar disk above terrain, 0..1
+  visible?: boolean | null // any of the disk above terrain; authoritative (fraction > 0 can round to 0)
+  angular_radius_deg?: number | null // apparent solar radius
 }
 
 export interface EarthState extends BodyState {
-  visible: boolean
-  margin_deg: number // elevation_deg - horizon_deg
+  visible: boolean | null
+  margin_deg: number | null // elevation_deg - horizon_deg
 }
 
 export interface TimelineStep {
@@ -121,6 +129,7 @@ export interface Violation {
   shortfall: number // >= 0, in `unit`
   relative_shortfall: number // shortfall / required
   message: string
+  is_unknown: boolean // true = undecided because data is missing, not a real failure
 }
 
 export interface ViabilityMetrics {
@@ -138,12 +147,19 @@ export interface ViabilityMetrics {
   mean_solar_elevation_deg: number
 }
 
+export type Eligibility = 'pass' | 'fail' | 'unknown'
+
 export interface ViabilityResult {
   scenario: Scenario
-  passes: boolean
-  score: number // 0..100
+  passes: boolean // true only when eligibility is 'pass'
+  eligibility: Eligibility | null // null = evaluator didn't say; then use `passes`
+  score: number | null // 0..100, null = not scored
   metrics: ViabilityMetrics
   violations: Violation[]
   source: string // which viability implementation
   data_source: string // which timeline source (e.g. "synthetic-placeholder")
 }
+
+/** pass / fail / unknown, falling back to `passes` when the evaluator gave no eligibility. */
+export const verdictOf = (v: Pick<ViabilityResult, 'passes' | 'eligibility'>): Eligibility =>
+  v.eligibility ?? (v.passes ? 'pass' : 'fail')

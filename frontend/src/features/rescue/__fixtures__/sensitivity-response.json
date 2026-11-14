@@ -20,6 +20,7 @@
    }
   },
   "passes": true,
+  "eligibility": "pass",
   "score": 86.58,
   "metrics": {
    "sunlight_fraction": 0.7719940476190476,

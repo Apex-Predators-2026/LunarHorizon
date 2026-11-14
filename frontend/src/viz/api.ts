@@ -1,7 +1,7 @@
 // Client + React hooks for the data-engine endpoints (backend/app/main.py, /api/sites/*).
 // Same base-URL convention as features/rescue/api.ts (VITE_API_URL, else the Vite proxy).
 import { useEffect, useState } from 'react'
-import type { Horizon, SiteInfo, SiteStatus, TerrainGrid } from '../types'
+import type { Horizon, SiteInfo, SiteStatus, TerrainGrid, TimelineStep } from '../types'
 
 const API_URL: string = import.meta.env.VITE_API_URL ?? ''
 
@@ -25,6 +25,13 @@ export const fetchHorizon = (id: string, signal?: AbortSignal) =>
 export const fetchTerrain = (id: string, halfWidthM = 5000, size = 256, signal?: AbortSignal) =>
   getJson<TerrainGrid>(
     `/api/sites/${encodeURIComponent(id)}/terrain?size=${size}&half_width_m=${halfWidthM}`,
+    signal,
+  )
+export const fetchTimeline = (id: string, startUtc: string, endUtc: string, stepHours = 1, signal?: AbortSignal) =>
+  getJson<TimelineStep[]>(
+    `/api/sites/${encodeURIComponent(id)}/timeline?start=${encodeURIComponent(startUtc)}&end=${encodeURIComponent(
+      endUtc,
+    )}&step_hours=${stepHours}`,
     signal,
   )
 export const fetchStatus = (id: string, timeUtc: string, signal?: AbortSignal) =>

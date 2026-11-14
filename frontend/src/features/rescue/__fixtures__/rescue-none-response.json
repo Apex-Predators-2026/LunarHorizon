@@ -22,6 +22,7 @@
    }
   },
   "passes": true,
+  "eligibility": "pass",
   "score": 86.58,
   "metrics": {
    "sunlight_fraction": 0.7719940476190476,
@@ -62,6 +63,7 @@
    }
   },
   "passes": false,
+  "eligibility": "fail",
   "score": 46.44,
   "metrics": {
    "sunlight_fraction": 0.8991190476190477,
@@ -85,7 +87,8 @@
     "unit": "fraction",
     "shortfall": 0.4,
     "relative_shortfall": 1.0,
-    "message": "Earth visibility is 0%, below the 40% requirement."
+    "message": "Earth visibility is 0%, below the 40% requirement.",
+    "is_unknown": false
    },
    {
     "constraint": "max_comms_gap_hours",
@@ -94,7 +97,8 @@
     "unit": "h",
     "shortfall": 72.0,
     "relative_shortfall": 0.75,
-    "message": "Longest comms blackout is 168 h, above the 96 h requirement."
+    "message": "Longest comms blackout is 168 h, above the 96 h requirement.",
+    "is_unknown": false
    },
    {
     "constraint": "min_initial_sun_hours",
@@ -103,7 +107,8 @@
     "unit": "h",
     "shortfall": 354.0,
     "relative_shortfall": 0.708,
-    "message": "Sunlight right after landing is 146 h, below the 500 h requirement."
+    "message": "Sunlight right after landing is 146 h, below the 500 h requirement.",
+    "is_unknown": false
    },
    {
     "constraint": "min_initial_comms_hours",
@@ -112,7 +117,8 @@
     "unit": "h",
     "shortfall": 12.0,
     "relative_shortfall": 1.0,
-    "message": "Earth contact right after landing is 0 h, below the 12 h requirement."
+    "message": "Earth contact right after landing is 0 h, below the 12 h requirement.",
+    "is_unknown": false
    }
   ],
   "source": "placeholder-v1",
@@ -162,6 +168,7 @@
      }
     },
     "passes": false,
+    "eligibility": "fail",
     "score": 86.25,
     "metrics": {
      "sunlight_fraction": 1.0,
@@ -185,7 +192,8 @@
       "unit": "h",
       "shortfall": 332.0,
       "relative_shortfall": 0.664,
-      "message": "Sunlight right after landing is 168 h, below the 500 h requirement."
+      "message": "Sunlight right after landing is 168 h, below the 500 h requirement.",
+      "is_unknown": false
      }
     ],
     "source": "placeholder-v1",
@@ -240,6 +248,7 @@
      }
     },
     "passes": false,
+    "eligibility": "fail",
     "score": 86.25,
     "metrics": {
      "sunlight_fraction": 1.0,
@@ -263,7 +272,8 @@
       "unit": "h",
       "shortfall": 332.0,
       "relative_shortfall": 0.664,
-      "message": "Sunlight right after landing is 168 h, below the 500 h requirement."
+      "message": "Sunlight right after landing is 168 h, below the 500 h requirement.",
+      "is_unknown": false
      }
     ],
     "source": "placeholder-v1",
@@ -504,6 +514,7 @@
   "locations_considered": 3,
   "passing": 0,
   "synthetic_candidates_excluded": 147,
+  "undecided": 0,
   "date_range_start": "2027-10-25T00:00:00Z",
   "date_range_end": "2027-10-28T00:00:00Z"
  },

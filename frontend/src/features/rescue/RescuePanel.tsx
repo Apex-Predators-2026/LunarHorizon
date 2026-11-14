@@ -120,6 +120,7 @@ export function RescueResults({ res, selected, sensitivity, sensitivityLoading, 
           {res.stats.synthetic_candidates_excluded > 0 && (
             <> {res.stats.synthetic_candidates_excluded} synthetic-only candidates left out.</>
           )}
+          {res.stats.undecided > 0 && <> {res.stats.undecided} could not be checked (missing data).</>}
         </p>
       </div>
 

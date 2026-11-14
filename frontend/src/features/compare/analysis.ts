@@ -122,6 +122,7 @@ export function fmtMetric(v: number | null | undefined, unit: MetricDef['unit'])
 }
 
 export function fmtDeltaValue(d: number, unit: MetricDef['unit']): string {
+  if (Math.abs(d) < 1e-9) return 'no change'
   const sign = d > 0 ? '+' : d < 0 ? '−' : '±'
   const a = Math.abs(d)
   switch (unit) {
@@ -196,7 +197,7 @@ export function rankByViability(entries: Entry[]): { real: Ranked[]; demo: Ranke
     [...list]
       .sort((a, b) => {
         const va = a.result!.viability!, vb = b.result!.viability!
-        return Number(vb.passes) - Number(va.passes) || vb.score - va.score
+        return Number(vb.passes) - Number(va.passes) || (vb.score ?? 0) - (va.score ?? 0)
       })
       .map((entry, i) => ({ entry, rank: i + 1 }))
   const ok = okEntries(entries).filter((e) => e.result!.viability)
@@ -302,7 +303,7 @@ export function axisOrigin(scenarios: ComparisonScenario[]): number {
 export function fmtAxis(x: number, align: Align, originMs: number, span: number): string {
   if (align === 'met') return span > 96 ? `T+${(x / 24).toFixed(x % 24 === 0 ? 0 : 1)} d` : `T+${Math.round(x)} h`
   const d = new Date(originMs + x * 3_600_000)
-  const day = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
+  const day = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC', ...(span > 300 * 24 ? { year: 'numeric' } : {}) })
   return span > 96 ? day : `${day} ${d.toISOString().slice(11, 16)}`
 }
 
@@ -344,7 +345,7 @@ export function conditionsAt(e: Entry, x: number): Conditions | null {
   const sunEl = tl.sun_elevation_deg[i], sunHorizon = tl.sun_horizon_deg[i], f = tl.sun_visible_fraction[i]
   const earthEl = tl.earth_elevation_deg[i], earthHorizon = tl.earth_horizon_deg[i], vis = tl.earth_visible[i]
   let sunReason: string
-  if (f >= 0.999) sunReason = `Full Sun: disk ${deg(sunEl - sunHorizon)} above the terrain horizon`
+  if (f >= 0.999) sunReason = `Full Sun: Sun centre ${deg(sunEl - sunHorizon)} above the terrain horizon`
   else if (f > 0) sunReason = `Partial Sun: ${Math.round(f * 100)}% of the disk clears the terrain (horizon ${deg(sunHorizon)})`
   else if (sunHorizon > sunEl) sunReason = `Dark: terrain at ${deg(sunHorizon)} hides the Sun at ${deg(sunEl)}`
   else sunReason = `Dark: Sun at ${deg(sunEl)} is below the horizon`
@@ -418,6 +419,10 @@ function pick(list: Entry[], f: (e: Entry) => number | null | undefined, better:
   return { best: vals[0], second: vals[1], worst: vals[vals.length - 1], all: vals }
 }
 
+/** Differences smaller than these are reported as ties rather than strengths/weaknesses. */
+const SIGNIFICANT_FRACTION = 0.02
+const significantHours = (best: number, worst: number) => worst - best >= Math.max(6, 0.1 * worst)
+
 const h = (v: number) => (v >= 72 ? `${Math.round(v)} h (${(v / 24).toFixed(1)} days)` : `${Math.round(v)} h`)
 const p = (v: number) => `${(v * 100).toFixed(1)}%`
 
@@ -441,7 +446,7 @@ export function buildSummary(entries: Entry[]): Summary {
   const comms = pick(list, (e) => e.result!.earth!.visible_fraction, 'higher')!
   const dark = pick(list, (e) => e.result!.solar!.longest_dark_hours, 'lower')!
   const black = pick(list, (e) => e.result!.earth!.longest_blackout_hours, 'lower')!
-  const viab = pick(list, (e) => (e.result!.viability ? e.result!.viability.score + (e.result!.viability.passes ? 1000 : 0) : null), 'higher')
+  const viab = pick(list, (e) => (e.result!.viability ? (e.result!.viability.score ?? 0) + (e.result!.viability.passes ? 1000 : 0) : null), 'higher')
 
   const tied = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol
   const winners = (x: NonNullable<ReturnType<typeof pick>>, tol: number) => x.all.filter((y) => tied(y.v, x.best.v, tol)).map((y) => y.e)
@@ -459,7 +464,7 @@ export function buildSummary(entries: Entry[]): Summary {
   if (viab) {
     const v = viab.best.e.result!.viability!
     bests.push({ label: 'Best mission viability', ids: [viab.best.e.scenario.id],
-      detail: `score ${v.score.toFixed(1)}, ${v.passes ? 'passes all requirements' : `${v.violations.length} violation(s)`}` })
+      detail: `score ${v.score?.toFixed(1) ?? 'n/a'}, ${v.passes ? 'passes all requirements' : `${v.violations.length} violation(s)`}` })
   }
 
   const highlights: ScenarioHighlights[] = list.map((e) => {
@@ -470,10 +475,11 @@ export function buildSummary(entries: Entry[]): Summary {
     if (bestDark.includes(e) && bestDark.length < list.length) strengths.push('Shortest continuous darkness')
     if (bestBlack.includes(e) && bestBlack.length < list.length) strengths.push('Shortest communication blackout')
     if (r.viability?.passes) strengths.push('Meets every mission requirement')
-    if (solar.worst.e === e && !bestSolar.includes(e)) weaknesses.push(`Least solar availability (${p(r.solar!.mean_visible_fraction)})`)
-    if (comms.worst.e === e && !bestComms.includes(e)) weaknesses.push(`Least Earth visibility (${p(r.earth!.visible_fraction)})`)
-    if (dark.worst.e === e && !bestDark.includes(e) && r.solar!.longest_dark_hours > 0) weaknesses.push(`Longest darkness (${h(r.solar!.longest_dark_hours)})`)
-    if (black.worst.e === e && !bestBlack.includes(e) && r.earth!.longest_blackout_hours > 0) weaknesses.push(`Longest blackout (${h(r.earth!.longest_blackout_hours)})`)
+    // Only call something a weakness when the gap to the best is meaningful.
+    if (solar.worst.e === e && solar.best.v - solar.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least solar availability (${p(r.solar!.mean_visible_fraction)})`)
+    if (comms.worst.e === e && comms.best.v - comms.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least Earth visibility (${p(r.earth!.visible_fraction)})`)
+    if (dark.worst.e === e && significantHours(dark.best.v, dark.worst.v)) weaknesses.push(`Longest darkness (${h(r.solar!.longest_dark_hours)})`)
+    if (black.worst.e === e && significantHours(black.best.v, black.worst.v)) weaknesses.push(`Longest blackout (${h(r.earth!.longest_blackout_hours)})`)
     for (const v of r.viability?.violations ?? []) weaknesses.push(v.message)
     return { entry: e, strengths, weaknesses }
   })

@@ -2,10 +2,9 @@
 // Ranking order and pass/fail come from the team viability evaluator (not recomputed here).
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-import { fmtMetric, rankByViability, type Entry } from './analysis'
+import { comparableEntries, fmtMetric, okEntries, rankByViability, type Entry } from './analysis'
 import { STATE, seriesColor } from './palette'
 import { DataKindBadge, Explain, PassBadge, ScenarioChip } from './ui'
-import { useCompareStore } from './useCompareStore'
 
 interface BarRow {
   id: string
@@ -71,11 +70,17 @@ const h = (v: number) => fmtMetric(v, 'h')
 const pctf = (v: number) => `${v.toFixed(1)}%`
 
 export function AvailabilityCharts({ entries }: { entries: Entry[] }) {
-  const ok = entries.filter((e) => e.result?.solar && e.result.earth)
+  const ok = comparableEntries(entries).filter((e) => e.result?.solar && e.result.earth)
+  const left = okEntries(entries).filter((e) => !ok.includes(e))
   if (ok.length === 0) return <p className="text-xs text-slate-500">No results with data yet.</p>
   const row = (e: Entry, value: number, limit?: number): BarRow => ({ id: e.scenario.id, name: e.scenario.label, value, limit, entry: e })
   return (
     <div className="grid gap-5 lg:grid-cols-2">
+      {left.length > 0 && (
+        <p className="text-[11px] text-amber-300 lg:col-span-2">
+          ⚠ {left.map((e) => e.scenario.label).join(', ')} {left.length > 1 ? 'use' : 'uses'} demonstration data and {left.length > 1 ? 'are' : 'is'} left out of these real-data charts.
+        </p>
+      )}
       <ScenarioBars title="☀ Mission illuminated (any solar disk visible)" unit="%" max={100} format={pctf}
         rows={ok.map((e) => row(e, e.result!.solar!.sunlit_fraction * 100))} />
       <ScenarioBars title="⊕ Mission with Earth in line of sight" unit="%" max={100} format={pctf}
@@ -89,8 +94,8 @@ export function AvailabilityCharts({ entries }: { entries: Entry[] }) {
 }
 
 export function MissionPerformance({ entries }: { entries: Entry[] }) {
-  const viabilitySource = useCompareStore((s) => s.viabilitySource)
   const { real, demo } = rankByViability(entries)
+  const viabilitySource = [...new Set([...real, ...demo].map((r) => r.entry.result!.viability!.source))].join(', ')
   const placeholder = viabilitySource.includes('placeholder')
   const list = (ranked: typeof real, title: string) => (
     <div>
@@ -107,12 +112,12 @@ export function MissionPerformance({ entries }: { entries: Entry[] }) {
                 <PassBadge passes={v.passes} />
                 <DataKindBadge kind={e.result!.data_kind} />
                 <span className="ml-1 text-right">
-                  <span className="block text-xl font-semibold tabular-nums text-slate-50">{v.score.toFixed(1)}</span>
+                  <span className="block text-xl font-semibold tabular-nums text-slate-50">{v.score?.toFixed(1) ?? '—'}</span>
                   <span className="block text-[10px] text-slate-500">viability score</span>
                 </span>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded bg-slate-800" aria-hidden="true">
-                <div className="h-full rounded" style={{ width: `${Math.max(0, Math.min(100, v.score))}%`, background: seriesColor(e.scenario.colorSlot) }} />
+                <div className="h-full rounded" style={{ width: `${Math.max(0, Math.min(100, v.score ?? 0))}%`, background: seriesColor(e.scenario.colorSlot) }} />
               </div>
               {v.violations.length > 0 ? (
                 <ul className="mt-2 space-y-0.5 text-xs text-red-200">

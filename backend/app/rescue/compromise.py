@@ -72,7 +72,7 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
     def option(c: Candidate) -> CompromiseOption:
         d = _science_distance(c.scenario.site, target, radius)
         sci = _science_score(d, req)
-        eng = c.result.score / 100.0
+        eng = c.result.score_or_zero / 100.0
         meets_e, meets_s = c.result.passes, sci >= g.min_science_score
         combined = (req.engineering_weight * eng + req.science_weight * sci) / wsum
         bits = [f"{c.scenario.site.name} on {fmt_time(c.scenario.landing_utc)}",
@@ -90,8 +90,8 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
     for c in cands:
         k = c.key
         best = by_loc.get(k)
-        rank = (c.result.passes, c.result.score)
-        if best is None or rank > (best.result.passes, best.result.score):
+        rank = (c.result.passes, c.result.score_or_zero)
+        if best is None or rank > (best.result.passes, best.result.score_or_zero):
             by_loc[k] = c
     opts_all = [option(c) for c in by_loc.values()]
 

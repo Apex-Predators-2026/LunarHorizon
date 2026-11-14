@@ -49,7 +49,7 @@ export function AlternativeCard({ alt, selected, onSelect, onCheckSensitivity }:
           </p>
         </div>
         <div className="text-right">
-          <div className="text-xl font-semibold tabular-nums text-slate-100">{viability.score.toFixed(0)}</div>
+          <div className="text-xl font-semibold tabular-nums text-slate-100">{viability.score?.toFixed(0) ?? '—'}</div>
           <div className="text-[11px] text-slate-500">score</div>
         </div>
       </header>

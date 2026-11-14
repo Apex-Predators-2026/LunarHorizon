@@ -1,7 +1,7 @@
 // Location comparison: each site's terrain horizon (LOLA, from the data engine's /horizon endpoint)
 // with the Sun and Earth positions at the selected time. Shows directly why one site is lit and another dark.
 import { useEffect, useMemo, useState } from 'react'
-import { CartesianGrid, ComposedChart, Line, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from 'recharts'
+import { CartesianGrid, ComposedChart, Line, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import type { Horizon } from '../../types'
 import { conditionsAt, type Entry } from './analysis'
@@ -50,7 +50,8 @@ export function HorizonCompare({ entries }: { entries: Entry[] }) {
       for (const e of lines) {
         const h = horizons[e.scenario.site.id]!
         const i = Math.round((a % 360) / 0.5) % h.elevation_deg.length
-        row[e.scenario.id] = h.elevation_deg[i]
+        const el = h.elevation_deg[i]
+        if (el !== null) row[e.scenario.id] = el // null = unknown terrain (custom sites): leave a gap
       }
       out.push(row)
     }
@@ -101,20 +102,25 @@ export function HorizonCompare({ entries }: { entries: Entry[] }) {
               <Line key={e.scenario.id} dataKey={e.scenario.id} stroke={seriesColor(e.scenario.colorSlot)}
                 strokeDasharray={seriesDash(e.scenario.colorSlot)} strokeWidth={2} dot={false} isAnimationActive={false} />
             ))}
-            <Scatter data={sunPts} dataKey="el" isAnimationActive={false}
-              shape={(p: { cx?: number; cy?: number; payload?: (typeof sunPts)[number] }) => p.cx === undefined || !p.payload ? <g /> : (
-                <g>
-                  <circle cx={p.cx} cy={p.cy} r={6} fill={p.payload.lit ? STATE.sun : 'none'} stroke={seriesColor(p.payload.s.colorSlot)} strokeWidth={2} />
-                  <text x={p.cx} y={(p.cy ?? 0) - 9} textAnchor="middle" fontSize={9} fill={STATE.ink}>{p.payload.s.label}</text>
-                </g>
-              )} />
-            <Scatter data={earthPts} dataKey="el" isAnimationActive={false}
-              shape={(p: { cx?: number; cy?: number; payload?: (typeof earthPts)[number] }) => p.cx === undefined || !p.payload ? <g /> : (
-                <g>
-                  <rect x={p.cx - 5} y={(p.cy ?? 0) - 5} width={10} height={10} rx={2} fill={p.payload.vis ? STATE.earth : 'none'} stroke={seriesColor(p.payload.s.colorSlot)} strokeWidth={2} />
-                  <text x={p.cx} y={(p.cy ?? 0) + 16} textAnchor="middle" fontSize={9} fill={STATE.ink}>{p.payload.s.label}⊕</text>
-                </g>
-              )} />
+            {/* Markers are drawn as reference dots with the point data captured in the closure. */}
+            {sunPts.map((pt) => (
+              <ReferenceDot key={`sun-${pt.s.id}`} x={pt.az} y={pt.el} ifOverflow="extendDomain" r={6}
+                shape={(p: { cx?: number; cy?: number }) => (
+                  <g>
+                    <circle cx={p.cx} cy={p.cy} r={6} fill={pt.lit ? STATE.sun : 'none'} stroke={seriesColor(pt.s.colorSlot)} strokeWidth={2} />
+                    <text x={p.cx} y={(p.cy ?? 0) - 9} textAnchor="middle" fontSize={9} fill={STATE.ink}>{pt.s.label}☀</text>
+                  </g>
+                )} />
+            ))}
+            {earthPts.map((pt) => (
+              <ReferenceDot key={`earth-${pt.s.id}`} x={pt.az} y={pt.el} ifOverflow="extendDomain" r={6}
+                shape={(p: { cx?: number; cy?: number }) => (
+                  <g>
+                    <rect x={(p.cx ?? 0) - 5} y={(p.cy ?? 0) - 5} width={10} height={10} rx={2} fill={pt.vis ? STATE.earth : 'none'} stroke={seriesColor(pt.s.colorSlot)} strokeWidth={2} />
+                    <text x={p.cx} y={(p.cy ?? 0) + 16} textAnchor="middle" fontSize={9} fill={STATE.ink}>{pt.s.label}⊕</text>
+                  </g>
+                )} />
+            ))}
           </ComposedChart>
         </ResponsiveContainer>
       </div>

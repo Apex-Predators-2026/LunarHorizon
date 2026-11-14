@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
 import { useAppStore } from '../store'
-import type { SiteInfo, SiteStatus } from '../types'
+import type { SiteInfo, SiteStatus, TimelineStep } from '../types'
 import type { ViewMode } from './CameraRig'
+import { fmtDeg, fmtPct, sunUp } from './timeline'
 
 const toInput = (iso: string) => iso.slice(0, 16) // "2027-01-01T00:00"
 const fromInput = (v: string) => `${v}:00Z`
@@ -14,8 +15,8 @@ function hoursUntil(fromIso: string, toIso: string | null) {
 }
 
 /**
- * Minimal overlay for the 3D view: pick a site and time, read the conditions.
- * Phase 5 adds the time slider/playback; the main mission panel is Nimansh's.
+ * Overlay for the 3D view: pick a site, time and camera view; read the conditions.
+ * Playback lives in <TimeBar>; the main mission panel is Nimansh's.
  */
 const VIEWS: { id: ViewMode; label: string }[] = [
   { id: 'overview', label: 'Overview' },
@@ -25,19 +26,22 @@ const VIEWS: { id: ViewMode; label: string }[] = [
 
 export function ViewerHud({
   sites,
-  status,
+  current,
+  events,
   error,
   loading,
   view,
   onView,
 }: {
   sites: SiteInfo[] | null
-  status: SiteStatus | null
+  current: TimelineStep | null // conditions at the selected time
+  events: SiteStatus | null // next sunset/Earthset etc. (fetched while paused)
   error: string | null
   loading: boolean
   view: ViewMode
   onView: (v: ViewMode) => void
 }) {
+  const playing = useAppStore((s) => s.playing)
   const { siteId, timeUtc, setSite, setTime } = useAppStore()
   const site = sites?.find((s) => s.id === siteId) ?? null
 
@@ -96,38 +100,41 @@ export function ViewerHud({
         {error && <p className="text-red-400">{error}. Is the backend running on port 8000?</p>}
         {!error && loading && <p className="text-slate-400">Loading…</p>}
 
-        {status && (
+        {current && (
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
             <dt className="text-slate-400">Sunlight</dt>
             <dd>
-              {Math.round(status.sun.visible_fraction * 100)}% of disk · el {status.sun.elevation_deg.toFixed(2)}° vs
-              terrain {status.sun.horizon_deg.toFixed(2)}°
+              {fmtPct(current.sun.visible_fraction, current.sun.visible)} of disk · el{' '}
+              {fmtDeg(current.sun.elevation_deg)} vs terrain {fmtDeg(current.sun.horizon_deg)}
             </dd>
             <dt className="text-slate-400">Earth</dt>
             <dd>
-              {status.earth.visible ? 'in view' : 'blocked'} · margin {status.earth.margin_deg.toFixed(2)}°
+              {current.earth.visible === null ? 'unknown' : current.earth.visible ? 'in view' : 'blocked'} · margin{' '}
+              {fmtDeg(current.earth.margin_deg)}
             </dd>
-            <dt className="text-slate-400">{status.sun.visible_fraction > 0 ? 'Next sunset' : 'Next sunrise'}</dt>
-            <dd>
-              {status.sun.visible_fraction > 0
-                ? fmt(status.next_sunset_utc) + hoursUntil(status.time_utc, status.next_sunset_utc)
-                : fmt(status.next_sunrise_utc) + hoursUntil(status.time_utc, status.next_sunrise_utc)}
+            <dt className="text-slate-400">{sunUp(current.sun) ? 'Next sunset' : 'Next sunrise'}</dt>
+            <dd className={events ? '' : 'text-slate-500'}>
+              {!events
+                ? playing
+                  ? 'shown when paused'
+                  : '…'
+                : sunUp(current.sun)
+                  ? fmt(events.next_sunset_utc) + hoursUntil(events.time_utc, events.next_sunset_utc)
+                  : fmt(events.next_sunrise_utc) + hoursUntil(events.time_utc, events.next_sunrise_utc)}
             </dd>
-            <dt className="text-slate-400">{status.earth.visible ? 'Next Earthset' : 'Next Earthrise'}</dt>
-            <dd>
-              {status.earth.visible
-                ? fmt(status.next_earthset_utc) + hoursUntil(status.time_utc, status.next_earthset_utc)
-                : fmt(status.next_earthrise_utc) + hoursUntil(status.time_utc, status.next_earthrise_utc)}
+            <dt className="text-slate-400">{current.earth.visible ? 'Next Earthset' : 'Next Earthrise'}</dt>
+            <dd className={events ? '' : 'text-slate-500'}>
+              {!events
+                ? playing
+                  ? 'shown when paused'
+                  : '…'
+                : current.earth.visible
+                  ? fmt(events.next_earthset_utc) + hoursUntil(events.time_utc, events.next_earthset_utc)
+                  : fmt(events.next_earthrise_utc) + hoursUntil(events.time_utc, events.next_earthrise_utc)}
             </dd>
           </dl>
         )}
       </div>
-      {site && (
-        <p className="mt-auto text-[11px] text-slate-500">
-          {site.lat.toFixed(4)}°, {site.lon.toFixed(4)}°E · ground {Math.round(site.ground_height_m)} m · terrain: Moon
-          Trek LOLA · ephemeris: JPL Horizons · drag to orbit, scroll to zoom
-        </p>
-      )}
     </div>
   )
 }

@@ -19,23 +19,25 @@ from .terrain import Terrain
 @dataclass
 class HorizonMask:
     azimuth_deg: np.ndarray  # evenly spaced from 0, clockwise from north
-    elevation_deg: np.ndarray  # horizon elevation angle per azimuth
-    distance_m: np.ndarray  # distance to the terrain point that sets the horizon
+    elevation_deg: np.ndarray  # horizon elevation angle per azimuth (NaN = unknown, terrain data missing)
+    distance_m: np.ndarray  # distance to the terrain point that sets the horizon (NaN = unknown)
     ground_height_m: float  # terrain height at the site (relative to 1737.4 km sphere)
     observer_height_m: float  # height of the sensor above the ground
 
     def at(self, azimuth_deg) -> np.ndarray:
-        """Horizon elevation at any azimuth (circular linear interpolation)."""
+        """Horizon elevation at any azimuth (circular linear interpolation; NaN if either
+        neighbouring direction is unknown)."""
         az = np.concatenate([self.azimuth_deg, [self.azimuth_deg[0] + 360]])
         el = np.concatenate([self.elevation_deg, [self.elevation_deg[0]]])
         return np.interp(np.asarray(azimuth_deg) % 360, az, el)
 
 
 def sample_distances(terrain: Terrain, start_m: float = 10.0) -> np.ndarray:
-    """Distances along each ray, spaced at roughly each tier's resolution."""
+    """Distances along each ray, spaced at roughly each tier's resolution. Rays stop 2% short of
+    the outermost crop's edge, so the edge itself is never mistaken for missing terrain."""
     parts, d = [], start_m
-    for tier in terrain.tiers:
-        end = tier.spec.half_width_m
+    for i, tier in enumerate(terrain.tiers):
+        end = tier.spec.half_width_m * (0.98 if i == len(terrain.tiers) - 1 else 1)
         if end > d:
             parts.append(np.arange(d, end, tier.res))
             d = end
@@ -72,10 +74,13 @@ def compute_horizon(
     r1 = MOON_RADIUS_M + h
     theta = d_true[None, :] / MOON_RADIUS_M
     elev = np.degrees(np.arctan2(r1 * np.cos(theta) - r0, r1 * np.sin(theta)))
-    elev = np.where(np.isnan(elev), -np.inf, elev)
 
-    idx = np.argmax(elev, axis=1)
-    best = elev[np.arange(len(az)), idx]
-    if np.isinf(best).any():
-        raise ValueError("Some azimuths had no terrain data")
-    return HorizonMask(az, best, d_true[idx], ground, observer_height_m)
+    # A direction is unknown if any point along it has no terrain in any tier: the missing point
+    # could be the one that blocks the sky, so a max over the rest might be too low.
+    unknown = np.isnan(elev).any(axis=1)
+    filled = np.where(np.isnan(elev), -np.inf, elev)
+    idx = np.argmax(filled, axis=1)
+    best = filled[np.arange(len(az)), idx]
+    best = np.where(unknown, np.nan, best)
+    dist = np.where(unknown, np.nan, d_true[idx])
+    return HorizonMask(az, best, dist, ground, observer_height_m)

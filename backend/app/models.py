@@ -1,5 +1,6 @@
 # API models. Mirrors docs/interfaces.md and frontend/src/types.ts. Keep all three in sync.
 from datetime import datetime, timezone
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -19,11 +20,15 @@ class Site(BaseModel):
 
 
 class SiteSummaryStats(BaseModel):
-    sunlit_pct: float
-    mean_sun_fraction_pct: float
-    earth_visible_pct: float
-    horizon_min_deg: float
-    horizon_max_deg: float
+    """Percentages are over hours where the answer is known (None if nothing is known)."""
+
+    sunlit_pct: float | None
+    mean_sun_fraction_pct: float | None
+    earth_visible_pct: float | None
+    horizon_min_deg: float | None
+    horizon_max_deg: float | None
+    unknown_horizon_pct: float = 0  # directions with missing terrain data
+    unknown_hours_pct: float = 0  # hours where Sun or Earth visibility is unknown
 
 
 class SiteInfo(Site):
@@ -45,25 +50,31 @@ class CustomSiteRequest(BaseModel):
 
 class Horizon(BaseModel):
     azimuth_deg: list[float]  # clockwise from north
-    elevation_deg: list[float]  # terrain horizon elevation per azimuth
-    distance_m: list[float]  # how far away the blocking terrain is
+    elevation_deg: list[float | None]  # terrain horizon elevation per azimuth (None = unknown)
+    distance_m: list[float | None]  # how far away the blocking terrain is (None = unknown)
     ground_height_m: float
     observer_height_m: float
+
+
+# None in the fields below means "unknown": terrain data is missing in that direction
+# (only possible for custom sites). Curated sites are always fully known.
 
 
 class BodyState(BaseModel):
     azimuth_deg: float
     elevation_deg: float
-    horizon_deg: float  # terrain horizon elevation at this azimuth
+    horizon_deg: float | None  # terrain horizon elevation at this azimuth
 
 
 class SunState(BodyState):
-    visible_fraction: float  # portion of the solar disk above terrain, 0..1
+    visible_fraction: float | None  # portion of the solar disk above terrain, 0..1
+    visible: bool | None = None  # any of the disk above terrain (authoritative, unlike fraction > 0)
+    angular_radius_deg: float | None = None  # apparent solar radius used for the disk
 
 
 class EarthState(BodyState):
-    visible: bool
-    margin_deg: float  # elevation_deg - horizon_deg
+    visible: bool | None
+    margin_deg: float | None  # elevation_deg - horizon_deg
 
 
 class TimelineStep(BaseModel):
@@ -151,6 +162,9 @@ class Violation(BaseModel):
     shortfall: float = Field(description="How far the actual value misses the requirement, in `unit` (>= 0)")
     relative_shortfall: float = Field(description="shortfall / required (0.2 = misses by 20%)")
     message: str
+    is_unknown: bool = Field(False, description=(
+        "True when the check could not be decided because data is missing (not a real failure). "
+        "Relaxing the requirement would not fix it, so rescue gives no loosening advice for it."))
 
 
 class ViabilityMetrics(BaseModel):
@@ -168,11 +182,26 @@ class ViabilityMetrics(BaseModel):
     mean_solar_elevation_deg: float
 
 
+Eligibility = Literal["pass", "fail", "unknown"]
+
+
 class ViabilityResult(BaseModel):
     scenario: Scenario
-    passes: bool
-    score: float = Field(ge=0, le=100)
+    passes: bool = Field(description="True only when eligibility is 'pass'. Kept for backward compatibility")
+    eligibility: Eligibility | None = Field(None, description=(
+        "'pass' / 'fail' / 'unknown' (= could not be decided, e.g. missing data). None = not provided by the "
+        "evaluator; then read `passes` (True = pass, False = fail)"))
+    score: float | None = Field(None, ge=0, le=100, description="0-100, or None if the scenario was not scored")
     metrics: ViabilityMetrics
     violations: list[Violation]
     source: str = Field(description="Which viability implementation produced this result")
     data_source: str = Field(description="Which timeline source the metrics came from")
+
+    @property
+    def verdict(self) -> Eligibility:
+        """Eligibility, falling back to `passes` for evaluators that don't report it."""
+        return self.eligibility or ("pass" if self.passes else "fail")
+
+    @property
+    def score_or_zero(self) -> float:
+        return 0.0 if self.score is None else self.score

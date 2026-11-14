@@ -11,7 +11,9 @@ import { buildHorizonCurtain } from './geometry'
  */
 export function HorizonCurtain({ horizon, radius }: { horizon: Horizon; radius: number }) {
   const { mesh, line } = useMemo(() => {
-    const { positions, indices, topLine } = buildHorizonCurtain(horizon.azimuth_deg, horizon.elevation_deg, radius, -89)
+    // Unknown directions (missing terrain; custom sites only) are drawn at 0°, the flat horizon.
+    const elevations = horizon.elevation_deg.map((e) => e ?? 0)
+    const { positions, indices, topLine } = buildHorizonCurtain(horizon.azimuth_deg, elevations, radius, -89)
     const mesh = new THREE.BufferGeometry()
     mesh.setAttribute('position', new THREE.BufferAttribute(positions, 3))
     mesh.setIndex(new THREE.BufferAttribute(indices, 1))

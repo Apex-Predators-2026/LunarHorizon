@@ -1,4 +1,4 @@
-import type { SiteStatus } from '../types'
+import type { TimelineStep } from '../types'
 import { skyPositions } from './geometry'
 
 const SUN_RADIUS_DEG = 0.2666 // apparent solar radius
@@ -12,7 +12,7 @@ function radiusAt(distance: number, angularRadiusDeg: number) {
  * Sun and Earth at their true angular size and position, just beyond the horizon curtain.
  * Render inside <FollowCamera> (positions are relative to the viewer).
  */
-export function SkyBodies({ status, distance }: { status: SiteStatus; distance: number }) {
+export function SkyBodies({ status, distance }: { status: TimelineStep; distance: number }) {
   const pos = skyPositions(status, distance, 0)
   return (
     <>
