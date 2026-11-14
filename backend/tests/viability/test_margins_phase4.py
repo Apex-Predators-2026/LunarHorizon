@@ -52,7 +52,7 @@ from app.viability.mission import MissionRequirements, MissionScenario, Spacecra
 from app.viability.outputs import ConstraintAssessment, ConstraintEvaluation, Metric, OperationalMargin
 from app.viability.windows import PreparedSeries
 
-from .helpers import at, constraint, hourly
+from .helpers import at, constraint, hourly, raw_longest_outages
 
 H = 3600.0
 C = ConstraintId
@@ -854,33 +854,31 @@ def test_real_two_week_margins_match_independent_computation(
     assert a.eligibility is (Eligibility.FAIL if any(v < 0 for v in expected.values()) else Eligibility.PASS)
 
 
-# Two-year longest power-dark (>= 0.25) and Earth blackout in hours (docs section 5b).
-OUTAGES_H = {
-    "connecting-ridge": (492, 352),
-    "malapert-massif": (266, 17),
-    "peak-near-shackleton": (2802, 347),
-    "shackleton-floor": (N_HOURS, N_HOURS),
-}
+# Measured extremes are re-derived from the raw columns (helpers.raw_longest_outages), never pinned per site.
+def outages_h(raw: dict[str, Any], site: str) -> tuple[int, int]:
+    runs = raw_longest_outages(raw[site], power_min_fraction=0.25)
+    return runs["power_dark"][0], runs["earth_blackout"][0]
 
 
 @pytest.mark.parametrize("site", SITES)
 @pytest.mark.parametrize(("extra_h", "cls"), [(10, MC.NARROW), (0, MC.AT_THRESHOLD), (-1, MC.NEGATIVE)])
 def test_real_two_year_outage_margins(
-    site: str, extra_h: int, cls: MarginClass, prepared: dict[str, PreparedSeries]
+    site: str, extra_h: int, cls: MarginClass, raw: dict[str, dict[str, Any]], prepared: dict[str, PreparedSeries]
 ) -> None:
-    dark, blackout = OUTAGES_H[site]
-    cfg = {"dark_h": float(dark + extra_h), "blackout_h": float(blackout + extra_h)}
+    dark, blackout = outages_h(raw, site)
+    # Limits must be > 0 h; with no Earth blackout at all (Malapert, generator 1.2) only darkness is probed.
+    cfg = {"dark_h": float(dark + extra_h), "blackout_h": float(blackout + extra_h) if blackout else 100.0}
     a = assess_constraints(real_mission(prepared[site], T0, COVERAGE_END, cfg), prepared[site])
     ms = {m.constraint_id: m for m in assess_margins(a)}
-    for cid, limit_h in (
-        (C.MAX_CONTINUOUS_DARKNESS, dark + extra_h),
-        (C.MAX_COMMUNICATION_BLACKOUT, blackout + extra_h),
-    ):
+    probes = [(C.MAX_CONTINUOUS_DARKNESS, dark + extra_h)]
+    if blackout:
+        probes.append((C.MAX_COMMUNICATION_BLACKOUT, blackout + extra_h))
+    for cid, limit_h in probes:
         m = ms[cid]
         assert known(m) == extra_h * H
         expected_cls = cls
         if extra_h == 10 and 10 > NARROW_MARGIN_FRACTION * limit_h:  # inclusive narrow band
-            expected_cls = MC.COMFORTABLE  # Malapert blackout: 10 h is 37 % of a 27 h limit
+            expected_cls = MC.COMFORTABLE  # a 10 h margin is not narrow against a very long limit
         assert m.classification is expected_cls
         assert m.relative == Metric.known(extra_h / limit_h, Unit.FRACTION)
 
