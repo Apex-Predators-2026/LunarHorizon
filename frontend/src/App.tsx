@@ -1,7 +1,8 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { ComparisonDashboard } from './features/compare'
 import { MissionRescue } from './features/rescue'
+import { initMaterialMotion } from './viz/materialMotion'
 import { Scene } from './viz/Scene'
 
 const VIEWS = [
@@ -52,7 +53,7 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
         ))}
         <span
           aria-hidden
-          className="absolute bottom-0 h-[2px] rounded-full bg-opal-50 transition-[left,width] duration-300 ease-out"
+          className="absolute bottom-0 h-[2px] rounded-full bg-opal-50 transition-[left,width] duration-[400ms] ease-[var(--md-ease-standard)]"
           style={bar ? { left: bar.left, width: bar.width } : { opacity: 0 }}
         />
       </nav>
@@ -65,19 +66,20 @@ const NAV_PAD = 'pl-[clamp(16px,4.5vw,65px)] pt-[clamp(14px,2.5vw,34px)]'
 export default function App() {
   const [view, setView] = useState<View>('planner')
   const compare = view === 'compare'
+  useEffect(() => initMaterialMotion(), [])
 
   return (
     <div className="relative h-full overflow-hidden bg-black">
       {/* The header is rendered once for both pages (floating over the 3D view, or above the comparison). */}
-      <header className={`absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${compare ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
+      <header className={`md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${compare ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
         <TopNav view={view} onView={setView} />
       </header>
       {compare ? (
-        <main className="h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+20px)]">
+        <main key="compare" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+20px)]">
           <ComparisonDashboard onOpen3D={() => setView('planner')} />
         </main>
       ) : (
-        <main className="h-full">
+        <main key="planner" className="md-fade-through h-full">
           {/* Full-screen 3D simulation; the sidebar content is Member 5's mission-rescue panel. */}
           <Scene sidebar={<MissionRescue />} />
         </main>

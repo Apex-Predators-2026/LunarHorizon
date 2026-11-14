@@ -144,7 +144,7 @@ export function TopInfo({
         )}
       </p>
       {current && (
-        <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+        <dl className="md-reveal mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
           <dt className="text-white/70">Sunlight</dt>
           <dd>
             {fmtPct(current.sun.visible_fraction, current.sun.visible)} of disk · el{' '}

@@ -27,6 +27,7 @@ export function DatePopup({
   const { pos, handlers } = useDraggable(ref)
   const [year, setYear] = useState(Number(timeUtc.slice(0, 4)))
   const [month, setMonth] = useState(Number(timeUtc.slice(5, 7)) - 1)
+  const [closing, setClosing] = useState(false)
   const hhmm = timeUtc.slice(11, 16)
 
   const clampIso = (iso: string) => (iso < min ? min : iso > max ? max : iso)
@@ -51,7 +52,10 @@ export function DatePopup({
       ref={ref}
       role="dialog"
       aria-label="Choose simulation time (UTC)"
-      className="lp-light pointer-events-auto z-40 w-64 select-none rounded-2xl bg-opal-50 text-xs shadow-xl shadow-black/40"
+      className={`lp-light pointer-events-auto z-40 w-64 select-none rounded-2xl bg-opal-50 text-xs shadow-xl shadow-black/40 ${closing ? 'md-dialog-out' : 'md-dialog-in'}`}
+      onAnimationEnd={(e) => {
+        if (closing && e.target === e.currentTarget) onClose()
+      }}
       style={{ textShadow: 'none', position: 'fixed', ...(pos ? { left: pos.x, top: pos.y } : { left: 'clamp(16px,4.5vw,65px)', top: 150 }) }}
     >
       <div
@@ -60,7 +64,7 @@ export function DatePopup({
         title="Drag to move"
       >
         <span>Time (UTC)</span>
-        <button type="button" aria-label="Close calendar" onPointerDown={(e) => e.stopPropagation()} onClick={onClose} className="px-1 text-base leading-none hover:opacity-80">
+        <button type="button" aria-label="Close calendar" onPointerDown={(e) => e.stopPropagation()} onClick={() => setClosing(true)} className="px-1 text-base leading-none hover:opacity-80">
           ×
         </button>
       </div>

@@ -87,16 +87,16 @@ export function MapTools({
       </div>
 
       {pin.phase === 'working' && (
-        <p className="pointer-events-auto rounded bg-slate-950/85 px-2 py-1 text-xs text-slate-200">
+        <p className="md-reveal pointer-events-auto rounded bg-slate-950/85 px-2 py-1 text-xs text-slate-200">
           Analysing {fmtLat(pin.lat)}, {pin.lon.toFixed(3)}°E… downloading terrain can take up to a minute in a new area.
         </p>
       )}
       {pin.phase === 'error' && (
-        <p className="pointer-events-auto rounded bg-red-950/85 px-2 py-1 text-xs text-red-200">Couldn't analyse that spot: {pin.message}</p>
+        <p className="md-reveal pointer-events-auto rounded bg-red-950/85 px-2 py-1 text-xs text-red-200">Couldn't analyse that spot: {pin.message}</p>
       )}
 
       {layers.sites && (
-        <p className="pointer-events-auto flex flex-wrap gap-x-2 rounded bg-slate-950/70 px-2 py-0.5 text-[10px] text-slate-300">
+        <p className="md-reveal pointer-events-auto flex flex-wrap gap-x-2 rounded bg-slate-950/70 px-2 py-0.5 text-[10px] text-slate-300">
           {(['artemis', 'apollo', 'clps', 'international', 'custom'] as const).map((k) => (
             <span key={k} className="flex items-center gap-1">
               <span className="inline-block h-2 w-2 rounded-full" style={{ background: KIND_COLOR[k] }} />
@@ -108,7 +108,7 @@ export function MapTools({
       )}
 
       {verify && !verify.loading && (
-        <div className="pointer-events-auto w-[30rem] max-w-full rounded-xl border border-opal-300 bg-opal-50 p-2 text-xs text-slate-200">
+        <div className="md-reveal pointer-events-auto w-[30rem] max-w-full rounded-xl border border-opal-300 bg-opal-50 p-2 text-xs text-slate-200">
           <div className="mb-1 flex items-center justify-between">
             <span className="font-medium">Live check against JPL Horizons</span>
             <button type="button" className="text-slate-400 hover:text-slate-100" onClick={() => setVerify(null)} aria-label="Close">

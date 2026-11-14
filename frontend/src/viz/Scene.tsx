@@ -268,7 +268,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
 
       {/* Floating UI. Containers ignore the pointer so the 3D view stays interactive around them. */}
       <div
-        className="pointer-events-none absolute inset-0 [--lp-side-w:clamp(280px,23.5vw,360px)]"
+        className="md-host pointer-events-none absolute inset-0 [--lp-side-w:clamp(280px,23.5vw,360px)]"
         style={{ fontFamily: 'var(--font-inter)' }}
       >
         <div className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(60px,6.2vw,92px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))]">
@@ -296,7 +296,9 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           {site && win && (
             <div
               ref={barRef}
-              className="relative transition-[transform,margin] duration-300 ease-out"
+              className={`relative transition-[transform,margin] ${
+                barHidden ? 'duration-[250ms] ease-[var(--md-ease-emph-accel)]' : 'duration-[400ms] ease-[var(--md-ease-emph-decel)]'
+              }`}
               style={barHidden ? { transform: `translateY(${barH}px)`, marginBottom: -barH } : undefined}
               inert={barHidden}
             >
@@ -321,7 +323,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
               onClick={() => setBarHidden(false)}
               aria-label="Show timeline panel"
               title="Show timeline"
-              className="pointer-events-auto absolute bottom-1 left-1/2 flex h-9 w-12 -translate-x-1/2 items-center justify-center text-white transition-opacity hover:opacity-70"
+              className="md-pop pointer-events-auto absolute bottom-1 left-1/2 flex h-9 w-12 items-center justify-center text-white transition-opacity hover:opacity-70"
             >
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <path d="M4 14l7-7 7 7" />

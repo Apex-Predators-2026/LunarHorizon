@@ -232,3 +232,183 @@
 .lp-light input[type='range']:focus-visible::-moz-range-thumb {
   box-shadow: 0 4px 15px rgba(100, 116, 139, 0.2), 0 0 0 3px rgba(100, 116, 139, 0.45);
 }
+
+/* ==========================================================================
+ * Material Design 3 motion for the Mission Planner's floating UI.
+ * Easing / duration tokens and the state-layer opacities follow the M3 motion + interaction specs.
+ * Scoped to .lp-light / .md-host so Scenario Comparison is untouched.
+ * ========================================================================== */
+:root {
+  --md-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-ease-standard-decel: cubic-bezier(0, 0, 0, 1);
+  --md-ease-standard-accel: cubic-bezier(0.3, 0, 1, 1);
+  --md-ease-emph-decel: cubic-bezier(0.05, 0.7, 0.1, 1); /* things entering */
+  --md-ease-emph-accel: cubic-bezier(0.3, 0, 0.8, 0.15); /* things leaving */
+  --md-dur-short2: 100ms;
+  --md-dur-short3: 150ms;
+  --md-dur-short4: 200ms;
+  --md-dur-medium1: 250ms;
+  --md-dur-medium2: 300ms;
+  --md-dur-medium4: 400ms;
+  interpolate-size: allow-keywords; /* lets <details> animate its height (progressive enhancement) */
+}
+@property --p {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+
+/* Tailwind's transition utilities read these, so every hover/selection transition gets M3 timing. */
+.lp-light,
+.md-host {
+  --default-transition-duration: var(--md-dur-short4);
+  --default-transition-timing-function: var(--md-ease-standard);
+}
+
+@keyframes md-reveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes md-pop {
+  from { opacity: 0; transform: translateX(-50%) scale(0.7); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+@keyframes md-dialog-in {
+  from { opacity: 0; transform: scale(0.9) translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes md-dialog-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(0.95); }
+}
+@keyframes md-fade-through {
+  0% { opacity: 0; }
+  30% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.md-reveal { animation: md-reveal var(--md-dur-medium2) var(--md-ease-emph-decel) both; }
+.md-pop { animation: md-pop var(--md-dur-medium2) var(--md-ease-emph-decel) both; }
+.md-dialog-in { animation: md-dialog-in var(--md-dur-medium2) var(--md-ease-emph-decel) both; transform-origin: top left; }
+.md-dialog-out { animation: md-dialog-out var(--md-dur-short3) var(--md-ease-emph-accel) both; transform-origin: top left; }
+.md-fade-through { animation: md-fade-through var(--md-dur-medium4) var(--md-ease-standard); }
+
+/* Buttons: state layer (hover 8%, focus 10%, pressed 10%) + press ripple (see materialMotion.ts). */
+@layer components {
+  :is(.lp-light, .md-host) button {
+    position: relative;
+    overflow: hidden;
+    transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  }
+  :is(.lp-light, .md-host) button:not(:disabled)::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--md-dur-short3) var(--md-ease-standard);
+  }
+  @media (hover: hover) {
+    :is(.lp-light, .md-host) button:not(:disabled):hover::before { opacity: 0.08; }
+  }
+  :is(.lp-light, .md-host) button:not(:disabled):focus-visible::before { opacity: 0.1; }
+  :is(.lp-light, .md-host) button:not(:disabled):active::before { opacity: 0.1; }
+  :is(.lp-light, .md-host) button:not(:disabled):active { transform: scale(0.98); }
+}
+.md-ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+/* Sliders: active track fill, halo on hover / press, handle shrinks slightly while pressed. */
+.lp-light input[type='range']::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+}
+.lp-light input[type='range']::-moz-range-track {
+  background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+}
+.lp-light input[type='range']::-webkit-slider-thumb {
+  transition: transform var(--md-dur-short4) var(--md-ease-standard), box-shadow var(--md-dur-short4) var(--md-ease-standard);
+}
+.lp-light input[type='range']::-moz-range-thumb {
+  transition: transform var(--md-dur-short4) var(--md-ease-standard), box-shadow var(--md-dur-short4) var(--md-ease-standard);
+}
+.lp-light input[type='range']:hover::-webkit-slider-thumb {
+  box-shadow: 0 4px 15px rgba(100, 116, 139, 0.2), 0 0 0 8px rgba(255, 99, 74, 0.12);
+}
+.lp-light input[type='range']:active::-webkit-slider-thumb,
+.lp-light input[type='range']:focus-visible::-webkit-slider-thumb {
+  transform: scale(0.9);
+  box-shadow: 0 4px 15px rgba(100, 116, 139, 0.2), 0 0 0 10px rgba(255, 99, 74, 0.18);
+}
+.lp-light input[type='range']:hover::-moz-range-thumb {
+  box-shadow: 0 4px 15px rgba(100, 116, 139, 0.2), 0 0 0 8px rgba(255, 99, 74, 0.12);
+}
+.lp-light input[type='range']:active::-moz-range-thumb,
+.lp-light input[type='range']:focus-visible::-moz-range-thumb {
+  transform: scale(0.9);
+  box-shadow: 0 4px 15px rgba(100, 116, 139, 0.2), 0 0 0 10px rgba(255, 99, 74, 0.18);
+}
+
+/* Checkboxes: container fills, check mark draws in, state-layer halo. */
+.lp-light input[type='checkbox'] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 2px solid #3c4044;
+  border-radius: 2px;
+  background: transparent;
+  cursor: pointer;
+  transition: background-color var(--md-dur-short4) var(--md-ease-standard), border-color var(--md-dur-short4) var(--md-ease-standard),
+    box-shadow var(--md-dur-short3) var(--md-ease-standard);
+}
+.lp-light input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0px;
+  width: 4px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  clip-path: inset(0 100% 100% 0);
+  transition: clip-path var(--md-dur-medium2) var(--md-ease-emph-decel);
+}
+.lp-light input[type='checkbox']:checked {
+  background: var(--color-coral);
+  border-color: var(--color-coral);
+  animation: md-check-pop var(--md-dur-medium1) var(--md-ease-emph-decel);
+}
+.lp-light input[type='checkbox']:checked::after { clip-path: inset(0 0 0 0); }
+.lp-light input[type='checkbox']:hover { box-shadow: 0 0 0 8px rgba(60, 64, 68, 0.08); }
+.lp-light input[type='checkbox']:checked:hover { box-shadow: 0 0 0 8px rgba(255, 99, 74, 0.12); }
+.lp-light input[type='checkbox']:focus-visible { outline: none; box-shadow: 0 0 0 8px rgba(255, 99, 74, 0.18); }
+.lp-light input[type='checkbox']:active { box-shadow: 0 0 0 10px rgba(255, 99, 74, 0.18); }
+@keyframes md-check-pop {
+  0% { transform: scale(0.85); }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* <details> (e.g. Spacecraft requirements) expands with an animated height. */
+.lp-light details::details-content {
+  block-size: 0;
+  overflow: clip;
+  opacity: 0;
+  transition: block-size var(--md-dur-medium2) var(--md-ease-standard), opacity var(--md-dur-medium2) var(--md-ease-standard),
+    content-visibility var(--md-dur-medium2) allow-discrete;
+}
+.lp-light details[open]::details-content {
+  block-size: auto;
+  opacity: 1;
+}
+.lp-light summary { transition: color var(--md-dur-short4) var(--md-ease-standard); }

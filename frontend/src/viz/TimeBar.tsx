@@ -270,6 +270,7 @@ export function TimeBar({
           type="range"
           aria-label="Time across the whole data range"
           className="min-w-0 flex-1"
+          style={{ '--p': totalHours > 0 ? (now - start) / HOUR_MS / totalHours : 0 } as React.CSSProperties}
           min={0}
           max={totalHours}
           step={1}

@@ -28,7 +28,7 @@ const HANDLES: { dir: Dir; cls: string; cursor: string }[] = [
 export function FloatingSidebar({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(true)
-  const { pos, setPos, size, setSize, handlers, consumeClick, refit } = useDraggable(rootRef)
+  const { pos, setPos, size, setSize, dragging, handlers, consumeClick, refit } = useDraggable(rootRef)
   const [openHeight, setOpenHeight] = useState(0) // height while expanded, kept across collapse / moves
   const [userSized, setUserSized] = useState(false) // true once resized by hand: then height is exact, not a max
 
@@ -87,7 +87,7 @@ export function FloatingSidebar({ children }: { children: ReactNode }) {
   return (
     <div
       ref={rootRef}
-      className="lp-light pointer-events-auto relative flex min-h-0 w-full flex-col overflow-hidden rounded-[20px] bg-opal-100 shadow-lg shadow-black/30"
+      className={`lp-light pointer-events-auto relative flex min-h-0 w-full flex-col overflow-hidden rounded-[20px] bg-opal-100 transition-shadow ${dragging ? 'shadow-2xl shadow-black/50' : 'shadow-lg shadow-black/30'}`}
       style={
         fixed
           ? {
@@ -112,7 +112,9 @@ export function FloatingSidebar({ children }: { children: ReactNode }) {
         <span aria-hidden className="h-1 w-10 rounded-full bg-white/70" />
       </button>
       <div
-        className={`min-h-0 overflow-y-auto overflow-x-hidden transition-[max-height] duration-200 ${open ? 'max-h-[100vh]' : 'max-h-0'}`}
+        className={`min-h-0 overflow-y-auto overflow-x-hidden transition-[max-height,opacity] ${
+          open ? 'max-h-[100vh] opacity-100 duration-[400ms] ease-[var(--md-ease-emph-decel)]' : 'max-h-0 opacity-0 duration-[250ms] ease-[var(--md-ease-emph-accel)]'
+        }`}
         inert={!open}
         aria-hidden={!open}
       >
