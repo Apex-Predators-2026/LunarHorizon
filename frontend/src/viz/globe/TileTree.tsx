@@ -3,7 +3,7 @@
 // (see SiteFrame) and refined until each vertex step covers < lodThresholdPx (default 4) px on screen.
 // Works with frameloop="demand": tile selection only runs when the camera moved or a tile arrived,
 // and the shadow map is only redrawn when the set of drawn tiles changes.
-// It also keeps the camera above the ground: after the orbit controls move it, a camera that would
+// It also keeps the camera above the ground: after the camera controls move it, a camera that would
 // be closer than cameraClearanceM to the loaded terrain below it is lifted straight up.
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
@@ -14,6 +14,7 @@ import { MAX_ZOOM, MOON_RADIUS_M, SiteFrame, TILE_N, tileVertexUV, uvToVec, vert
 import { groundHeightAt, liftAboveGround, type TileHeights } from './terrainHeight'
 import { buildTileMesh, innerHeights, tilePadding, tileTopology } from './tileGeometry'
 import { TileImagery } from './tileImagery'
+import { MAX_TILE_ATTEMPTS, retryDelayMs, TILE_TIMEOUT_MS } from './tileRetry'
 
 const MAX_IN_FLIGHT = 6
 const UPDATE_EVERY_MS = 60 // at most this often while the camera moves
@@ -33,6 +34,8 @@ interface TileNode {
   mesh: THREE.Mesh | null
   heights: Float32Array | null // kept while the mesh is, for ground-height lookups
   lastUsed: number
+  failures: number // failed attempts so far (reset when it loads)
+  retryAt: number // performance.now() after which a failed tile may be requested again
 }
 
 export interface TileStats {
@@ -40,6 +43,7 @@ export interface TileStats {
   loading: number
   cached: number
   deepest: number
+  retrying: number // tiles that failed and are waiting to be retried (their area shows coarser terrain)
 }
 
 const keyOf = (f: number, z: number, x: number, y: number) => `${f}/${z}/${x}/${y}`
@@ -102,6 +106,8 @@ export function TileTree({
   const lastUpdate = useRef(0)
   const dirty = useRef(true) // a tile arrived (or the site changed) since the last selection
   const warned = useRef(false) // a tile failure has been reported (once per site)
+  const requests = useRef(new Set<AbortController>()) // in flight, cancelled when the site changes
+  const retryTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
   const lastSize = useRef('')
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
@@ -115,7 +121,13 @@ export function TileTree({
     dirty.current = true
     warned.current = false
     invalidate()
+    const pending = requests.current
+    const timers = retryTimers.current
     return () => {
+      for (const c of pending) c.abort() // don't keep the connections busy with the old site's tiles
+      pending.clear()
+      for (const t of timers) clearTimeout(t)
+      timers.clear()
       for (const n of map.values()) if (n.mesh) disposeTile(n.mesh)
       map.clear()
       queue.current = []
@@ -154,7 +166,7 @@ export function TileTree({
     let n = nodes.current.get(key)
     if (!n) {
       const [centre, radius] = approxBounds(frame, f, z, x, y)
-      n = { key, face: f, z, x, y, state: 'idle', leaf: z >= MAX_ZOOM, centre, radius, mesh: null, heights: null, lastUsed: 0 }
+      n = { key, face: f, z, x, y, state: 'idle', leaf: z >= MAX_ZOOM, centre, radius, mesh: null, heights: null, lastUsed: 0, failures: 0, retryAt: 0 }
       nodes.current.set(key, n)
     }
     return n
@@ -163,7 +175,10 @@ export function TileTree({
   const load = (n: TileNode) => {
     n.state = 'loading'
     inFlight.current++
-    fetch(`${API_URL}/api/terrain/tile/${n.face}/${n.z}/${n.x}/${n.y}?pad=${PAD}`)
+    const ctl = new AbortController()
+    requests.current.add(ctl)
+    const timeout = setTimeout(() => ctl.abort(new Error(`tile ${n.key}: no answer in ${TILE_TIMEOUT_MS / 1000} s`)), TILE_TIMEOUT_MS)
+    fetch(`${API_URL}/api/terrain/tile/${n.face}/${n.z}/${n.x}/${n.y}?pad=${PAD}`, { signal: ctl.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error(`tile ${n.key}: HTTP ${res.status}`)
         n.leaf = res.headers.get('X-Tile-Leaf') === '1' || n.z >= MAX_ZOOM
@@ -193,10 +208,24 @@ export function TileTree({
         n.radius = m.radius
         n.mesh = mesh
         n.heights = innerHeights(heights, TILE_N, pad)
+        n.failures = 0
         n.state = 'ready'
       })
       .catch((e: unknown) => {
+        if (!nodes.current.has(n.key)) return // site changed (its requests were cancelled)
         n.state = 'error'
+        n.failures++
+        if (n.failures < MAX_TILE_ATTEMPTS) {
+          const delay = retryDelayMs(n.failures)
+          n.retryAt = performance.now() + delay
+          // With on-demand rendering nothing would look at it again: wake the selection up.
+          const t = setTimeout(() => {
+            retryTimers.current.delete(t)
+            dirty.current = true
+            invalidate()
+          }, delay + 20)
+          retryTimers.current.add(t)
+        }
         // Say why once per site (a silent failure here means no terrain and no clue).
         if (!warned.current) {
           warned.current = true
@@ -204,6 +233,8 @@ export function TileTree({
         }
       })
       .finally(() => {
+        clearTimeout(timeout)
+        requests.current.delete(ctl)
         inFlight.current--
         pump() // keep the connections busy between selections
         dirty.current = true // reselect on the next frame
@@ -222,7 +253,7 @@ export function TileTree({
   const tileHeights: TileHeights = (f, z, x, y) => nodes.current.get(keyOf(f, z, x, y))?.heights ?? undefined
 
   useFrame((state) => {
-    // Runs after drei's OrbitControls (priority -1) has moved the camera, before this frame renders.
+    // Runs after GlobeControls (zoom easing at priority -1) has moved the camera, before this frame renders.
     const c = state.camera.position
     const lifted = liftAboveGround([c.x, c.y, c.z], frame, tileHeights, cameraClearanceM)
     if (lifted) {
@@ -272,8 +303,16 @@ export function TileTree({
     }
     const wantsRefine = (n: TileNode) => !n.leaf && (vertexSpacingM(n.z) * pxPerRad) / dist(n) > lodThresholdPx
 
+    let retrying = 0
+    /** A failed tile whose wait is over is requested again (until MAX_TILE_ATTEMPTS). */
+    const due = (n: TileNode) => {
+      if (n.state !== 'error') return
+      retrying++
+      if (n.failures < MAX_TILE_ATTEMPTS && now >= n.retryAt) n.state = 'idle'
+    }
     const visit = (n: TileNode) => {
       n.lastUsed = now
+      due(n)
       if (n.state !== 'ready') {
         if (n.state === 'idle') wanted.push(n)
         return false // nothing to draw yet
@@ -283,11 +322,13 @@ export function TileTree({
         const shown = kids.filter(visible)
         for (const k of shown) {
           k.lastUsed = now
+          due(k)
           if (k.state === 'idle') wanted.push(k)
         }
-        // Switch to the children only once every visible one is ready (no holes).
-        if (shown.every((k) => k.state === 'ready' || k.state === 'error') && shown.some((k) => k.state === 'ready')) {
-          for (const k of shown) if (k.state === 'ready') visit(k)
+        // Switch to the children only once every visible one is ready: a child that failed keeps
+        // its parent drawn (coarser, but no hole) until a retry succeeds.
+        if (shown.length && shown.every((k) => k.state === 'ready')) {
+          for (const k of shown) visit(k)
           return true
         }
       }
@@ -350,6 +391,7 @@ export function TileTree({
       loading: inFlight.current,
       cached: ready.length,
       deepest: draw.reduce((d, n) => Math.max(d, n.z), 0),
+      retrying,
     })
   })
 

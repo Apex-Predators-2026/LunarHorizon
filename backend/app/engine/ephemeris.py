@@ -17,6 +17,9 @@ from .net import CACHE_DIR, fetch_cached
 HORIZONS_API = "https://ssd.jpl.nasa.gov/api/horizons.api"
 BODIES = {"sun": "10", "earth": "399"}
 MOON_FRAME = "MEAN_ME"  # Horizons' name for the Moon's Mean-Earth/polar-axis frame
+# Longer ranges are fetched one calendar year per request (2 years of hourly steps per request is
+# what the 1.x data was built with; 5 years in one answer is pushing Horizons' output limits).
+MAX_SPAN_DAYS = 400
 
 
 @dataclass
@@ -76,10 +79,42 @@ def _parse(text: str, body: str) -> Ephemeris:
     )
 
 
+def _fmt(t: np.datetime64) -> str:
+    """Horizons time string: 'YYYY-MM-DD' at midnight, else 'YYYY-MM-DD HH:MM'."""
+    s = str(t.astype("datetime64[m]")).replace("T", " ")
+    return s[:10] if s.endswith("00:00") else s
+
+
+def year_chunks(start: str, stop: str) -> list[tuple[str, str]]:
+    """[start, stop] split at 1 January boundaries when it spans more than MAX_SPAN_DAYS, else as is.
+    Neighbouring chunks share their boundary instant (Horizons includes both ends)."""
+    t0, t1 = np.datetime64(start.replace(" ", "T"), "s"), np.datetime64(stop.replace(" ", "T"), "s")
+    if t1 - t0 <= np.timedelta64(MAX_SPAN_DAYS, "D"):
+        return [(start, stop)]
+    out, a = [], t0
+    while a < t1:
+        next_year = a.astype("datetime64[Y]") + np.timedelta64(1, "Y")
+        b = min(next_year.astype("datetime64[s]"), t1)
+        out.append((_fmt(a), _fmt(b)))
+        a = b
+    return out
+
+
 def fetch_ephemeris(
     body: str, lat: float, lon: float, start: str, stop: str, step: str = "1h", alt_km: float = 0.0
 ) -> Ephemeris:
-    """Fetch (and cache) the apparent az/el of 'sun' or 'earth' from a lunar site."""
+    """Fetch (and cache) the apparent az/el of 'sun' or 'earth' from a lunar site. Ranges longer
+    than MAX_SPAN_DAYS are fetched per calendar year and stitched (no duplicate boundary hours)."""
+    parts = [_fetch_one(body, lat, lon, a, b, step, alt_km) for a, b in year_chunks(start, stop)]
+    if len(parts) == 1:
+        return parts[0]
+    times = np.concatenate([e.times for e in parts])
+    keep = np.concatenate([[True], np.diff(times.astype("int64")) > 0])  # drop the repeated boundary
+    cat = lambda name: np.concatenate([getattr(e, name) for e in parts])[keep]  # noqa: E731
+    return Ephemeris(body, times[keep], cat("azimuth_deg"), cat("elevation_deg"), cat("angular_radius_deg"))
+
+
+def _fetch_one(body: str, lat: float, lon: float, start: str, stop: str, step: str, alt_km: float) -> Ephemeris:
     params = {
         "format": "text",
         "COMMAND": f"'{BODIES[body]}'",

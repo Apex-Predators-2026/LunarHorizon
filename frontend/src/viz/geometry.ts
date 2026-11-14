@@ -24,6 +24,40 @@ export function skyPositions(
   return { sun, earth }
 }
 
+type SkyStep = {
+  time_utc: string
+  sun: { azimuth_deg: number; elevation_deg: number; visible_fraction: number | null; visible?: boolean | null }
+  earth: { azimuth_deg: number; elevation_deg: number; visible: boolean | null }
+}
+
+/**
+ * A body's path across the sky over consecutive hourly steps, as line segments (one per hour) at
+ * radius r around the eye. Colour per vertex: `visible` where the body clears the terrain, `blocked`
+ * where terrain hides it, `unknown` where the data can't say. Steps more than 1.5 h apart are not
+ * joined (a gap in the data stays a gap).
+ */
+export function skyTrail(
+  steps: SkyStep[],
+  body: 'sun' | 'earth',
+  r: number,
+  colours: { visible: [number, number, number]; blocked: [number, number, number]; unknown: [number, number, number] },
+): { positions: Float32Array; colors: Float32Array } {
+  const pos: number[] = []
+  const col: number[] = []
+  const state = (s: SkyStep) => {
+    const v = body === 'sun' ? (s.sun.visible ?? (s.sun.visible_fraction === null ? null : s.sun.visible_fraction > 0)) : s.earth.visible
+    return v === null || v === undefined ? colours.unknown : v ? colours.visible : colours.blocked
+  }
+  for (let i = 1; i < steps.length; i++) {
+    const a = steps[i - 1]
+    const b = steps[i]
+    if (Date.parse(b.time_utc) - Date.parse(a.time_utc) > 1.5 * 3600_000) continue
+    pos.push(...azElToVector(a[body].azimuth_deg, a[body].elevation_deg, r), ...azElToVector(b[body].azimuth_deg, b[body].elevation_deg, r))
+    col.push(...state(a), ...state(a)) // the segment takes the state at its start hour
+  }
+  return { positions: new Float32Array(pos), colors: new Float32Array(col) }
+}
+
 /**
  * A closed band ("curtain") on a sphere of radius r around the eye: top edge follows the terrain
  * horizon, bottom edge sits at `bottomElDeg`. Sun/Earth placed further out are hidden by it exactly
