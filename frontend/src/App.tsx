@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { ComparisonDashboard } from './features/compare'
 import { PlanDialogHost, PlanFab, PlansPanel } from './features/plans/PlansPanel'
@@ -11,6 +11,25 @@ import { initMaterialMotion } from './viz/materialMotion'
 import { UiHiddenNotice } from './viz/UiHiddenNotice'
 import { useUiPrefs } from './viz/uiPrefs'
 import { Scene } from './viz/Scene'
+
+// The landing page is the first screen ("/"); the navigator itself lives at #app. Loaded on demand so
+// neither page pays for the other.
+const Landing = lazy(() => import('./features/landing'))
+
+function useHash() {
+  const [hash, setHash] = useState(() => window.location.hash)
+  useEffect(() => {
+    const on = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', on)
+    return () => window.removeEventListener('hashchange', on)
+  }, [])
+  return hash
+}
+
+function openNavigator() {
+  window.location.hash = 'app'
+  window.scrollTo(0, 0)
+}
 
 const VIEWS = [
   { id: 'planner', label: 'Mission Planner' },
@@ -40,9 +59,9 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
 
   return (
     <div className="pointer-events-none flex flex-wrap items-baseline gap-x-[clamp(16px,3vw,44px)] gap-y-1">
-      <span className="font-display text-[clamp(22px,2.7vw,40px)] font-bold leading-none tracking-[-0.06em] text-opal-50">
+      <a href="#" title="Back to the project page" className="pointer-events-auto font-display text-[clamp(22px,2.7vw,40px)] font-bold leading-none tracking-[-0.06em] text-opal-50 no-underline">
         Site Navigator
-      </span>
+      </a>
       <nav ref={navRef} aria-label="Main" className="pointer-events-auto relative flex gap-[clamp(14px,2vw,32px)] pb-1">
         {VIEWS.map((v) => (
           <button
@@ -81,12 +100,18 @@ export default function App() {
     document.documentElement.classList.toggle('lp-dark', dark)
   }, [dark])
 
-  if (window.location.hash === '#mango') return <GradientPreview />
-  if (window.location.hash === '#glass') return (
+  const hash = useHash()
+  if (hash === '#mango') return <GradientPreview />
+  if (hash === '#glass') return (
     <>
       <GlassDefs />
       <GlassDemo />
     </>
+  )
+  if (!hash.startsWith('#app')) return (
+    <Suspense fallback={<div className="h-full bg-black" />}>
+      <Landing onOpen={openNavigator} />
+    </Suspense>
   )
 
   return (
