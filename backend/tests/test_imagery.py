@@ -27,13 +27,20 @@ def _decode_png_gray(png: bytes) -> np.ndarray:
         elif kind == b"IDAT":
             idat += data
         pos += 12 + n
-    rows = zlib.decompress(idat)
-    return np.array([list(rows[r * (w + 1) + 1 : (r + 1) * (w + 1)]) for r in range(h)], dtype=np.uint8)
+    rows = np.frombuffer(zlib.decompress(idat), np.uint8).reshape(h, w + 1)
+    out = rows[:, 1:].copy()
+    for r in range(h):
+        assert rows[r, 0] in (0, 1)  # None or Sub
+        if rows[r, 0] == 1:
+            out[r] = np.cumsum(out[r], dtype=np.uint64) % 256  # undo Sub: running sum mod 256
+    return out
 
 
 def test_png_round_trips():
     img = (np.arange(12 * 7) % 256).astype(np.uint8).reshape(7, 12)
     assert np.array_equal(_decode_png_gray(im.png_gray(img)), img)
+    noisy = np.random.default_rng(1).integers(0, 256, (9, 13), dtype=np.uint8)  # wraps around 0/255
+    assert np.array_equal(_decode_png_gray(im.png_gray(noisy)), noisy)
 
 
 def test_tile_image_top_row_is_the_tiles_top_edge(monkeypatch):

@@ -14,7 +14,6 @@ export interface Layers {
   sites: boolean
   psr: boolean
   blockers: boolean
-  imagery: boolean // LRO WAC photo mosaic on the terrain (off by default: its shadows are not "now")
   paths: boolean // the Sun's and Earth's paths across the sky over the time window
 }
 
@@ -40,11 +39,6 @@ const LAYER_ROWS: { key: keyof Layers; label: string; hint: string }[] = [
     key: 'paths',
     label: 'Sun & Earth paths',
     hint: "The Sun's and Earth's paths across the sky over the time window: bright where they clear the terrain, dim where it blocks them",
-  },
-  {
-    key: 'imagery',
-    label: 'LRO imagery',
-    hint: 'LRO Wide Angle Camera photo mosaic (Moon Trek, ~100 m/px) on the terrain. Its shadows are from when the photos were taken, not from the time shown.',
   },
 ]
 
