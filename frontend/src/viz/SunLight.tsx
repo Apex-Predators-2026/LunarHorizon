@@ -1,4 +1,4 @@
-import type { SiteStatus } from '../types'
+import type { TimelineStep } from '../types'
 import { azElToVector } from './geometry'
 
 const MAX_INTENSITY = 3
@@ -8,10 +8,10 @@ const MAX_INTENSITY = 3
  * solar disk, which already accounts for distant terrain (up to 300 km) that this 10 km mesh can't
  * show. Local shadows come from the shadow map.
  */
-export function SunLight({ status, shadowHalfWidth }: { status: SiteStatus; shadowHalfWidth: number }) {
+export function SunLight({ status, shadowHalfWidth }: { status: TimelineStep; shadowHalfWidth: number }) {
   const { sun } = status
   const pos = azElToVector(sun.azimuth_deg, sun.elevation_deg, 20000)
-  const intensity = MAX_INTENSITY * sun.visible_fraction
+  const intensity = MAX_INTENSITY * (sun.visible_fraction ?? 0) // unknown -> no direct light
 
   return (
     <directionalLight

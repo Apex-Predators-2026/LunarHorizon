@@ -26,16 +26,26 @@ class Timeline:
     times: np.ndarray  # datetime64[s]
     sun_az: np.ndarray
     sun_el: np.ndarray
-    sun_horizon: np.ndarray
-    sun_fraction: np.ndarray  # 0..1 of the solar disk above terrain
+    sun_horizon: np.ndarray  # NaN = unknown (terrain data missing in that direction)
+    sun_fraction: np.ndarray  # 0..1 of the solar disk above terrain; NaN = unknown
+    sun_radius: np.ndarray  # apparent solar radius used for the disk (deg)
     earth_az: np.ndarray
     earth_el: np.ndarray
-    earth_horizon: np.ndarray
-    earth_margin: np.ndarray  # earth_el - earth_horizon
-    earth_visible: np.ndarray  # bool
+    earth_horizon: np.ndarray  # NaN = unknown
+    earth_margin: np.ndarray  # earth_el - earth_horizon; NaN = unknown
+    earth_visible: np.ndarray  # bool (False where unknown; check earth_known)
+
+    @property
+    def sun_known(self) -> np.ndarray:
+        return ~np.isnan(self.sun_fraction)
+
+    @property
+    def earth_known(self) -> np.ndarray:
+        return ~np.isnan(self.earth_margin)
 
     @property
     def sunlit(self) -> np.ndarray:
+        """Any part of the solar disk above the terrain (False where unknown; check sun_known)."""
         return self.sun_fraction > 0
 
 
@@ -46,18 +56,20 @@ def build_timeline(sun: Ephemeris, earth: Ephemeris, mask: HorizonMask) -> Timel
     earth_h = mask.at(earth.azimuth_deg)
     radius = np.where(np.isnan(sun.angular_radius_deg), 0.2666, sun.angular_radius_deg)
     margin = earth.elevation_deg - earth_h
-    return Timeline(
-        times=sun.times,
-        sun_az=sun.azimuth_deg,
-        sun_el=sun.elevation_deg,
-        sun_horizon=sun_h,
-        sun_fraction=disk_fraction_visible(sun.elevation_deg - sun_h, radius),
-        earth_az=earth.azimuth_deg,
-        earth_el=earth.elevation_deg,
-        earth_horizon=earth_h,
-        earth_margin=margin,
-        earth_visible=margin > EARTH_MIN_MARGIN_DEG,
-    )
+    with np.errstate(invalid="ignore"):  # NaN comparisons (unknown terrain) are expected
+        return Timeline(
+            times=sun.times,
+            sun_az=sun.azimuth_deg,
+            sun_el=sun.elevation_deg,
+            sun_horizon=sun_h,
+            sun_fraction=disk_fraction_visible(sun.elevation_deg - sun_h, radius),
+            sun_radius=radius,
+            earth_az=earth.azimuth_deg,
+            earth_el=earth.elevation_deg,
+            earth_horizon=earth_h,
+            earth_margin=margin,
+            earth_visible=margin > EARTH_MIN_MARGIN_DEG,
+        )
 
 
 def intervals(times: np.ndarray, on: np.ndarray) -> list[tuple[np.datetime64, np.datetime64]]:

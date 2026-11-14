@@ -9,6 +9,19 @@ Check script: `backend/scripts/phase1_check.py`
 - 2 years hourly = 17,545 rows per body in one request. Works.
 - Elevations are relative to the flat (sphere) horizon. Terrain blocking is our job.
 
+## Lunar coordinate frame (checked)
+Everything is in the Moon's **Mean-Earth/polar-axis (ME)** frame on the 1737.4 km sphere, so no conversion is needed:
+- **Horizons:** the response header for a `coord@301` site says `Center pole/equ : MEAN_ME (high precision)`.
+  `app/engine/ephemeris.py` checks this line and refuses any other frame.
+- **LOLA terrain (Moon Trek):** LOLA products are in MOON_ME (the PGDA polar DEMs state "MOON_ME reference frame of DE421").
+- **Site coordinates:** from LOLA/LROC-based sources (Quickmap), also ME.
+- Why it matters: the principal-axis (PA) frame differs from ME by ~0.9 km on the surface. Near the pole that shift
+  can rotate the local north direction by degrees, which would misalign Sun/Earth azimuths with the horizon mask.
+- Residual: Horizons' ME comes from DE441 and LOLA's from DE421. The two ME realisations differ by metres, which is
+  negligible here.
+- Horizons places the site on the sphere (altitude 0), not at its true height (up to ~5 km). The parallax this causes
+  is < 0.001° for the Sun and Earth, so it is ignored.
+
 ## Moon Trek: LOLA terrain (south pole)
 ArcGIS ImageServers, all in Moon2000 south polar stereographic (metres, central meridian 0):
 

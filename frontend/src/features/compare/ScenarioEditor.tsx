@@ -65,7 +65,7 @@ export function ScenarioEditor({ s }: { s: ComparisonScenario }) {
           <dd className="tabular-nums text-slate-300">{siteInfo?.ground_height_m != null ? `${Math.round(siteInfo.ground_height_m)} m` : 'n/a'}</dd>
           {siteInfo?.summary && (<>
             <dt className="text-slate-500">Terrain horizon</dt>
-            <dd className="tabular-nums text-slate-300">{siteInfo.summary.horizon_min_deg.toFixed(1)}° … {siteInfo.summary.horizon_max_deg.toFixed(1)}°</dd>
+            <dd className="tabular-nums text-slate-300">{siteInfo.summary.horizon_min_deg?.toFixed(1) ?? 'n/a'}° … {siteInfo.summary.horizon_max_deg?.toFixed(1) ?? 'n/a'}°</dd>
           </>)}
         </dl>
         {siteInfo?.source && <p className="text-[10px] leading-snug text-slate-500">Coordinates: {siteInfo.source}</p>}

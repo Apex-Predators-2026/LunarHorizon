@@ -25,20 +25,22 @@ Coordinates: degrees, latitude negative = south, longitude east. Curated sites a
 - `margin_deg`: Earth elevation minus terrain horizon (negative = blocked)
 
 ## Precomputed site file: `data/sites/<id>.json`
-Produced by `backend/scripts/precompute.py`. Columnar arrays to keep files small (~1.3 MB for 2 years hourly).
-The timeline arrays all have the same length; index `i` across them is one `TimelineStep`.
+Produced by `backend/scripts/precompute.py` (`app/engine/pipeline.py`). Columnar arrays to keep files small
+(~1.6 MB for 2 years hourly). The timeline arrays all have the same length; index `i` across them is one `TimelineStep`.
 
 ```jsonc
 {
   "site": { "id", "name", "lat", "lon", "source", "x_m", "y_m", "ground_height_m", "observer_height_m" },
-  "meta": { "start_utc", "stop_utc", "step", "ephemeris", "terrain": [...] },
-  "summary": { "sunlit_pct", "mean_sun_fraction_pct", "earth_visible_pct", "horizon_min_deg", "horizon_max_deg" },
+  "meta": { "generated_utc", "generator_version", "frame", "start_utc", "stop_utc", "step", "ephemeris", "terrain": [...] },
+  "summary": { "sunlit_pct", "mean_sun_fraction_pct", "earth_visible_pct", "horizon_min_deg", "horizon_max_deg",
+               "unknown_horizon_pct", "unknown_hours_pct" },
   "horizon": {                       // 720 directions, every 0.5 deg from north, clockwise
     "azimuth_deg": [], "elevation_deg": [], "distance_m": []   // distance_m = how far away the blocking terrain is
   },
   "timeline": {
     "time_utc": [],                  // "2027-01-01T00:00Z", hourly
-    "sun_azimuth_deg": [], "sun_elevation_deg": [], "sun_horizon_deg": [], "sun_visible_fraction": [],
+    "sun_azimuth_deg": [], "sun_elevation_deg": [], "sun_angular_radius_deg": [],
+    "sun_horizon_deg": [], "sun_visible_fraction": [], "sun_visible": [],
     "earth_azimuth_deg": [], "earth_elevation_deg": [], "earth_horizon_deg": [], "earth_margin_deg": [], "earth_visible": []
   }
 }
@@ -46,9 +48,20 @@ The timeline arrays all have the same length; index `i` across them is one `Time
 
 Definitions:
 - Heights are metres relative to the 1737.4 km reference sphere. `x_m`, `y_m` are Moon Trek south polar stereographic metres.
-- `observer_height_m`: sensor height above ground (2 m) used for the horizon.
-- Sunlit = `sun_visible_fraction > 0`. Power estimates should use the fraction, not just on/off.
+  Coordinates are in the Moon's Mean-Earth/polar-axis (ME) frame; see `docs/data-sources.md`.
+- `observer_height_m`: sensor height above ground (2 m) used for the horizon. One height for now; separate
+  solar-array and antenna heights only if a mission configuration needs them.
+- **Sunlit = `sun_visible`** (any of the solar disk above the terrain). Don't use `sun_visible_fraction > 0`:
+  a thin sliver can round to 0 even at 6 decimals (it did for 1 hour at Peak Near Shackleton).
+  Power estimates should use the fraction (6 decimals), not just on/off.
+- `sun_angular_radius_deg`: apparent solar radius used for the disk (from Horizons' angular diameter).
 - `earth_visible` = `earth_margin_deg > 0` (Earth's centre above the terrain).
+- **`null` = unknown.** A horizon direction is `null` when any point along it has no terrain data in any tier
+  (the missing point could be the one that blocks the sky). Timeline values that depend on such a direction are
+  `null` too. Only custom sites can have them; curated sites are fully known (`unknown_*_pct` = 0).
+  Summary percentages are over known hours.
+- `meta.generator_version`: `1.0` = first release; `1.1` = adds `sun_visible`, `sun_angular_radius_deg`,
+  6-decimal fractions, nulls, `generated_utc` / `generator_version` / `frame`.
 
 ## Backend API
 Run from `backend/`: `.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000`.
