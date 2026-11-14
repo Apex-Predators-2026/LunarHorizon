@@ -25,11 +25,15 @@ export interface SiteSummaryStats {
 
 // A Site plus what the data engine knows about it (returned by /api/sites).
 export type SiteKind = 'artemis' | 'control' | 'apollo' | 'clps' | 'international' | 'custom'
+export type ArtemisList = '2024' | '2022' | 'unconfirmed'
 
 export interface SiteInfo extends Site {
   source: string
   kind?: SiteKind // older backends omit it
   approximate?: boolean // coordinates are a region estimate, not a published point
+  // Artemis sites: NASA's list naming the region (see backend engine/sites.py): '2024' = one of the 9 current
+  // Artemis III candidate regions, '2022' = only in the original 13, 'unconfirmed' = can't tell. Else null.
+  artemis_list?: ArtemisList | null
   ground_height_m: number // relative to the 1737.4 km reference sphere
   observer_height_m: number
   summary: SiteSummaryStats
