@@ -97,7 +97,7 @@ export function FloatingSidebar({ children }: { children: ReactNode }) {
               width: size.w,
               ...(open ? (userSized ? { height: h } : { maxHeight: h }) : {}),
             }
-          : undefined
+          : { maxHeight: 'min(46vh, 26rem)' } // starts compact; resize or scroll for more
       }
     >
       <button
