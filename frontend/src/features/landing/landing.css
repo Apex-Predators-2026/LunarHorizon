@@ -16,8 +16,6 @@
   --lnd-ink-3: #5b6168;
   --lnd-step: rgba(60, 64, 68, 0.06);
   --lnd-coral: #ff634a;
-  --lnd-coral-btn: #d9472f;
-  --lnd-coral-btn-hover: #c23a23;
   --lnd-on-dark: #f5f5f7;
   --lnd-on-dark-2: rgba(245, 245, 247, 0.8);
   --lnd-on-dark-3: rgba(245, 245, 247, 0.62);
@@ -93,8 +91,21 @@ html.lp-dark .lnd {
     transform var(--md-dur-short3) var(--md-ease-standard);
 }
 .lnd .lnd-btn:active { transform: scale(0.98); }
-.lnd .lnd-btn-filled { background: var(--lnd-coral-btn); color: #fff; }
-.lnd .lnd-btn-filled:hover { background: var(--lnd-coral-btn-hover); }
+.lnd .lnd-btn-filled {
+  height: 72px;
+  padding-inline: 36px;
+  border-radius: 4px;
+  font-size: 21px;
+  font-weight: 600;
+  color: #1f2326;
+  background: var(--lnd-coral);
+}
+.lnd-btn-mesh {
+  pointer-events: none;
+  transition: filter var(--md-dur-short4) var(--md-ease-standard);
+}
+.lnd-btn-filled:hover .lnd-btn-mesh { filter: brightness(1.07); }
+.lnd-btn-label { position: relative; }
 .lnd .lnd-btn-glass {
   background: rgba(255, 255, 255, 0.1);
   color: var(--lnd-on-dark);
@@ -103,7 +114,14 @@ html.lp-dark .lnd {
   backdrop-filter: blur(16px) saturate(1.5);
 }
 .lnd .lnd-btn-glass:hover { background: rgba(255, 255, 255, 0.18); }
-.lnd .lnd-btn-sm { height: 40px; padding: 0 20px; border-radius: 20px; }
+.lnd .lnd-btn-nav {
+  height: 40px;
+  padding-inline: 20px;
+  border-radius: 4px;
+  background: #d9472f;
+  color: #fff;
+}
+.lnd .lnd-btn-nav:hover { background: #c23a23; }
 
 /* ---- Header: transparent over the film's first screen, frosted once the page scrolls. ---- */
 .lnd-nav { position: fixed; inset: 0 0 auto; z-index: 40; }
@@ -141,6 +159,9 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 @media (max-width: 960px) {
   .lnd-nav-links { display: none; }
   .lnd .lnd-nav-bar { justify-content: space-between; }
+}
+@media (max-width: 480px) {
+  .lnd .lnd-nav-bar { gap: 12px; }
 }
 
 /* ---- The scroll film ---- */
@@ -406,12 +427,32 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
   .lnd-data-grid { grid-template-columns: 1fr; gap: 32px; }
 }
 
-/* ---- Close: the call to action, then the name at full width. ---- */
-.lnd-close { background: var(--lnd-space); color: var(--lnd-on-dark); padding: 120px 0 40px; overflow: hidden; }
-.lnd-close-cta { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 32px; }
+/* ---- Closing call to action and footer ---- */
+.lnd-close {
+  min-height: clamp(500px, 54vw, 820px);
+  padding: clamp(64px, 9vw, 144px) 0 48px;
+  color: var(--lnd-on-dark);
+  background:
+    linear-gradient(to bottom, transparent 65%, var(--lnd-space)),
+    linear-gradient(110deg, rgb(0 0 0 / 74%), rgb(0 0 0 / 42%) 45%, transparent 75%),
+    var(--lnd-space) url('/landing/rocket-launch.webp') 60% center / cover no-repeat;
+}
+.lnd-close-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 32px; }
+.lnd .lnd-close-cta .lnd-btn-filled {
+  flex: 1 1 384px;
+  left: -12px;
+  min-height: 148px;
+  height: auto;
+  border-radius: 24px;
+  padding-inline: clamp(16px, 4vw, 43.2px);
+  font-size: clamp(25.2px, 3.6vw, 38.4px);
+  white-space: normal;
+}
+.lnd-close-cta > h2 { flex: 1 1 min(100%, 560px); }
 .lnd-close h2 { font-size: clamp(36px, 4.4vw, 64px); line-height: 1; letter-spacing: -0.045em; max-width: 760px; }
-.lnd .lnd-close-name { margin-top: 120px; font-size: clamp(36px, 14.5vw, 236px); line-height: 0.82; letter-spacing: -0.065em; color: var(--lnd-on-dark); white-space: nowrap; }
-.lnd-close-meta { display: flex; flex-wrap: wrap; gap: 12px 32px; margin-top: 40px; font-size: 14px; color: var(--lnd-on-dark-3); }
+.lnd-footer { padding: 32px 0 40px; background: var(--lnd-space); }
+.lnd .lnd-close-name { font-size: clamp(28px, 4vw, 48px); line-height: 1; letter-spacing: -0.05em; color: var(--lnd-on-dark); }
+.lnd-close-meta { display: flex; flex-wrap: wrap; gap: 12px 32px; margin-top: 20px; font-size: 14px; color: var(--lnd-on-dark-3); }
 .lnd-close-meta a { display: inline-flex; align-items: center; gap: 6px; color: var(--lnd-on-dark-2); text-decoration: none; }
 .lnd-close-meta a:hover { color: var(--lnd-on-dark); }
 
