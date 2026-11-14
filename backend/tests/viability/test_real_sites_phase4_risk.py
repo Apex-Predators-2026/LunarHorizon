@@ -10,7 +10,6 @@ not landing-safety, power or radio-link assessments. The files are read only.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -34,9 +33,11 @@ from app.viability.outputs import Metric, OperationalMargin, RiskIndicator
 from app.viability.risk import SYNTHETIC_PREFIX, assess_risks, overall_risk
 from app.viability.windows import PreparedSeries
 
+from .real_data import AFTER_DATA, END_SITE, REGRESSION_START, STRADDLE_START, raw_timeline
+
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
-T0 = datetime(2027, 1, 1, tzinfo=UTC)
+T0 = REGRESSION_START
 H = 3600.0
 C = ConstraintId
 LOW, MOD, HIGH, UNK = RiskLevel.LOW, RiskLevel.MODERATE, RiskLevel.HIGH, RiskLevel.UNKNOWN
@@ -56,7 +57,7 @@ TYPICAL: dict[str, float] = {
 
 @pytest.fixture(scope="module")
 def raw() -> dict[str, dict[str, Any]]:
-    return {s: json.loads((SITES_DIR / f"{s}.json").read_text(encoding="utf-8"))["timeline"] for s in SITES}
+    return {s: raw_timeline(s) for s in SITES}  # regression window, raw index 0 = T0 (real_data.py)
 
 
 @pytest.fixture(scope="module")
@@ -221,9 +222,9 @@ def test_shackleton_floor_control_is_high_everywhere(prepared: dict[str, Prepare
         assert r[code].level is HIGH, code
 
 
-def test_malapert_mission_straddling_dataset_end(prepared: dict[str, PreparedSeries]) -> None:
-    start = datetime(2028, 12, 25, tzinfo=UTC)
-    elig, r = risks_for(prepared["malapert-massif"], start, start + timedelta(days=14), TYPICAL)
+def test_mission_straddling_dataset_end(prepared: dict[str, PreparedSeries]) -> None:
+    start = STRADDLE_START
+    elig, r = risks_for(prepared[END_SITE], start, start + timedelta(days=14), TYPICAL)
     assert elig is Eligibility.UNKNOWN
     for code in ("sun_data_coverage", "earth_data_coverage"):
         assert r[code].level is MOD
@@ -234,7 +235,7 @@ def test_malapert_mission_straddling_dataset_end(prepared: dict[str, PreparedSer
 
 
 def test_connecting_ridge_mission_after_dataset(prepared: dict[str, PreparedSeries]) -> None:
-    start = datetime(2029, 2, 1, tzinfo=UTC)
+    start = AFTER_DATA
     elig, r = risks_for(prepared["connecting-ridge"], start, start + timedelta(days=14), TYPICAL)
     assert elig is Eligibility.UNKNOWN
     assert {ind.level for ind in r.values()} == {UNK}

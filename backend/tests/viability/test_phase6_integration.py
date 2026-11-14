@@ -45,6 +45,7 @@ from app.viability.inputs import ScientificTimeSeries
 from app.viability.outputs import Explanation, ViabilityAssessment
 from app.viability.risk import SYNTHETIC_PREFIX
 
+from .real_data import DATA_END  # last sample instant of the committed files (read from them)
 from .test_explain_phase6 import assert_consistent
 from .test_phase5_integration import GOOD, HALF, UNKNOWN_TAIL, real_scenario, run
 
@@ -53,7 +54,6 @@ SITES_DIR = REPO / "data" / "sites"
 DOCS = REPO / "docs" / "viability-engine.md"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
 RESCUE_SITES = ("peak-near-shackleton", "connecting-ridge", "malapert-massif")
-DATA_END = datetime(2029, 1, 1, tzinfo=UTC)  # last sample instant of every committed site file
 
 pytestmark = pytest.mark.skipif(
     not all((SITES_DIR / f"{s}.json").exists() for s in SITES), reason="precomputed site files not present"
@@ -180,7 +180,11 @@ def test_simulation_path_labels_every_explanation_synthetic() -> None:
     assert any("SIMULATION" in e.message for e in data)
 
 
-@pytest.mark.parametrize(("site_id", "days"), [("connecting-ridge", 3), ("malapert-massif", 3), ("malapert-massif", 7)])
+# Sites lit and Earth-visible through the final covered days of the committed files (Malapert and Peak Near
+# Shackleton are in a power-dark period there, so those landings are a proven FAIL, not a bounded PASS).
+@pytest.mark.parametrize(
+    ("site_id", "days"), [("connecting-ridge", 3), ("connecting-ridge", 5), ("connecting-ridge", 7)]
+)
 def test_bounded_pass_at_dataset_end_carries_proven_bounds_for_rescue(site_id: str, days: int) -> None:
     """Known rescue issue (docs 5g, finding 3): the latest landing rescue accepts ends one hour after the file's last
     sample. The canonical engine does not invent that hour: the score is BOUNDED, rescue's ``score`` is None

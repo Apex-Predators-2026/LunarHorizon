@@ -71,6 +71,7 @@ from app.viability.outputs import (
 )
 
 from .helpers import full_coverage_quality_fields, unavailable_metrics
+from .real_data import DATA_END  # last sample instant of the committed files (read from them)
 
 V, P, NV, U = VisibilityState.VISIBLE, VisibilityState.PARTIAL, VisibilityState.NOT_VISIBLE, VisibilityState.UNKNOWN
 H = 3600.0
@@ -625,21 +626,21 @@ def _real_timeline(site_id: str, end: datetime, days: int = 2) -> tuple[Scenario
 
 
 def test_final_bin_inside_dataset_is_covered() -> None:
-    sc, tl = _real_timeline("peak-near-shackleton", datetime(2029, 1, 1, tzinfo=UTC))
+    sc, tl = _real_timeline("peak-near-shackleton", DATA_END)
     mission = scenario_to_mission(sc)
     s = timeline_to_series(tl, mission_end_utc=mission.mission_end_utc, precomputed_data_dir=SITES_DIR)
-    assert s.coverage_end_utc == datetime(2029, 1, 1, tzinfo=UTC)
+    assert s.coverage_end_utc == DATA_END
     assert analyze_scenario(mission, s).data_quality.uncovered_duration_s == 0.0
 
 
 def test_final_bin_beyond_dataset_end_is_not_fabricated() -> None:
-    """Mission ending 2029-01-01T01:00Z: rescue serves a slice whose last bin starts at the file's final instant."""
-    sc, tl = _real_timeline("peak-near-shackleton", datetime(2029, 1, 1, 1, tzinfo=UTC))
+    """Mission ending DATA_END + 1 h: rescue serves a slice whose last bin starts at the file's final instant."""
+    sc, tl = _real_timeline("peak-near-shackleton", DATA_END + timedelta(hours=1))
     assert tl.source.startswith("precomputed:")
-    assert precomputed_dataset_end(tl.source, SITES_DIR) == datetime(2029, 1, 1, tzinfo=UTC)
+    assert precomputed_dataset_end(tl.source, SITES_DIR) == DATA_END
     mission = scenario_to_mission(sc)
     s = timeline_to_series(tl, mission_end_utc=mission.mission_end_utc, precomputed_data_dir=SITES_DIR)
-    assert s.coverage_end_utc == datetime(2029, 1, 1, tzinfo=UTC)  # not extended to 01:00
+    assert s.coverage_end_utc == DATA_END  # not extended by the extra hour
     assert "NOT extended" in (s.provenance.notes or "")
     a = analyze_scenario(mission, s)
     assert a.data_quality.uncovered_duration_s == 3600.0
@@ -648,7 +649,7 @@ def test_final_bin_beyond_dataset_end_is_not_fabricated() -> None:
 
 def test_mission_past_dataset_falls_back_to_flagged_synthetic_data() -> None:
     """Rescue's provider (Member 5) swaps to synthetic geometry; the compat layer keeps that visible."""
-    sc, tl = _real_timeline("peak-near-shackleton", datetime(2029, 1, 1, 3, tzinfo=UTC))
+    sc, tl = _real_timeline("peak-near-shackleton", DATA_END + timedelta(hours=3))
     assert tl.source.startswith("synthetic")
     mission = scenario_to_mission(sc)
     a = analyze_scenario(mission, timeline_to_series(tl, mission_end_utc=mission.mission_end_utc))
@@ -719,7 +720,7 @@ def test_phase3_verdicts_match_rescue_placeholder_on_real_data(site_id: str, day
 
 def test_phase3_unknown_verdicts_map_to_unknown_violations() -> None:
     """Final rescue bin past the dataset end: canonical UNKNOWN -> is_unknown, never a loosening target."""
-    sc, tl = _real_timeline("malapert-massif", datetime(2029, 1, 1, 1, tzinfo=UTC))
+    sc, tl = _real_timeline("malapert-massif", DATA_END + timedelta(hours=1))
     mission = scenario_to_mission(sc)
     series = timeline_to_series(tl, mission_end_utc=mission.mission_end_utc)
     phase3 = assess_constraints(mission, series)
@@ -733,11 +734,11 @@ def test_phase3_unknown_verdicts_map_to_unknown_violations() -> None:
 
 
 def test_phase3_on_rescue_synthetic_fallback_is_labelled_synthetic() -> None:
-    """A rescue mission reaching past 2029-01-01 is evaluated on synthetic geometry by rescue's provider.
+    """A rescue mission reaching past the end of the data is evaluated on synthetic geometry by rescue's provider.
 
     Phase 3 then gives definite verdicts, but the assessment must say the data are synthetic.
     """
-    sc, tl = _real_timeline("malapert-massif", datetime(2029, 1, 7, 22, tzinfo=UTC), days=7)
+    sc, tl = _real_timeline("malapert-massif", DATA_END + timedelta(days=6, hours=22), days=7)
     assert tl.source.startswith("synthetic")
     mission = scenario_to_mission(sc)
     phase3 = assess_constraints(mission, timeline_to_series(tl, mission_end_utc=mission.mission_end_utc))

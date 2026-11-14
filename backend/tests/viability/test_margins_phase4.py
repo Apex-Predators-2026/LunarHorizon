@@ -53,6 +53,7 @@ from app.viability.outputs import ConstraintAssessment, ConstraintEvaluation, Me
 from app.viability.windows import PreparedSeries
 
 from .helpers import at, constraint, hourly, raw_longest_outages
+from .real_data import AFTER_DATA, END_SITE, REGRESSION_END, REGRESSION_START, STRADDLE_START, raw_timeline
 
 H = 3600.0
 C = ConstraintId
@@ -756,9 +757,9 @@ def test_reason_codes_survive_for_unknown_margins() -> None:
 
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
-T0 = datetime(2027, 1, 1, tzinfo=UTC)
-COVERAGE_END = datetime(2029, 1, 1, tzinfo=UTC)
-N_HOURS = 17544
+# Raw columns and two-year checks: the fixed regression window (real_data.py); boundary checks: the real data end.
+T0, TWO_YEAR_END = REGRESSION_START, REGRESSION_END
+N_HOURS = 17544  # hours in the regression window
 TYPICAL: dict[str, float] = {
     "dark_h": 50.0,
     "blackout_h": 96.0,
@@ -774,7 +775,7 @@ PANEL = 0.25
 
 @pytest.fixture(scope="module")
 def raw() -> dict[str, dict[str, Any]]:
-    return {s: json.loads((SITES_DIR / f"{s}.json").read_text(encoding="utf-8"))["timeline"] for s in SITES}
+    return {s: raw_timeline(s) for s in SITES}  # regression window, raw index 0 = T0 (real_data.py)
 
 
 @pytest.fixture(scope="module")
@@ -868,7 +869,7 @@ def test_real_two_year_outage_margins(
     dark, blackout = outages_h(raw, site)
     # Limits must be > 0 h; with no Earth blackout at all (Malapert, generator 1.2) only darkness is probed.
     cfg = {"dark_h": float(dark + extra_h), "blackout_h": float(blackout + extra_h) if blackout else 100.0}
-    a = assess_constraints(real_mission(prepared[site], T0, COVERAGE_END, cfg), prepared[site])
+    a = assess_constraints(real_mission(prepared[site], T0, TWO_YEAR_END, cfg), prepared[site])
     ms = {m.constraint_id: m for m in assess_margins(a)}
     probes = [(C.MAX_CONTINUOUS_DARKNESS, dark + extra_h)]
     if blackout:
@@ -904,24 +905,23 @@ def test_real_mission_inside_polar_night_is_negative_and_clipped(prepared: dict[
     assert known(ms[C.MIN_INITIAL_SUNLIGHT]) == -24 * H
 
 
-def test_real_mission_straddling_dataset_end(
-    raw: dict[str, dict[str, Any]], prepared: dict[str, PreparedSeries]
-) -> None:
-    # 2028-12-25 -> 2029-01-08: last 168 covered hours, then 168 h beyond coverage (unknown).
-    p, tl = prepared["malapert-massif"], raw["malapert-massif"]
-    start, end = datetime(2028, 12, 25, tzinfo=UTC), datetime(2029, 1, 8, tzinfo=UTC)
+def test_real_mission_straddling_dataset_end(prepared: dict[str, PreparedSeries]) -> None:
+    # Last 168 covered hours, then 168 h beyond coverage (unknown).
+    start = STRADDLE_START
+    end = start + timedelta(days=14)
+    p = prepared[END_SITE]
+    tl = {k: v[:-1] for k, v in raw_timeline(END_SITE, start=start, end=start + timedelta(days=7)).items()}
     a = assess_constraints(real_mission(p, start, end, TYPICAL), p)
     ms = {m.constraint_id: m for m in assess_margins(a)}
-    first = N_HOURS - 168
-    earth = np.asarray(tl["earth_visible"][first:N_HOURS], dtype=bool)
+    earth = np.asarray(tl["earth_visible"], dtype=bool)
     lo_pct, hi_pct = 100.0 * earth.sum() / 336, 100.0 * (earth.sum() + 168) / 336
     e = ms[C.MIN_EARTH_VISIBILITY_PERCENT]
     assert bounds(e) == pytest.approx((lo_pct - 40.0, hi_pct - 40.0), rel=1e-12)
     assert e.basis is MarginBasis.BOUNDED and e.constraint_status is PASS  # proven by the covered week
     # Longest outage: lower = longest confirmed run (unknown breaks runs); upper = the unknown
     # 168 h merged with the outage run ending the covered week, if longer.
-    frac = np.asarray(tl["sun_visible_fraction"][first:N_HOURS], dtype=float)
-    lit = np.asarray(tl["sun_visible"][first:N_HOURS], dtype=bool) & (frac >= PANEL)
+    frac = np.asarray(tl["sun_visible_fraction"], dtype=float)
+    lit = np.asarray(tl["sun_visible"], dtype=bool) & (frac >= PANEL)
     for cid, ok, limit_h in ((C.MAX_CONTINUOUS_DARKNESS, lit, 50), (C.MAX_COMMUNICATION_BLACKOUT, earth, 96)):
         trailing = _leading(~ok[::-1])  # outage hours at the end of the covered week
         longest_lo = _longest(ok, False)
@@ -933,7 +933,7 @@ def test_real_mission_straddling_dataset_end(
 
 def test_real_mission_after_dataset_end_uses_admissible_ranges_only(prepared: dict[str, PreparedSeries]) -> None:
     p = prepared["connecting-ridge"]
-    start = datetime(2029, 2, 1, tzinfo=UTC)
+    start = AFTER_DATA
     a = assess_constraints(real_mission(p, start, start + timedelta(days=14), TYPICAL), p)
     ms = {m.constraint_id: m for m in assess_margins(a)}
     for m in ms.values():

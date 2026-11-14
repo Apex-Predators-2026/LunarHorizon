@@ -10,7 +10,6 @@ The original files are read only, never modified.
 
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -35,12 +34,18 @@ from app.viability.mission import MissionRequirements, MissionScenario, Spacecra
 from app.viability.windows import PreparedSeries
 
 from .helpers import raw_longest_outages
+from .real_data import AFTER_DATA, DATA_END, REGRESSION_END, REGRESSION_START, raw_timeline
 
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
-T0 = datetime(2027, 1, 1, tzinfo=UTC)
-COVERAGE_END = datetime(2029, 1, 1, tzinfo=UTC)
-N_HOURS = 17544
+# Raw columns and two-year checks use the fixed regression window (identical in every regeneration so far, see
+# real_data.py); coverage-boundary checks use the committed files' real last sample instant (COVERAGE_END).
+T0, TWO_YEAR_END = REGRESSION_START, REGRESSION_END
+COVERAGE_END = DATA_END
+N_HOURS = 17544  # hours in the regression window
+# Lit and Earth-visible through the final covered hours of the committed files, so a mission straddling the end
+# of the data proves no failure from its covered part (Malapert's final covered week is power-dark).
+END_SITE = "connecting-ridge"
 H = 3600.0
 C = ConstraintId
 PASS, FAIL, UNKNOWN = ConstraintStatus.PASS, ConstraintStatus.FAIL, ConstraintStatus.UNKNOWN
@@ -60,7 +65,7 @@ TYPICAL: dict[str, float] = {
 
 @pytest.fixture(scope="module")
 def raw() -> dict[str, dict[str, Any]]:
-    return {s: json.loads((SITES_DIR / f"{s}.json").read_text(encoding="utf-8"))["timeline"] for s in SITES}
+    return {s: raw_timeline(s) for s in SITES}
 
 
 @pytest.fixture(scope="module")
@@ -187,11 +192,11 @@ def test_two_year_outage_limits_exactly_at_and_below(
     # is a fixed 100 h that can never fail, and only the darkness constraint is probed at its extreme.
     has_blackout = blackout > 0
     at_limit = assess_constraints(
-        mission(p, T0, COVERAGE_END, dark_h=dark, blackout_h=blackout if has_blackout else 100, threshold=0.25), p
+        mission(p, T0, TWO_YEAR_END, dark_h=dark, blackout_h=blackout if has_blackout else 100, threshold=0.25), p
     )
     assert at_limit.eligibility is Eligibility.PASS
     below = assess_constraints(
-        mission(p, T0, COVERAGE_END, dark_h=dark - 1, blackout_h=blackout - 1 if has_blackout else 100, threshold=0.25),
+        mission(p, T0, TWO_YEAR_END, dark_h=dark - 1, blackout_h=blackout - 1 if has_blackout else 100, threshold=0.25),
         p,
     )
     assert [c.constraint_id for c in below.with_status(FAIL)] == [
@@ -209,9 +214,9 @@ def test_two_year_percentages_exactly_at_threshold(
     tl, p = raw[site], prepared[site]
     sun = 100.0 * np.count_nonzero(np.asarray(tl["sun_visible"][:-1], dtype=bool)) / N_HOURS
     earth = 100.0 * np.count_nonzero(np.asarray(tl["earth_visible"][:-1], dtype=bool)) / N_HOURS
-    exact = mission(p, T0, COVERAGE_END, min_sunlight_percent=sun, min_earth_visibility_percent=earth)
+    exact = mission(p, T0, TWO_YEAR_END, min_sunlight_percent=sun, min_earth_visibility_percent=earth)
     assert assess_constraints(exact, p).eligibility is Eligibility.PASS
-    above = mission(p, T0, COVERAGE_END, min_sunlight_percent=sun * (1 + 1e-9), min_earth_visibility_percent=earth)
+    above = mission(p, T0, TWO_YEAR_END, min_sunlight_percent=sun * (1 + 1e-9), min_earth_visibility_percent=earth)
     a = assess_constraints(above, p)
     assert [c.constraint_id for c in a.with_status(FAIL)] == [C.MIN_SUNLIGHT_PERCENT]
 
@@ -244,7 +249,7 @@ def test_mission_landing_in_a_long_night_at_peak_near_shackleton(prepared: dict[
     assert w.clipped_at_start and w.clipped_at_end  # the night extends beyond the mission on both sides
 
 
-# --- the exact end of Andrew's coverage (2029-01-01T00:00Z) -------------------------------------
+# --- the exact end of Andrew's coverage (COVERAGE_END, read from the files) ----------------------
 
 
 def test_mission_ending_exactly_at_coverage_end_is_fully_known(prepared: dict[str, PreparedSeries]) -> None:
@@ -268,12 +273,13 @@ def test_one_hour_past_coverage_end_is_unknown_never_fabricated(prepared: dict[s
     assert sun.measured.upper - sun.measured.lower == pytest.approx(100.0 / (14 * 24))
 
 
-def test_mission_straddling_coverage_end(raw: dict[str, dict[str, Any]], prepared: dict[str, PreparedSeries]) -> None:
-    p, tl = prepared["malapert-massif"], raw["malapert-massif"]
-    start, end = datetime(2028, 12, 25, tzinfo=UTC), datetime(2029, 1, 8, tzinfo=UTC)
+def test_mission_straddling_coverage_end(prepared: dict[str, PreparedSeries]) -> None:
+    p = prepared[END_SITE]
+    start, end = COVERAGE_END - timedelta(days=7), COVERAGE_END + timedelta(days=7)
+    tl = raw_timeline(END_SITE, start=start, end=COVERAGE_END)  # the covered week (169 samples)
     a = assess_constraints(mission(p, start, end, **TYPICAL), p)
     assert a.environment.data_quality.uncovered_duration_s == 7 * 24 * H
-    known_h = int(np.count_nonzero(np.asarray(tl["earth_visible"][N_HOURS - 168 : N_HOURS], dtype=bool)))
+    known_h = int(np.count_nonzero(np.asarray(tl["earth_visible"][:-1], dtype=bool)))
     earth = a.constraint(C.MIN_EARTH_VISIBILITY_PERCENT)
     assert earth.measured.lower == pytest.approx(100.0 * known_h / 336)
     assert earth.measured.upper == pytest.approx(100.0 * (known_h + 168) / 336)
@@ -287,7 +293,7 @@ def test_mission_straddling_coverage_end(raw: dict[str, dict[str, Any]], prepare
 
 def test_mission_entirely_after_coverage_is_unknown(prepared: dict[str, PreparedSeries]) -> None:
     p = prepared["connecting-ridge"]
-    start = datetime(2029, 2, 1, tzinfo=UTC)
+    start = AFTER_DATA
     a = assess_constraints(mission(p, start, start + timedelta(days=14), **TYPICAL), p)
     assert a.eligibility is Eligibility.UNKNOWN and a.with_status(FAIL) == []
     for c in a.with_status(UNKNOWN):
