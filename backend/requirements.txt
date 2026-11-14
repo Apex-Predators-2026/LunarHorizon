@@ -7,3 +7,4 @@ pandas
 rasterio
 pytest
 truststore
+httpx  # FastAPI TestClient (rescue API tests)

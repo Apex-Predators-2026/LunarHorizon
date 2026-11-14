@@ -47,3 +47,146 @@ Definitions:
 - `earth_visible` = `earth_margin_deg > 0` (Earth's centre above the terrain).
 
 To be agreed by the team.
+
+---
+
+## Mission scenario, viability result and rescue (proposed by Member 5)
+
+Rescue sits on top of the data engine and the viability checker, so these shapes need
+agreement from Andrew (timelines), Brandon (viability) and Member 4 (comparison).
+Following the rule above, they live in all three places:
+
+- `backend/app/models.py` and `frontend/src/types.ts`: `MissionRequirements`, `Scenario`,
+  `Violation`, `ViabilityMetrics`, `ViabilityResult` (shared contract)
+- `backend/app/rescue/schemas.py` and `frontend/src/features/rescue/types.ts`: rescue-only
+  requests and responses
+- Live docs: run the backend and open `http://127.0.0.1:8000/docs`
+
+Times are UTC ISO 8601. Fractions are 0–1.
+
+### Site ids for custom points
+
+`Site.id` is required. Points that aren't in the curated list (rescue's nearby points, a
+user's custom coordinates) use `"custom:<lat>,<lon>"`, e.g. `"custom:-89.46012,221.98000"`.
+Nothing will find a precomputed file for those ids, so they always use the live/synthetic
+calculation.
+
+### Scenario (one landing plan)
+
+```json
+{
+  "site": { "id": "peak-near-shackleton", "name": "Peak Near Shackleton", "lat": -89.01701, "lon": 126.27302 },
+  "landing_utc": "2027-10-15T00:00:00Z",
+  "duration_days": 7,
+  "requirements": {
+    "min_sunlight_fraction": 0.5,
+    "battery_hours": 50,
+    "panel_threshold": 0.25,
+    "min_earth_visibility_fraction": 0.4,
+    "max_comms_gap_hours": 96,
+    "min_initial_sun_hours": 24,
+    "min_initial_comms_hours": 12
+  }
+}
+```
+
+### ViabilityResult (Brandon's output, which rescue reads)
+
+```json
+{
+  "scenario": "Scenario",
+  "passes": false,
+  "score": 72.4,
+  "metrics": {
+    "sunlight_fraction": 0.93, "equivalent_sun_hours": 156,
+    "longest_dark_gap_hours": 0, "earth_visibility_fraction": 0.51,
+    "longest_comms_gap_hours": 82, "initial_sun_hours": 168, "initial_comms_hours": 0,
+    "hours_to_first_sunset": null, "hours_to_first_earthset": 86,
+    "mean_sun_clearance_deg": 2.1, "mean_earth_clearance_deg": 1.4, "mean_solar_elevation_deg": 1.2
+  },
+  "violations": [
+    { "constraint": "min_initial_comms_hours", "required": 12, "actual": 0, "unit": "h",
+      "shortfall": 12, "relative_shortfall": 1.0,
+      "message": "Earth contact right after landing is 0 h, below the 12 h requirement." }
+  ],
+  "source": "placeholder-v1",
+  "data_source": "synthetic-placeholder"
+}
+```
+
+What rescue relies on:
+
+1. The Python signature `evaluate_timeline(scenario: Scenario, timeline: Timeline) -> ViabilityResult`,
+   where `timeline` covers exactly the mission (`backend/app/rescue/timeline/base.py`).
+2. `violations[].constraint` is the **name of the `requirements` field** that failed.
+   Loosening suggestions depend on this.
+3. `passes == (len(violations) == 0)`, and `score` is 0–100 (higher is better).
+
+Until Brandon's checker exists, `backend/app/rescue/viability/placeholder.py` implements
+this contract. To swap it, change one import in `backend/app/rescue/viability/__init__.py`.
+
+### Timelines from the data engine
+
+Rescue reads the engine's precomputed files directly: `data/sites/<id>.json`, in the columnar
+format described in "Precomputed site file" above (`backend/app/rescue/timeline/precomputed.py`).
+A list of `TimelineStep` objects is also accepted. Sites, custom points or dates without real
+data fall back to a **synthetic placeholder**, and every result's `data_source` says which was
+used (`precomputed:<file>` or `synthetic-placeholder`).
+
+**Real and synthetic data are never ranked together by default.** If the plan being rescued
+has real data, rescue, sensitivity and compromise skip candidates that only have synthetic
+data. Today that means custom nearby points, the approximate extra sites, and dates outside
+2027–2028. `SearchOptions.include_synthetic = true` opts in; the response reports how many
+candidates were left out (`stats.synthetic_candidates_excluded`).
+
+Rescue's landing candidates are the engine's curated sites (`app/engine/sites.py`, minus
+validation controls such as `shackleton-floor`) plus a few approximate extra regions
+(`app/rescue/catalog.py`), listed by `GET /api/rescue/sites` with a `has_real_data` flag.
+
+### Rescue endpoints
+
+| Endpoint | Request | Response |
+|---|---|---|
+| `GET /api/rescue/sites` | – | rescue's candidate sites (with `has_real_data`) + PSR science targets |
+| `POST /api/rescue` | `{ original: Scenario, change: PlanChange, search: SearchOptions }` | `RescueResponse` |
+| `POST /api/rescue/sensitivity` | `{ scenario: Scenario, date_offsets_hours?, position_offsets_km?, bearings? }` | `SensitivityResponse` |
+| `POST /api/rescue/compromise` | `{ scenario: Scenario, science: ScienceGoal, engineering_weight, science_weight, search }` | `CompromiseResponse` |
+
+`PlanChange`: `{ launch_delay_days, new_duration_days?, requirement_overrides: {any requirements field}, reason? }`
+
+`RescueResponse` (abridged):
+
+```json
+{
+  "status": "rescued",
+  "summary": "The changed plan fails: ... Best rescue: Land at Peak Near Shackleton on 2027-02-03 12:00 UTC ...",
+  "original": "ViabilityResult",
+  "changed": "ViabilityResult",
+  "alternatives": [
+    {
+      "rank": 1, "kind": "date_shift", "is_catalog_site": true,
+      "scenario": "Scenario", "viability": "ViabilityResult",
+      "rank_score": 87.4, "date_shift_hours": 156, "distance_km": 0,
+      "improvements": [{ "metric": "longest_comms_gap_hours", "label": "Longest comms blackout", "unit": "h",
+                         "before": 82, "after": 0, "delta": -82, "better": true }],
+      "robustness": { "checked_points": 8, "passing_points": 8, "pass_rate": 1.0, "worst_score": 85,
+                      "verdict": "robust", "note": "Still passes with a ±1 day slip or a 1 km landing error." },
+      "headline": "Land at ...", "reasons": ["Fixes: earth contact right after landing.", "..."]
+    }
+  ],
+  "near_misses": [{ "scenario": "Scenario", "closeness": 0.01, "why_it_fails": ["..."] }],
+  "loosening": [{ "changes": [{ "constraint": "battery_hours", "current": 50, "suggested": 52, "change_percent": 4 }],
+                  "keeps_original_plan": false, "unlocks": "Scenario", "message": "Raise the ..." }],
+  "stats": { "candidates_evaluated": 1464, "locations_considered": 24, "passing": 498 },
+  "data_source": "synthetic-placeholder",
+  "assumptions": ["SYNTHETIC DATA: ...", "..."]
+}
+```
+
+- `kind` is one of `unchanged | date_shift | site_change | site_and_date`.
+- `status` is one of `still_viable | rescued | no_viable_alternative`.
+
+**For Member 4 (comparison):** every `alternatives[].scenario`, `near_misses[].scenario` and
+`loosening[].unlocks` is a full `Scenario`, so it can go straight into the comparison view
+next to `changed.scenario`. `<RescueResults>` and `<CompromiseResults>` in
+`frontend/src/features/rescue` are prop-only display components you can reuse.

@@ -1,0 +1,302 @@
+{
+ "status": "both_met",
+ "summary": "Both teams can be satisfied: Connecting Ridge on 2027-11-06 00:00 UTC; 5.3 km from Shackleton crater floor; meets engineering; meets science. (1 location(s) meet both goals.)",
+ "best": {
+  "scenario": {
+   "site": {
+    "id": "connecting-ridge",
+    "name": "Connecting Ridge",
+    "lat": -89.53432,
+    "lon": 209.94767
+   },
+   "landing_utc": "2027-11-06T00:00:00Z",
+   "duration_days": 7.0,
+   "requirements": {
+    "min_sunlight_fraction": 0.5,
+    "battery_hours": 50.0,
+    "panel_threshold": 0.25,
+    "min_earth_visibility_fraction": 0.4,
+    "max_comms_gap_hours": 96.0,
+    "min_initial_sun_hours": 24.0,
+    "min_initial_comms_hours": 12.0
+   }
+  },
+  "viability": {
+   "scenario": {
+    "site": {
+     "id": "connecting-ridge",
+     "name": "Connecting Ridge",
+     "lat": -89.53432,
+     "lon": 209.94767
+    },
+    "landing_utc": "2027-11-06T00:00:00Z",
+    "duration_days": 7.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "passes": true,
+   "score": 90.18,
+   "metrics": {
+    "sunlight_fraction": 1.0,
+    "equivalent_sun_hours": 168.0,
+    "longest_dark_gap_hours": 0.0,
+    "earth_visibility_fraction": 1.0,
+    "longest_comms_gap_hours": 0.0,
+    "initial_sun_hours": 168.0,
+    "initial_comms_hours": 168.0,
+    "hours_to_first_sunset": null,
+    "hours_to_first_earthset": null,
+    "mean_sun_clearance_deg": 1.8523095238095237,
+    "mean_earth_clearance_deg": 3.613940476190476,
+    "mean_solar_elevation_deg": 1.1512678571428572
+   },
+   "violations": [],
+   "source": "placeholder-v1",
+   "data_source": "precomputed:connecting-ridge.json"
+  },
+  "engineering_score": 0.9018,
+  "science_score": 0.6434,
+  "combined_score": 0.7726,
+  "meets_engineering": true,
+  "meets_science": true,
+  "distance_to_science_km": 5.349,
+  "pareto_optimal": true,
+  "explanation": "Connecting Ridge on 2027-11-06 00:00 UTC; 5.3 km from Shackleton crater floor; meets engineering; meets science."
+ },
+ "best_for_engineering": {
+  "scenario": {
+   "site": {
+    "id": "connecting-ridge",
+    "name": "Connecting Ridge",
+    "lat": -89.53432,
+    "lon": 209.94767
+   },
+   "landing_utc": "2027-11-06T00:00:00Z",
+   "duration_days": 7.0,
+   "requirements": {
+    "min_sunlight_fraction": 0.5,
+    "battery_hours": 50.0,
+    "panel_threshold": 0.25,
+    "min_earth_visibility_fraction": 0.4,
+    "max_comms_gap_hours": 96.0,
+    "min_initial_sun_hours": 24.0,
+    "min_initial_comms_hours": 12.0
+   }
+  },
+  "viability": {
+   "scenario": {
+    "site": {
+     "id": "connecting-ridge",
+     "name": "Connecting Ridge",
+     "lat": -89.53432,
+     "lon": 209.94767
+    },
+    "landing_utc": "2027-11-06T00:00:00Z",
+    "duration_days": 7.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "passes": true,
+   "score": 90.18,
+   "metrics": {
+    "sunlight_fraction": 1.0,
+    "equivalent_sun_hours": 168.0,
+    "longest_dark_gap_hours": 0.0,
+    "earth_visibility_fraction": 1.0,
+    "longest_comms_gap_hours": 0.0,
+    "initial_sun_hours": 168.0,
+    "initial_comms_hours": 168.0,
+    "hours_to_first_sunset": null,
+    "hours_to_first_earthset": null,
+    "mean_sun_clearance_deg": 1.8523095238095237,
+    "mean_earth_clearance_deg": 3.613940476190476,
+    "mean_solar_elevation_deg": 1.1512678571428572
+   },
+   "violations": [],
+   "source": "placeholder-v1",
+   "data_source": "precomputed:connecting-ridge.json"
+  },
+  "engineering_score": 0.9018,
+  "science_score": 0.6434,
+  "combined_score": 0.7726,
+  "meets_engineering": true,
+  "meets_science": true,
+  "distance_to_science_km": 5.349,
+  "pareto_optimal": true,
+  "explanation": "Connecting Ridge on 2027-11-06 00:00 UTC; 5.3 km from Shackleton crater floor; meets engineering; meets science."
+ },
+ "best_for_science": {
+  "scenario": {
+   "site": {
+    "id": "connecting-ridge",
+    "name": "Connecting Ridge",
+    "lat": -89.53432,
+    "lon": 209.94767
+   },
+   "landing_utc": "2027-11-06T00:00:00Z",
+   "duration_days": 7.0,
+   "requirements": {
+    "min_sunlight_fraction": 0.5,
+    "battery_hours": 50.0,
+    "panel_threshold": 0.25,
+    "min_earth_visibility_fraction": 0.4,
+    "max_comms_gap_hours": 96.0,
+    "min_initial_sun_hours": 24.0,
+    "min_initial_comms_hours": 12.0
+   }
+  },
+  "viability": {
+   "scenario": {
+    "site": {
+     "id": "connecting-ridge",
+     "name": "Connecting Ridge",
+     "lat": -89.53432,
+     "lon": 209.94767
+    },
+    "landing_utc": "2027-11-06T00:00:00Z",
+    "duration_days": 7.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "passes": true,
+   "score": 90.18,
+   "metrics": {
+    "sunlight_fraction": 1.0,
+    "equivalent_sun_hours": 168.0,
+    "longest_dark_gap_hours": 0.0,
+    "earth_visibility_fraction": 1.0,
+    "longest_comms_gap_hours": 0.0,
+    "initial_sun_hours": 168.0,
+    "initial_comms_hours": 168.0,
+    "hours_to_first_sunset": null,
+    "hours_to_first_earthset": null,
+    "mean_sun_clearance_deg": 1.8523095238095237,
+    "mean_earth_clearance_deg": 3.613940476190476,
+    "mean_solar_elevation_deg": 1.1512678571428572
+   },
+   "violations": [],
+   "source": "placeholder-v1",
+   "data_source": "precomputed:connecting-ridge.json"
+  },
+  "engineering_score": 0.9018,
+  "science_score": 0.6434,
+  "combined_score": 0.7726,
+  "meets_engineering": true,
+  "meets_science": true,
+  "distance_to_science_km": 5.349,
+  "pareto_optimal": true,
+  "explanation": "Connecting Ridge on 2027-11-06 00:00 UTC; 5.3 km from Shackleton crater floor; meets engineering; meets science."
+ },
+ "pareto_front": [
+  {
+   "scenario": {
+    "site": {
+     "id": "connecting-ridge",
+     "name": "Connecting Ridge",
+     "lat": -89.53432,
+     "lon": 209.94767
+    },
+    "landing_utc": "2027-11-06T00:00:00Z",
+    "duration_days": 7.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "connecting-ridge",
+      "name": "Connecting Ridge",
+      "lat": -89.53432,
+      "lon": 209.94767
+     },
+     "landing_utc": "2027-11-06T00:00:00Z",
+     "duration_days": 7.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": true,
+    "score": 90.18,
+    "metrics": {
+     "sunlight_fraction": 1.0,
+     "equivalent_sun_hours": 168.0,
+     "longest_dark_gap_hours": 0.0,
+     "earth_visibility_fraction": 1.0,
+     "longest_comms_gap_hours": 0.0,
+     "initial_sun_hours": 168.0,
+     "initial_comms_hours": 168.0,
+     "hours_to_first_sunset": null,
+     "hours_to_first_earthset": null,
+     "mean_sun_clearance_deg": 1.8523095238095237,
+     "mean_earth_clearance_deg": 3.613940476190476,
+     "mean_solar_elevation_deg": 1.1512678571428572
+    },
+    "violations": [],
+    "source": "placeholder-v1",
+    "data_source": "precomputed:connecting-ridge.json"
+   },
+   "engineering_score": 0.9018,
+   "science_score": 0.6434,
+   "combined_score": 0.7726,
+   "meets_engineering": true,
+   "meets_science": true,
+   "distance_to_science_km": 5.349,
+   "pareto_optimal": true,
+   "explanation": "Connecting Ridge on 2027-11-06 00:00 UTC; 5.3 km from Shackleton crater floor; meets engineering; meets science."
+  }
+ ],
+ "suggestions": [],
+ "loosening": [],
+ "stats": {
+  "candidates_evaluated": 183,
+  "locations_considered": 3,
+  "passing": 99,
+  "synthetic_candidates_excluded": 3233,
+  "date_range_start": "2027-10-15T00:00:00Z",
+  "date_range_end": "2027-11-14T00:00:00Z"
+ },
+ "data_source": "precomputed:connecting-ridge.json, precomputed:malapert-massif.json, precomputed:peak-near-shackleton.json",
+ "assumptions": [
+  "Real data: Sun/Earth positions from JPL Horizons and terrain horizons from Moon Trek LOLA, precomputed by the data engine (data/sites/).",
+  "Science score = 1 − distance to the target ÷ max traverse distance (0 beyond it).",
+  "Each location is shown at its best date in the window.",
+  "Only landing times inside the search window and the listed candidate locations are considered.",
+  "Ranking = viability score + horizon-clearance bonus − date-shift penalty − distance penalty − fragility penalty (all configurable in SearchOptions).",
+  "Requirement relaxations are exact for the evaluated metrics but are not engineering approvals.",
+  "3233 candidates were left out because only synthetic placeholder data exists for them (e.g. points around the science target). Set include_synthetic=true to include them."
+ ]
+}

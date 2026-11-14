@@ -11,3 +11,4 @@ data/raw/
 data/cache/
 *.tif
 *.img
+.pytest_cache/

@@ -1,3 +1,4 @@
+import { MissionRescue } from './features/rescue'
 import { Scene } from './viz/Scene'
 
 export default function App() {
@@ -12,6 +13,10 @@ export default function App() {
         <div className="relative flex-1">
           <Scene />
         </div>
+        {/* Mission rescue & optimization (Member 5) */}
+        <aside className="w-[26rem] overflow-y-auto border-l border-slate-800 p-4">
+          <MissionRescue />
+        </aside>
       </main>
     </div>
   )
