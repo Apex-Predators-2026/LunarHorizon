@@ -1,4 +1,4 @@
-import { OrbitControls, Stars } from '@react-three/drei'
+import { Stars } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { createRef, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import * as THREE from 'three'
@@ -7,7 +7,8 @@ import type { SiteInfo } from '../types'
 import { createCustomSite, fetchHorizon, fetchPsr, fetchSites, fetchStatus, fetchTimeline, useAsync } from './api'
 import { CameraRig, type ViewMode } from './CameraRig'
 import { FollowCamera } from './FollowCamera'
-import { SiteFrame, vecToLatLon } from './globe/cubeSphere'
+import { MOON_RADIUS_M, SiteFrame, vecToLatLon } from './globe/cubeSphere'
+import { GlobeControls } from './GlobeControls'
 import { currentBlockers, fmtDistance, KIND_COLOR, surfacePoint } from './globe/overlays'
 import { BlockerLines, PsrLayer, SitePins } from './globe/SurfaceOverlays'
 import { TileTree, type TileStats } from './globe/TileTree'
@@ -270,9 +271,13 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         </FollowCamera>
         <Lander status={s} observerHeight={eye} showBeacon={view === 'overview'} detailed={gfx.detailedModels} />
 
-        {/* Pan along the ground (like a map), not in the screen plane, which would drag the view down
-            into the terrain. TileTree also keeps the camera itself above the ground. */}
-        <OrbitControls minDistance={5} maxDistance={MAX_CAMERA_DISTANCE_M} screenSpacePanning={false} makeDefault />
+        {/* Google-Earth-style: drag spins the Moon under the cursor, right-drag turns / tilts, wheel
+            zooms towards the cursor. TileTree also keeps the camera itself above the ground. */}
+        <GlobeControls
+          moonCentre={frame?.moonCentre ?? null}
+          groundRadius={MOON_RADIUS_M + (site?.ground_height_m ?? 0)}
+          maxDistance={MAX_CAMERA_DISTANCE_M}
+        />
         <CameraRig
           view={view}
           status={s}
