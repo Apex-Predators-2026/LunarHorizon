@@ -87,6 +87,9 @@ interface TileMaterial {
   fadeFrom: number // when its image started fading in (-Infinity: shown at once)
 }
 
+/** How far a tile's first image has faded in (1 = fully, also for images shown at once). */
+const fadeAt = (fadeFrom: number, now: number) => Math.min(1, (now - fadeFrom) / TILE_FADE_MS)
+
 const texKeyOf = (face: number, z: number, x: number, y: number) => `${face}/${z}/${x}/${y}`
 
 export class TileImagery {
@@ -97,6 +100,7 @@ export class TileImagery {
   private readonly onChange: () => void
   private readonly anisotropy: number
   private inFlight = 0
+  private mix = 0 // the zoom-dependent mix of the current frame (from tick)
   private disposed = false
 
   constructor(onChange: () => void, anisotropy: number) {
@@ -139,7 +143,7 @@ export class TileImagery {
         // that already showed it doesn't); a sharper one replacing a stand-in swaps at once.
         const fadeFrom = m ? -Infinity : use.readyAt
         if (m) this.forget(t.key)
-        m = this.makeMaterial(t, use, base, fadeFrom)
+        m = this.makeMaterial(t, use, base, fadeFrom, now)
         this.materials.set(t.key, m)
       }
       if (t.mesh.material !== m.material) t.mesh.material = m.material
@@ -158,9 +162,10 @@ export class TileImagery {
    * fading in (the caller keeps rendering frames until it's done).
    */
   tick(now: number, mix: number): boolean {
+    this.mix = mix
     let fading = false
     for (const m of this.materials.values()) {
-      const f = Math.min(1, (now - m.fadeFrom) / TILE_FADE_MS)
+      const f = fadeAt(m.fadeFrom, now)
       if (f < 1 && mix > 0) fading = true
       m.mix.value = mix * f
     }
@@ -196,6 +201,7 @@ export class TileImagery {
     use: { texKey: string; d: number; texture: THREE.Texture },
     base: THREE.Material,
     fadeFrom: number,
+    now: number,
   ): TileMaterial {
     let map = use.texture
     let owned = false
@@ -210,7 +216,9 @@ export class TileImagery {
     const material = base.clone() as THREE.MeshStandardMaterial
     material.map = map
     material.defines = { ...material.defines, IMAGERY_MIX: '', IMAGERY_GAIN: GAIN.toFixed(2) }
-    const mix = { value: 0 }
+    // This frame's mix straight away: materials are made during the tile selection, after tick, and
+    // starting at 0 would draw the tile as plain terrain for a frame (square flicker while moving).
+    const mix = { value: this.mix * fadeAt(fadeFrom, now) }
     const hook = mixHook(mix)
     material.userData.beforeCompile = hook
     material.onBeforeCompile = hook
