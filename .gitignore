@@ -5,6 +5,9 @@ __pycache__/
 .venv/
 .env
 .DS_Store
-data-engine/cache/
+
+# Large / regenerable data
+data/raw/
+data/cache/
 *.tif
 *.img
