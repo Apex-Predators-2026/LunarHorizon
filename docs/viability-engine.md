@@ -1,10 +1,11 @@
 # Viability Engine: Architecture & Data Contracts
 
 Owner: Member 2 (Mission Viability, Risk Assessment & Ranking)
-Status: **Phases 2–3 implemented** (sunlight / Earth-visibility analysis, §5b; constraint
-verdicts PASS / FAIL / UNKNOWN and eligibility, §5c). **Phases 4–6 not started**, so there is
-still no risk level, score, explanation text or full `evaluate_scenario`.
-Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.3.0-phase3"`.
+Status: **Phases 2–4 implemented** (sunlight / Earth-visibility analysis, §5b; constraint
+verdicts PASS / FAIL / UNKNOWN and eligibility, §5c; operational margins and rule-based risk
+indicators, §5d). **Phases 5–6 not started**, so there is still no score, explanation text or
+full `evaluate_scenario`.
+Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.4.0-phase4"`.
 Synchronized with `main` as of 2026-11-13: Member 1 site-file format **1.1** (§3a) and Member 5's
 shared `ViabilityResult` with `eligibility` / nullable `score` / `Violation.is_unknown` (§5a).
 The input contract (§3) is a **proposal for Member 1 to review** before it counts as final.
@@ -34,16 +35,16 @@ Members 3/4/5 ──────────────────────
 | `outputs.py` | Assessment/ranking contract + invariant validators, `derive_eligibility` | 1 ✅ |
 | `fixtures/` | Synthetic datasets (JSON) + deterministic builders | 1 ✅ |
 | `adapters/site_file.py` | Andrew's precomputed site files → `ScientificTimeSeries` (§3a) | 1 ✅ |
-| `compat/rescue.py` | Member 5's `evaluate_timeline(Scenario, Timeline) -> ViabilityResult` on top of this engine (§5a) | interface ✅, Phase 2 metrics and Phase 3 verdicts verified; needs Phases 4–6 to run |
+| `compat/rescue.py` | Member 5's `evaluate_timeline(Scenario, Timeline) -> ViabilityResult` on top of this engine (§5a) | interface ✅, Phase 2 metrics and Phase 3 verdicts verified; Phase 4 margins and risks available; needs Phases 5–6 to run |
 | `windows.py` | Sampling semantics, sample supports, three-valued condition runs, visibility windows (§5b) | 2 ✅ |
 | `metrics.py` | Durations, percentages, longest outages, bounds, time-weighted means, data quality (§5b) | 2 ✅ |
 | `analysis.py` | `analyze_environment` / `analyze_scenario`: the Phase 2 entry points → `EnvironmentAnalysis` | 2 ✅ |
 | `constraints.py` | PASS / FAIL / UNKNOWN / NOT_APPLICABLE per requirement, eligibility; `assess_constraints` (§5c) | 3 ✅ |
-| `margins.py` | Duration and angular-clearance margins | 4 (stub) |
-| `risk.py` | Rule-based risk indicators | 4 (stub) |
+| `margins.py` | Signed operational margins per hard constraint, bounds, classification (§5d) | 4 ✅ |
+| `risk.py` | Rule-based risk indicators and `overall_risk`, consuming the margins (§5d) | 4 ✅ |
 | `scoring.py` | Desirability score, ranking | 5 (stub) |
 | `explain.py` | Explanations; `STANDARD_LIMITATIONS` (defined now) | 6 (stub) |
-| `engine.py` | `evaluate_scenario(scenario, series)` pipeline | 4–6 (stub) |
+| `engine.py` | `evaluate_scenario(scenario, series)` pipeline | 5–6 (stub; Phases 2–4 callable directly) |
 
 Stubs have final signatures and raise `NotImplementedError("Phase N: …")`.
 
@@ -266,7 +267,7 @@ Timeline ─timeline_to_series──► ScientificTimeSeries ┴► evaluate_sce
 ViabilityResult ◄────────────── assessment_to_result ◄──────────────────────────────┘
 ```
 
-**Status: interface only.** `evaluate_scenario` raises `NotImplementedError` until Phases 4–6,
+**Status: interface only.** `evaluate_scenario` raises `NotImplementedError` until Phases 5–6,
 so the layer does not yet work end-to-end. Phase 2 metrics and Phase 3 verdicts are already
 verified against the placeholder (coordination item 6 below). Rescue still imports its placeholder; nothing in
 `app/rescue/` was changed. To switch later, Member 5 changes one import in
@@ -342,7 +343,7 @@ violations; each keeps its own flag. Every constraint the layer creates maps 1:1
 3. **Panel threshold of 0: resolved by Arush** (placeholder now requires `fraction > 0`). Same rule as the canonical engine.
 4. **Naive datetimes.** Shared `Scenario.landing_utc` treats naive times as UTC, while the canonical API rejects them. The layer accepts the shared model's decision; flagged for the team.
 5. **Two readers of `data/sites`.** `rescue/timeline/precomputed.py` and the site-file adapter parse the same files. They agree sample for sample (tested), except that rescue ignores `sun_visible` (1 sliver hour at PNS, §3a) and reads a `null` `earth_visible` as `False`. The compat layer turns the latter back into unknown via the NaN margin. Keep one reader long-term.
-6. **Equivalence check: done, re-run on format 1.1 data.** On real precomputed timelines (3 sites × 6 landing dates, 14-day missions, `panel_threshold` 0.25), all 11 `ViabilityMetrics` fields from Phase 2 equal the placeholder's to 1e-12 (`test_phase2_metrics_match_rescue_placeholder_on_real_data`). Expected differences remain only where data is unknown, where the canonical engine bounds instead of counting. **Phase 3:** on the same real timelines (3 sites × 6 landing dates × {rescue defaults, a strict set incl. `min_earth_visibility_fraction` 0.55}), the canonical failing constraints, eligibility and each `Violation`'s `required`/`actual` equal the placeholder's (`test_phase3_verdicts_match_rescue_placeholder_on_real_data`, 36 cases, no unknowns). Arush's full side-by-side test (`tests/test_engine_side_by_side.py`) stays skipped until `evaluate_scenario` exists (Phases 4–6).
+6. **Equivalence check: done, re-run on format 1.1 data.** On real precomputed timelines (3 sites × 6 landing dates, 14-day missions, `panel_threshold` 0.25), all 11 `ViabilityMetrics` fields from Phase 2 equal the placeholder's to 1e-12 (`test_phase2_metrics_match_rescue_placeholder_on_real_data`). Expected differences remain only where data is unknown, where the canonical engine bounds instead of counting. **Phase 3:** on the same real timelines (3 sites × 6 landing dates × {rescue defaults, a strict set incl. `min_earth_visibility_fraction` 0.55}), the canonical failing constraints, eligibility and each `Violation`'s `required`/`actual` equal the placeholder's (`test_phase3_verdicts_match_rescue_placeholder_on_real_data`, 36 cases, no unknowns). Arush's full side-by-side test (`tests/test_engine_side_by_side.py`) stays skipped until `evaluate_scenario` exists (Phases 5–6).
 
 ## 5b. Phase 2: sunlight and Earth-visibility time-series analysis
 
@@ -498,7 +499,7 @@ evaluate_constraints(scenario, env)            # just the list
 `(scenario, metrics, series)`: per-condition unknown time, evidence windows and an identity
 check need it. Nobody called the stub. The analysis must match the scenario's site, mission
 window **and** `solar_power_min_disk_fraction` (`ValueError` otherwise), because darkness and
-initial-sunlight verdicts depend on the threshold. `evaluate_scenario` stays a stub (Phases 4–6).
+initial-sunlight verdicts depend on the threshold. `evaluate_scenario` stays a stub (Phases 5–6; Phase 4 is §5d).
 A 14-day evaluation on a prepared real series takes ≈ 1.6 ms.
 
 ### Constraints
@@ -647,6 +648,239 @@ verdicts, and the assessment labels them `provenance.is_synthetic = true` with t
 "SYNTHETIC data: not NASA-derived; not valid for mission decisions" (tested). The labelling is
 explicit, but eligibility itself does not encode the data basis (§10 item 14).
 
+## 5d. Phase 4: operational margins and risk assessment
+
+Phase 4 runs after Phase 3 and never changes a verdict or eligibility. **Margins** (`margins.py`)
+measure the signed headroom of each hard constraint. **Risk indicators** (`risk.py`) are
+deterministic screening flags built from Phase 2 evidence, Phase 3 verdicts and those margins.
+Both were developed in parallel (4A, 4B) and then integrated (commits below).
+
+```python
+assessment = assess_constraints(scenario, series)          # Phase 3 (Phase 2 inside)
+margins    = margins_from_assessment(assessment)           # Phase 4A: list[OperationalMargin]
+detail     = assess_margins(assessment)                    # Phase 4A: + class, basis, relative, clipping
+risks      = assess_risks(scenario, assessment, margins)   # Phase 4B: list[RiskIndicator]
+level      = overall_risk(risks)
+```
+
+`compute_margins(scenario, env.metrics, series)` keeps the Phase 1 signature and returns exactly
+the same margins as `margins_from_assessment` (tested on every integration scenario).
+`assess_risks(scenario, assessment)` with no margins derives them the same way.
+
+### Operational margins (Phase 4A)
+
+One `OperationalMargin` per `ConstraintId`, in Phase 3 order: `margin_id = related_constraint
+= constraint id`, `reference` = the configured threshold, and `value` a `Metric` in the
+**constraint's own unit** (seconds, percent, fraction). Quantities of different kinds are never
+combined.
+
+| Comparison | Signed margin | Interval from measured bounds `[L, U]` |
+|---|---|---|
+| Minimum requirement (`at_least`) | `margin = observed − required` | `[L − t, U − t]` |
+| Maximum limit (`at_most`) | `margin = limit − observed` | `[t − U, t − L]` |
+
+Positive = headroom, `0` = exactly at the threshold (still PASS, since comparisons are
+inclusive), negative = violation. A bound within Phase 3's `COMPARISON_REL_TOL` (1e-12) of the
+threshold gives exactly `0.0`. Therefore **PASS ⇔ lower margin ≥ 0, FAIL ⇔ upper margin < 0,
+UNKNOWN ⇔ the interval straddles 0**. This is checked, and a contradicting evaluation raises
+`ValueError` rather than being re-decided.
+
+**Uncertainty propagation.** The measured bounds come from the Phase 2/3 evidence:
+
+| Metric status | Margin | `MarginBasis` |
+|---|---|---|
+| KNOWN `v` | KNOWN `v − t` / `t − v` | `measured` |
+| BOUNDED `[L, U]` (unknown time in the mission) | BOUNDED interval above | `bounded` |
+| UNAVAILABLE (no evidence) | BOUNDED from the admissible range: percent `[0, 100]`, fraction `[0, 1]`, durations `[0, mission]`, exactly as in Phase 3 | `admissible_range` (stated in `value.reason`) |
+| Constraint not configured | NOT_APPLICABLE, `reference = None` | `none` |
+| Configured but unsupported (`min_sun/earth_clearance_deg`) | UNAVAILABLE, `reason` starting `unsupported`, `reference = threshold`. No number; the mean clearance is never a stand-in | `none` |
+
+Only KNOWN metrics give point margins. Missing data widens the interval and is never treated as a
+favourable or failing observation.
+
+**Relative margin** (`MarginAssessment.relative`, `Unit.FRACTION`): `margin / threshold` when
+`threshold > 0`, otherwise none. For a limit this is `1 − observed / limit`, the share of the limit
+left unused. It is comparable only within one constraint.
+
+**Classification** (`classify_margin`) uses the **least favourable** bound `lo`, so uncertainty
+never makes a margin look safer:
+
+| `MarginClass` | Rule | Compatible verdict |
+|---|---|---|
+| `negative` | upper < 0 | FAIL |
+| `uncertain` | lo < 0 ≤ upper | UNKNOWN |
+| `at_threshold` | lo = 0 | PASS |
+| `narrow` | 0 < lo ≤ 10 % × threshold (inclusive), **or** a duration margin below the data's largest sample spacing | PASS |
+| `comfortable` | otherwise | PASS |
+| `unsupported` / `not_applicable` | no numeric margin / not configured | UNKNOWN / NOT_APPLICABLE |
+
+The 10 % band (`NARROW_MARGIN_FRACTION`) is a product-defined screening convention. The time
+resolution defaults to `data_quality.largest_sample_gap_s` (1 h on the real files): under
+sample-and-hold, interior durations err by less than one spacing, so a smaller margin is not
+resolved by the data. `MarginAssessment` also echoes the verdict and comparison, and sets
+`clipped_at_mission_start/end` when the decisive window touches a mission edge (e.g. darkness
+already in progress at landing; margins are mission-scoped).
+
+### Risk indicators (Phase 4B)
+
+Every `RiskIndicator` carries `code`, `level` (`low` / `moderate` / `high` / `unknown`), the
+explicit `rule` text, `evidence` (a `Metric`) and a factual `message`. Levels are **screening
+categories, not probabilities**. LOW never means "safe to land", and nothing reads or writes
+eligibility.
+
+| Code | Meaning | Rule |
+|---|---|---|
+| `synthetic_data` | dataset is synthetic | always UNKNOWN (real-site risk not assessed) |
+| `geometric_only_data` | terrain not modelled | always UNKNOWN |
+| `sun_data_coverage`, `earth_data_coverage` | unknown Sun/power or Earth state time in the mission | 0 → LOW; the entire mission → UNKNOWN; otherwise MODERATE |
+| `landing_in_darkness` | power-dark at mission start | met → LOW; unknown → UNKNOWN; not met → MODERATE, HIGH if the outage in progress at landing lasts the whole mission or leaves ≤ 10 % of the darkness limit (levels from proven bounds) |
+| `landing_without_earth_visibility` | Earth obstructed at mission start | same rule against the blackout limit |
+| `darkness_exposure` | longest power-dark period vs `max_continuous_darkness_s` | headroom bands on the margin |
+| `communication_exposure` | longest Earth line-of-sight blackout vs `max_communication_blackout_s` (geometry, not a radio link) | headroom bands on the margin |
+| `margin_headroom.<constraint_id>` | headroom of each configured minimum requirement | headroom bands on the margin |
+| `unsupported_requirement.<constraint_id>` | configured requirement the engine cannot evaluate | always UNKNOWN |
+
+**Headroom bands.** `h = margin / reference` per proven bound:
+
+- `h ≤ 10 %` → HIGH (this includes 0 and every violation);
+- `h ≤ 25 %` → MODERATE;
+- otherwise → LOW.
+
+Both thresholds are inclusive and adjustable through `RiskPolicy(high_headroom_fraction=0.10,
+moderate_headroom_fraction=0.25)`. **These are product-defined screening heuristics, not
+NASA-established or NASA-validated safety thresholds.** Changing them changes risk levels only,
+never eligibility, verdicts or margins (tested).
+
+- **Bounded evidence:** each bound is banded separately. The level is decided only when both
+  bounds fall in the same band; otherwise it is UNKNOWN. Because the band is monotonic in `h`,
+  agreement at the bounds means every value in between agrees. A level can therefore be decided
+  despite missing data when the bounds are decisive.
+- **Time resolution:** a duration bound below the sample spacing is never LOW (raised to
+  MODERATE).
+- **Zero reference** (a vacuous minimum such as `min_sunlight_percent = 0`): `h` is undefined, and
+  the verdict decides (PASS → LOW, FAIL → HIGH, UNKNOWN → UNKNOWN).
+
+**Landing relevance.** Landing indicators are emitted only when that outage can affect the
+spacecraft:
+
+- `landing_in_darkness`: the darkness limit is configured, or the power source is solar, hybrid
+  or other;
+- `landing_without_earth_visibility`: the blackout limit is configured, or the communication mode
+  is direct_to_earth or direct_and_relay.
+
+No landing risk is invented for a radioisotope / battery-only lander or a relay-only rover.
+
+**`overall_risk`:** any HIGH → HIGH; otherwise any UNKNOWN → UNKNOWN; otherwise any MODERATE →
+MODERATE; otherwise LOW. An empty list is UNKNOWN (nothing assessed is not low risk). A HIGH
+overall level can sit alongside UNKNOWN indicators, but aggregation never drops or rewrites them:
+`risks[]` keeps every indicator, so the uncertainty stays inspectable (tested). Consumers should
+show UNKNOWN indicators next to a HIGH overall level, not only the overall level. On synthetic
+data, every message starts with `[SYNTHETIC DATA]`, and `synthetic_data` keeps the overall level
+from ever being LOW or MODERATE.
+
+### Margin-to-risk integration contract
+
+1. Every headroom number in a risk indicator comes from a Phase 4A `OperationalMargin`; risk
+   never recomputes a margin. Outage exposure uses the supplied margin. If an explicit list omits
+   it, the margin is derived with `margins.operational_margin` from the same Phase 3 evaluation.
+   `margin_headroom.*` indicators carry the margin itself as `evidence`.
+2. Supplied margins are validated against the assessment:
+   - at most one per constraint;
+   - same unit;
+   - `reference == threshold`;
+   - bounds that imply the Phase 3 verdict in full: PASS ⇒ lo ≥ 0, FAIL ⇒ upper < 0,
+     UNKNOWN ⇒ the bounds straddle 0.
+
+   Margins of another scenario or with another sign convention raise `ValueError`.
+   Unconfigured constraints and margins without a `related_constraint` are ignored. Unsupported
+   constraints produce only `unsupported_requirement.*`.
+3. `margins=None` (the default) derives `margins_from_assessment(assessment)`. With an explicit
+   list, an omitted minimum requirement is UNKNOWN (HIGH if Phase 3 proved FAIL).
+4. One band convention: `RiskPolicy.high_headroom_fraction` defaults to `NARROW_MARGIN_FRACTION`,
+   and both bands are inclusive. At the defaults:
+
+   | Margin class | Risk level |
+   |---|---|
+   | `negative` | HIGH |
+   | `at_threshold` | HIGH (UNKNOWN if bounded) |
+   | `narrow` | never LOW |
+   | `uncertain` | HIGH or UNKNOWN |
+   | `comfortable` | never HIGH |
+   | `unsupported` | UNKNOWN |
+   | `not_applicable` | no indicator |
+
+   These pairs are checked on every integration scenario, real data included.
+5. Verdict safeguards hold under every policy: a FAIL constraint's indicator is always HIGH, and
+   an UNKNOWN constraint's is HIGH or UNKNOWN, never LOW or MODERATE.
+
+### Real-data examples (same lander as §5c; 14-day missions unless noted)
+
+| Scenario | Eligibility | Darkness margin | Blackout margin | Sunlight margin | Overall |
+|---|---|---|---|---|---|
+| Malapert, 2027-07-20 | pass | +14 h, comfortable, LOW (28 %) | +96 h, LOW | +38.99 pp, LOW | **LOW** |
+| Connecting Ridge, 2027-01-01 | fail | +11 h, comfortable, **MODERATE** (22 %) | −152 h, negative, HIGH | +38.99 pp, LOW | HIGH |
+| Malapert, 2027-02-05 | fail | −51 h, negative, HIGH | +96 h, LOW | +21.73 pp, LOW | HIGH (landing MODERATE) |
+| PNS, 2027-04-01 (inside its night) | fail | −286 h, negative, HIGH, clipped at landing | +54 h, LOW | −48.81 pp, HIGH | HIGH (landing in darkness HIGH) |
+| Shackleton floor (control), 30 d | fail | −670 h, HIGH | −624 h, HIGH | −50 pp, HIGH | HIGH |
+| Malapert, 2028-12-25 (7 d past coverage) | unknown | [−118, +50] h, uncertain, UNKNOWN | [−72, +96] h, UNKNOWN | [0, +50] pp, at_threshold, UNKNOWN | UNKNOWN (coverage MODERATE) |
+| Connecting Ridge, 2029-02-01 (no data) | unknown | [−286, +50] h, admissible range, UNKNOWN | [−240, +96] h, UNKNOWN | [−50, +50] pp, UNKNOWN | UNKNOWN (every indicator) |
+
+The tests check margins on all four sites × 6 landing dates against an independent NumPy
+computation from the raw columns. Levels on all four sites × 9 dates are re-derived from those
+margins.
+
+### Scientific limitations
+
+- Margins and risks describe illumination and line-of-sight headroom under hourly sample-and-hold
+  only. They model no battery state of charge, energy balance, power generation, thermal survival,
+  radio link budget or landing safety. "Landing in darkness" says stored energy is not modelled,
+  and Earth indicators say radio-link availability is not modelled.
+- Direct sunlight and power-eligible illumination stay separate: darkness and initial-sunlight
+  margins use power-eligibility (`solar_power_min_disk_fraction`), while `min_sunlight_percent`
+  uses direct sunlight. Neither guarantees electrical power.
+- Duration margins are resolved to one sample spacing, and short events can be missed (§5b). The
+  time-resolution rule makes sub-spacing margins NARROW / never-LOW instead of hiding the issue.
+- Relative margins are comparable within one constraint only. The risk bands are heuristics, not
+  calibrated failure probabilities.
+- Clearance margins are not computed (unsupported, §10 item 10).
+
+### Synthetic-data limitations
+
+Synthetic series (fixtures, tests, custom-site placeholders) run through the same rules. Their
+margins and risks describe the synthetic geometry only. They are labelled in three places:
+
+- `data_quality.provenance.is_synthetic`, plus the Phase 2 warning "SYNTHETIC data: not
+  NASA-derived …", which Phase 4 keeps unchanged;
+- the `synthetic_data` UNKNOWN indicator;
+- the `[SYNTHETIC DATA]` prefix on every risk message.
+
+`OperationalMargin.description` carries no prefix. A margin taken out of its assessment must keep
+the assessment's `data_quality` alongside it. The rescue path's synthetic fallback (§10 item 14)
+still yields definite but labelled margins and risks.
+
+### Phase 4 status
+
+**Complete and integrated.** Commits:
+
+| Commit | Content |
+|---|---|
+| `0caa3d0` | Phase 4A margins |
+| `404d7d5` | Phase 4B risk |
+| `ffabf2d`, `2402ada` | `--no-ff` merges |
+| `3b83e6b` | Integration fixes and `test_phase4_integration.py` |
+
+Fixes applied in the integration:
+
+- The narrow band was made inclusive (exactly 10 % headroom used to be `comfortable` + HIGH).
+- Exposure indicators consume margins instead of recomputing them.
+- The sample-spacing rule was added to risk (`narrow` + LOW before).
+- Full margin/verdict validation.
+- The `margins=None` default.
+- Landing relevance.
+
+`evaluate_scenario` still raises `NotImplementedError` until Phases 5–6 assemble the
+`ViabilityAssessment` (margins → `margins[]`, indicators → `risks[]`, `overall_risk`).
+
 ## 6. Assumptions and limitations
 
 - The engine consumes geometry; it **does not compute** ephemerides, terrain or horizons.
@@ -714,6 +948,18 @@ coverage end, straddling and post-coverage missions), Phase 3 additions to
 `test_rescue_compat.py` (verdict and Violation equivalence with the placeholder; unknown and
 worst-case mapping to `is_unknown`) and validator tests in `test_outputs.py`.
 
+Phase 4 tests: `test_margins_phase4.py` (sign convention, intervals, admissible ranges, tolerance,
+classification incl. the inclusive band and time resolution, unsupported / unconfigured, clipping,
+verdict agreement, real-site margins vs an independent computation), `test_risk_phase4.py`
+(every rule and band edge on hand-made margins, bounded evidence, landing rules, coverage,
+synthetic / geometric flags, input validation, determinism, policy independence of eligibility),
+`test_real_sites_phase4_risk.py` (levels on four real files vs an independent computation), and
+`test_phase4_integration.py`. That last module runs the unmocked pipeline Phase 2 → 3 → 4A → 4B
+for passing, narrow, failing, fully unknown, partly bounded, unsupported, landing-dark,
+landing-without-Earth, dataset-edge and out-of-range missions. It also covers synthetic labelling,
+policy and worst-case independence, a threshold sweep, deterministic JSON and all four real sites.
+It checks the margin-to-risk contract (§5d) on every run.
+
 Requires Python ≥ 3.11, `pydantic` 2 and `pytest` (both already in `requirements.txt`).
 No new dependencies.
 - The core package, `adapters/` and `compat/rescue.py` import neither NumPy nor FastAPI.
@@ -729,7 +975,7 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 |---|---|
 | 2 ✅ | Windows, durations, percentages, longest outages, bounded metrics, coverage gaps (§5b) |
 | 3 ✅ | Constraint evaluation with unknown-data policy; coverage-aware bounds; eligibility (§5c) |
-| 4 | Duration and clearance margins; risk rules |
+| 4 ✅ | Operational margins with bounds and classes; rule-based risk indicators (§5d); clearance margins pending item 10 |
 | 5 | Normalised, explainable score; ranking |
 | 6 | Assembled `ViabilityAssessment`; explanation text |
 | 7 | Real-data tests with Member 1 output; validation with Member 6; FastAPI endpoint wiring |
@@ -753,7 +999,7 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 **Engine semantics (decided in Phase 2; team review welcome):**
 7. *Integration rule:* **decided.** Sample-and-hold by default (the source convention), with nearest-sample (midpoint) available as `SamplingPolicy.NEAREST_SAMPLE` for sensitivity checks. Interpolated zero-crossings are not used (§5b). Member 6 may want to quantify the timing uncertainty (≤ one spacing).
 8. *Partial sunlight:* **decided.** All three are reported separately: direct (fraction > 0, matching Andrew's `sunlit_pct`), full and partial. Power-eligibility uses `solar_power_min_disk_fraction`, and without a threshold it equals direct sunlight. **Phase 3:** `min_sunlight_percent` keeps testing direct sunlight; a separate `min_power_lit_percent` is *proposed* (§5c), not added.
-9. *Darkness spanning mission start:* clipped to the mission and flagged `clipped_at_start`. Phase 3 evaluates the clipped value and exposes the clipped evidence window; battery state at landing is a Phase 4 risk-rule question.
+9. *Darkness spanning mission start:* clipped to the mission and flagged `clipped_at_start`. Phase 3 evaluates the clipped value and exposes the clipped evidence window; battery state at landing is still not modelled; **Phase 4** flags it with `landing_in_darkness` and `MarginAssessment.clipped_at_mission_start` (§5d).
 
 **Phase 3 decisions for team review:**
 10. *Clearance requirements:* `min_sun/earth_clearance_deg` are `unknown (unsupported)` when set (§5c). Needs a decision: mask angle redefining visibility (changes Phase 2 conditions) vs per-instant minimum (needs a per-sample minimum metric).
@@ -761,6 +1007,26 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 12. *Initial requirement longer than the mission:* kept as FAIL for compatibility (mission-scoped, same as rescue's placeholder). The message now states that the requirement exceeds the mission duration. With no data, it is also the only FAIL that needs no observations: the bound `[0, mission]` already rules it out. *Recommendation:* treat it as a configuration error, rejected where the scenario is built (UI / `MissionScenario`). That is a shared-input change, because rescue scenarios with `duration_days < min_initial_*_hours / 24` would start raising, so it needs Member 5's agreement first.
 13. *Contract notice:* `ConstraintEvaluation` gained optional fields (additive, defaults); `ConstraintAssessment` is new. Members 3/4 should know before consuming them.
 14. *Synthetic fallback in rescue (Member 5):* rescue's provider swaps a whole mission to synthetic geometry when it reaches past the dataset, and verdicts on it are definite but labelled synthetic. Options: rescue truncates or refuses such missions; or the canonical engine reports synthetic-basis results as UNKNOWN (affects custom sites and every synthetic test fixture). Not changed here.
+
+**Phase 4 decisions for team review:**
+15. *Band boundary:* exactly 10 % headroom counts as `narrow` / HIGH (inclusive, resolving
+    towards caution). The Phase 1 stub said "below 10 %". Revisit together with the 10 % / 25 %
+    heuristic values, ideally with Member 6.
+16. *Landing relevance:* landing indicators depend on `power_source` / `communication_mode`, the
+    first engine use of those fields. `other` power counts as possibly sun-reliant.
+17. *Coverage indicators* are emitted for every spacecraft (a property of the evidence), so an
+    RTG relay rover can still get MODERATE from a data gap.
+18. *Contract notice for Members 3/4/5:*
+    - `assess_risks` takes `(scenario, ConstraintAssessment, margins | None)` instead of the
+      Phase 1 stub `(scenario, metrics, margins, data_quality)`;
+    - indicator codes follow §5d (`margin_headroom.<id>`, `unsupported_requirement.<id>`);
+    - `MarginAssessment` is engine-internal, not part of `ViabilityAssessment`.
+
+    No shared model changed. `evaluate_scenario` is not wired yet, so no consumer is affected
+    today.
+19. *Vacuous zero minimum* (e.g. `min_sunlight_percent = 0` with 0 % observed): the margin is
+    `at_threshold` while risk is LOW, because the requirement cannot fail. Consider rejecting zero
+    minimums at scenario construction.
 
 **With Members 3/4/5:** the field names above; whether `windows[]` should be paginated or
 down-sampled for long missions (a full 2-year analysis yields 300–600 windows per site); and whether failed scenarios should be scored, so rescue can
