@@ -33,7 +33,12 @@ from ..models import Scenario, ViabilityResult
 from ..rescue.catalog import get_site
 from ..rescue.timeline import PrecomputedTimelineProvider, SyntheticTimelineProvider
 from .adapters import load_site_file
-from .compat.rescue import COMPAT_VERSION, evaluate_timeline_detailed, scenario_to_mission
+from .compat.rescue import (
+    COMPAT_VERSION,
+    evaluate_timeline_detailed,
+    precomputed_dataset_end,
+    scenario_to_mission,
+)
 from .engine import ENGINE_VERSION, evaluate_scenario
 from .enums import ComparabilityPolicy, DataBasis
 from .explain import EXPLANATION_METHOD_VERSION
@@ -61,12 +66,23 @@ _H: Final = 3600.0
 
 # Rescue defaults throughout (shared MissionRequirements()): 50 h battery, 0.25 panel threshold,
 # >= 0.5 mean disk fraction, >= 40 % Earth, <= 96 h blackout, >= 24 h / 12 h initial sun / comms.
-_DATASET_END: Final = datetime(2029, 1, 1, tzinfo=UTC)  # last sample instant of the committed files
 _PASS_EXACT = ("malapert-massif", datetime(2028, 6, 15, tzinfo=UTC), 7.0)
 _FAIL = ("connecting-ridge", datetime(2027, 3, 1, tzinfo=UTC), 7.0)
-_PAIR_EXACT = ("connecting-ridge", _DATASET_END - timedelta(hours=72), 3.0)  # fully covered: exact score
-_PAIR_BOUNDED = ("connecting-ridge", _DATASET_END - timedelta(hours=71), 3.0)  # last hour uncovered: bounded
-_UNKNOWN = ("malapert-massif", _DATASET_END - timedelta(hours=12), 3.0)  # 60 of 72 h beyond the dataset
+# Scenarios at the end of the data are placed relative to the committed files' last sample instant, read from
+# the files (``dataset_end``), so a regeneration by Member 1 moves them with the data instead of breaking them.
+# Connecting Ridge is lit and Earth-visible through the final covered hours of the generator-1.2 files.
+_END_SITE: Final = "connecting-ridge"
+_PAIR_EXACT_HOURS_BEFORE_END: Final = 72  # 3-day mission fully covered: exact score
+_PAIR_BOUNDED_HOURS_BEFORE_END: Final = 71  # last mission hour beyond the data: bounded score
+_UNKNOWN_HOURS_BEFORE_END: Final = 12  # 60 of 72 h beyond the data: undecidable
+
+
+def dataset_end(sites_dir: Path = SITES_DIR) -> datetime:
+    """Last sample instant of the committed site file the end-of-data examples use (read, never pinned)."""
+    end = precomputed_dataset_end(f"precomputed:{_END_SITE}.json", sites_dir)
+    if end is None:
+        raise RuntimeError(f"real site file {_END_SITE}.json not found in {sites_dir}")
+    return end
 _SYNTHETIC_FIXTURE: Final = "intermittent_sunlight"
 
 EXAMPLE_KEYS: Final = (
@@ -187,7 +203,19 @@ def _rescue_scenario(site_id: str, landing: datetime, days: float) -> Scenario:
 class _Context:
     provider: PrecomputedTimelineProvider
     sites_dir: Path
+    dataset_end: datetime
     series_cache: dict[str, Any] = field(default_factory=dict)
+
+    def before_end(self, hours: int, days: float = 3.0) -> tuple[str, datetime, float]:
+        return (_END_SITE, self.dataset_end - timedelta(hours=hours), days)
+
+    @property
+    def pair_exact(self) -> tuple[str, datetime, float]:
+        return self.before_end(_PAIR_EXACT_HOURS_BEFORE_END)
+
+    @property
+    def pair_bounded(self) -> tuple[str, datetime, float]:
+        return self.before_end(_PAIR_BOUNDED_HOURS_BEFORE_END)
 
     def via_rescue(self, spec: tuple[str, datetime, float]) -> tuple[ViabilityResult, ViabilityAssessment]:
         """Rescue's production path: provider timeline (hourly, n samples) -> evaluate_timeline_detailed."""
@@ -254,7 +282,8 @@ def _fail(ctx: _Context) -> ConsumerExample:
 
 
 def _unknown(ctx: _Context) -> ConsumerExample:
-    site_id, landing, days = _UNKNOWN
+    spec = ctx.before_end(_UNKNOWN_HOURS_BEFORE_END)
+    site_id, landing, days = spec
     mission = scenario_to_mission(_rescue_scenario(site_id, landing, days))
     a = ctx.via_engine(mission, site_id)
     return ConsumerExample(
@@ -263,7 +292,7 @@ def _unknown(ctx: _Context) -> ConsumerExample:
         purpose="Most of the mission lies beyond the last real sample. Nothing is extrapolated: undecidable "
         "constraints are UNKNOWN, so eligibility is UNKNOWN and the scenario is neither scored nor ranked.",
         entry_point=_ENGINE_ENTRY + " with adapters.load_site_file and compat.rescue.scenario_to_mission",
-        inputs=_inputs(_UNKNOWN, dataset_last_sample_utc="2029-01-01T00:00:00Z"),
+        inputs=_inputs(spec, dataset_last_sample_utc=ctx.dataset_end.isoformat().replace("+00:00", "Z")),
         assessments=(a,),
         legacy_results=(None,),
         legacy_note="No legacy result: Rescue's own coverage check answers missions beyond the dataset itself "
@@ -272,14 +301,14 @@ def _unknown(ctx: _Context) -> ConsumerExample:
 
 
 def _pass_bounded(ctx: _Context) -> ConsumerExample:
-    legacy, a = ctx.via_rescue(_PAIR_BOUNDED)
+    legacy, a = ctx.via_rescue(ctx.pair_bounded)
     return ConsumerExample(
         key="pass_bounded",
         title="PASS with a bounded score (real data, last hour uncovered)",
         purpose="Eligibility is proven despite one unknown hour, but one score component is only bounded, so "
         "`score` is null and `score_bounds` holds the proven interval. Rescue's ViabilityResult shows score null.",
         entry_point=_RESCUE_ENTRY,
-        inputs=_inputs(_PAIR_BOUNDED),
+        inputs=_inputs(ctx.pair_bounded),
         assessments=(a,),
         legacy_results=(legacy,),
         legacy_note=_VIA_RESCUE_NOTE + " The legacy contract has no interval field, so its score is null.",
@@ -332,8 +361,8 @@ def _synthetic(_ctx: _Context) -> ConsumerExample:
 
 
 def _comparable(ctx: _Context) -> ConsumerExample:
-    legacy_x, x = ctx.via_rescue(_PAIR_EXACT)
-    legacy_b, b = ctx.via_rescue(_PAIR_BOUNDED)
+    legacy_x, x = ctx.via_rescue(ctx.pair_exact)
+    legacy_b, b = ctx.via_rescue(ctx.pair_bounded)
     pair = (x, b)
     ranking = rank_assessments(pair)
     return ConsumerExample(
@@ -343,7 +372,7 @@ def _comparable(ctx: _Context) -> ConsumerExample:
         "first by its higher conservative lower bound, but the score ranges overlap, so the evidence does not "
         "prove it is more desirable.",
         entry_point=_RESCUE_ENTRY + "; ranking.rank_assessments; ranking_evidence.explain_adjacent",
-        inputs={"scenarios": [_inputs(_PAIR_EXACT), _inputs(_PAIR_BOUNDED)]},
+        inputs={"scenarios": [_inputs(ctx.pair_exact), _inputs(ctx.pair_bounded)]},
         assessments=pair,
         legacy_results=(legacy_x, legacy_b),
         legacy_note=_VIA_RESCUE_NOTE,
@@ -355,7 +384,7 @@ def _comparable(ctx: _Context) -> ConsumerExample:
 
 def _separate(ctx: _Context) -> ConsumerExample:
     _, real_7d = ctx.via_rescue(_PASS_EXACT)
-    _, real_3d = ctx.via_rescue(_PAIR_EXACT)
+    _, real_3d = ctx.via_rescue(ctx.pair_exact)
     series = load_fixture(_SYNTHETIC_FIXTURE)
     synthetic = evaluate_scenario(example_scenario(series, "synthetic-intermittent-sunlight"), series)
     items = (real_7d, real_3d, synthetic)
@@ -376,7 +405,7 @@ def _separate(ctx: _Context) -> ConsumerExample:
         inputs={
             "scenarios": [
                 _inputs(_PASS_EXACT),
-                _inputs(_PAIR_EXACT),
+                _inputs(ctx.pair_exact),
                 {"fixture": _SYNTHETIC_FIXTURE, "scenario": "fixtures.example_scenario"},
             ]
         },
@@ -414,6 +443,7 @@ def build_examples(keys: Sequence[str] = EXAMPLE_KEYS, *, sites_dir: Path = SITE
     ctx = _Context(
         provider=PrecomputedTimelineProvider(fallback=SyntheticTimelineProvider(), data_dir=sites_dir),
         sites_dir=sites_dir,
+        dataset_end=dataset_end(sites_dir),
     )
     return [_BUILDERS[k](ctx) for k in keys]
 

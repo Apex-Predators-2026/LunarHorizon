@@ -53,11 +53,12 @@ from app.viability.compat.rescue import (
 from app.viability.engine import evaluate_scenario
 from app.viability.enums import ConstraintStatus, Eligibility, ScoreStatus, VisibilityState
 
+from .real_data import AFTER_DATA, DATA_END, DATA_HOURS, DATA_START
+
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 ORIGINAL_FOUR = ("peak-near-shackleton", "connecting-ridge", "malapert-massif", "shackleton-floor")
 WHOLE_MOON = ("apollo-12", "apollo-15", "change-4", "change-6", "slim", "chandrayaan-3")
-DATA_START = datetime(2027, 1, 1, tzinfo=UTC)
-DATA_END = datetime(2029, 1, 1, tzinfo=UTC)  # last sample instant of every committed file
+# DATA_START / DATA_END: first and last sample instants of the committed files, read from them (real_data.py).
 H = 3600.0
 M = TypeVar("M", bound=BaseModel)
 
@@ -255,10 +256,10 @@ PNS = "peak-near-shackleton"
 @pytest.mark.parametrize(
     ("landing", "days", "label"),
     [
-        (datetime(2026, 12, 30, tzinfo=UTC), 7, "begins before the data"),
-        (datetime(2028, 12, 28, tzinfo=UTC), 7, "runs past the data"),
-        (datetime(2028, 12, 20, tzinfo=UTC), 14, "runs past the data"),
-        (datetime(2030, 3, 1, tzinfo=UTC), 7, "entirely outside"),
+        (DATA_START - timedelta(days=2), 7, "begins before the data"),
+        (DATA_END - timedelta(days=4), 7, "runs past the data"),
+        (DATA_END - timedelta(days=12), 14, "runs past the data"),
+        (AFTER_DATA, 7, "entirely outside"),
     ],
 )
 def test_rescue_withholds_verdicts_outside_coverage(
@@ -281,10 +282,10 @@ def test_canonical_bounded_policy_can_prove_what_rescue_withholds(canonical: Eva
     site = get_site(PNS).to_site()
     eligibilities = set()
     for landing, days in [
-        (datetime(2026, 12, 30, tzinfo=UTC), 7),
-        (datetime(2028, 12, 20, tzinfo=UTC), 14),
-        (datetime(2028, 12, 28, tzinfo=UTC), 7),
-        (datetime(2029, 2, 1, tzinfo=UTC), 14),
+        (DATA_START - timedelta(days=2), 7),
+        (DATA_END - timedelta(days=12), 14),
+        (DATA_END - timedelta(days=4), 7),
+        (AFTER_DATA, 14),
     ]:
         sc = make(Scenario, site=site, landing_utc=landing, duration_days=days)
         direct = evaluate_scenario(scenario_to_mission(sc), series)
@@ -311,7 +312,7 @@ def test_sites_without_real_data_are_unknown_by_default(canonical: Evaluator) ->
 
 
 def test_explicit_simulation_mode_is_synthetic_and_labelled(canonical: Evaluator) -> None:
-    sc = make(Scenario, site=get_site(PNS).to_site(), landing_utc=datetime(2030, 3, 1, tzinfo=UTC))
+    sc = make(Scenario, site=get_site(PNS).to_site(), landing_utc=AFTER_DATA)
     r = canonical.evaluate(sc, simulation=True)
     assert r.data_source == "synthetic-placeholder" and r.source == SOURCE and not is_real(r)
     assert r.verdict in ("pass", "fail")  # definite verdicts, but on synthetic data, labelled as such
@@ -334,7 +335,7 @@ def _boundary_cases() -> Iterator[tuple[Site, int, RescueRequirements]]:
 
 
 def test_last_sample_hour_is_unknown_never_flipped(canonical: Evaluator, placeholder: Evaluator) -> None:
-    """Expected difference: rescue counts the file's final instant (2029-01-01T00:00Z) as covering one more
+    """Expected difference: rescue counts the file's final instant (DATA_END) as covering one more
     hour, so the latest landing it accepts ends at 01:00. The canonical engine does not invent that hour:
     the score is bounded (None) and a verdict may become UNKNOWN, but PASS and FAIL never swap and every
     canonical failure is a placeholder failure too. One hour earlier the results are identical."""
@@ -506,14 +507,14 @@ def test_precision_metadata_and_generator_fallback(
 def test_committed_files_convert_identically_through_rescue_and_site_file_paths(
     provider: PrecomputedTimelineProvider,
 ) -> None:
-    """Two full years, four original sites: identical Sun/Earth states sample for sample, except exactly
+    """The full committed files, four original sites: identical Sun/Earth states sample for sample, except exactly
     at sub-precision slivers (none in the committed generator 1.2 files), and the same precision."""
     for site_id in ORIGINAL_FOUR:
         site = site_from_file(site_id)
         tl = provider.timeline(site, DATA_START, DATA_END, 1.0)
         via_rescue = timeline_to_series(tl, precomputed_data_dir=SITES_DIR)
         via_file = load_site_file(SITES_DIR / f"{site_id}.json")
-        assert len(via_rescue.samples) == len(via_file.samples) == 17_545
+        assert len(via_rescue.samples) == len(via_file.samples) == DATA_HOURS + 1
         assert via_rescue.fraction_decimals == via_file.fraction_decimals == 6
         raw = _raw(site_id)["timeline"]
         slivers = {
@@ -575,7 +576,7 @@ def test_rescue_with_robustness_runs_on_canonical_engine(canonical: Evaluator) -
 
 
 def test_rescue_past_end_of_data_stays_unknown_on_canonical_engine(canonical: Evaluator) -> None:
-    plan = make(Scenario, site=get_site(PNS).to_site(), landing_utc=datetime(2028, 12, 10, tzinfo=UTC))
+    plan = make(Scenario, site=get_site(PNS).to_site(), landing_utc=DATA_END - timedelta(days=22))
     r = rescue(make(RescueRequest, original=plan, change=make(PlanChange, launch_delay_days=20)), canonical)
     assert r.changed.verdict == "unknown" and r.alternatives == []
     assert r.stats.undecided > 0 and not any(s.keeps_original_plan for s in r.loosening)

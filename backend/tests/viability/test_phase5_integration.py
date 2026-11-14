@@ -17,7 +17,6 @@ CONSERVATIVE ORDERING POLICY, not an estimate: tests below check it is never rep
 from __future__ import annotations
 
 import copy
-import json
 import math
 import random
 from collections.abc import Sequence
@@ -69,13 +68,14 @@ from app.viability.scoring import SCORING_METHOD_VERSION, score_scenario
 from app.viability.windows import PreparedSeries
 
 from .helpers import SunCode, hourly
+from .real_data import AFTER_DATA, REGRESSION_START, raw_timeline
 
 REPO = Path(__file__).resolve().parents[3]
 SITES_DIR = REPO / "data" / "sites"
 DOCS = REPO / "docs" / "viability-engine.md"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
 H = 3600.0
-COVERAGE_START = datetime(2027, 1, 1, tzinfo=UTC)
+COVERAGE_START = REGRESSION_START  # raw index 0 of the raw fixture (regression window, real_data.py)
 REAL_START = datetime(2027, 3, 1, tzinfo=UTC)
 REAL_DAYS = 14
 REAL_REQUIREMENTS: dict[str, Any] = {
@@ -85,7 +85,7 @@ REAL_REQUIREMENTS: dict[str, Any] = {
     "min_initial_earth_visibility_s": 12 * H,
     "min_sunlight_percent": 50.0,
 }
-T0 = datetime(2027, 1, 1, tzinfo=UTC)
+T0 = REGRESSION_START
 DARK_H = 40.0  # synthetic scenarios: 48 h missions, 40 h darkness limit, no other hard requirement
 
 
@@ -160,7 +160,7 @@ def prepared() -> dict[str, PreparedSeries]:
 
 @pytest.fixture(scope="module")
 def raw() -> dict[str, dict[str, Any]]:
-    return {s: json.loads((SITES_DIR / f"{s}.json").read_text(encoding="utf-8"))["timeline"] for s in SITES}
+    return {s: raw_timeline(s) for s in SITES}  # regression window, raw index 0 = T0 (real_data.py)
 
 
 def real_scenario(
@@ -288,7 +288,7 @@ def test_real_sites_rank_together_deterministically(real_assessments: dict[str, 
 
 def test_mission_outside_real_coverage_is_unknown_and_never_scored(prepared: dict[str, PreparedSeries]) -> None:
     p = prepared["malapert-massif"]
-    scenario = real_scenario(p, "outside", start=datetime(2030, 3, 1, tzinfo=UTC))
+    scenario = real_scenario(p, "outside", start=AFTER_DATA)
     a = evaluate_scenario(scenario, p.series)
     assert a.eligibility is Eligibility.UNKNOWN
     assert a.score.status is ScoreStatus.ELIGIBILITY_UNKNOWN
@@ -301,7 +301,7 @@ def test_unknown_eligibility_sorts_between_pass_and_fail_without_rank(
     prepared: dict[str, PreparedSeries], real_assessments: dict[str, ViabilityAssessment]
 ) -> None:
     p = prepared["malapert-massif"]
-    unknown = evaluate_scenario(real_scenario(p, "zz-outside", start=datetime(2030, 3, 1, tzinfo=UTC)), p.series)
+    unknown = evaluate_scenario(real_scenario(p, "zz-outside", start=AFTER_DATA), p.series)
     result = rank_assessments([*real_assessments.values(), unknown])
     tiers = [e.eligibility for e in result.entries]
     assert tiers == sorted(tiers, key=[Eligibility.PASS, Eligibility.UNKNOWN, Eligibility.FAIL].index)
@@ -511,7 +511,7 @@ def test_synthetic_scores_are_labelled_and_cannot_be_mistaken_for_verified() -> 
 
 def test_simulation_mode_is_explicit_and_labelled_through_rescue() -> None:
     site = get_site("malapert-massif").to_site()
-    outside = Scenario(site=site, landing_utc=datetime(2030, 3, 1, tzinfo=UTC), duration_days=7)
+    outside = Scenario(site=site, landing_utc=AFTER_DATA, duration_days=7)
     real = Evaluator(evaluate=make_evaluate_fn()).evaluate(outside)  # default: simulation off
     assert real.eligibility == "unknown" and real.score is None and real.data_source == "no-real-data"
     sim = Evaluator(evaluate=make_evaluate_fn(), simulation=True).evaluate(outside)

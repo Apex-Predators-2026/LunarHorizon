@@ -14,7 +14,6 @@ tests meaningful) and then confirmed through the full engine path.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -46,13 +45,16 @@ from app.viability.sampling_sensitivity import (
 )
 
 from .helpers import longest_true_run
+from .real_data import DATA_END, REGRESSION_END, REGRESSION_START, raw_timeline, window_timeline
 
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 ORIGINAL = ("connecting-ridge", "peak-near-shackleton", "malapert-massif", "shackleton-floor")
 EXTRA = ("haworth-rim", "de-gerlache-rim")
 LIT = ("connecting-ridge", "peak-near-shackleton", "malapert-massif")
-T0 = datetime(2027, 1, 1, tzinfo=UTC)
-DATASET_END = datetime(2029, 1, 1, tzinfo=UTC)
+# Raw index 0 is T0 (see real_data.py); the raw columns run from T0 to the file's last sample. The discovery
+# sweeps scan the fixed two-year regression window only (runtime; same window as docs/member2-part2-sampling.md).
+T0 = REGRESSION_START
+DATASET_END = DATA_END
 H = 3600.0
 DARK_LIMIT_H, BLACKOUT_LIMIT_H, THRESHOLD, INITIAL_SUN_H = 50.0, 96.0, 0.25, 24.0
 REQUIREMENTS: dict[str, Any] = {
@@ -67,7 +69,7 @@ SH, NN = SamplingPolicy.SAMPLE_HOLD, SamplingPolicy.NEAREST_SAMPLE
 
 @pytest.fixture(scope="module")
 def raw() -> dict[str, dict[str, Any]]:
-    return {s: json.loads((SITES_DIR / f"{s}.json").read_text(encoding="utf-8"))["timeline"] for s in ORIGINAL + EXTRA}
+    return {s: raw_timeline(s, start=T0, end=DATASET_END) for s in ORIGINAL + EXTRA}
 
 
 @pytest.fixture(scope="module")
@@ -285,7 +287,7 @@ def test_discovered_real_data_verdict_changes(
     candidates = 0
     for site in LIT:
         tl = raw[site]
-        for s in finder(tl, constraint):
+        for s in finder(window_timeline(tl, T0, REGRESSION_END), constraint):  # a prefix: same indices
             candidates += 1
             start = T0 + timedelta(hours=s)
             end = start + timedelta(days=MISSION_DAYS)
@@ -328,9 +330,11 @@ def test_dataset_boundary(pairs: dict[str, PolicySeriesPair]) -> None:
     assert past.coverage.baseline_uncovered_duration_s == past.coverage.alternate_uncovered_duration_s == 1 * H
     assert past.coverage.adequacy in (CoverageAdequacy.DECISIVE, CoverageAdequacy.INSUFFICIENT)
 
-    # A week past the end (docs §5c example): UNKNOWN for lack of data under both -> inconclusive, not "changed".
+    # A week past the end: UNKNOWN for lack of data under both -> inconclusive, not "changed". Connecting Ridge
+    # is lit and Earth-visible through the final covered hours of the committed files, so no failure is proven.
+    ridge = pairs["connecting-ridge"]
     beyond = sampling_sensitivity_report(
-        mission(pair, datetime(2028, 12, 25, tzinfo=UTC), datetime(2029, 1, 8, tzinfo=UTC)), pair
+        mission(ridge, DATASET_END - timedelta(days=7), DATASET_END + timedelta(days=7)), ridge
     )
     assert beyond.baseline.assessment.eligibility is Eligibility.UNKNOWN
     assert beyond.alternate.assessment.eligibility is Eligibility.UNKNOWN
@@ -341,6 +345,16 @@ def test_dataset_boundary(pairs: dict[str, PolicySeriesPair]) -> None:
     )
     assert ConstraintId.MAX_CONTINUOUS_DARKNESS in beyond.coverage.data_limited_constraints
 
+    # Missing data never hides a proven failure: Malapert's final covered week is power-dark (well past the 50 h
+    # limit), so the same week-past-the-end mission is a decided FAIL under both policies, not inconclusive.
+    dark = sampling_sensitivity_report(
+        mission(pair, DATASET_END - timedelta(days=7), DATASET_END + timedelta(days=7)), pair
+    )
+    assert dark.baseline.assessment.eligibility is dark.alternate.assessment.eligibility is Eligibility.FAIL
+    assert dark.verdict is not SensitivityVerdict.INCONCLUSIVE and not dark.eligibility_changed
+    darkness = next(c for c in dark.constraints if c.constraint_id is ConstraintId.MAX_CONTINUOUS_DARKNESS)
+    assert darkness.baseline_status is darkness.alternate_status is ConstraintStatus.FAIL
+
 
 def test_weekly_sweep_is_consistent(raw: dict[str, dict[str, Any]], pairs: dict[str, PolicySeriesPair]) -> None:
     """Weekly 14-day landings at the four original sites: every report is internally consistent."""
@@ -348,7 +362,7 @@ def test_weekly_sweep_is_consistent(raw: dict[str, dict[str, Any]], pairs: dict[
         for week in range(0, 104, 1):
             start = T0 + timedelta(days=7 * week)
             end = start + timedelta(days=14)
-            if end > DATASET_END:
+            if end > REGRESSION_END:
                 break
             r = sampling_sensitivity_report(mission(pairs[site], start, end), pairs[site])
             assert r.coverage.adequacy is CoverageAdequacy.COMPLETE
