@@ -19,7 +19,7 @@ import {
   type MeasureWaypoint,
   type ProfileSample,
 } from './globe/measure'
-import { currentBlockers, fmtDistance, KIND_COLOR, surfacePoint } from './globe/overlays'
+import { artemisNote, currentBlockers, fmtDistance, siteColor, surfacePoint } from './globe/overlays'
 import { BlockerLines, MeasureOverlay, PsrLayer, SitePins } from './globe/SurfaceOverlays'
 import type { TileHeights } from './globe/terrainHeight'
 import { TileTree, type TileStats } from './globe/TileTree'
@@ -51,6 +51,8 @@ import { showSnackbar } from './snackbarStore'
 import { playBubblePop, playBubbleRemove } from './sfx'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
+import { HorizonProbe } from './HorizonProbe'
+import { useEvidence } from './evidence'
 import { SiteSelect, TopInfo, useViewerSetup } from './ViewerHud'
 
 const SHADOW_HALF_WIDTH_M = 6000 // shadow map covers ~12 km around the lander
@@ -108,6 +110,28 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   // middle of the free area to their left (half the panels' width, re-measured on resize).
   const sideRef = useRef<HTMLDivElement>(null)
   const [cameraReset, setCameraReset] = useState(0)
+  // "Show me why" (evidence.ts): another panel points the 3D view at the evidence for a result.
+  useEffect(
+    () =>
+      useEvidence.subscribe((st, prev) => {
+        const r = st.request
+        if (!r || r.id === prev.request?.id) return
+        const app = useAppStore.getState()
+        app.setPlaying(false)
+        app.setSite(r.siteId)
+        app.setTime(new Date(Date.parse(r.startUtc)).toISOString())
+        setView(r.body) // looking at the Sun / Earth from the lander: the blocker line shows the terrain
+        setCameraReset((n) => n + 1)
+      }),
+    [],
+  )
+  const evidence = useEvidence((st) => st.request)
+  const evidenceStrip = useMemo(() => {
+    if (!evidence || evidence.siteId !== siteId) return null
+    const start = Date.parse(evidence.startUtc)
+    const end = evidence.endUtc ? Date.parse(evidence.endUtc) : start + 3_600_000
+    return { start, end, failures: [start] }
+  }, [evidence, siteId])
   const readoutRef = useRef<HTMLDivElement>(null)
   const scaleBarRef = useRef<HTMLDivElement>(null)
   const scaleLabelRef = useRef<HTMLDivElement>(null)
@@ -507,6 +531,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           ]}
         />
         {PERF_ENABLED && <PerfProbe />}
+        {PERF_ENABLED && <HorizonProbe eyeHeightM={eye} />}
       </Canvas>
       {PERF_ENABLED && <PerfOverlay />}
 
@@ -534,9 +559,9 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             playBubblePop(0)
             setSite(x.id)
           }}
-          data-tip={`${x.name}${x.approximate ? ' (approximate coordinates)' : ''}: click to select`}
+          data-tip={`${x.name}${x.approximate ? ' (approximate coordinates)' : ''}: click to select${artemisNote(x) ? `. ${artemisNote(x)}.` : ''}`}
           className="absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 px-1.5 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800"
-          style={{ borderColor: KIND_COLOR[x.kind ?? 'custom'] ?? KIND_COLOR.custom }}
+          style={{ borderColor: siteColor(x) }}
         >
           {x.name}
           {x.approximate ? ' ≈' : ''}
@@ -780,7 +805,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
                 windowDays={windowDays}
                 onWindowDays={setWindowDays}
                 loading={timeline.loading}
-                mission={mission.strip}
+                mission={mission.strip ?? evidenceStrip}
                 onHide={() => {
                   setBarH(barRef.current?.offsetHeight ?? 0)
                   setBarHidden(true)
