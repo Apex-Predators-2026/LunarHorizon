@@ -2,7 +2,9 @@
 
 Ranking only *consumes* ``ViabilityAssessment`` objects. It never recomputes a score, never touches a
 hard-constraint verdict and never changes eligibility. A missing score is never read as 0, and a
-bounded score is never turned into a point estimate (it is only *ordered* by its lower bound, D8).
+bounded score is never turned into a point estimate. Ordering a bounded score by its lower bound
+is a CONSERVATIVE ORDERING POLICY (D8), not an estimate: the entry keeps ``score=None`` and its
+``score_bounds``, so the bound is never presented as an exact score.
 
 Comparability (D6, D7). One call produces one common ranking, so every input must share
 
