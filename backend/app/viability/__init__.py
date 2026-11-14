@@ -1,0 +1,100 @@
+"""Mission viability, risk assessment and ranking engine (Member 2).
+
+Independent of the frontend, NASA APIs, 3D rendering and optimisation search.
+Consumers import contracts from here; see docs/viability-engine.md.
+"""
+
+from .conventions import SCHEMA_VERSION
+from .engine import ENGINE_VERSION, evaluate_scenario
+from .enums import (
+    AngleType,
+    Body,
+    CalculationBasis,
+    CommunicationMode,
+    ConstraintId,
+    ConstraintStatus,
+    Eligibility,
+    MetricStatus,
+    PowerSource,
+    RiskLevel,
+    UnknownDataPolicy,
+    VisibilityCriterion,
+    VisibilityState,
+    WindowKind,
+)
+from .inputs import (
+    BodyObservation,
+    HorizonProfile,
+    Provenance,
+    SamplingInfo,
+    ScientificSample,
+    ScientificTimeSeries,
+    UncertaintyInfo,
+)
+from .mission import (
+    LandingSite,
+    MissionRequirements,
+    MissionScenario,
+    RankingPreferences,
+    SpacecraftConfiguration,
+)
+from .outputs import (
+    ConstraintEvaluation,
+    DataQualitySummary,
+    Explanation,
+    Metric,
+    MetricsSummary,
+    OperationalMargin,
+    RankedScenario,
+    RankingResult,
+    RiskIndicator,
+    ScoreBreakdown,
+    ViabilityAssessment,
+    VisibilityWindow,
+    derive_eligibility,
+)
+
+__all__ = [
+    "ENGINE_VERSION",
+    "SCHEMA_VERSION",
+    "AngleType",
+    "Body",
+    "BodyObservation",
+    "CalculationBasis",
+    "CommunicationMode",
+    "ConstraintEvaluation",
+    "ConstraintId",
+    "ConstraintStatus",
+    "DataQualitySummary",
+    "Eligibility",
+    "Explanation",
+    "HorizonProfile",
+    "LandingSite",
+    "Metric",
+    "MetricStatus",
+    "MetricsSummary",
+    "MissionRequirements",
+    "MissionScenario",
+    "OperationalMargin",
+    "PowerSource",
+    "Provenance",
+    "RankedScenario",
+    "RankingPreferences",
+    "RankingResult",
+    "RiskIndicator",
+    "RiskLevel",
+    "SamplingInfo",
+    "ScientificSample",
+    "ScientificTimeSeries",
+    "ScoreBreakdown",
+    "SpacecraftConfiguration",
+    "UncertaintyInfo",
+    "UnknownDataPolicy",
+    "ViabilityAssessment",
+    "VisibilityCriterion",
+    "VisibilityState",
+    "VisibilityWindow",
+    "WindowKind",
+    "derive_eligibility",
+    "evaluate_scenario",
+]
