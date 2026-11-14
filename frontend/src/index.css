@@ -734,7 +734,6 @@
 .glass-on {
   --mx: 30%;
   --my: 0%;
-  position: relative;
   isolation: isolate;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.12) 55%, rgba(255, 255, 255, 0.2) 100%);
@@ -794,6 +793,16 @@
     0 14px 34px -8px rgba(130, 40, 20, 0.34),
     0 3px 8px rgba(130, 40, 20, 0.14);
 }
+/* A glass element that slides (e.g. the selected tab): its position and size animate too. */
+.glass-on.glass-slide {
+  transition: left var(--md-dur-medium2) var(--md-ease-standard), width var(--md-dur-medium2) var(--md-ease-standard),
+    box-shadow var(--md-dur-medium2) var(--md-ease-standard);
+}
+/* Stronger glass for small controls sitting over the dark 3D view. */
+.glass-on.glass-strong {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0.12));
+  border-color: rgba(255, 255, 255, 0.5);
+}
 /* Browsers without backdrop-filter: a denser, still translucent surface so text stays readable. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass-on {
@@ -833,4 +842,88 @@
 }
 .cmp-page.lp-light input[type='range']::-moz-range-track {
   background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+}
+
+/* ---- Hide all UI: everything marked .ui-chrome fades away; Esc brings it back ---- */
+.ui-chrome {
+  transition: opacity 300ms var(--md-ease-standard), visibility 0s 0s;
+}
+[data-ui-hidden='true'] .ui-chrome {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 300ms var(--md-ease-standard), visibility 0s 300ms;
+}
+
+/* ---- Dark mode (html.lp-dark): the planner's light panels take dark surfaces. Scenario Comparison is left alone. ---- */
+.lp-dark .lp-light:not(.cmp-page) {
+  color-scheme: dark;
+  --color-opal-50: #26282c;
+  --color-opal-100: #1d1f22;
+  --color-opal-300: #3f4247;
+  --color-calcite-ink: #ecedee;
+  --color-slate-100: #f4f4f5;
+  --color-slate-200: #e4e4e6;
+  --color-slate-300: #cfd0d3;
+  --color-slate-400: #a8abb0;
+  --color-slate-500: #8e9197;
+  --color-slate-600: #5a5d63;
+  --color-slate-700: #3f4247;
+  --color-slate-800: #34373c;
+  --color-slate-900: #2d2f33;
+  --color-slate-950: #2d2f33;
+  --color-sky-200: #ffb4a6;
+  --color-sky-300: #ff9a88;
+  --color-sky-950: #4a2019;
+  --color-red-200: #ffc9c9;
+  --color-red-300: #ffb0b0;
+  --color-red-400: #ff9c9c;
+  --color-red-950: #3b1517;
+  --color-emerald-200: #b5ecc9;
+  --color-emerald-300: #8fe2ae;
+  --color-emerald-400: #6fd596;
+  --color-emerald-950: #0f2c1c;
+  --color-amber-100: #fbe9c3;
+  --color-amber-200: #f7dd9f;
+  --color-amber-300: #f2cf7a;
+  --color-amber-400: #eec25a;
+  --color-amber-950: #352a0d;
+}
+.lp-dark .lp-light:not(.cmp-page) .bg-white {
+  background-color: #2f3237;
+}
+.lp-dark .lp-light:not(.cmp-page) .md-field {
+  --md-field-bg: var(--color-opal-100);
+}
+.lp-dark .lp-light:not(.cmp-page) .md-field-label,
+.lp-dark .lp-light:not(.cmp-page) .md-field-trailing {
+  color: #b4b7bc;
+}
+.lp-dark .lp-light:not(.cmp-page) .md-field-control {
+  border-color: #8e9197;
+}
+.lp-dark .lp-light:not(.cmp-page) .md-switch {
+  background: #2d2f33;
+  border-color: #cfd0d3;
+}
+.lp-dark .lp-light:not(.cmp-page) .md-switch-handle {
+  background: #cfd0d3;
+}
+.lp-dark .lp-light:not(.cmp-page) input[type='checkbox'] {
+  border-color: #cfd0d3;
+}
+.lp-dark .lp-light:not(.cmp-page) input[type='range']::-webkit-slider-runnable-track,
+.lp-dark .lp-light:not(.cmp-page) input[type='range']::-moz-range-track {
+  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #44474c 0);
+}
+.lp-dark .lp-light:not(.cmp-page) [aria-checked='true'] > .md-switch {
+  background: var(--color-coral);
+  border-color: var(--color-coral);
+}
+.lp-dark .lp-light:not(.cmp-page) [aria-checked='true'] > .md-switch .md-switch-handle {
+  background: #fff;
+}
+
+.glass-on:not(.absolute):not(.fixed):not(.sticky) {
+  position: relative;
 }

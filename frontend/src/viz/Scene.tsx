@@ -368,7 +368,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
 
       {/* Floating UI. Containers ignore the pointer so the 3D view stays interactive around them. */}
       <div
-        className="md-host pointer-events-none absolute inset-0 [--lp-side-w:clamp(280px,23.5vw,360px)]"
+        className="ui-chrome md-host pointer-events-none absolute inset-0 [--lp-side-w:clamp(280px,23.5vw,360px)]"
         style={{ fontFamily: 'var(--font-inter)' }}
       >
         <SnackbarHost />
