@@ -174,7 +174,7 @@ export function MoonMiniMap({
         </svg>
         {!faces && <div className="absolute inset-0 flex items-center justify-center text-[11px] text-slate-400">Loading map…</div>}
       </div>
-      <figcaption className="mt-1 h-4 w-full truncate text-center text-[11px] tabular-nums text-calcite-ink/80">
+      <figcaption className="mt-1 h-4 w-full truncate text-center text-[11px] tabular-nums text-white/90">
         {hoveredSite ? hoveredSite.name : hoverLatLon ? `${fmtLatLon(hoverLatLon)} · click to fly here` : view ? `View: ${fmtLatLon(view.centre)}` : ' '}
       </figcaption>
     </figure>

@@ -78,7 +78,7 @@ export function SkyPlot({
       onBlur={() => setFocused(false)}
     >
       <svg width={SIZE} height={SIZE} role="img" aria-label="Sky plot: terrain horizon with Sun and Earth paths">
-        <circle cx={C} cy={C} r={R} fill="#05080f" stroke={COLORS.grid} />
+        <circle cx={C} cy={C} r={R} fill="#05080f" stroke="#ffffff" strokeWidth={1.5} />
         {/* neutral outline, so the yellow Sun path (which often hugs the skyline) stays distinct */}
         {terrainPath && <path d={terrainPath} fill={COLORS.terrain} fillRule="evenodd" stroke="#8b93a5" strokeWidth={0.8} />}
         {rings.map((el) => {
@@ -95,7 +95,7 @@ export function SkyPlot({
         {[0, 90, 180, 270].map((az) => {
           const [x, y] = skyXY(az, bottomEl, R + 9, topEl, bottomEl)
           return (
-            <text key={az} x={C + x} y={C + y + 3} fontSize={10} textAnchor="middle" fill="#3c4044">
+            <text key={az} x={C + x} y={C + y + 3} fontSize={10} fontWeight={600} textAnchor="middle" fill="#ffffff" style={{ paintOrder: 'stroke' }} stroke="rgba(0,0,0,0.6)" strokeWidth={2.5}>
               {['N', 'E', 'S', 'W'][az / 90]}
             </text>
           )
