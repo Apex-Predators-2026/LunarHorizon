@@ -199,9 +199,7 @@ export function TimeBar({
   views?: ReactNode // camera view buttons, shown under the slider
 }) {
   const timeUtc = useAppStore((s) => s.timeUtc)
-  const playing = useAppStore((s) => s.playing)
   const setTime = useAppStore((s) => s.setTime)
-  const setPlaying = useAppStore((s) => s.setPlaying)
   const [speed, setSpeed] = useState(SPEEDS[1].hoursPerSec)
 
   const start = parseUtc(site.data_start_utc)
@@ -235,14 +233,6 @@ export function TimeBar({
         <button type="button" className={btn} onClick={() => step(-windowDays * 24)} title="Previous window">⏮</button>
         <button type="button" className={btn} onClick={() => step(-24)}>−1 d</button>
         <button type="button" className={btn} onClick={() => step(-1)}>−1 h</button>
-        <button
-          type="button"
-          className={`${btn} min-w-16 font-medium ${playing ? 'border-coral bg-coral/15 text-sky-300' : ''}`}
-          onClick={() => setPlaying(!playing)}
-          aria-pressed={playing}
-        >
-          {playing ? '❚❚ Pause' : '▶ Play'}
-        </button>
         <button type="button" className={btn} onClick={() => step(1)}>+1 h</button>
         <button type="button" className={btn} onClick={() => step(24)}>+1 d</button>
         <button type="button" className={btn} onClick={() => step(windowDays * 24)} title="Next window">⏭</button>
