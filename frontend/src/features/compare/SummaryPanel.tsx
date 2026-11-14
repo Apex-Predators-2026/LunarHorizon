@@ -10,8 +10,8 @@ export function SummaryPanel({ entries }: { entries: Entry[] }) {
       {sum.bests.length > 0 && (
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {sum.bests.map((b) => (
-            <div key={b.label} className="rounded-lg border border-[#1c2a48] bg-[#08111f] p-2.5">
-              <div className="text-[10px] uppercase tracking-wide text-slate-500">{b.label}</div>
+            <div key={b.label} className="rounded-lg border border-line bg-inset p-2.5">
+              <div className="text-[11px] text-slate-500">{b.label}</div>
               <div className="mt-1 flex flex-wrap gap-1">{b.ids.map((id) => <ScenarioChip key={id} s={byId[id]} />)}</div>
               <div className="mt-1 text-[11px] text-slate-300">{b.detail}</div>
             </div>
@@ -19,14 +19,14 @@ export function SummaryPanel({ entries }: { entries: Entry[] }) {
         </div>
       )}
       {sum.overall.length > 0 && (
-        <div className="rounded-lg border border-cyan-900/60 bg-gradient-to-br from-cyan-950/30 to-transparent p-3 text-sm leading-relaxed text-slate-200">
+        <div className="rounded-xl bg-inset p-4 text-sm leading-relaxed text-ink-2">
           {sum.overall.map((p) => <p key={p} className="mb-1.5 last:mb-0">{p}</p>)}
         </div>
       )}
       {sum.highlights.length > 0 && (
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           {sum.highlights.map((hl) => (
-            <div key={hl.entry.scenario.id} className="rounded-lg border border-[#1c2a48] p-2.5 text-xs">
+            <div key={hl.entry.scenario.id} className="rounded-lg border border-line p-2.5 text-xs">
               <div className="mb-1 flex items-center gap-2"><ScenarioChip s={hl.entry.scenario} size="sm" />
                 <span className="truncate text-slate-200">{hl.entry.scenario.name}</span></div>
               {hl.strengths.map((s) => <p key={s} className="text-emerald-300">＋ {s}</p>)}
@@ -36,8 +36,8 @@ export function SummaryPanel({ entries }: { entries: Entry[] }) {
           ))}
         </div>
       )}
-      <ul className="space-y-0.5 text-[11px] text-slate-500">
-        {sum.caveats.map((c) => <li key={c}>• {c}</li>)}
+      <ul className="list-disc space-y-1 pl-4 text-xs text-ink-4">
+        {sum.caveats.map((c) => <li key={c}>{c}</li>)}
       </ul>
     </div>
   )
