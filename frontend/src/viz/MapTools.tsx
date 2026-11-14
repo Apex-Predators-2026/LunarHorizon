@@ -76,6 +76,7 @@ function fmtLat(lat: number) {
 /** M3 icon button. `selected` = toggled on (filled), `open` = its menu is showing (tonal). */
 function ToolButton({
   label,
+  tip,
   icon,
   selected,
   open,
@@ -84,6 +85,7 @@ function ToolButton({
   haspopup,
 }: {
   label: string
+  tip?: string
   icon: string
   selected?: boolean
   open?: boolean
@@ -100,7 +102,7 @@ function ToolButton({
     <button
       type="button"
       aria-label={label}
-      title={label}
+      data-tip={tip ?? label}
       aria-pressed={selected === undefined ? undefined : selected}
       aria-haspopup={haspopup ? 'menu' : undefined}
       aria-expanded={haspopup ? !!open : undefined}
@@ -120,7 +122,10 @@ function ToolMenu({
   setOpenId,
   onHeight,
   label,
+  tip,
   icon,
+  hover = false,
+  onActivate,
   children,
 }: {
   id: string
@@ -128,7 +133,10 @@ function ToolMenu({
   setOpenId: (id: string | null) => void
   onHeight: (h: number) => void // the open menu's height, so other popups can make room for it
   label: string
+  tip: string
   icon: string
+  hover?: boolean // the menu opens when hovered or focused; clicking the button runs onActivate instead
+  onActivate?: () => void
   children: (close: () => void) => ReactNode
 }) {
   const open = openId === id
@@ -136,6 +144,26 @@ function ToolMenu({
   const root = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const close = () => setClosing(true)
+  const timer = useRef<number>(0)
+
+  // Hover menus: open shortly after the pointer arrives, close shortly after it leaves (the delay lets
+  // the pointer cross from the button to the menu).
+  const enter = () => {
+    if (!hover) return
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      setClosing(false)
+      setOpenId(id)
+    }, 120)
+  }
+  const leave = () => {
+    if (!hover) return
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      if (open) setClosing(true)
+    }, 280)
+  }
+  useEffect(() => () => window.clearTimeout(timer.current), [])
 
   useLayoutEffect(() => {
     if (open && menuRef.current) onHeight(menuRef.current.offsetHeight)
@@ -156,13 +184,25 @@ function ToolMenu({
   }, [open, setOpenId])
 
   return (
-    <div ref={root} className="relative">
+    <div
+      ref={root}
+      className="relative"
+      onPointerEnter={hover ? enter : undefined}
+      onPointerLeave={hover ? leave : undefined}
+      onFocus={hover ? (e) => e.target.matches(':focus-visible') && enter() : undefined}
+      onBlur={hover ? (e) => !root.current?.contains(e.relatedTarget as Node) && leave() : undefined}
+    >
       <ToolButton
         label={label}
+        tip={open ? undefined : tip}
         icon={icon}
         haspopup
         open={open && !closing}
         onClick={() => {
+          if (onActivate) {
+            onActivate()
+            return
+          }
           if (open && !closing) close()
           else {
             setClosing(false)
@@ -175,7 +215,7 @@ function ToolMenu({
           ref={menuRef}
           role="menu"
           aria-label={label}
-          className={`absolute bottom-full left-1/2 mb-3 min-w-56 rounded-2xl bg-opal-50 py-2 shadow-xl shadow-black/40 ${closing ? 'md-menu-out' : 'md-menu'}`}
+          className={`absolute bottom-full left-1/2 min-w-56 pb-3 ${closing ? 'md-menu-out' : 'md-menu'}`}
           onAnimationEnd={() => {
             if (closing) {
               setOpenId(null)
@@ -183,7 +223,7 @@ function ToolMenu({
             }
           }}
         >
-          {children(close)}
+          <div className="rounded-2xl bg-opal-50 py-2 shadow-xl shadow-black/40">{children(close)}</div>
         </div>
       )}
     </div>
@@ -236,6 +276,7 @@ export function MapTools({
   timeUtc,
   view,
   onView,
+  onGoToView,
   graphics,
   onGraphics,
   farShadows,
@@ -252,6 +293,7 @@ export function MapTools({
   timeUtc: string
   view: ViewMode
   onView: (v: ViewMode) => void
+  onGoToView: () => void // fly the camera to the chosen view (again, if you have orbited away)
   graphics: GraphicsQuality
   onGraphics: (q: GraphicsQuality) => void
   farShadows: boolean
@@ -292,6 +334,7 @@ export function MapTools({
       <div role="toolbar" aria-label="Map tools" className="pointer-events-auto flex items-center gap-1 rounded-full bg-opal-50 p-1.5 shadow-lg shadow-black/30">
         <ToolButton
           label={playing ? 'Pause' : 'Play'}
+          tip={playing ? 'Pause: stop the time simulation' : 'Play: run the simulation forward in time at the chosen speed'}
           icon={playing ? ICON.pause : ICON.play}
           selected={playing}
           disabled={!siteId}
@@ -305,7 +348,10 @@ export function MapTools({
           onClick={() => (mission.active ? mission.stop() : mission.start())}
         />
         <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" label="Camera position" icon={ICON.camera}>
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" hover onActivate={() => {
+            onGoToView()
+            showSnackbar(`Camera: ${VIEWS.find((v) => v.id === view)?.label ?? view}`)
+          }} label="Camera position" tip="Camera: click to fly to the chosen view. Hover to pick a different one (whole Moon, region, site, or a lander's-eye view of the Sun or Earth)." icon={ICON.camera}>
           {(close) =>
             VIEWS.map((v) => (
               <button
@@ -313,10 +359,11 @@ export function MapTools({
                 type="button"
                 role="menuitemradio"
                 aria-checked={view === v.id}
-                title={v.hint}
+                data-tip={v.hint}
                 onClick={() => {
-                  if (v.id !== view) showSnackbar(`Camera: ${v.label}`)
+                  showSnackbar(`Camera: ${v.label}`)
                   onView(v.id)
+                  onGoToView()
                   close()
                 }}
                 className={`flex h-12 w-full items-center gap-3 px-4 text-left text-sm transition-colors ${view === v.id ? 'bg-coral/15 font-semibold' : ''}`}
@@ -327,7 +374,7 @@ export function MapTools({
             ))
           }
         </ToolMenu>
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="layers" label="Map layers" icon={ICON.layers}>
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="layers" label="Map layers" tip="Map layers: switch on landing sites, permanently shadowed regions and ice, and lines to the terrain blocking the Sun or Earth" icon={ICON.layers}>
           {() =>
             LAYER_ROWS.map((r) => (
               <button
@@ -335,7 +382,7 @@ export function MapTools({
                 type="button"
                 role="switch"
                 aria-checked={layers[r.key]}
-                title={r.hint}
+                data-tip={r.hint}
                 data-no-ripple
                 onClick={() => toggle(r.key)}
                 className="md-row flex h-14 w-full items-center justify-between gap-6 px-4 text-left text-sm"
@@ -365,7 +412,7 @@ export function MapTools({
           onClick={runVerify}
         />
         <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="graphics" label="Graphics quality" icon={ICON.speed}>
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="graphics" label="Graphics quality" tip="Graphics quality: High is full detail and shadows; Low is lighter for Chromebooks and older laptops" icon={ICON.speed}>
           {(close) =>
             (Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
               <button
@@ -373,7 +420,7 @@ export function MapTools({
                 type="button"
                 role="menuitemradio"
                 aria-checked={graphics === q}
-                title={GRAPHICS[q].hint}
+                data-tip={GRAPHICS[q].hint}
                 onClick={() => {
                   if (q !== graphics) showSnackbar(`Graphics set to ${GRAPHICS[q].label}`, 'success')
                   onGraphics(q)
@@ -393,7 +440,7 @@ export function MapTools({
                 role="switch"
                 aria-checked={farShadows}
                 disabled={!farShadowsAvailable}
-                title={
+                data-tip={
                   farShadowsAvailable
                     ? 'Shadows from all terrain on screen, not just ~6 km around the lander (cascaded shadow maps; more GPU work while the camera moves)'
                     : 'Not available in the Low graphics setting (no shadows)'
@@ -418,7 +465,7 @@ export function MapTools({
       </div>
 
       {/* Room for the open menu: everything above the toolbar is pushed up while it is open and falls back after. */}
-      <div aria-hidden className="transition-[height] duration-300 ease-[var(--md-ease-emph-decel)]" style={{ height: openMenu ? menuH + 12 : 0 }} />
+      <div aria-hidden className="transition-[height] duration-300 ease-[var(--md-ease-emph-decel)]" style={{ height: openMenu ? menuH : 0 }} />
 
       {armed && <CoordinateForm onSubmit={onCoordinates} />}
       {pin.phase === 'working' && (
