@@ -14,7 +14,6 @@ The four original sites are Connecting Ridge, Malapert Massif, Peak Near Shackle
 
 from __future__ import annotations
 
-import json
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -43,11 +42,12 @@ from app.viability.mission import MissionRequirements, MissionScenario, Spacecra
 from app.viability.outputs import ViabilityAssessment
 from app.viability.risk import SYNTHETIC_PREFIX
 
+from .real_data import AFTER_DATA, END_SITE, REGRESSION_START, STRADDLE_START, raw_timeline
 from .test_explain_phase6 import assert_consistent
 
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
-T0 = datetime(2027, 1, 1, tzinfo=UTC)
+T0 = REGRESSION_START
 H = 3600.0
 DARK_LIMIT_H, BLACKOUT_LIMIT_H, THRESHOLD = 50.0, 96.0, 0.25
 REQUIREMENTS: dict[str, Any] = {
@@ -61,7 +61,7 @@ REQUIREMENTS: dict[str, Any] = {
 
 @pytest.fixture(scope="module")
 def raw() -> dict[str, dict[str, Any]]:
-    return {s: json.loads((SITES_DIR / f"{s}.json").read_text(encoding="utf-8"))["timeline"] for s in SITES}
+    return {s: raw_timeline(s) for s in SITES}  # regression window, raw index 0 = T0 (real_data.py)
 
 
 @pytest.fixture(scope="module")
@@ -195,12 +195,14 @@ def test_connecting_ridge_blackout_in_progress_at_landing(series: dict[str, Scie
     assert f"Screening risk {level.value.upper()}" in margin and "negative margin" not in margin
 
 
-def test_malapert_past_dataset_end_is_unknown_not_failed(series: dict[str, ScientificTimeSeries]) -> None:
-    a = assess(series["malapert-massif"], datetime(2028, 12, 25, tzinfo=UTC), 14)
+def test_mission_past_dataset_end_is_unknown_not_failed(series: dict[str, ScientificTimeSeries]) -> None:
+    a = assess(series[END_SITE], STRADDLE_START, 14)
     assert a.eligibility is Eligibility.UNKNOWN
     items = explained(a)
     summary = text(items, "summary.eligibility")
-    assert "maximum power-darkness and maximum Earth line-of-sight blackout (incomplete data)" in summary
+    # The undecided list depends on the site's final covered week; outages are always among them (168 h unknown).
+    assert "maximum power-darkness" in summary and "maximum Earth line-of-sight blackout" in summary
+    assert "(incomplete data)" in summary and "UNKNOWN is not a failure" in summary
     assert "unknown for 168 h of the 336 h mission" in text(items, "constraint.max_continuous_darkness")
     coverage = items["data.coverage"]
     assert coverage.explanation.severity is Severity.WARNING
@@ -210,7 +212,7 @@ def test_malapert_past_dataset_end_is_unknown_not_failed(series: dict[str, Scien
 
 
 def test_connecting_ridge_without_any_data(series: dict[str, ScientificTimeSeries]) -> None:
-    a = assess(series["connecting-ridge"], datetime(2029, 2, 1, tzinfo=UTC), 14)
+    a = assess(series["connecting-ridge"], AFTER_DATA, 14)
     assert a.eligibility is Eligibility.UNKNOWN
     items = explained(a)
     assert all(c.unknown_reason is UnknownReason.NO_DATA for c in a.constraints if c.status is ConstraintStatus.UNKNOWN)
