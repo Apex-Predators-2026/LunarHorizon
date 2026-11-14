@@ -95,7 +95,10 @@ Following the rule above, they live in all three places:
   requests and responses
 - Live docs: run the backend and open `http://127.0.0.1:8000/docs`
 
-Times are UTC ISO 8601. Fractions are 0–1.
+Times are ISO 8601 and **must include a timezone** (normally UTC, `...Z`). A time without one, e.g.
+`2027-01-07T00:00:00`, is rejected with a 422 error instead of being assumed to be UTC (team decision:
+a silently wrong offset would shift the mission and change its results). Times with another offset are
+converted to UTC. Fractions are 0–1.
 
 ### Site ids for custom points
 

@@ -119,6 +119,18 @@ def test_sensitivity_and_compromise_endpoints():
     assert r.json()["status"] in ("both_met", "tradeoff_required")
 
 
+def test_times_without_timezone_are_422():
+    for bad in ["2027-01-07T00:00:00", "2027-01-07"]:
+        r = client.post("/api/rescue", json={"original": {**BASE, "landing_utc": bad}})
+        assert r.status_code == 422, bad
+        assert "timezone" in r.text
+    for ok in ["2027-01-07T00:00:00Z", "2027-01-07T02:00:00+02:00"]:
+        r = client.post("/api/rescue/sensitivity", json={"scenario": {**BASE, "landing_utc": ok},
+                                                          "date_offsets_hours": [24], "position_offsets_km": []})
+        assert r.status_code == 200, (ok, r.text)
+        assert r.json()["base"]["scenario"]["landing_utc"].startswith("2027-01-07T00:00:00")
+
+
 def test_bad_input_is_422():
     assert client.post("/api/rescue", json={"original": {**BASE, "site": {"name": "x", "lat": -95, "lon": 0}}}
                        ).status_code == 422

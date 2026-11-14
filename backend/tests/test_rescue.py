@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from pydantic import ValidationError
 
 from app.rescue.geo import distance_km
 from app.rescue import Evaluator, rescue
@@ -137,8 +138,15 @@ def test_unknown_site_id_raises(ev, pns_scenario):
         rescue(RescueRequest(original=pns_scenario, search=SearchOptions(candidate_site_ids=["atlantis"])), ev)
 
 
-def test_naive_datetimes_are_treated_as_utc(ev):
-    sc = Scenario(site=get_site("malapert-massif").to_site(), landing_utc=datetime(2027, 3, 1))
-    assert sc.landing_utc.tzinfo == timezone.utc
+def test_times_without_a_timezone_are_rejected():
+    """Team decision: a mission time with no timezone is an error, never silently assumed to be UTC."""
+    with pytest.raises(ValidationError, match="timezone"):
+        Scenario(site=get_site("malapert-massif").to_site(), landing_utc=datetime(2027, 3, 1))
+
+
+def test_aware_times_are_converted_to_utc(ev):
+    plus2 = timezone(timedelta(hours=2))
+    sc = Scenario(site=get_site("malapert-massif").to_site(), landing_utc=datetime(2027, 3, 1, 2, tzinfo=plus2))
+    assert sc.landing_utc == datetime(2027, 3, 1, tzinfo=timezone.utc) and sc.landing_utc.tzinfo == timezone.utc
     rescue(RescueRequest(original=sc, change=PlanChange(launch_delay_days=2),
                          search=SearchOptions(date_window_days=3, robustness_check=False)), ev)

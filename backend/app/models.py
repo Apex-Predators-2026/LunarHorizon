@@ -116,8 +116,11 @@ class TerrainGrid(BaseModel):
 
 
 def to_utc(dt: datetime) -> datetime:
-    """Treat naive datetimes as UTC and convert aware ones to UTC."""
-    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+    """Convert a timezone-aware datetime to UTC. Times without a timezone are rejected (team
+    decision): silently assuming UTC could shift a mission by hours and change its results."""
+    if dt.tzinfo is None or dt.utcoffset() is None:
+        raise ValueError("landing_utc must include a timezone, e.g. '2027-01-07T00:00:00Z' (UTC)")
+    return dt.astimezone(timezone.utc)
 
 
 class MissionRequirements(BaseModel):

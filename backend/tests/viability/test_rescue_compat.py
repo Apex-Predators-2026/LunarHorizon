@@ -226,8 +226,12 @@ def test_east_longitude_and_custom_ids_converted() -> None:
 
 
 def test_naive_landing_follows_shared_model_policy() -> None:
-    # The shared Scenario treats naive datetimes as UTC before we ever see them.
-    s = Scenario(site=get_site("peak-near-shackleton").to_site(), landing_utc=datetime(2027, 1, 7), duration_days=7)
+    # Team decision: the shared Scenario rejects times without a timezone, so none reach us;
+    # an equivalent aware time arrives as UTC.
+    with pytest.raises(ValueError, match="timezone"):
+        Scenario(site=get_site("peak-near-shackleton").to_site(), landing_utc=datetime(2027, 1, 7), duration_days=7)
+    s = Scenario(site=get_site("peak-near-shackleton").to_site(), landing_utc=datetime(2027, 1, 7, tzinfo=UTC),
+                 duration_days=7)
     assert scenario_to_mission(s).mission_start_utc == LANDING
 
 
