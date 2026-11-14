@@ -33,9 +33,12 @@ by the same positive threshold, so their order and sign are preserved.
 
 Classification (``classify_margin``) uses the *least favourable* bound, so uncertainty can never
 make a margin look safer: NEGATIVE (upper < 0), UNCERTAIN (lower < 0 <= upper), AT_THRESHOLD
-(lower == 0), NARROW (0 < lower < ``narrow_fraction`` x threshold, or a duration margin below the
-time resolution of the data), COMFORTABLE (otherwise), plus UNSUPPORTED and NOT_APPLICABLE.
-With a zero threshold the relative band is empty. A duration margin smaller than one sample
+(lower == 0), NARROW (0 < lower <= ``narrow_fraction`` x threshold, inclusive within
+``COMPARISON_REL_TOL``, or a duration margin below the time resolution of the data), COMFORTABLE
+(otherwise), plus UNSUPPORTED and NOT_APPLICABLE. The narrow band is inclusive so that a margin
+of exactly 10 % is NARROW, matching the Phase 4B risk band (``risk.headroom_band``: headroom
+<= 10 % -> HIGH, whose default is ``NARROW_MARGIN_FRACTION``); a screening boundary resolves
+towards caution. With a zero threshold the relative band is empty. A duration margin smaller than one sample
 spacing cannot be resolved by the data: with sample-and-hold, interior durations err by less
 than one spacing (docs section 5b). The time resolution therefore only ever moves a margin from
 COMFORTABLE to NARROW, never the other way.
@@ -55,7 +58,7 @@ from typing import Final, Self
 
 from pydantic import Field, model_validator
 
-from .constraints import COMPARISON_REL_TOL, CONSTRAINT_SPECS, ConstraintSpec, admissible_range
+from .constraints import COMPARISON_REL_TOL, CONSTRAINT_SPECS, ConstraintSpec, admissible_range, meets
 from .conventions import ContractModel, StrictBool
 from .enums import Comparison, ConstraintId, ConstraintStatus, MetricStatus, Unit, UnknownReason
 from .inputs import ScientificTimeSeries
@@ -80,16 +83,18 @@ __all__ = [
     "signed_margin",
 ]
 
-# Default "narrow" band: a proven margin below 10 % of the threshold. A documented convention for
-# Phase 4B/5, not a physical constant; callers may pass their own ``narrow_fraction``.
+# Default "narrow" band: a proven margin of at most 10 % of the threshold (inclusive). A
+# product-defined screening convention, not a physical constant or a NASA-established safety
+# threshold; callers may pass their own ``narrow_fraction``. It is also the default HIGH band of
+# the Phase 4B risk policy (``risk.RiskPolicy.high_headroom_fraction``), so both agree.
 NARROW_MARGIN_FRACTION: Final = 0.10
 
 
 class MarginClass(StrEnum):
     """Headroom category from the least favourable margin bound (see module docstring)."""
 
-    COMFORTABLE = "comfortable"  # proven margin >= narrow band (and >= time resolution for durations)
-    NARROW = "narrow"  # proven positive margin below the narrow band or the time resolution
+    COMFORTABLE = "comfortable"  # proven margin above the narrow band (and >= time resolution for durations)
+    NARROW = "narrow"  # proven positive margin within the narrow band or below the time resolution
     AT_THRESHOLD = "at_threshold"  # least favourable value exactly at the limit (still PASS)
     NEGATIVE = "negative"  # confirmed violation: even the most favourable value violates
     UNCERTAIN = "uncertain"  # bounds straddle zero: the data cannot decide
@@ -404,7 +409,9 @@ def classify_margin(
     if lo == 0.0:
         return MarginClass.AT_THRESHOLD
     ref = margin.reference
-    narrow = ref is not None and ref > 0.0 and lo < narrow_fraction * ref
+    # Inclusive band on the relative margin, the same expression as risk.headroom_band, so a
+    # NARROW margin and a HIGH headroom band coincide exactly at equal fractions.
+    narrow = ref is not None and ref > 0.0 and meets(lo / ref, narrow_fraction, Comparison.AT_MOST)
     if time_resolution_s is not None and margin.value.unit is Unit.SECONDS and lo < time_resolution_s:
         narrow = True
     return MarginClass.NARROW if narrow else MarginClass.COMFORTABLE

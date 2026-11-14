@@ -38,21 +38,36 @@ Classification rules (``RiskPolicy`` holds the two adjustable numbers, defaults 
 * Headroom fraction ``h = margin / reference`` (Phase 4 sign convention: positive = headroom,
   0 = exactly at the requirement, negative = violated). For an outage limit this equals
   ``1 - longest_outage / limit``, i.e. one minus the share of the allowable outage consumed.
-  Band: ``h <= high_headroom_fraction`` [0.10] -> HIGH (includes 0 and every violation);
-  ``h <= moderate_headroom_fraction`` [0.25] -> MODERATE; otherwise LOW. Both thresholds are
-  inclusive and are **product-defined screening heuristics** (the 10 % figure is the example in
-  the Phase 1 interface of this module), not NASA-validated values; changing them changes risk
-  levels only, never eligibility.
-* Exposure rules take the longest outage from the Phase 3 evaluation (``measured``; UNAVAILABLE
-  -> the admissible range ``[0, mission duration]``, as in Phase 3) and its ``threshold``.
-* Margin rules consume ``OperationalMargin`` objects (they never recompute margins). A configured
-  minimum requirement without a supplied margin is UNKNOWN, or HIGH when Phase 3 already proved a
+  Band: ``h <= high_headroom_fraction`` [0.10 = ``margins.NARROW_MARGIN_FRACTION``] -> HIGH
+  (includes 0 and every violation); ``h <= moderate_headroom_fraction`` [0.25] -> MODERATE;
+  otherwise LOW. Both thresholds are inclusive and are **product-defined screening heuristics**
+  (the 10 % figure is the example in the Phase 1 interface of this module), not NASA-established
+  or NASA-validated safety thresholds; changing them changes risk levels only, never eligibility.
+* Time resolution: a *duration* margin bound below the dataset's largest sample spacing
+  (``data_quality.largest_sample_gap_s``, the same default as ``margins.assess_margins``) cannot
+  be resolved by the data, so that bound is never LOW (raised to MODERATE). This mirrors the
+  NARROW rule of ``margins.classify_margin``.
+* Margin-to-risk contract: every headroom number comes from a Phase 4A ``OperationalMargin``;
+  risk never recomputes a margin. ``margins=None`` derives them with
+  ``margins.margins_from_assessment``. Supplied margins are validated (one per constraint, unit,
+  ``reference == threshold``, and bounds implying the Phase 3 verdict) and otherwise rejected.
+* Exposure rules classify the outage constraints' margins. If an explicit margin list omits one,
+  it is derived from the Phase 3 evaluation with ``margins.operational_margin`` (UNAVAILABLE
+  longest outage -> the admissible range ``[0, mission duration]``, as in Phase 3).
+* Margin rules classify the minimum requirements' margins. A configured minimum requirement
+  omitted from an explicit margin list is UNKNOWN, or HIGH when Phase 3 already proved a
   violation (FAIL). A reference of 0 makes ``h`` undefined; the Phase 3 verdict then decides
   (PASS -> LOW, FAIL -> HIGH, UNKNOWN -> UNKNOWN).
+* At the defaults, levels agree with ``margins.classify_margin``: NEGATIVE -> HIGH; AT_THRESHOLD
+  -> HIGH (UNKNOWN if bounded); NARROW -> never LOW; UNCERTAIN -> HIGH or UNKNOWN; UNSUPPORTED
+  -> ``unsupported_requirement`` UNKNOWN; NOT_APPLICABLE -> no indicator.
 * Landing rules use the Phase 2 state at the evaluated start. Met -> LOW; unknown -> UNKNOWN;
   not met -> MODERATE, raised to HIGH when the outage that is in progress at landing consumes
   the HIGH band of the corresponding limit or lasts the entire mission. The outage's proven
-  bounds are ``[confirmed run from landing, + any directly following unknown time]``.
+  bounds are ``[confirmed run from landing, + any directly following unknown time]``. Emitted
+  only when relevant: the outage limit is configured, or the spacecraft may rely on sunlight
+  (power source solar / hybrid / other) or direct-to-Earth line of sight (direct_to_earth /
+  direct_and_relay). No landing risk is invented for a radioisotope lander or relay-only rover.
 * Coverage rules: no unknown time -> LOW; unknown for the entire mission -> UNKNOWN (nothing is
   assessed); otherwise MODERATE (a confirmed data-quality concern: short events and outages can
   hide in unknown time). Product-defined screening heuristic.
@@ -74,20 +89,23 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Final
 
-from .constraints import admissible_range, meets
+from .constraints import meets
 from .enums import (
     CalculationBasis,
+    CommunicationMode,
     Comparison,
     Condition,
     ConditionState,
     ConstraintId,
     ConstraintStatus,
     MetricStatus,
+    PowerSource,
     RiskLevel,
     Unit,
     UnknownReason,
     WindowKind,
 )
+from .margins import NARROW_MARGIN_FRACTION, margin_bounds, margins_from_assessment, operational_margin
 from .mission import MissionScenario
 from .outputs import (
     ConstraintAssessment,
@@ -134,10 +152,12 @@ _SCREENING_NOTE: Final = "Product-defined screening heuristic, not a probability
 class RiskPolicy:
     """Adjustable screening thresholds on the headroom fraction (see module docstring).
 
-    Product-defined heuristics, not NASA-validated limits. They affect risk levels only.
+    Product-defined heuristics, not NASA-established or NASA-validated safety thresholds. They
+    affect risk levels only. The HIGH default is ``margins.NARROW_MARGIN_FRACTION`` so that, at
+    the defaults, a NARROW margin and a HIGH headroom band coincide.
     """
 
-    high_headroom_fraction: float = 0.10
+    high_headroom_fraction: float = NARROW_MARGIN_FRACTION
     moderate_headroom_fraction: float = 0.25
 
     def __post_init__(self) -> None:
@@ -168,8 +188,24 @@ def classify_bounds(lower_level: RiskLevel, upper_level: RiskLevel) -> RiskLevel
     return lower_level if lower_level is upper_level else RiskLevel.UNKNOWN
 
 
-def _headroom_level(lo: float, hi: float, policy: RiskPolicy) -> RiskLevel:
-    return classify_bounds(headroom_band(lo, policy), headroom_band(hi, policy))
+def _bound_level(
+    margin: float, reference: float, unit: Unit, policy: RiskPolicy, resolution_s: float | None
+) -> RiskLevel:
+    """Band of one margin bound; a duration bound below the sample spacing is never LOW."""
+    level = headroom_band(margin / reference, policy)
+    if level is RiskLevel.LOW and unit is Unit.SECONDS and resolution_s is not None and margin < resolution_s:
+        return RiskLevel.MODERATE
+    return level
+
+
+def _margin_level(
+    lo: float, hi: float, reference: float, unit: Unit, policy: RiskPolicy, resolution_s: float | None
+) -> RiskLevel:
+    """Level of a margin with proven bounds ``[lo, hi]`` against a positive ``reference``."""
+    return classify_bounds(
+        _bound_level(lo, reference, unit, policy, resolution_s),
+        _bound_level(hi, reference, unit, policy, resolution_s),
+    )
 
 
 def overall_risk(risks: Sequence[RiskIndicator]) -> RiskLevel:
@@ -206,11 +242,14 @@ def _range(lo: str, hi: str) -> str:
     return lo if lo == hi else f"between {lo} and {hi}"
 
 
-def _headroom_rule(subject: str, policy: RiskPolicy) -> str:
+def _headroom_rule(subject: str, policy: RiskPolicy, resolution_s: float | None = None) -> str:
+    resolution = (
+        f" Never LOW below the {_h(resolution_s)} sample spacing (unresolved)." if resolution_s is not None else ""
+    )
     return (
         f"{subject}: HIGH if headroom <= {_pct(policy.high_headroom_fraction)} of the reference (incl. 0 and "
         f"violations), MODERATE if <= {_pct(policy.moderate_headroom_fraction)}, else LOW; bounded evidence gets "
-        f"a level only when both bounds agree, otherwise UNKNOWN. {_SCREENING_NOTE}"
+        f"a level only when both bounds agree, otherwise UNKNOWN.{resolution} {_SCREENING_NOTE}"
     )
 
 
@@ -235,15 +274,31 @@ def _close(a: float, b: float) -> bool:
     return math.isclose(a, b, rel_tol=_CONSISTENCY_REL_TOL, abs_tol=_CONSISTENCY_REL_TOL)
 
 
-def _metric_bounds(metric: Metric) -> tuple[float, float] | None:
-    """Proven bounds of a KNOWN / BOUNDED metric; None otherwise (never fabricated)."""
-    if metric.status is MetricStatus.KNOWN:
-        assert metric.value is not None
-        return metric.value, metric.value
-    if metric.status is MetricStatus.BOUNDED:
-        assert metric.lower is not None and metric.upper is not None
-        return metric.lower, metric.upper
-    return None
+def _check_margin_sign(m: OperationalMargin, ev: ConstraintEvaluation) -> None:
+    """The margin's proven bounds must imply the Phase 3 verdict (margins never re-decide it).
+
+    Same rule as ``margins``: PASS iff lower >= 0, FAIL iff upper < 0, UNKNOWN iff the bounds
+    straddle 0, with a small tolerance for independent floating-point paths.
+    """
+    bounds = margin_bounds(m)
+    if bounds is None:
+        return
+    lo, hi = bounds
+    assert ev.threshold is not None
+    tol = _CONSISTENCY_REL_TOL * max(1.0, abs(ev.threshold))
+    cid, mid = ev.constraint_id.value, m.margin_id
+    if ev.status is ConstraintStatus.PASS:
+        if hi < -tol:
+            raise ValueError(f"margin {mid!r} is confirmed negative but constraint {cid!r} passes")
+        if lo < -tol:
+            raise ValueError(f"margin {mid!r} may be negative but constraint {cid!r} passes")
+    elif ev.status is ConstraintStatus.FAIL:
+        if lo > tol:
+            raise ValueError(f"margin {mid!r} is confirmed positive but constraint {cid!r} fails")
+        if hi > tol:
+            raise ValueError(f"margin {mid!r} may be non-negative but constraint {cid!r} fails")
+    elif ev.status is ConstraintStatus.UNKNOWN and (lo > tol or hi < -tol):
+        raise ValueError(f"margin {mid!r} decides constraint {cid!r}, whose verdict is unknown")
 
 
 def _index_margins(
@@ -252,8 +307,9 @@ def _index_margins(
     """Margins by related constraint, validated against the Phase 3 verdicts.
 
     Margins without a related constraint, or for a constraint that is not configured, are not
-    classified (no documented reference). Raises ``ValueError`` on duplicates or contradictions,
-    which indicate margins computed for another scenario or with another sign convention.
+    classified (no documented reference). Raises ``ValueError`` on duplicates or contradictions
+    (unit, reference != threshold, or bounds that imply a different verdict), which indicate
+    margins computed for another scenario or with another sign convention.
     """
     out: dict[ConstraintId, OperationalMargin] = {}
     for m in margins:
@@ -275,14 +331,7 @@ def _index_margins(
             raise ValueError(
                 f"margin {m.margin_id!r} reference {m.reference!r} != constraint threshold {ev.threshold!r}"
             )
-        bounds = _metric_bounds(m.value)
-        if bounds is None:
-            continue
-        tol = _CONSISTENCY_REL_TOL * max(1.0, abs(ev.threshold))
-        if ev.status is ConstraintStatus.PASS and bounds[1] < -tol:
-            raise ValueError(f"margin {m.margin_id!r} is confirmed negative but constraint {cid.value!r} passes")
-        if ev.status is ConstraintStatus.FAIL and bounds[0] > tol:
-            raise ValueError(f"margin {m.margin_id!r} is confirmed positive but constraint {cid.value!r} fails")
+        _check_margin_sign(m, ev)
     return out
 
 
@@ -441,6 +490,27 @@ _EARTH: Final = _OutageSpec(
 )
 
 
+# Spacecraft that may depend on sunlight / direct-to-Earth line of sight. OTHER is included because
+# reliance cannot be ruled out; RADIOISOTOPE / BATTERY_ONLY and RELAY / NONE are excluded.
+_SUN_RELIANT_POWER: Final = frozenset({PowerSource.SOLAR, PowerSource.HYBRID, PowerSource.OTHER})
+_DTE_RELIANT_COMMS: Final = frozenset({CommunicationMode.DIRECT_TO_EARTH, CommunicationMode.DIRECT_AND_RELAY})
+
+
+def _landing_relevant(spec: _OutageSpec, scenario: MissionScenario, assessment: ConstraintAssessment) -> bool:
+    """A landing-state indicator is emitted only when that outage can matter to this spacecraft.
+
+    Relevant when the corresponding outage limit is configured, or when the spacecraft may rely
+    on sunlight (power) / direct-to-Earth line of sight (communication). Otherwise no landing
+    risk is invented, e.g. for a radioisotope lander or a relay-only rover.
+    """
+    if assessment.constraint(spec.constraint_id).status is not ConstraintStatus.NOT_APPLICABLE:
+        return True
+    craft = scenario.spacecraft
+    if spec.condition is Condition.POWER_ELIGIBLE:
+        return craft.power_source in _SUN_RELIANT_POWER
+    return craft.communication_mode in _DTE_RELIANT_COMMS
+
+
 def _landing_indicator(spec: _OutageSpec, assessment: ConstraintAssessment, policy: RiskPolicy) -> RiskIndicator:
     env = assessment.environment
     summary = env.condition(spec.condition)
@@ -498,7 +568,11 @@ def _landing_indicator(spec: _OutageSpec, assessment: ConstraintAssessment, poli
 
 
 def _exposure_indicator(
-    spec: _OutageSpec, assessment: ConstraintAssessment, policy: RiskPolicy
+    spec: _OutageSpec,
+    assessment: ConstraintAssessment,
+    margin: OperationalMargin | None,
+    policy: RiskPolicy,
+    resolution_s: float | None,
 ) -> RiskIndicator | None:
     ev = assessment.constraint(spec.constraint_id)
     if ev.status is ConstraintStatus.NOT_APPLICABLE:
@@ -509,22 +583,29 @@ def _exposure_indicator(
     duration = (env.evaluated_end_utc - env.evaluated_start_utc).total_seconds()
     code = OUTAGE_RISK_CODES[spec.constraint_id]
     rule = _headroom_rule(
-        f"Longest {spec.outage} vs {ev.requirement_field or 'the limit'} (headroom = 1 - longest/limit)", policy
+        f"Longest {spec.outage} vs {ev.requirement_field or 'the limit'} (headroom = operational margin / limit "
+        "= 1 - longest/limit)",
+        policy,
+        resolution_s,
     )
-    bounds = _metric_bounds(ev.measured)
-    if bounds is None and ev.measured.status is MetricStatus.UNAVAILABLE:
-        bounds = admissible_range(Unit.SECONDS, duration)
+    # Headroom always comes from the Phase 4A margin: the supplied one, else the margin of the
+    # Phase 3 evaluation (UNAVAILABLE longest outage -> the admissible range [0, mission]).
+    if margin is None:
+        margin = operational_margin(ev, duration)
+    margin_span = margin_bounds(margin)
     verdict = f"constraint verdict {ev.status.value} (unchanged)"
-    if bounds is None:
+    if margin_span is None:
         return RiskIndicator(
             code=code,
             level=RiskLevel.UNKNOWN,
             rule=rule,
             evidence=ev.measured,
-            message=f"Longest {spec.outage} is not defined for this mission; {verdict}.",
+            message=f"Longest {spec.outage}: operational margin is {margin.value.status.value}, so headroom is not "
+            f"assessed; {verdict}.",
         )
-    lo, hi = bounds
-    level = _headroom_level(1.0 - hi / limit, 1.0 - lo / limit, policy)
+    m_lo, m_hi = margin_span
+    level = _margin_level(m_lo, m_hi, limit, Unit.SECONDS, policy, resolution_s)
+    lo, hi = limit - m_hi, limit - m_lo  # longest-outage bounds implied by the margin (display only)
     if ev.measured.status is MetricStatus.KNOWN:
         observed = f"is {_h(lo)} ({_pct(lo / limit)} of the {_h(limit)} limit)"
     else:
@@ -548,14 +629,19 @@ def _exposure_indicator(
     return RiskIndicator(code=code, level=level, rule=rule, evidence=ev.measured, message="; ".join(parts) + ".")
 
 
-def _margin_indicator(ev: ConstraintEvaluation, margin: OperationalMargin | None, policy: RiskPolicy) -> RiskIndicator:
+def _margin_indicator(
+    ev: ConstraintEvaluation, margin: OperationalMargin | None, policy: RiskPolicy, resolution_s: float | None
+) -> RiskIndicator:
     assert ev.threshold is not None
     code = f"margin_headroom.{ev.constraint_id.value}"
     name = ev.name or ev.constraint_id.value
+    if ev.unit is not Unit.SECONDS:
+        resolution_s = None  # the sample-spacing floor applies to duration margins only
     rule = _headroom_rule(
         f"Operational margin of {ev.requirement_field or ev.constraint_id.value} (headroom = margin / required "
         "value; no margin supplied -> UNKNOWN, or HIGH if the constraint fails)",
         policy,
+        resolution_s,
     )
     verdict = f"constraint verdict {ev.status.value} (unchanged)"
     if margin is None:
@@ -575,7 +661,7 @@ def _margin_indicator(ev: ConstraintEvaluation, margin: OperationalMargin | None
             message=f"{name}: no operational margin supplied, so headroom is not assessed; {verdict}.",
         )
     required = _value(ev.threshold, ev.unit)
-    bounds = _metric_bounds(margin.value)
+    bounds = margin_bounds(margin)
     if ev.threshold == 0.0:
         level = {
             ConstraintStatus.PASS: RiskLevel.LOW,
@@ -593,7 +679,7 @@ def _margin_indicator(ev: ConstraintEvaluation, margin: OperationalMargin | None
         )
     lo, hi = bounds
     ref = ev.threshold
-    level = _headroom_level(lo / ref, hi / ref, policy)
+    level = _margin_level(lo, hi, ref, ev.unit, policy, resolution_s)
     margin_text = _range(_value(lo, ev.unit), _value(hi, ev.unit))
     frac_text = _range(_pct(lo / ref), _pct(hi / ref))
     message = f"{name}: margin {margin_text} against required {required} (headroom {frac_text}); {verdict}."
@@ -620,7 +706,7 @@ def _unsupported_indicator(ev: ConstraintEvaluation) -> RiskIndicator:
 def assess_risks(
     scenario: MissionScenario,
     assessment: ConstraintAssessment,
-    margins: Sequence[OperationalMargin] = (),
+    margins: Sequence[OperationalMargin] | None = None,
     *,
     policy: RiskPolicy = DEFAULT_RISK_POLICY,
 ) -> list[RiskIndicator]:
@@ -628,25 +714,35 @@ def assess_risks(
 
     ``assessment`` is the Phase 3 result for ``scenario`` (``constraints.assess_constraints`` /
     ``build_constraint_assessment``); its Phase 2 environment supplies metrics, windows and data
-    quality, so no geometry is recomputed. ``margins`` are Phase 4 ``OperationalMargin`` objects
-    for the same scenario (at most one per related constraint). The assessment is not modified
-    and eligibility is not consulted. (The Phase 1 stub took ``(scenario, metrics, margins,
-    data_quality)``; landing-state, window-clipping and verdict evidence need the assessment.)
+    quality, so no geometry is recomputed. ``margins`` are Phase 4A ``OperationalMargin`` objects
+    for the same scenario (at most one per related constraint): ``None`` (default) derives them
+    with ``margins.margins_from_assessment(assessment)``; an explicit sequence is used as given
+    and validated against the verdicts. The assessment is not modified and eligibility is not
+    consulted. (The Phase 1 stub took ``(scenario, metrics, margins, data_quality)``; landing-state,
+    window-clipping and verdict evidence need the assessment.)
 
     Raises ``ValueError`` if the assessment or margins belong to another scenario.
     """
     _check_matches(scenario, assessment)
+    if margins is None:
+        margins = margins_from_assessment(assessment)
     by_constraint = _index_margins(margins, assessment)
     env = assessment.environment
     dq = env.data_quality
+    # Same default time resolution as margins.assess_margins (None with fewer than two samples).
+    resolution_s = dq.largest_sample_gap_s
 
     risks = _data_basis_indicators(env)
     sun_unknown = max(dq.sun_unknown_duration_s, env.condition(Condition.POWER_ELIGIBLE).unknown_duration_s)
     risks.append(_coverage_indicator(env, "sun", sun_unknown))
     risks.append(_coverage_indicator(env, "earth", dq.earth_unknown_duration_s))
-    risks.extend(_landing_indicator(spec, assessment, policy) for spec in (_POWER, _EARTH))
+    risks.extend(
+        _landing_indicator(spec, assessment, policy)
+        for spec in (_POWER, _EARTH)
+        if _landing_relevant(spec, scenario, assessment)
+    )
     for spec in (_POWER, _EARTH):
-        exposure = _exposure_indicator(spec, assessment, policy)
+        exposure = _exposure_indicator(spec, assessment, by_constraint.get(spec.constraint_id), policy, resolution_s)
         if exposure is not None:
             risks.append(exposure)
     for ev in assessment.constraints:
@@ -654,7 +750,7 @@ def assess_risks(
             continue
         if ev.unknown_reason is UnknownReason.UNSUPPORTED:
             continue
-        risks.append(_margin_indicator(ev, by_constraint.get(ev.constraint_id), policy))
+        risks.append(_margin_indicator(ev, by_constraint.get(ev.constraint_id), policy, resolution_s))
     risks.extend(
         _unsupported_indicator(ev) for ev in assessment.constraints if ev.unknown_reason is UnknownReason.UNSUPPORTED
     )

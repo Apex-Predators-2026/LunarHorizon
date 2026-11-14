@@ -189,7 +189,8 @@ def test_margin_interval_rejects_inverted_bounds() -> None:
     ("value", "expected"),
     [
         (Metric.known(20.0, Unit.PERCENT), MC.COMFORTABLE),
-        (Metric.known(5.0, Unit.PERCENT), MC.COMFORTABLE),  # exactly 10 % of 50: not below the band
+        (Metric.known(5.001, Unit.PERCENT), MC.COMFORTABLE),  # just above 10 % of 50
+        (Metric.known(5.0, Unit.PERCENT), MC.NARROW),  # exactly 10 % of 50: inside the inclusive band (= risk HIGH)
         (Metric.known(4.999, Unit.PERCENT), MC.NARROW),
         (Metric.known(0.0, Unit.PERCENT), MC.AT_THRESHOLD),
         (Metric.known(-0.001, Unit.PERCENT), MC.NEGATIVE),
@@ -878,7 +879,7 @@ def test_real_two_year_outage_margins(
         m = ms[cid]
         assert known(m) == extra_h * H
         expected_cls = cls
-        if extra_h == 10 and 10 >= NARROW_MARGIN_FRACTION * limit_h:
+        if extra_h == 10 and 10 > NARROW_MARGIN_FRACTION * limit_h:  # inclusive narrow band
             expected_cls = MC.COMFORTABLE  # Malapert blackout: 10 h is 37 % of a 27 h limit
         assert m.classification is expected_cls
         assert m.relative == Metric.known(extra_h / limit_h, Unit.FRACTION)
