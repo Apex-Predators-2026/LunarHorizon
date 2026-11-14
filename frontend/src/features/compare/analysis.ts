@@ -223,7 +223,7 @@ export const WEIGHT_PRESETS: Record<string, { label: string; weights: Weights }>
 export const CRITERIA = [
   { key: 'solar', label: 'Solar availability', basis: 'Mean visible solar disk (Horizons + LOLA)' },
   { key: 'comms', label: 'Earth communication', basis: 'Share of mission with Earth in line of sight' },
-  { key: 'science', label: 'Science site value', basis: 'DEMONSTRATION: proximity to the nearest catalog PSR' },
+  { key: 'science', label: 'Science site value', basis: 'Demonstration estimate: proximity to the nearest catalog PSR' },
   { key: 'safety', label: 'Operational safety', basis: 'How the longest power gap and blackout fit the lander’s limits' },
 ] as const
 
@@ -433,7 +433,7 @@ export function buildSummary(entries: Entry[]): Summary {
   if (unavailable.length) caveats.push(`${unavailable.map(lbl).join(', ')} ${unavailable.length > 1 ? 'have' : 'has'} no scientific data for the chosen site/dates and ${unavailable.length > 1 ? 'are' : 'is'} not included.`)
   const demoOut = okEntries(entries).filter((e) => !list.includes(e))
   if (demoOut.length) caveats.push(`${demoOut.map(lbl).join(', ')} use demonstration data and are not compared with real-data scenarios.`)
-  if (list.length && list[0].result!.data_kind === 'demonstration') caveats.push('All compared scenarios use DEMONSTRATION data: the statements below illustrate the tool, not the real Moon.')
+  if (list.length && list[0].result!.data_kind === 'demonstration') caveats.push('All compared scenarios use demonstration data: the statements below illustrate the tool, not the real Moon.')
   caveats.push('Earth visibility is geometric line of sight; it does not guarantee a working radio link.')
 
   const empty: Summary = { bests: [], highlights: [], overall: [], caveats }

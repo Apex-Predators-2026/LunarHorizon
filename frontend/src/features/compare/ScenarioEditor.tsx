@@ -5,7 +5,7 @@ import type { MissionRequirements } from '../../types'
 import { fmtUtc, fromUtcInput, toUtcInput } from '../rescue/format'
 import { PANEL_MODE_LABEL, autoName, missionEnd, validateScenario } from './scenario'
 import type { ComparisonScenario, PanelMode, SpacecraftConfig } from './types'
-import { input } from './ui'
+import { input, Icon } from './ui'
 import { useCompareStore } from './useCompareStore'
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -13,7 +13,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <label className="block text-[11px] text-slate-400">
       <span className="mb-0.5 block">{label}</span>
       {children}
-      {hint && <span className="mt-0.5 block text-[10px] text-slate-500">{hint}</span>}
+      {hint && <span className="mt-0.5 block text-[11px] text-slate-500">{hint}</span>}
     </label>
   )
 }
@@ -40,9 +40,9 @@ export function ScenarioEditor({ s }: { s: ComparisonScenario }) {
     ? s.spacecraft.battery_capacity_wh / s.spacecraft.average_load_w : null
 
   return (
-    <div className="mt-3 grid gap-4 border-t border-[#1c2a48] pt-3 lg:grid-cols-4">
+    <div className="mt-3 grid gap-4 border-t border-line pt-3 lg:grid-cols-4">
       <fieldset className="space-y-2">
-        <legend className="mb-1 text-xs font-semibold text-slate-200">Location</legend>
+        <legend className="mb-1 text-xs font-medium text-slate-200">Location</legend>
         <Field label="Name">
           <input className={input} value={s.name} onChange={(e) => patch({ name: e.target.value })} />
         </Field>
@@ -68,11 +68,11 @@ export function ScenarioEditor({ s }: { s: ComparisonScenario }) {
             <dd className="tabular-nums text-slate-300">{siteInfo.summary.horizon_min_deg?.toFixed(1) ?? 'n/a'}° … {siteInfo.summary.horizon_max_deg?.toFixed(1) ?? 'n/a'}°</dd>
           </>)}
         </dl>
-        {siteInfo?.source && <p className="text-[10px] leading-snug text-slate-500">Coordinates: {siteInfo.source}</p>}
+        {siteInfo?.source && <p className="text-[11px] leading-snug text-slate-500">Coordinates: {siteInfo.source}</p>}
       </fieldset>
 
       <fieldset className="space-y-2">
-        <legend className="mb-1 text-xs font-semibold text-slate-200">Mission schedule</legend>
+        <legend className="mb-1 text-xs font-medium text-slate-200">Mission schedule</legend>
         <Field label="Landing (UTC)" hint={siteInfo?.dataRange ? `Real data: ${siteInfo.dataRange[0].slice(0, 10)} → ${siteInfo.dataRange[1].slice(0, 10)}` : undefined}>
           <input type="datetime-local" className={input} value={toUtcInput(s.landing_utc)}
             onChange={(e) => e.target.value && patch({ landing_utc: fromUtcInput(e.target.value) })} />
@@ -88,7 +88,7 @@ export function ScenarioEditor({ s }: { s: ComparisonScenario }) {
       </fieldset>
 
       <fieldset className="space-y-2">
-        <legend className="mb-1 text-xs font-semibold text-slate-200">Spacecraft (example values — edit)</legend>
+        <legend className="mb-1 text-xs font-medium text-slate-200">Spacecraft (example values — edit)</legend>
         <Field label="Solar panel configuration">
           <select className={input} value={s.spacecraft.panel_mode} onChange={(e) => craft({ panel_mode: e.target.value as PanelMode })}>
             {Object.entries(PANEL_MODE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -123,7 +123,7 @@ export function ScenarioEditor({ s }: { s: ComparisonScenario }) {
       </fieldset>
 
       <fieldset className="space-y-2">
-        <legend className="mb-1 text-xs font-semibold text-slate-200">Mission requirements</legend>
+        <legend className="mb-1 text-xs font-medium text-slate-200">Mission requirements</legend>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Max darkness (h)" hint="battery_hours">
             <input type="number" min={1} className={input} value={s.requirements.battery_hours}
@@ -156,7 +156,7 @@ export function ScenarioEditor({ s }: { s: ComparisonScenario }) {
         </div>
       </fieldset>
       {problems.length > 0 && (
-        <p role="alert" className="text-xs text-red-300 lg:col-span-4">⚠ {problems.join(' ')}</p>
+        <p role="alert" className="text-xs text-red-300 lg:col-span-4"><Icon name="warning" size={14} className="mr-1 align-[-2px]" />{problems.join(' ')}</p>
       )}
     </div>
   )
