@@ -15,7 +15,7 @@ export interface GraphicsSettings {
   shadowMapSize: number
   lodThresholdPx: number // refine terrain while a vertex step covers more than this many pixels
   maxCachedMeshes: number // terrain tiles kept in memory
-  stars: number
+  stars: number // the brightest this many of the ~8,800 catalogue stars (sky/stars.ts)
   material: 'standard' | 'lambert' // terrain shading: physically based, or cheaper diffuse-only
   detailedModels: boolean // the rover model (11 MB, textured) instead of a simple primitive lander
 }
@@ -30,7 +30,7 @@ export const GRAPHICS: Record<GraphicsQuality, GraphicsSettings> = {
     shadowMapSize: 4096,
     lodThresholdPx: 4,
     maxCachedMeshes: 500,
-    stars: 4000,
+    stars: 9000, // all of them: the naked-eye sky to magnitude 6.5
     material: 'standard',
     detailedModels: true,
   },
@@ -43,7 +43,7 @@ export const GRAPHICS: Record<GraphicsQuality, GraphicsSettings> = {
     shadowMapSize: 1024, // unused while shadows are off
     lodThresholdPx: 10,
     maxCachedMeshes: 200,
-    stars: 1500,
+    stars: 1500, // to about magnitude 4.8
     material: 'lambert',
     detailedModels: false,
   },
