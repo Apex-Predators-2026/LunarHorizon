@@ -36,6 +36,7 @@ from app.viability.compat.rescue import (
     evaluate_timeline,
     internal_site_id,
     make_evaluate_fn,
+    precomputed_dataset_end,
     scenario_to_mission,
     timeline_to_series,
 )
@@ -309,7 +310,8 @@ def test_passing_assessment_maps_cleanly(pns: Scenario, pns_series: ScientificTi
     mission = scenario_to_mission(pns)
     a = _assessment(mission, pns_series, _all_constraints(), score=82.5, metrics=KNOWN_GOOD)
     r = assessment_to_result(a, pns, "synthetic-placeholder")
-    assert r.passes and r.violations == [] and r.score == 82.5
+    assert r.passes and r.eligibility == "pass" and r.verdict == "pass"
+    assert r.violations == [] and r.score == 82.5
     assert r.source == SOURCE and r.data_source == "synthetic-placeholder" and r.scenario == pns
     m = r.metrics
     assert m.sunlight_fraction == 0.8 and m.equivalent_sun_hours == pytest.approx(0.8 * 168)
@@ -329,8 +331,9 @@ def test_failed_constraint_becomes_rescue_violation(pns: Scenario, pns_series: S
         scenario_to_mission(pns), pns_series, cons, metrics={**KNOWN_GOOD, "longest_continuous_darkness": dark}
     )
     r = assessment_to_result(a, pns, "synthetic-placeholder")
-    assert not r.passes and len(r.violations) == 1
+    assert not r.passes and r.eligibility == "fail" and len(r.violations) == 1
     v = r.violations[0]
+    assert v.is_unknown is False  # a decided failure: rescue may suggest relaxing it
     assert (v.constraint, v.required, v.actual, v.unit) == ("battery_hours", 50, 60, "h")
     assert v.shortfall == pytest.approx(10) and v.relative_shortfall == pytest.approx(0.2)
     assert v.constraint in CHECK_BY_CONSTRAINT  # rescue's loosening table understands it
@@ -344,10 +347,10 @@ def test_unknown_constraint_is_not_passing_and_worst_case(pns: Scenario, pns_ser
     a = _assessment(scenario_to_mission(pns), pns_series, cons, metrics={**KNOWN_GOOD, "earth_visible_percent": earth})
     assert a.eligibility is Eligibility.UNKNOWN
     r = assessment_to_result(a, pns, "synthetic-placeholder")
-    assert not r.passes
+    assert not r.passes and r.eligibility == "unknown" and r.verdict == "unknown"  # not a failure
     (v,) = r.violations
     assert v.constraint == "min_earth_visibility_fraction" and v.actual == pytest.approx(0.35)  # unfavourable bound
-    assert v.message.startswith("UNKNOWN")
+    assert v.message.startswith("UNKNOWN") and v.is_unknown is True
     assert r.metrics.earth_visibility_fraction == pytest.approx(0.35)
 
 
@@ -373,7 +376,8 @@ def test_unavailable_metrics_reported_at_worst_case(pns: Scenario, pns_series: S
         metrics={"mean_solar_elevation": Metric.known(0.9, Unit.DEGREES)},
     )
     r = assessment_to_result(a, pns, "synthetic-placeholder")
-    assert not r.passes and r.score == 0.0 and len(r.violations) == 6
+    assert not r.passes and r.eligibility == "unknown" and r.score is None and len(r.violations) == 6
+    assert all(v.is_unknown for v in r.violations)
     m = r.metrics
     assert m.sunlight_fraction == 0 and m.earth_visibility_fraction == 0
     assert m.longest_dark_gap_hours == pytest.approx(168) and m.longest_comms_gap_hours == pytest.approx(168)
@@ -396,10 +400,47 @@ def test_missing_solar_elevation_cannot_be_invented(pns: Scenario, pns_series: S
         assessment_to_result(a, pns, "synthetic-placeholder")
 
 
-def test_passing_without_score_is_an_error(pns: Scenario, pns_series: ScientificTimeSeries) -> None:
-    a = _assessment(scenario_to_mission(pns), pns_series, _all_constraints(), score=None, metrics=KNOWN_GOOD)
-    with pytest.raises(RescueCompatError, match="no score"):
-        assessment_to_result(a, pns, "synthetic-placeholder")
+@pytest.mark.parametrize(
+    "statuses",
+    [{}, {ConstraintId.MAX_CONTINUOUS_DARKNESS: ConstraintStatus.FAIL}],
+    ids=["pass", "fail"],
+)
+def test_missing_score_stays_none(
+    pns: Scenario, pns_series: ScientificTimeSeries, statuses: dict[ConstraintId, ConstraintStatus]
+) -> None:
+    a = _assessment(scenario_to_mission(pns), pns_series, _all_constraints(statuses), score=None, metrics=KNOWN_GOOD)
+    r = assessment_to_result(a, pns, "synthetic-placeholder")
+    assert r.score is None and r.score_or_zero == 0.0  # "not scored", never a fabricated number
+    assert ViabilityResult.model_validate_json(r.model_dump_json()) == r
+
+
+def test_failure_mixed_with_unknown_keeps_both_flags(pns: Scenario, pns_series: ScientificTimeSeries) -> None:
+    dark = Metric.known(60 * H, Unit.SECONDS)
+    earth = Metric.bounded(35.0, 55.0, Unit.PERCENT)
+    cons = _all_constraints(
+        {
+            ConstraintId.MAX_CONTINUOUS_DARKNESS: ConstraintStatus.FAIL,
+            ConstraintId.MIN_EARTH_VISIBILITY_PERCENT: ConstraintStatus.UNKNOWN,
+        },
+        longest_continuous_darkness=dark,
+        earth_visible_percent=earth,
+    )
+    metrics = {**KNOWN_GOOD, "longest_continuous_darkness": dark, "earth_visible_percent": earth}
+    r = assessment_to_result(_assessment(scenario_to_mission(pns), pns_series, cons, metrics=metrics), pns, "x")
+    assert r.eligibility == "fail" and not r.passes  # any FAIL dominates
+    flags = {v.constraint: v.is_unknown for v in r.violations}
+    assert flags == {"battery_hours": False, "min_earth_visibility_fraction": True}
+
+
+def test_shared_result_fields_serialize(pns: Scenario, pns_series: ScientificTimeSeries) -> None:
+    earth = Metric.bounded(35.0, 55.0, Unit.PERCENT)
+    cons = _all_constraints({ConstraintId.MIN_EARTH_VISIBILITY_PERCENT: ConstraintStatus.UNKNOWN})
+    a = _assessment(
+        scenario_to_mission(pns), pns_series, cons, score=None, metrics={**KNOWN_GOOD, "earth_visible_percent": earth}
+    )
+    data = json.loads(assessment_to_result(a, pns, "synthetic-placeholder").model_dump_json())
+    assert data["eligibility"] == "unknown" and data["passes"] is False and data["score"] is None
+    assert data["violations"][0]["is_unknown"] is True
 
 
 def test_failing_constraint_without_rescue_field_rejected(pns: Scenario, pns_series: ScientificTimeSeries) -> None:
@@ -443,7 +484,8 @@ def test_rescue_evaluator_runs_through_compat_layer_with_test_double(pns: Scenar
     assert mission.mission_start_utc == LANDING and len(series.samples) == 168
     assert series.provenance.is_synthetic is True
     assert isinstance(result, ViabilityResult) and result.source == SOURCE
-    assert not result.passes and result.score == 0.0
+    assert not result.passes and result.eligibility == "unknown" and result.score is None
+    assert all(v.is_unknown for v in result.violations)
     assert {v.constraint for v in result.violations} == set(CHECK_BY_CONSTRAINT)
     reasons = why_fails(result)  # rescue's own explanation code accepts the result
     assert len(reasons) == 6 and all(r.startswith("UNKNOWN") for r in reasons)
@@ -540,3 +582,65 @@ def test_phase2_metrics_match_rescue_placeholder_on_real_data(site_id: str, day:
             assert value is None and expected is None, key
         else:
             assert value == pytest.approx(expected, rel=1e-12, abs=1e-12), key
+
+
+# --- Andrew's format 1.1 and dataset coverage through the compat layer ---------------------
+
+
+def test_unknown_earth_kept_unknown_not_blackout(pns: Scenario) -> None:
+    tl = _synthetic_timeline(pns)
+    tl.earth_horizon[5] = np.nan  # rescue stores earth_visible=False where the margin is unknown
+    tl.earth_visible[5] = False
+    obs = timeline_to_series(tl).samples[5].earth
+    assert obs.state is U and obs.horizon_deg is None
+
+
+def _real_timeline(site_id: str, end: datetime, days: int = 2) -> tuple[Scenario, Timeline]:
+    provider = PrecomputedTimelineProvider(fallback=SyntheticTimelineProvider(), data_dir=SITES_DIR)
+    landing = end - timedelta(days=days)
+    sc = Scenario(site=get_site(site_id).to_site(), landing_utc=landing, duration_days=days)
+    n = days * 24
+    return sc, provider.timeline(sc.site, landing, landing + timedelta(hours=n - 1), 1.0).slice(0, n)
+
+
+def test_final_bin_inside_dataset_is_covered() -> None:
+    sc, tl = _real_timeline("peak-near-shackleton", datetime(2029, 1, 1, tzinfo=UTC))
+    mission = scenario_to_mission(sc)
+    s = timeline_to_series(tl, mission_end_utc=mission.mission_end_utc, precomputed_data_dir=SITES_DIR)
+    assert s.coverage_end_utc == datetime(2029, 1, 1, tzinfo=UTC)
+    assert analyze_scenario(mission, s).data_quality.uncovered_duration_s == 0.0
+
+
+def test_final_bin_beyond_dataset_end_is_not_fabricated() -> None:
+    """Mission ending 2029-01-01T01:00Z: rescue serves a slice whose last bin starts at the file's final instant."""
+    sc, tl = _real_timeline("peak-near-shackleton", datetime(2029, 1, 1, 1, tzinfo=UTC))
+    assert tl.source.startswith("precomputed:")
+    assert precomputed_dataset_end(tl.source, SITES_DIR) == datetime(2029, 1, 1, tzinfo=UTC)
+    mission = scenario_to_mission(sc)
+    s = timeline_to_series(tl, mission_end_utc=mission.mission_end_utc, precomputed_data_dir=SITES_DIR)
+    assert s.coverage_end_utc == datetime(2029, 1, 1, tzinfo=UTC)  # not extended to 01:00
+    assert "NOT extended" in (s.provenance.notes or "")
+    a = analyze_scenario(mission, s)
+    assert a.data_quality.uncovered_duration_s == 3600.0
+    assert a.metrics.sunlight_duration.status is MetricStatus.BOUNDED  # the hour is unknown, not assumed
+
+
+def test_mission_past_dataset_falls_back_to_flagged_synthetic_data() -> None:
+    """Rescue's provider (Member 5) swaps to synthetic geometry; the compat layer keeps that visible."""
+    sc, tl = _real_timeline("peak-near-shackleton", datetime(2029, 1, 1, 3, tzinfo=UTC))
+    assert tl.source.startswith("synthetic")
+    mission = scenario_to_mission(sc)
+    a = analyze_scenario(mission, timeline_to_series(tl, mission_end_utc=mission.mission_end_utc))
+    assert a.data_quality.provenance.is_synthetic is True
+    assert any("SYNTHETIC" in w for w in a.data_quality.warnings)
+
+
+def test_precomputed_dataset_end_is_conservative(tmp_path: Path) -> None:
+    assert precomputed_dataset_end("synthetic-placeholder", SITES_DIR) is None
+    assert precomputed_dataset_end("precomputed:missing.json", SITES_DIR) is None
+    assert precomputed_dataset_end("precomputed:../sites/peak-near-shackleton.json", tmp_path) is None  # no escape
+    (tmp_path / "broken.json").write_text("{not json", encoding="utf-8")
+    assert precomputed_dataset_end("precomputed:broken.json", tmp_path) is None
+    steps = [{"time_utc": "2027-01-01T00:00Z"}, {"time_utc": "2027-01-01T05:00Z"}]
+    (tmp_path / "steps.json").write_text(json.dumps(steps), encoding="utf-8")
+    assert precomputed_dataset_end("precomputed:steps.json", tmp_path) == datetime(2027, 1, 1, 5, tzinfo=UTC)

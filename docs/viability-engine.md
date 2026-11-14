@@ -4,6 +4,8 @@ Owner: Member 2 (Mission Viability, Risk Assessment & Ranking)
 Status: **Phase 2 implemented (sunlight / Earth-visibility time-series analysis, §5b); Phases 3–6
 not started**, so there is still no pass/fail, risk, score or full `evaluate_scenario`.
 Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.2.0-phase2"`.
+Synchronized with `main` as of 2026-11-13: Member 1 site-file format **1.1** (§3a) and Member 5's
+shared `ViabilityResult` with `eligibility` / nullable `score` / `Violation.is_unknown` (§5a).
 The input contract (§3) is a **proposal for Member 1 to review** before it counts as final.
 
 Code: `backend/app/viability/`  ·  Tests: `backend/tests/viability/`
@@ -59,7 +61,7 @@ Three verdicts are kept **separate**:
 | Percent / fraction | 0–100 (`*_percent`) / 0–1 |
 | Latitude | Selenographic, north positive (south pole = −90) |
 | Longitude | **East positive, [−180, 180]**. The site-file adapter converts Andrew's 0–360 values (§3a). |
-| Frame | **Unverified.** The DEM is Moon2000 (IAU 2000 sphere, LOLA). The frame of Horizons `coord@301` sites is not yet confirmed as the same (ME vs PA, ~1 km apart). Don't claim spatial compatibility until it is (§10). |
+| Frame | Moon Mean-Earth/polar-axis (ME) **as stated by Member 1** (`meta.frame`; his engine checks the Horizons header for `MEAN_ME`; LOLA ME per product docs). Recorded in `provenance.coordinate_frame`; **not independently verified by this engine** (ME vs PA ≈ 1 km at the surface; §10). |
 | Azimuth | Clockwise from local north, [0, 360). Undefined exactly at a pole. |
 | Elevation | Above the local horizontal plane (⊥ radius vector), [−90, 90] |
 | Terrain horizon | Elevation of the terrain skyline at an azimuth; **may be negative** (summits) |
@@ -104,7 +106,9 @@ complete examples.
 
 `angular_radius_deg` (optional) is the apparent radius actually used for disk calculations.
 `provenance.generated_at_utc` is required but may be `null` when the producer didn't record it.
-It is never back-filled.
+It is never back-filled. Optional `provenance.coordinate_frame` records the lunar body-fixed
+frame **as stated by the producer** (not verified by this engine). Optional top-level
+`fraction_decimals` states how many decimals the producer rounded `visible_fraction` to.
 
 **States:** `visible`, `partial` (only with `apparent_disk`), `not_visible`, `unknown`.
 
@@ -117,7 +121,7 @@ It is never back-filled.
 3. A definite state needs `elevation_deg`. If `terrain_aware`, it also needs `horizon_deg` (and so `azimuth_deg`). **When terrain is unknown, the state must be `unknown`.** The horizon is never assumed to be 0.
 4. `geometric_only` series carry no `horizon_deg`, no `horizon_profile` and no `terrain_source`. `terrain_aware` series must name a `terrain_source`.
 5. States must agree with the angles, to within 1e-3° to allow for rounding: a centre above the horizon cannot be `not_visible`, and a centre below it cannot be `visible`.
-6. With `apparent_disk`, `visible_fraction` 0 / (0,1) / 1 must match `not_visible` / `partial` / `visible`. A fraction with state `unknown` is rejected.
+6. With `apparent_disk`, `visible_fraction` 0 / (0,1) / 1 must match `not_visible` / `partial` / `visible`. A fraction with state `unknown` is rejected. **Single exception:** when the series declares `fraction_decimals`, a `partial` state may carry `visible_fraction` 0.0. That is a sliver of disk below the stated rounding; the state is authoritative and the written 0.0 is kept. No other mismatch is relaxed (tested).
 7. Missing samples are not darkness. Consecutive samples more than `sampling.max_gap_s` apart bound a **coverage gap**, which Phase 2 treats as unknown.
 8. `schema_version` must match exactly.
 
@@ -148,15 +152,18 @@ series = load_site_file("data/sites/peak-near-shackleton.json")   # -> Scientifi
 | `meta.ephemeris` | `provenance.ephemeris_source`; `angle_type = apparent` | rejected unless it states "apparent" |
 | `meta.terrain[]` | `provenance.terrain_source`; `calculation_basis = terrain_aware` | an empty list is rejected |
 | `meta.step` | `sampling.nominal_interval_s`; `max_gap_s = 1.5 × step` | `1h`/`30m`/`10 min`/`1d`; samples closer than the step are rejected |
-| `meta.generated_utc` *(absent today)* | `provenance.generated_at_utc` | otherwise `null` |
+| `meta.generated_utc` (format 1.1) | `provenance.generated_at_utc` | parsed as UTC; `null` only if absent |
+| `meta.generator_version` (1.1) | `provenance.generator`; `fraction_decimals` | documented rounding: `1.0` → 3, `1.1` → 6 decimals; unknown version → not declared (strict rule 6) |
+| `meta.frame` (1.1) | `provenance.coordinate_frame` | recorded verbatim as Member 1's statement; notes say "not independently verified" |
 | `horizon.azimuth_deg`, `elevation_deg` | `horizon_profile` | step → `horizon_azimuth_step_deg` (0.5°); `distance_m` is not carried |
 | `timeline.time_utc` (`…T00:00Z`) | `samples[i].time_utc` | must be UTC; other offsets or naive times are rejected |
 | `sun_azimuth/elevation/horizon_deg` | `sun.*` | azimuth exactly 360.0 → 0.0 |
-| `sun_visible_fraction` | `sun.visible_fraction` + `sun.state` | 0 → `not_visible`, (0,1) → `partial`, 1 → `visible`; `sun_criterion = apparent_disk` |
+| `sun_visible_fraction` (6 decimals in 1.1) | `sun.visible_fraction` + `sun.state` | 0 → `not_visible`, (0,1) → `partial`, 1 → `visible`; `sun_criterion = apparent_disk`; value always kept as written |
+| `sun_visible` (1.1, authoritative "any disk visible") | `sun.state` | true + fraction 0.0 → `partial` (sub-precision sliver); false + fraction > 0, null + fraction, or a flag without its angles/fraction → **rejected** |
 | `earth_azimuth/elevation/horizon_deg` | `earth.*` | azimuth exactly 360.0 → 0.0 |
 | `earth_visible` | `earth.state` | `visible` / `not_visible`; `earth_criterion = center` (his rule: margin > 0) |
 | `earth_margin_deg` | *(not stored)* | checked against `elevation − horizon` (±0.002°) and against `earth_visible` |
-| `sun/earth_angular_radius_deg` *(absent today)* | `*.angular_radius_deg` | otherwise `null` |
+| `sun_angular_radius_deg` (1.1); `earth_angular_radius_deg` *(absent)* | `*.angular_radius_deg` | otherwise `null` |
 | `summary` | *(not used)* | test cross-check only |
 
 **Missing data:** a `null` or `NaN` element makes that body's state `unknown` and keeps the
@@ -167,20 +174,26 @@ metadata, fewer than 2 samples, and states that contradict the angles all raise
 `SiteFileError` with the field and index. Unknown extra columns are listed in
 `provenance.notes`, not silently dropped.
 
-**Results on the committed files:** all four validate.
+**Results on the committed files (format 1.1, generated 2026-11-14):** all four validate;
+no unknown values (curated sites are fully known). Sun counts use the authoritative flag.
 
 | Site | lon (file → contract) | Sun visible / partial / not visible | Earth visible |
 |---|---|---|---|
-| connecting-ridge | 209.94767 → −150.05233 | 9044 / 1443 / 7058 | 49.6% |
-| malapert-massif | 357.6326 → −2.3674 | 13371 / 1116 / 3058 | 99.9% |
-| peak-near-shackleton | 126.27302 (unchanged) | 4347 / 2196 / 11002 | 50.4% |
+| connecting-ridge | 209.94767 → −150.05233 | 9041 / 1449 / 7055 | 49.6% |
+| malapert-massif | 357.6326 → −2.3674 | 13366 / 1126 / 3053 | 99.9% |
+| peak-near-shackleton | 126.27302 (unchanged) | 4336 / 2219 / 10990 | 50.4% |
 | shackleton-floor (control) | 129.78 (unchanged) | 0 / 0 / 17545 | 0% |
 
-**Known precision effect:** the file rounds fractions to 3 decimals. Disk slivers below 0.0005
-(centre 0.261–0.266° below the horizon) are written as 0, so they become `not_visible`. That is
-4–16 samples per site (0.02–0.09 percentage points of sunlit time), and it explains why his
-`summary.sunlit_pct`, which uses unrounded values, is slightly higher. The adapter stays faithful
-to the file; recomputing fractions is Member 1's job.
+**Precision (resolved in format 1.1):** format 1.0 rounded fractions to 3 decimals, which hid
+disk slivers below 0.0005 (4–16 h per site). Format 1.1 writes 6 decimals plus the
+authoritative `sun_visible`, and the two now agree everywhere except **one hour**:
+Peak Near Shackleton, 2027‑08‑13T21:00Z. There `sun_visible = true` and the fraction is 0.0, so
+the visible part is below 5×10⁻⁷. It is isolated (dark on both sides), and the written angles
+put the disk's top within ~0.0006° of the terrain. It becomes `partial` with the
+written 0.0 kept: direct sunlight yes, full no, power-eligible at threshold 0 yes and at 0.25 no.
+Fractions that round to 1.000000 are still `visible`: the file has no "whole disk" flag, so a
+sub-precision hidden sliver there cannot be detected (≤ 5×10⁻⁷ of the disk). Compared with
+format 1.0, direct sunlight rose by 0.02–0.07 pp and full sunlight fell by 0.02–0.06 pp (§5b).
 
 ## 4. Mission models: Members 3/4/5 → engine
 
@@ -195,8 +208,10 @@ to the file; recomputing fractions is Member 1's job.
 | `RankingPreferences` (soft) | Non-negative relative weights for sunlight, Earth visibility, simultaneity, darkness/blackout/clearance margins | At least one weight > 0 |
 
 **Power-lit / power-dark.** When `solar_power_min_disk_fraction` (rescue's `panel_threshold`,
-e.g. 0.25) is set, a sample is power-lit iff `visible_fraction > 0` and `visible_fraction ≥`
-the threshold (a fraction exactly equal to the threshold counts). Darkness, initial-sunlight,
+e.g. 0.25) is set, a sample is power-lit iff some solar disk is visible and `visible_fraction ≥`
+the threshold (a fraction exactly equal to the threshold counts). "Some disk visible" comes from
+the authoritative apparent-disk state, so for consistent data it is `visible_fraction > 0`. A
+sub-precision sliver (§3a) is lit at threshold 0 and dark at any larger threshold. Darkness, initial-sunlight,
 first-sunset and simultaneous metrics use this definition. The fraction itself is always
 preserved, and with a threshold of 0 "any visible disk" counts. **Without a threshold,
 power-lit = direct sunlight (any visible disk, `visible_fraction > 0`)**, i.e. the same as a
@@ -276,36 +291,55 @@ converters as the site-file adapter**, so `NaN` → `unknown`, a 360° azimuth �
 without its horizon is rejected. `source` `precomputed:*` → `is_synthetic = false`, apparent
 angles. `synthetic*` → `is_synthetic = true`, geometric angles. Any other source is rejected,
 because real data can't be told from synthetic. A real timeline converted this way is
-sample-for-sample identical to `load_site_file` on the same file (tested).
-Coverage ends at the last sample, **except** that `evaluate_timeline` passes the mission end
-and, when it is exactly one step after the last sample (rescue's bin layout), coverage is
-extended to it. Under sample-and-hold the final hour is then represented instead of unknown.
-No other layout is extended.
+sample-for-sample identical to `load_site_file` on the same file (tested). The one exception:
+rescue's `Timeline` has no `sun_visible`, so the single sub-precision sliver hour (§3a) reads as
+`not_visible` through rescue. Unknown Earth visibility (NaN margin, which rescue stores as
+`earth_visible = False`) stays `unknown`, never a blackout.
 
-**ViabilityAssessment → ViabilityResult (lossy, never optimistic):**
+**Coverage and the final bin.** Coverage ends at the last sample. `evaluate_timeline` passes the
+mission end; when that is exactly one step after the last sample (rescue's bin layout), coverage
+is extended to it, so the final hour is represented under sample-and-hold. This happens **only if
+that time is covered by the source**:
+- **synthetic model:** always (it is defined at any time);
+- **precomputed file:** only if its last sample is at or after mission end. The file's last
+  timestamp is read once and cached by path and modification time; this is the layer's only
+  file access. `precomputed_data_dir` defaults to rescue's data directory.
+
+Otherwise the final hour stays **unknown**. Verified edge cases on real data (PNS):
+
+| Mission end | Rescue source | Result |
+|---|---|---|
+| 2029‑01‑01T00:00Z | precomputed | final bin covered by the file's 00:00 sample: fully known |
+| 2029‑01‑01T01:00Z | precomputed (last bin starts at the file's final instant) | **not extended**: 1 h unknown, metrics bounded (previously fabricated, fixed) |
+| 2029‑01‑01T03:00Z | **synthetic-placeholder** (rescue's provider falls back for the whole mission) | `is_synthetic = true`, warning "SYNTHETIC data" |
+
+**ViabilityAssessment → ViabilityResult** (shared contract as of `main` 2026‑11‑13:
+`eligibility`, nullable `score`, `Violation.is_unknown`; metrics never optimistic):
 
 | Canonical | Rescue |
 |---|---|
-| `eligibility == pass` | `passes = true`; any `fail` / `unknown` → `passes = false` |
-| constraint `fail` | `Violation` with rescue field name, rescue units (h, fraction) |
-| constraint `unknown` | `Violation`, message prefixed `UNKNOWN (incomplete data; worst case shown):` |
+| `eligibility` | `eligibility` copied exactly (`"pass"` / `"fail"` / `"unknown"`); `passes = (eligibility == "pass")` (legacy flag) |
+| constraint `fail` | `Violation` with rescue field name, rescue units (h, fraction), `is_unknown = false` |
+| constraint `unknown` | `Violation` with `is_unknown = true` (rescue gives no loosening advice), message prefixed `UNKNOWN (incomplete data; worst case shown):` |
 | `Metric` known | value, unit-converted (s → h, percent → fraction) |
 | `Metric` bounded | unfavourable bound (lower for "more is better", upper for outages) |
 | `Metric` unavailable | worst case within the mission: 0 for fractions and initial hours; whole mission for gaps; 0 h to first sunset/Earthset; `null` clearances; **error** for mean solar elevation (no defensible worst case) |
 | first sunset/Earthset `not_applicable` | `null` (rescue's "never during the mission") |
-| `score` null | 0.0 if not passing; **error** if passing |
+| `score` null | `score = null` ("not scored"; rescue ranks it via `score_or_zero`) |
 | a failing constraint with no rescue field | **error** (can't occur from a rescue scenario) |
 
-Every constraint the layer creates maps 1:1 onto rescue's `CHECK_BY_CONSTRAINT` (tested), so
-loosening and explanations keep working.
+Checked on every conversion: `passes == (no violations)` and an `unknown` result has only
+`is_unknown` violations (shared invariants, docs/interfaces.md). A `fail` may also carry unknown
+violations; each keeps its own flag. Every constraint the layer creates maps 1:1 onto rescue's
+`CHECK_BY_CONSTRAINT` (tested), so loosening and explanations keep working.
 
 **Coordination with Arush (Member 5):**
-1. **Unknown state.** Proposed: add optional `eligibility: "pass" | "fail" | "unknown"` (and/or `score: float | None`) to `ViabilityResult`. Until then, UNKNOWN reads as a failure with worst-case numbers. Rescue's **loosening may suggest relaxing a requirement because data is missing**. Suggest skipping loosening for violations whose message starts with `UNKNOWN`.
-2. **Sample semantics: resolved in Phase 2.** Canonical rule = sample-and-hold (§5b), plus the one-step bin rule above, so rescue missions have no unknown final hour (tested). *Edge case for Arush:* `PrecomputedTimelineProvider.timeline` accepts a slice whose last bin *starts* at the file's final instant (2029-01-01T00:00Z). That bin claims one hour the file does not cover, and it only affects missions ending at 2029-01-01T01:00Z. Suggest requiring `last_bin_start + step <= times[-1]`.
-3. **Panel threshold of 0.** The placeholder counts `fraction >= 0` (even total darkness) as lit. The canonical rule needs `fraction > 0`. Results will differ only at threshold 0.
+1. **Unknown state: resolved by Arush** (`eligibility`, nullable `score`, `is_unknown`; loosening skips undecided results and unknown violations). The compat layer now uses these fields directly.
+2. **Sample semantics: resolved in Phase 2.** Canonical rule = sample-and-hold (§5b) plus the guarded one-step bin rule above (tested). *Still for Arush (his provider):* (a) `PrecomputedTimelineProvider.timeline` still serves a slice whose last bin starts at the file's final instant; the compat layer now refuses to cover that hour. (b) A mission extending even slightly past 2029‑01‑01 is evaluated **entirely** on synthetic geometry. It is flagged, but the user may not notice that real data covered most of the mission.
+3. **Panel threshold of 0: resolved by Arush** (placeholder now requires `fraction > 0`). Same rule as the canonical engine.
 4. **Naive datetimes.** Shared `Scenario.landing_utc` treats naive times as UTC, while the canonical API rejects them. The layer accepts the shared model's decision; flagged for the team.
-5. **Two readers of `data/sites`.** `rescue/timeline/precomputed.py` and the site-file adapter parse the same files. They agree today (tested); keep one reader long-term.
-6. **Equivalence check: done.** On real precomputed timelines (3 sites × 6 landing dates, 14-day missions, `panel_threshold` 0.25), all 11 `ViabilityMetrics` fields from Phase 2 equal the placeholder's to 1e-12 (`test_phase2_metrics_match_rescue_placeholder_on_real_data`). An ad-hoc run over 76 scenarios also found 0 mismatches. Expected differences remain only at `panel_threshold = 0` (item 3) and wherever data is unknown, where the canonical engine bounds instead of counting.
+5. **Two readers of `data/sites`.** `rescue/timeline/precomputed.py` and the site-file adapter parse the same files. They agree sample for sample (tested), except that rescue ignores `sun_visible` (1 sliver hour at PNS, §3a) and reads a `null` `earth_visible` as `False`. The compat layer turns the latter back into unknown via the NaN margin. Keep one reader long-term.
+6. **Equivalence check: done, re-run on format 1.1 data.** On real precomputed timelines (3 sites × 6 landing dates, 14-day missions, `panel_threshold` 0.25), all 11 `ViabilityMetrics` fields from Phase 2 equal the placeholder's to 1e-12 (`test_phase2_metrics_match_rescue_placeholder_on_real_data`). Expected differences remain only where data is unknown, where the canonical engine bounds instead of counting. Arush's full side-by-side test (`tests/test_engine_side_by_side.py`) stays skipped until `evaluate_scenario` exists (Phases 3–6).
 
 ## 5b. Phase 2: sunlight and Earth-visibility time-series analysis
 
@@ -356,7 +390,7 @@ collapse through floating-point error; seconds appear only in the output.
 
 | Condition | Met when | Windows (met / not met / unknown) |
 |---|---|---|
-| `direct_sunlight` | any part of the disk visible (`visible`/`partial`; `visible_fraction > 0`) | `sunlight` / `darkness` / `sun_unknown` |
+| `direct_sunlight` | any part of the disk visible (`visible`/`partial`; from Member 1's authoritative `sun_visible`) | `sunlight` / `darkness` / `sun_unknown` |
 | `full_sunlight` | whole disk visible (`visible_fraction = 1`) | `full_sunlight` / – / – |
 | `partial_sunlight` | `0 < visible_fraction < 1` | `partial_sunlight` / – / – |
 | `power_eligible` | `visible_fraction > 0` and `≥ solar_power_min_disk_fraction`; no threshold → = direct sunlight | `power_lit` / `power_dark` / `power_unknown` |
@@ -412,13 +446,13 @@ samples with unknown states, threshold set but fractions missing). Provenance pa
 unchanged, **including the adapter's note that the lunar body-fixed frame is not verified**.
 No probability or confidence score is produced.
 
-### Real NASA-derived sites (full coverage 2027-01-01 → 2029-01-01, threshold 0.25)
+### Real NASA-derived sites (format 1.1 files; full coverage 2027-01-01 → 2029-01-01, threshold 0.25)
 
 | Site | Direct sun | Full | Partial | Power-lit (≥0.25) | Mean disk fraction | Earth visible | Simultaneous |
 |---|---|---|---|---|---|---|---|
-| connecting-ridge | 59.775 % | 51.550 % | 8.225 % | 57.438 % | 0.5569 | 49.555 % | 31.960 % |
-| malapert-massif | 82.570 % | 76.208 % | 6.361 % | 81.019 % | 0.7963 | 99.886 % | 80.905 % |
-| peak-near-shackleton | 37.289 % | 24.778 % | 12.511 % | 33.607 % | 0.3074 | 50.433 % | 18.924 % |
+| connecting-ridge | 59.793 % | 51.533 % | 8.259 % | 57.433 % | 0.5569 | 49.555 % | 31.954 % |
+| malapert-massif | 82.598 % | 76.180 % | 6.418 % | 81.002 % | 0.7963 | 99.886 % | 80.888 % |
+| peak-near-shackleton | 37.358 % | 24.715 % | 12.642 % | 33.607 % | 0.3074 | 50.433 % | 18.924 % |
 | shackleton-floor | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 | Site | Longest without direct sun | Longest power-dark (≥0.25) | Longest Earth blackout | Longest simultaneous |
@@ -429,12 +463,14 @@ No probability or confidence score is produced.
 | shackleton-floor | 17,544 h (entire range) | 17,544 h | 17,544 h | 0 |
 
 Every metric is `known` (no unknown data). Durations equal the independently counted samples
-× 1 h (tested). Against Andrew's `summary` (where definitions match): `earth_visible_pct` and
-`mean_sun_fraction_pct` agree within ±0.05 pp. Our direct-sunlight % is 0.03 / 0.03 / 0.11 pp
-*lower* than his `sunlit_pct` (CR / MM / PNS). That is the documented 3-decimal rounding of
-fractions (§3a, slivers become 0) plus his unweighted mean over 17,545 instants versus our
-17,544 h, not a disagreement. Full-sunlight and threshold-qualified percentages have no
-counterpart in his summary and are not compared. Partial-disk time is 6–13 % at the lit sites,
+× 1 h, using `sun_visible` for direct sunlight (tested). Windows equal Member 1's `intervals()`
+on `sun_visible` / `earth_visible`. Against Andrew's `summary`, `sunlit_pct`, `earth_visible_pct`
+and `mean_sun_fraction_pct` all agree within ±0.05 pp, i.e. display rounding plus ≤ 0.006 pp
+from his 17,545 instants versus our 17,544 h. With format 1.0 our direct sunlight was up to
+0.11 pp lower because of 3-decimal fractions; format 1.1 removed that. **Longest outages and
+their start times are identical on format 1.0 and 1.1.** Percentages moved: direct +0.02 to
++0.07 pp, full −0.02 to −0.06 pp, power-lit ≤ 0.02 pp. Full-sunlight and threshold-qualified
+percentages have no counterpart in his summary and are not compared. Partial-disk time is 6–13 % at the lit sites,
 so treating partial as full would overstate sunlight materially. The threshold matters: at
 Malapert the longest direct-sunlight period (2,809 h) shrinks to 2,107 h at ≥ 0.25.
 
@@ -529,10 +565,10 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 - Longitude: the file keeps 0–360; the adapter converts (no change needed on his side).
 
 **Open, with Member 1 (Andrew):**
-1. **Lunar body-fixed frame (unresolved).** The LOLA DEMs are Moon2000/ME. Which frame does Horizons use for `CENTER='coord@301'` geodetic site coordinates? ME and PA differ by ~1 km on the surface, which matters for which terrain point is "the site". Spatial compatibility is not claimed until this is verified.
-2. Precision: write `sun_visible_fraction` with more decimals (e.g. 6), or add a `sunlit` column, so slivers below 0.0005 are not lost (§3a).
-3. Add `sun_angular_radius_deg` (and `meta.generated_utc` / generator version) to the file. The adapter already reads them if present.
-4. Should the shared `TimelineStep` (`docs/interfaces.md`, `app/models.py`, `types.ts`) gain `unknown` states / nullable horizons for custom sites? His precompute currently errors out rather than emitting gaps.
+1. **Lunar body-fixed frame: stated by Member 1, not independently verified here.** Andrew documents (docs/data-sources.md, `meta.frame`) that sites, Horizons and LOLA are all Moon **Mean-Earth/polar-axis (ME)**. His engine refuses any Horizons response whose `Center pole/equ` header is not `MEAN_ME`. The LOLA side rests on product documentation (MOON_ME, DE421), and he notes a metre-level DE421 vs DE441 residual. That is a code-level check on the ephemeris side, which the viability engine has not repeated. We record the statement in `provenance.coordinate_frame`, label it "not independently verified", and make no stronger claim. Member 6 may want an independent check (e.g. one Horizons header plus the DEM product metadata).
+2. ~~Precision~~ **done in format 1.1** (6 decimals + `sun_visible`); one residual sub-precision sliver hour is handled (§3a).
+3. ~~Angular radius / generation metadata~~ **done in format 1.1** (`sun_angular_radius_deg`, `generated_utc`, `generator_version`); all carried by the adapter.
+4. ~~Nullable shared `TimelineStep`~~ **done** (Andrew: `null` = unknown for custom sites; the adapter maps it to `unknown`). Curated sites contain no nulls.
 5. Is one observer height enough, or are separate solar-array and antenna heights needed?
 6. Can uncertainty estimates be provided (with Member 6)?
 

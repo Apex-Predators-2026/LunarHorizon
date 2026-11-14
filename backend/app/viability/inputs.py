@@ -61,6 +61,9 @@ class Provenance(ContractModel):
     generated_at_utc: UTCDatetime | None
     generator: NonEmptyStr  # software name + version that produced the file
     references: list[NonEmptyStr] = Field(default_factory=list)
+    # Lunar body-fixed frame of site coordinates / ephemeris / terrain AS STATED BY THE PRODUCER
+    # (e.g. "Moon MEAN_ME ..."). None = not stated. The viability engine does not verify it.
+    coordinate_frame: NonEmptyStr | None = None
     notes: str | None = None
 
 
@@ -150,6 +153,10 @@ class ScientificTimeSeries(ContractModel):
     provenance: Provenance
     uncertainty: UncertaintyInfo = Field(default_factory=UncertaintyInfo)
     horizon_profile: HorizonProfile | None = None
+    # Decimal places the producer rounded visible_fraction to (e.g. 6). None = not stated (exact).
+    # When stated, a PARTIAL observation may carry visible_fraction 0.0: the visible sliver is
+    # below the stated precision (the state, not the rounded number, says light is visible).
+    fraction_decimals: Annotated[int, Strict(), Field(ge=0, le=17)] | None = None
     samples: list[ScientificSample] = Field(min_length=1)
 
     @field_validator("schema_version")
@@ -216,7 +223,12 @@ class ScientificTimeSeries(ContractModel):
                 if obs.visible_fraction == 1.0
                 else VisibilityState.PARTIAL
             )
-            if obs.state is not expected:
+            sub_precision_sliver = (
+                obs.state is VisibilityState.PARTIAL
+                and obs.visible_fraction == 0.0
+                and self.fraction_decimals is not None
+            )
+            if obs.state is not expected and not sub_precision_sliver:
                 raise ValueError(
                     f"{where}: visible_fraction {obs.visible_fraction} implies '{expected.value}', "
                     f"got '{obs.state.value}'"

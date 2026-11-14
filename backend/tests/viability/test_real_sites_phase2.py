@@ -12,7 +12,7 @@ The original files are read only, never modified.
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -62,7 +62,9 @@ def test_full_coverage_everything_known(site: str, analyses: dict[str, Environme
     assert dq.sun_coverage_percent == 100.0 and dq.earth_coverage_percent == 100.0
     assert dq.largest_sample_gap_s == H
     assert dq.provenance.is_synthetic is False
-    assert "frame" in (dq.provenance.notes or "") and "NOT verified" in (dq.provenance.notes or "")
+    # Member 1's stated frame is carried as a statement, not as an independent verification.
+    assert dq.provenance.coordinate_frame is not None and "MEAN_ME" in dq.provenance.coordinate_frame
+    assert "not independently verified" in (dq.provenance.notes or "")
     for name, metric in a.metrics:
         assert metric.status in (MetricStatus.KNOWN, MetricStatus.NOT_APPLICABLE), name
 
@@ -73,13 +75,14 @@ def test_durations_equal_independent_sample_counts(
 ) -> None:
     tl, m = raw[site]["timeline"], analyses[site].metrics
     frac = np.asarray(tl["sun_visible_fraction"][:-1])  # last sample represents no time
+    lit = np.asarray(tl["sun_visible"][:-1], dtype=bool)  # authoritative "any disk visible" (format 1.1)
     earth = np.asarray(tl["earth_visible"][:-1], dtype=bool)
-    assert v(m.sunlight_duration) == H * np.count_nonzero(frac > 0)
+    assert v(m.sunlight_duration) == H * np.count_nonzero(lit)
     assert v(m.full_sunlight_duration) == H * np.count_nonzero(frac == 1)
-    assert v(m.partial_sunlight_duration) == H * np.count_nonzero((frac > 0) & (frac < 1))
-    assert v(m.power_lit_duration) == H * np.count_nonzero((frac > 0) & (frac >= 0.25))
+    assert v(m.partial_sunlight_duration) == H * np.count_nonzero(lit & (frac < 1))
+    assert v(m.power_lit_duration) == H * np.count_nonzero(lit & (frac >= 0.25))
     assert v(m.earth_visible_duration) == H * np.count_nonzero(earth)
-    assert v(m.simultaneous_duration) == H * np.count_nonzero((frac >= 0.25) & (frac > 0) & earth)
+    assert v(m.simultaneous_duration) == H * np.count_nonzero(lit & (frac >= 0.25) & earth)
     assert v(m.mean_solar_disk_fraction) == pytest.approx(float(frac.mean()), abs=1e-12)
     sun_el = np.asarray(tl["sun_elevation_deg"][:-1])
     assert v(m.mean_solar_elevation) == pytest.approx(float(sun_el.mean()), abs=1e-12)
@@ -91,10 +94,10 @@ def test_windows_equal_member1_intervals(
 ) -> None:
     tl, a = raw[site]["timeline"], analyses[site]
     times = np.array([np.datetime64(t.rstrip("Z"), "s") for t in tl["time_utc"]])
-    frac = np.asarray(tl["sun_visible_fraction"])
+    lit = np.asarray(tl["sun_visible"], dtype=bool)  # Member 1: "Sunlit = sun_visible"
     cases = {
-        WindowKind.SUNLIGHT: frac > 0,
-        WindowKind.DARKNESS: frac == 0,
+        WindowKind.SUNLIGHT: lit,
+        WindowKind.DARKNESS: ~lit,
         WindowKind.EARTH_VISIBLE: np.asarray(tl["earth_visible"], dtype=bool),
         WindowKind.COMMUNICATION_BLACKOUT: ~np.asarray(tl["earth_visible"], dtype=bool),
     }
@@ -112,13 +115,12 @@ def test_agrees_with_andrews_summary_where_definitions_match(
     site: str, raw: dict[str, dict[str, Any]], analyses: dict[str, EnvironmentAnalysis]
 ) -> None:
     summary, m = raw[site]["summary"], analyses[site].metrics
-    # His values: unweighted means over all 17 545 samples, unrounded fractions, shown to 0.1 %.
-    # Ours: time-weighted over 17 544 h; the endpoint sample changes a percentage by <= 0.006 pp.
-    # sunlit_pct == our direct sunlight (fraction > 0). The file rounds fractions to 3 decimals,
-    # which turns disk slivers < 0.0005 into 0 (docs section 3a), so ours can only be lower.
+    # His values: means over all 17 545 samples, shown to 0.1 %. Ours: time-weighted over
+    # 17 544 h; the endpoint sample changes a percentage by <= 0.006 pp.
+    # sunlit_pct == our direct sunlight: both use the authoritative sun_visible flag (format 1.1),
+    # so only display rounding and the endpoint differ (before 1.1: up to 0.11 pp from slivers).
     sunlit = v(m.sunlight_percent)
-    assert sunlit <= summary["sunlit_pct"] + 0.05 + 0.006
-    assert summary["sunlit_pct"] - sunlit <= 0.15
+    assert abs(sunlit - summary["sunlit_pct"]) <= 0.05 + 0.006
     # mean_sun_fraction_pct == our mean solar-disk fraction x 100 (rounding errors average out).
     assert abs(100 * v(m.mean_solar_disk_fraction) - summary["mean_sun_fraction_pct"]) <= 0.05 + 0.006
     # earth_visible_pct == our Earth-visible percent (boolean column: no fraction rounding).
@@ -196,3 +198,21 @@ def test_sampling_policy_sensitivity_is_at_most_one_step(site: str, prepared: di
     nearest = analyze_environment(series, START, END, policy=SamplingPolicy.NEAREST_SAMPLE)
     for name in ("sunlight_duration", "earth_visible_duration", "longest_continuous_darkness"):
         assert abs(v(getattr(hold.metrics, name)) - v(getattr(nearest.metrics, name))) <= H, name
+
+
+def test_sub_precision_sliver_hour_at_peak_near_shackleton(prepared: dict[str, PreparedSeries]) -> None:
+    """2027-08-13T21Z: sun_visible true but the 6-decimal fraction is 0.0 (disk sliver < 5e-7).
+
+    Direct sunlight and partial: yes (authoritative flag). Full: no. Power-eligible: yes at
+    threshold 0 ("any visible disk"), no at 0.25 (fraction far below). Fraction kept as written.
+    """
+    hour = (datetime(2027, 8, 13, 21, tzinfo=UTC), datetime(2027, 8, 13, 22, tzinfo=UTC))
+    p = prepared["peak-near-shackleton"]
+    for threshold, power_lit in ((0.0, 1.0), (0.25, 0.0)):
+        m = analyze_environment(p, *hour, solar_power_min_disk_fraction=threshold).metrics
+        assert (v(m.sunlight_duration), v(m.partial_sunlight_duration), v(m.full_sunlight_duration)) == (H, H, 0.0)
+        assert v(m.power_lit_duration) == power_lit * H
+        assert v(m.mean_solar_disk_fraction) == 0.0
+    # Isolated: dark on both sides, so it splits a darkness period into two confirmed windows.
+    a = analyze_environment(p, hour[0] - timedelta(hours=2), hour[1] + timedelta(hours=2))
+    assert [w.duration_s for w in a.windows_of(WindowKind.DARKNESS)] == [2 * H, 2 * H]

@@ -122,7 +122,15 @@ def test_real_site_provenance_preserved(site: str) -> None:
     assert prov.ephemeris_source == raw["meta"]["ephemeris"]
     assert all(t in (prov.terrain_source or "") for t in raw["meta"]["terrain"])
     assert prov.references == [raw["site"]["source"]]
-    assert prov.generated_at_utc is None  # not recorded in the file: left unknown, not invented
+    # Format 1.1 records when the file was generated: carried exactly, as UTC (never back-filled).
+    generated = datetime.strptime(raw["meta"]["generated_utc"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+    assert prov.generated_at_utc == generated and prov.generated_at_utc.tzinfo is UTC
+    assert raw["meta"]["generator_version"] in prov.generator
+    # The frame is recorded as Member 1's statement, explicitly not as an independent verification.
+    assert prov.coordinate_frame is not None and prov.coordinate_frame == raw["meta"]["frame"]
+    assert "MEAN_ME" in prov.coordinate_frame
+    assert prov.notes is not None and "not independently verified" in prov.notes
+    assert s.fraction_decimals == 6
     assert prov.horizon_azimuth_step_deg == 0.5
     assert prov.notes is not None and ADAPTER_VERSION in prov.notes and str(raw["site"]["lon"]) in prov.notes
     assert s.observer_height_m == raw["site"]["observer_height_m"]
@@ -139,7 +147,8 @@ def test_real_site_angles_and_partial_disk_preserved(site: str) -> None:
         assert earth.elevation_deg == tl["earth_elevation_deg"][i]
     fractions = [x.sun.visible_fraction for x in s.samples]
     assert fractions == tl["sun_visible_fraction"]  # every fractional value kept as-is
-    partial_in_file = sum(1 for f in tl["sun_visible_fraction"] if 0.0 < f < 1.0)
+    # Partial = some disk visible (authoritative sun_visible) but not the whole disk.
+    partial_in_file = sum(1 for f, v in zip(tl["sun_visible_fraction"], tl["sun_visible"], strict=True) if v and f < 1)
     assert [x.sun.state for x in s.samples].count(P) == partial_in_file
     assert U not in {x.sun.state for x in s.samples} | {x.earth.state for x in s.samples}
 
@@ -151,13 +160,19 @@ def test_real_site_matches_andrews_own_summary(site: str) -> None:
     n = len(s.samples)
     sunlit = 100 * sum(x.sun.state in (V, P) for x in s.samples) / n
     earth = 100 * sum(x.earth.state is V for x in s.samples) / n
-    # Exact agreement with the file's own columns.
-    assert sunlit == 100 * sum(f > 0 for f in tl["sun_visible_fraction"]) / n
+    # Exact agreement with the file's authoritative column (format 1.1).
+    assert sunlit == 100 * sum(bool(v) for v in tl["sun_visible"]) / n
     assert earth == pytest.approx(summary["earth_visible_pct"], abs=0.05)  # summary rounded to 0.1
-    # His summary uses unrounded fractions; the file rounds them to 3 decimals, so slivers of
-    # disk < 0.0005 (centre ~0.261-0.266 deg below the horizon) read as 0. Measured effect on the
-    # real files: 0.02-0.09 percentage points, always in the direction summary >= ours.
-    assert 0.0 <= summary["sunlit_pct"] - sunlit <= 0.15
+    # His sunlit_pct is computed from the same flag, so only its 0.1 % display rounding differs.
+    assert sunlit == pytest.approx(summary["sunlit_pct"], abs=0.05)
+    # Slivers below the 6-decimal rounding (sun_visible true, fraction written as 0.0) are kept as
+    # partial with the written 0.0. Measured on the committed files: one hour, at PNS only.
+    slivers = [
+        i for i, (f, v) in enumerate(zip(tl["sun_visible_fraction"], tl["sun_visible"], strict=True)) if v and f == 0.0
+    ]
+    assert len(slivers) == (1 if site == "peak-near-shackleton" else 0)
+    for i in slivers:
+        assert s.samples[i].sun.state is P and s.samples[i].sun.visible_fraction == 0.0
 
 
 def test_shackleton_floor_control_is_permanently_dark() -> None:
@@ -459,3 +474,81 @@ def test_adapter_does_not_mutate_input(mini: dict[str, Any]) -> None:
     before = copy.deepcopy(mini)
     _convert(mini)
     assert mini == before
+
+
+# --- format 1.1: sun_visible, frame, generator version (SYNTHETIC site files) --------------
+
+
+def _v11(mini: dict[str, Any], fractions: list[Any], flags: list[Any]) -> dict[str, Any]:
+    mini["meta"].update(generator_version="1.1", frame="SYNTHETIC frame statement")
+    mini["timeline"]["sun_visible_fraction"] = fractions
+    mini["timeline"]["sun_visible"] = flags
+    return mini
+
+
+def test_sun_visible_agreeing_with_fractions(mini: dict[str, Any]) -> None:
+    s = _convert(_v11(mini, [1.0, 0.5, 0.0], [True, True, False]))
+    assert [x.sun.state for x in s.samples] == [V, P, NV]
+    assert [x.sun.visible_fraction for x in s.samples] == [1.0, 0.5, 0.0]
+    assert s.fraction_decimals == 6 and "sun_visible" not in (s.provenance.notes or "")
+
+
+def test_sub_precision_sliver_is_partial_with_written_fraction(mini: dict[str, Any]) -> None:
+    s = _convert(_v11(mini, [1.0, 0.0, 0.0], [True, True, False]))
+    assert s.samples[1].sun.state is P and s.samples[1].sun.visible_fraction == 0.0  # not rounded up, not dropped
+
+
+def test_sliver_rejected_when_rounding_is_not_declared(mini: dict[str, Any]) -> None:
+    d = _v11(mini, [1.0, 0.0, 0.0], [True, True, False])
+    del d["meta"]["generator_version"]  # unknown format: precision unknown -> strict contract applies
+    with pytest.raises(SiteFileError, match="not_visible"):
+        _convert(d)
+
+
+@pytest.mark.parametrize(
+    ("fractions", "flags", "match"),
+    [
+        ([1.0, 0.5, 0.0], [True, False, False], "contradicts"),
+        ([1.0, 0.5, 0.0], [True, None, False], "null"),
+        ([1.0, 0.5, 0.0], [True, "yes", False], "true/false/null"),
+    ],
+)
+def test_inconsistent_sun_visible_rejected(
+    mini: dict[str, Any], fractions: list[Any], flags: list[Any], match: str
+) -> None:
+    with pytest.raises(SiteFileError, match=match):
+        _convert(_v11(mini, fractions, flags))
+
+
+def test_sun_visible_without_its_values_rejected(mini: dict[str, Any]) -> None:
+    d = _v11(mini, [1.0, None, 0.0], [True, True, False])
+    d["timeline"]["sun_horizon_deg"][1] = None  # unknown terrain, as format 1.1 writes it
+    with pytest.raises(SiteFileError, match="values it depends on"):
+        _convert(d)
+
+
+def test_null_sun_visible_with_null_values_is_unknown(mini: dict[str, Any]) -> None:
+    d = _v11(mini, [1.0, None, 0.0], [True, None, False])
+    d["timeline"]["sun_horizon_deg"][1] = None
+    obs = _convert(d).samples[1].sun
+    assert obs.state is U and obs.visible_fraction is None and obs.horizon_deg is None
+
+
+def test_frame_recorded_as_statement(mini: dict[str, Any]) -> None:
+    s = _convert(_v11(mini, [1.0, 0.5, 0.0], [True, True, False]))
+    assert s.provenance.coordinate_frame == "SYNTHETIC frame statement"
+    assert "not independently verified" in (s.provenance.notes or "")
+    assert "generator_version 1.1" in s.provenance.generator
+
+
+def test_missing_frame_is_not_assumed(mini: dict[str, Any]) -> None:
+    s = _convert(mini)
+    assert s.provenance.coordinate_frame is None and s.fraction_decimals is None
+    assert "not stated" in (s.provenance.notes or "") and "NOT verified" in (s.provenance.notes or "")
+
+
+@pytest.mark.parametrize(("key", "value"), [("frame", ""), ("frame", 7), ("generator_version", 1.1)])
+def test_invalid_format_11_metadata_rejected(mini: dict[str, Any], key: str, value: object) -> None:
+    mini["meta"][key] = value
+    with pytest.raises(SiteFileError, match=key):
+        _convert(mini)

@@ -13,14 +13,18 @@ never fills in missing values, and never loosens the core contract. Conversions 
 * Azimuth: a value of exactly 360.0 (a rounding artifact of 359.9995+) becomes 0.0, the
   same direction. Anything else outside [0, 360) is rejected.
 * Visibility: ``sun_visible_fraction`` 0 / (0,1) / 1 -> ``not_visible`` / ``partial`` /
-  ``visible`` with the fraction preserved (``apparent_disk`` criterion);
+  ``visible`` with the fraction preserved (``apparent_disk`` criterion). When the file has the
+  authoritative ``sun_visible`` column (format 1.1), it decides whether any disk is visible: a
+  sliver below the file's rounding (``sun_visible`` true, fraction written as 0.0) becomes
+  ``partial`` with the written 0.0 kept, and contradictions (false with a fraction > 0, or a
+  flag without the values it depends on) are rejected;
   ``earth_visible`` (centre above terrain) -> ``visible`` / ``not_visible`` (``center``).
 * Missing element (``null`` or ``NaN``) -> that body's state is ``unknown`` and the
   missing value stays ``None``. A visibility value that depends on a missing angle is
   treated as inconsistent and rejected.
 
-NOT verified here: the lunar body-fixed frame of the Horizons site coordinates vs. the
-Moon Trek DEM (see docs/viability-engine.md, "Remaining integration decisions").
+Frame: ``meta.frame`` (format 1.1) is recorded in ``provenance.coordinate_frame`` as the
+producer's statement. This adapter does not verify it (docs/viability-engine.md section 10).
 """
 
 from __future__ import annotations
@@ -40,7 +44,7 @@ from ..conventions import UTCDatetime
 from ..enums import AngleType, CalculationBasis, VisibilityCriterion, VisibilityState
 from ..inputs import ScientificTimeSeries
 
-ADAPTER_VERSION: Final = "site-file-adapter/0.1.0"
+ADAPTER_VERSION: Final = "site-file-adapter/0.2.0"
 
 # Default coverage-gap threshold, as a multiple of the declared step. Adapter policy, not data.
 DEFAULT_MAX_GAP_FACTOR: Final = 1.5
@@ -62,7 +66,10 @@ REQUIRED_COLUMNS: Final = (
     "earth_margin_deg",
     "earth_visible",
 )
-OPTIONAL_COLUMNS: Final = ("sun_angular_radius_deg", "earth_angular_radius_deg")
+OPTIONAL_COLUMNS: Final = ("sun_visible", "sun_angular_radius_deg", "earth_angular_radius_deg")
+# Rounding of sun_visible_fraction per documented generator version (docs/interfaces.md, Member 1).
+FRACTION_DECIMALS_BY_GENERATOR_VERSION: Final = {"1.0": 3, "1.1": 6}
+_ABSENT: Final = object()  # column not present in the file (distinct from a JSON null)
 
 _STEP_RE: Final = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(m|min|h|d)\s*$")
 _STEP_UNIT_S: Final = {"m": 60.0, "min": 60.0, "h": 3600.0, "d": 86400.0}
@@ -165,6 +172,9 @@ def sun_observation(cols: Mapping[str, Sequence[Any]], i: int) -> dict[str, Any]
         if "sun_angular_radius_deg" in cols
         else None
     )
+    flag = cols["sun_visible"][i] if "sun_visible" in cols else _ABSENT
+    if flag is not _ABSENT and flag is not None and not isinstance(flag, bool):
+        raise SiteFileError(f"timeline.sun_visible[{i}]: expected true/false/null, got {flag!r}")
     if az is not None:
         az = normalize_azimuth_deg(az, f"timeline.sun_azimuth_deg[{i}]")
     if hz is not None and az is None:
@@ -175,10 +185,18 @@ def sun_observation(cols: Mapping[str, Sequence[Any]], i: int) -> dict[str, Any]
             raise SiteFileError(
                 f"sample {i}: sun_visible_fraction given but an angle it depends on is missing (inconsistent)"
             )
+        if isinstance(flag, bool):
+            raise SiteFileError(
+                f"sample {i}: sun_visible given but the values it depends on are missing (inconsistent)"
+            )
         state, out_frac = VisibilityState.UNKNOWN, None
     else:
         if not 0.0 <= frac <= 1.0:
             raise SiteFileError(f"timeline.sun_visible_fraction[{i}]: {frac} outside [0, 1]")
+        if flag is None:
+            raise SiteFileError(f"sample {i}: sun_visible is null but sun_visible_fraction is given (inconsistent)")
+        if flag is False and frac > 0.0:
+            raise SiteFileError(f"sample {i}: sun_visible=false contradicts sun_visible_fraction={frac}")
         state = (
             VisibilityState.NOT_VISIBLE
             if frac == 0.0
@@ -186,6 +204,8 @@ def sun_observation(cols: Mapping[str, Sequence[Any]], i: int) -> dict[str, Any]
             if frac == 1.0
             else VisibilityState.PARTIAL
         )
+        if flag is True and frac == 0.0:
+            state = VisibilityState.PARTIAL  # sliver below the file's rounding; written 0.0 kept
         out_frac = frac
     return {
         "azimuth_deg": az,
@@ -315,6 +335,13 @@ def site_file_to_series(
     step_s = parse_step_s(step_raw)
     generated_raw = meta.get("generated_utc")
     generated = parse_times([generated_raw])[0] if generated_raw is not None else None
+    generator_version = meta.get("generator_version")
+    if generator_version is not None and not isinstance(generator_version, str):
+        raise SiteFileError(f"meta.generator_version must be a string, got {generator_version!r}")
+    frame = meta.get("frame")
+    if frame is not None and not (isinstance(frame, str) and frame.strip()):
+        raise SiteFileError(f"meta.frame must be a non-empty string, got {frame!r}")
+    decimals = FRACTION_DECIMALS_BY_GENERATOR_VERSION.get(generator_version) if generator_version else None
 
     cols, n, ignored = read_columns(timeline)
     times = parse_times(cols["time_utc"])
@@ -338,7 +365,13 @@ def site_file_to_series(
         f"meta: start_utc={start!r}, stop_utc={stop!r}, step={step_raw!r}. "
         f"Projected x_m={site.get('x_m')!r}, y_m={site.get('y_m')!r} (Moon Trek south polar stereographic). "
         "Sun visibility = fraction of solar disk above terrain; Earth visibility = centre above terrain. "
-        "Lunar body-fixed frame of ephemeris vs DEM NOT verified."
+        + (
+            f"Coordinate frame as stated by the producer (meta.frame): {frame.strip()!r}; "
+            "recorded, not independently verified by the viability engine."
+            if frame
+            else "Lunar body-fixed frame of ephemeris vs DEM not stated in the file; NOT verified."
+        )
+        + (f" generator_version={generator_version!r}." if generator_version else "")
     )
     if ignored:
         notes += f" Ignored timeline columns: {', '.join(ignored)}."
@@ -363,11 +396,17 @@ def site_file_to_series(
             "horizon_azimuth_step_deg": az_step,
             "generated_at_utc": generated,
             "generator": meta.get("generator")
-            or "not recorded in file (format: Member 1 precomputed site file, docs/interfaces.md)",
+            or (
+                f"Member 1 precompute (backend/scripts/precompute.py), generator_version {generator_version}"
+                if generator_version
+                else "not recorded in file (format: Member 1 precomputed site file, docs/interfaces.md)"
+            ),
             "references": references,
+            "coordinate_frame": frame.strip() if frame else None,
             "notes": notes,
         },
         "horizon_profile": profile,
+        "fraction_decimals": decimals,
         "samples": samples,
     }
     try:

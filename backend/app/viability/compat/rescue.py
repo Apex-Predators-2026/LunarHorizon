@@ -16,25 +16,37 @@ STATUS: the canonical engine raises ``NotImplementedError`` until Phases 3-6 exi
 ``evaluate_timeline`` is NOT yet usable end-to-end. Rescue keeps using its placeholder; to
 switch later, change the import in ``app/rescue/viability/__init__.py`` (Member 5's file).
 
-Lossy direction (canonical -> rescue). ``ViabilityResult`` has no UNKNOWN state and requires
-plain floats, so:
+Canonical -> rescue (shared ``ViabilityResult`` with ``eligibility``, nullable ``score`` and
+``Violation.is_unknown``; docs/interfaces.md):
 
-* ``passes = (eligibility == PASS)``. UNKNOWN therefore reads as "does not pass"; each
-  UNKNOWN constraint becomes a ``Violation`` whose message starts with ``UNKNOWN``.
-* Unknown/bounded metrics are reported at their *unfavourable* bound (never optimistic);
-  a metric with no bounds at all is reported at the worst value possible within the mission
-  (0 for "more is better", the whole mission for outage durations).
-* A missing score on a non-passing scenario is reported as 0.0. A missing score on a
-  passing scenario is an error.
+* ``eligibility`` is copied exactly (``pass`` / ``fail`` / ``unknown``); the legacy
+  ``passes`` flag is ``eligibility == "pass"``, so UNKNOWN is never reported as passing.
+* Each FAIL or UNKNOWN constraint becomes a ``Violation``; UNKNOWN ones carry
+  ``is_unknown=True`` (rescue then gives no loosening advice) and a message starting
+  ``UNKNOWN``.
+* ``ViabilityMetrics`` still requires plain floats, so unknown/bounded metrics are reported at
+  their *unfavourable* bound (never optimistic); a metric with no bounds at all is reported at
+  the worst value possible within the mission (0 for "more is better", the whole mission for
+  outage durations).
+* A missing score stays ``None`` (rescue: "not scored").
 The full canonical assessment is always available from ``evaluate_timeline_detailed``.
+
+Timeline coverage: the final rescue bin is represented only when its time is covered by the
+source (synthetic model, or a precomputed file confirmed to extend to mission end); nothing
+beyond the dataset is fabricated. Reading that file's last timestamp is the only file access
+in this module (cached per file and modification time).
 """
 
 from __future__ import annotations
 
+import json
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from functools import lru_cache
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Final, Literal
 
 from pydantic import ValidationError
@@ -69,7 +81,7 @@ from ..outputs import ConstraintEvaluation, Metric, ViabilityAssessment
 if TYPE_CHECKING:  # rescue's Timeline pulls in numpy; only needed for type checking
     from ...rescue.timeline.base import Timeline
 
-COMPAT_VERSION: Final = "rescue-compat/0.1.0"
+COMPAT_VERSION: Final = "rescue-compat/0.2.0"
 SOURCE: Final = f"viability-engine/{ENGINE_VERSION}"
 DEFAULT_MAX_GAP_FACTOR: Final = 1.5
 _HOUR_S: Final = 3600.0
@@ -172,11 +184,43 @@ def _classify_source(source: str) -> _SourceInfo:
     raise RescueCompatError(f"unrecognised timeline source {source!r}; cannot tell real from synthetic data")
 
 
+@lru_cache(maxsize=64)
+def _last_sample_time(path: str, mtime_ns: int) -> datetime | None:
+    """Last ``time_utc`` of a precomputed site file (both layouts rescue accepts); None if unreadable."""
+    try:
+        raw: Any = json.loads(Path(path).read_text(encoding="utf-8"))
+        body: Any = raw.get("timeline") if isinstance(raw, dict) else raw
+        last: Any = body["time_utc"][-1] if isinstance(body, dict) else body[-1]["time_utc"]
+        return parse_times([last])[0]
+    except (OSError, ValueError, KeyError, IndexError, TypeError):  # SiteFileError is a ValueError
+        return None
+
+
+def precomputed_dataset_end(source: str, data_dir: Path | None = None) -> datetime | None:
+    """Last sample time of the precomputed file behind a rescue ``source`` (``precomputed:<path>``).
+
+    ``data_dir`` defaults to rescue's ``DEFAULT_DATA_DIR``. Returns None when the source is not
+    precomputed or the file cannot be found or read (callers must then not assume coverage).
+    """
+    if not source.startswith("precomputed:"):
+        return None
+    if data_dir is None:
+        from ...rescue.timeline.precomputed import DEFAULT_DATA_DIR  # numpy is loaded with any Timeline
+
+        data_dir = DEFAULT_DATA_DIR
+    root = Path(data_dir).resolve()
+    path = (root / source.removeprefix("precomputed:")).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        return None
+    return _last_sample_time(str(path), path.stat().st_mtime_ns)
+
+
 def timeline_to_series(
     timeline: Timeline,
     *,
     max_gap_factor: float = DEFAULT_MAX_GAP_FACTOR,
     mission_end_utc: datetime | None = None,
+    precomputed_data_dir: Path | None = None,
 ) -> ScientificTimeSeries:
     """Rescue ``Timeline`` (numpy arrays) -> validated ``ScientificTimeSeries``.
 
@@ -187,8 +231,14 @@ def timeline_to_series(
     it. That is rescue's documented layout (``Evaluator.evaluate_many`` passes
     ``duration * 24`` hourly samples starting at landing, each the start of a one-step bin,
     and rescue states the timeline covers the mission). Coverage then ends at mission end,
-    so under sample-and-hold the final bin is represented instead of becoming unknown. Any
-    other layout is left as is: coverage is never extended by more than one step or on a guess.
+    so under sample-and-hold the final bin is represented instead of becoming unknown, but
+    only if that time is actually covered by the source: always for the synthetic model; for a
+    precomputed file only if its last sample is at or after mission end (``precomputed_data_dir``
+    defaults to rescue's data directory). Otherwise the final bin stays unknown. Any other
+    layout is left as is: coverage is never extended by more than one step or on a guess.
+
+    Unknown Earth visibility (NaN margin; rescue stores ``earth_visible=False`` there) is kept
+    as unknown, never read as a blackout.
     """
     info = _classify_source(timeline.source)
     if not timeline.step_hours > 0:
@@ -204,7 +254,10 @@ def timeline_to_series(
         "earth_elevation_deg": timeline.earth_el.tolist(),
         "earth_horizon_deg": timeline.earth_horizon.tolist(),
         "earth_margin_deg": margin.tolist(),
-        "earth_visible": [bool(v) for v in timeline.earth_visible.tolist()],
+        "earth_visible": [
+            None if math.isnan(m) else bool(v)
+            for v, m in zip(timeline.earth_visible.tolist(), margin.tolist(), strict=True)
+        ],
     }
     site = timeline.site
     try:
@@ -227,10 +280,18 @@ def timeline_to_series(
             raise RescueCompatError("mission_end_utc must be timezone-aware UTC")
         end = mission_end_utc.astimezone(UTC)
         if end - times[-1] == timedelta(seconds=step_s):
-            coverage_end = end
-            bin_note = (
-                "Coverage extended by one step to mission end: rescue's bin layout (last sample = mission end - step)."
-            )
+            dataset_end = None if info.is_synthetic else precomputed_dataset_end(timeline.source, precomputed_data_dir)
+            if info.is_synthetic or (dataset_end is not None and end <= dataset_end):
+                coverage_end = end
+                bin_note = (
+                    "Coverage extended by one step to mission end: rescue's bin layout (last sample = mission end "
+                    "- step), and the source covers that time."
+                )
+            else:
+                bin_note = (
+                    "Final bin NOT extended: the source dataset is not known to cover it "
+                    f"(dataset ends {dataset_end.isoformat() if dataset_end else 'unknown'}); that time is unknown."
+                )
     payload = {
         "dataset_id": internal_site_id(f"rescue_{sid}_{times[0]:%Y%m%dT%H%M}_{n}"),
         "site": {"id": sid, "name": site.name.strip() or site.id, "lat": site.lat, "lon": lon},
@@ -376,7 +437,8 @@ def constraint_to_violation(c: ConstraintEvaluation, mission_hours: float) -> Vi
     actual = _required(conservative_value(c.measured, better, worst, name=c.constraint_id.value), c.constraint_id.value)
     shortfall = max(0.0, required - actual if better == "more" else actual - required)
     relative = shortfall / required if required else 0.0
-    prefix = "UNKNOWN (incomplete data; worst case shown): " if c.status is ConstraintStatus.UNKNOWN else ""
+    unknown = c.status is ConstraintStatus.UNKNOWN
+    prefix = "UNKNOWN (incomplete data; worst case shown): " if unknown else ""
     return Violation(
         constraint=field,
         required=required,
@@ -385,29 +447,31 @@ def constraint_to_violation(c: ConstraintEvaluation, mission_hours: float) -> Vi
         shortfall=shortfall,
         relative_shortfall=relative,
         message=prefix + c.message,
+        is_unknown=unknown,
     )
 
 
 def assessment_to_result(assessment: ViabilityAssessment, scenario: Scenario, data_source: str) -> ViabilityResult:
-    """Canonical assessment -> rescue ``ViabilityResult`` (lossy; see module docstring)."""
+    """Canonical assessment -> rescue ``ViabilityResult`` (see module docstring)."""
     hours = assessment.evaluated_duration_s / _HOUR_S
     violations = [
         constraint_to_violation(c, hours)
         for c in assessment.constraints
         if c.status in (ConstraintStatus.FAIL, ConstraintStatus.UNKNOWN)
     ]
-    passes = assessment.eligibility is Eligibility.PASS
-    if passes == bool(violations):  # guaranteed by derive_eligibility; checked for safety
+    eligibility = assessment.eligibility
+    passes = eligibility is Eligibility.PASS
+    # Guaranteed by derive_eligibility; checked so the shared invariants can never be broken:
+    # passes == no violations; UNKNOWN has unknown violations and no FAIL ones.
+    if passes == bool(violations):
         raise RescueCompatError("eligibility and violations disagree")
-    score = assessment.score.score
-    if score is None:
-        if passes:
-            raise RescueCompatError("passing scenario has no score; rescue requires one")
-        score = 0.0
+    if eligibility is Eligibility.UNKNOWN and not all(v.is_unknown for v in violations):
+        raise RescueCompatError("UNKNOWN eligibility with a decided failure")
     return ViabilityResult(
         scenario=scenario,
         passes=passes,
-        score=score,
+        eligibility=eligibility.value,
+        score=assessment.score.score,  # None = not scored
         metrics=metrics_to_rescue(assessment),
         violations=violations,
         source=SOURCE,
@@ -419,24 +483,43 @@ def assessment_to_result(assessment: ViabilityAssessment, scenario: Scenario, da
 
 
 def evaluate_timeline_detailed(
-    scenario: Scenario, timeline: Timeline, *, engine: Engine = evaluate_scenario
+    scenario: Scenario,
+    timeline: Timeline,
+    *,
+    engine: Engine = evaluate_scenario,
+    precomputed_data_dir: Path | None = None,
 ) -> tuple[ViabilityResult, ViabilityAssessment]:
     """Rescue result plus the full canonical assessment (with PASS/FAIL/UNKNOWN intact)."""
     mission = scenario_to_mission(scenario)
-    assessment = engine(mission, timeline_to_series(timeline, mission_end_utc=mission.mission_end_utc))
+    series = timeline_to_series(
+        timeline, mission_end_utc=mission.mission_end_utc, precomputed_data_dir=precomputed_data_dir
+    )
+    assessment = engine(mission, series)
     return assessment_to_result(assessment, scenario, timeline.source), assessment
 
 
-def evaluate_timeline(scenario: Scenario, timeline: Timeline, *, engine: Engine = evaluate_scenario) -> ViabilityResult:
+def evaluate_timeline(
+    scenario: Scenario,
+    timeline: Timeline,
+    *,
+    engine: Engine = evaluate_scenario,
+    precomputed_data_dir: Path | None = None,
+) -> ViabilityResult:
     """Drop-in for rescue's ``evaluate_timeline``. Raises NotImplementedError until Phases 3-6."""
-    return evaluate_timeline_detailed(scenario, timeline, engine=engine)[0]
+    return evaluate_timeline_detailed(scenario, timeline, engine=engine, precomputed_data_dir=precomputed_data_dir)[0]
 
 
-def make_evaluate_fn(engine: Engine = evaluate_scenario) -> Callable[[Scenario, Timeline], ViabilityResult]:
-    """A callable with rescue's ``EvaluateFn`` signature, e.g. ``Evaluator(evaluate=make_evaluate_fn())``."""
+def make_evaluate_fn(
+    engine: Engine = evaluate_scenario, *, precomputed_data_dir: Path | None = None
+) -> Callable[[Scenario, Timeline], ViabilityResult]:
+    """A callable with rescue's ``EvaluateFn`` signature, e.g. ``Evaluator(evaluate=make_evaluate_fn())``.
+
+    Pass ``precomputed_data_dir`` when rescue's provider reads site files from a non-default
+    directory, so the final-bin coverage check finds the same files.
+    """
 
     def evaluate(scenario: Scenario, timeline: Timeline) -> ViabilityResult:
-        return evaluate_timeline(scenario, timeline, engine=engine)
+        return evaluate_timeline(scenario, timeline, engine=engine, precomputed_data_dir=precomputed_data_dir)
 
     return evaluate
 
@@ -452,6 +535,7 @@ __all__ = [
     "internal_site_id",
     "make_evaluate_fn",
     "metrics_to_rescue",
+    "precomputed_dataset_end",
     "requirements_to_canonical",
     "scenario_to_mission",
     "timeline_to_series",

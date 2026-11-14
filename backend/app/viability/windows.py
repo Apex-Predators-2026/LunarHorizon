@@ -167,13 +167,28 @@ def _earth_flag(obs: BodyObservation) -> Tri:
     return obs.state is VisibilityState.VISIBLE
 
 
-def power_flag(any_: Tri, frac: float | None, threshold: float | None) -> Tri:
-    """Power-eligible: ``fraction > 0 and fraction >= threshold``; no threshold -> direct sunlight."""
+def power_flag(any_: Tri, disk: Tri, frac: float | None, threshold: float | None) -> Tri:
+    """Power-eligible: some solar disk visible (``disk``) and ``fraction >= threshold``.
+
+    No threshold -> direct sunlight (``any_``). ``disk`` comes from the authoritative
+    apparent-disk state, so a sliver below the producer's rounding precision (written as
+    fraction 0.0) is lit at threshold 0 and dark at any threshold above that precision.
+    For consistent data this equals ``fraction > 0 and fraction >= threshold``.
+    """
     if threshold is None:
         return any_
-    if frac is None:
+    if disk is False:
+        return False
+    if frac is None or disk is None:
         return None
-    return frac > 0.0 and frac >= threshold
+    return frac >= threshold
+
+
+def _disk_flag(any_: Tri, frac: float | None, criterion: VisibilityCriterion) -> Tri:
+    """Whether any part of the solar disk is visible (evidence used for power eligibility)."""
+    if criterion is VisibilityCriterion.APPARENT_DISK:
+        return any_  # state is authoritative (covers sub-precision slivers)
+    return None if frac is None else frac > 0.0  # centre criterion: the state says nothing about the limb
 
 
 def kleene_and(a: Tri, b: Tri) -> Tri:
@@ -201,6 +216,7 @@ class PreparedSeries:
     lo_us: tuple[int, ...]  # support start per sample
     hi_us: tuple[int, ...]  # support end per sample (== lo_us when it represents no time)
     sun_any: tuple[Tri, ...]
+    sun_disk: tuple[Tri, ...]  # any part of the disk visible (power evidence)
     sun_full: tuple[Tri, ...]
     sun_partial: tuple[Tri, ...]
     sun_fraction: tuple[float | None, ...]
@@ -265,6 +281,7 @@ def prepare_series(series: ScientificTimeSeries, policy: SamplingPolicy = DEFAUL
     )
     basis, sun_crit = series.calculation_basis, series.sun_criterion
     sun_any: list[Tri] = []
+    sun_disk: list[Tri] = []
     sun_full: list[Tri] = []
     sun_partial: list[Tri] = []
     fracs: list[float | None] = []
@@ -272,6 +289,7 @@ def prepare_series(series: ScientificTimeSeries, policy: SamplingPolicy = DEFAUL
         frac = _effective_fraction(s.sun, sun_crit)
         a, f, p = _sun_flags(s.sun, sun_crit, frac)
         sun_any.append(a)
+        sun_disk.append(_disk_flag(a, frac, sun_crit))
         sun_full.append(f)
         sun_partial.append(p)
         fracs.append(frac)
@@ -282,6 +300,7 @@ def prepare_series(series: ScientificTimeSeries, policy: SamplingPolicy = DEFAUL
         lo_us=tuple(lo),
         hi_us=tuple(hi),
         sun_any=tuple(sun_any),
+        sun_disk=tuple(sun_disk),
         sun_full=tuple(sun_full),
         sun_partial=tuple(sun_partial),
         sun_fraction=tuple(fracs),
@@ -358,7 +377,7 @@ class RangeTimeline:
 def condition_values(p: PreparedSeries, i: int, threshold: float | None) -> dict[Condition, Tri]:
     if i < 0:
         return dict.fromkeys(Condition)
-    power = power_flag(p.sun_any[i], p.sun_fraction[i], threshold)
+    power = power_flag(p.sun_any[i], p.sun_disk[i], p.sun_fraction[i], threshold)
     earth = p.earth_visible[i]
     return {
         Condition.DIRECT_SUNLIGHT: p.sun_any[i],

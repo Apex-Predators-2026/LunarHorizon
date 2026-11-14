@@ -246,3 +246,43 @@ def test_horizon_profile_unsorted_rejected() -> None:
 
 def test_horizon_profile_allows_unknown_directions() -> None:
     assert HorizonProfile(azimuths_deg=[0.0, 1.0], horizon_deg=[0.5, None]).horizon_deg[1] is None
+
+
+# --- rule 6 exception: sub-precision slivers (only when the producer declares its rounding) --
+
+
+def _first_index(series_dict: dict[str, Any], state: str) -> int:
+    return next(i for i, s in enumerate(series_dict["samples"]) if s["sun"]["state"] == state)
+
+
+def test_partial_with_zero_fraction_rejected_without_declared_rounding(series_dict: dict[str, Any]) -> None:
+    i = _first_index(series_dict, "partial")
+    series_dict["samples"][i]["sun"]["visible_fraction"] = 0.0
+    with pytest.raises(ValidationError, match="implies 'not_visible'"):
+        ScientificTimeSeries.model_validate(series_dict)
+
+
+def test_partial_with_zero_fraction_accepted_with_declared_rounding(series_dict: dict[str, Any]) -> None:
+    i = _first_index(series_dict, "partial")
+    series_dict["samples"][i]["sun"]["visible_fraction"] = 0.0
+    series_dict["fraction_decimals"] = 6
+    s = ScientificTimeSeries.model_validate(series_dict)
+    assert s.samples[i].sun.state is VisibilityState.PARTIAL and s.samples[i].sun.visible_fraction == 0.0
+
+
+@pytest.mark.parametrize(("state", "fraction"), [("partial", 1.0), ("visible", 0.0), ("not_visible", 0.5)])
+def test_declared_rounding_does_not_relax_other_mismatches(
+    series_dict: dict[str, Any], state: str, fraction: float
+) -> None:
+    i = _first_index(series_dict, state)
+    series_dict["samples"][i]["sun"]["visible_fraction"] = fraction
+    series_dict["fraction_decimals"] = 6
+    with pytest.raises(ValidationError, match="implies"):
+        ScientificTimeSeries.model_validate(series_dict)
+
+
+@pytest.mark.parametrize("value", [-1, 18, 6.0, True, "6"])
+def test_fraction_decimals_strict(series_dict: dict[str, Any], value: object) -> None:
+    series_dict["fraction_decimals"] = value
+    with pytest.raises(ValidationError):
+        ScientificTimeSeries.model_validate(series_dict)
