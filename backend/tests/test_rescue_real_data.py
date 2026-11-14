@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from app.engine.sites import SITES as ENGINE_SITES
-from app.models import Scenario
+from app.models import Scenario, Violation
 from app.rescue import Evaluator, rescue, sensitivity
 from app.rescue.catalog import NOT_LANDING_SITES, SITES_BY_ID, custom_site, get_site
 from app.rescue.engine import is_real
@@ -137,3 +137,146 @@ def test_synthetic_provider_still_used_in_unit_tests():
 
 def test_data_dir_points_at_repo_data():
     assert DEFAULT_DATA_DIR == Path(__file__).resolve().parents[2] / "data" / "sites"
+
+
+# ---- speed-ups must not change results: fast window path + evaluation cache ----------------------------
+
+from app.rescue import compromise  # noqa: E402
+from app.rescue.fastpath import window_series  # noqa: E402
+from app.rescue.schemas import CompromiseRequest, ScienceGoal  # noqa: E402
+from app.viability.compat import rescue as compat  # noqa: E402
+from app.viability.engine import evaluate_scenario  # noqa: E402
+
+
+def _slow() -> Evaluator:
+    """The behaviour before the speed-ups: no cache, every window converted from scratch."""
+    return Evaluator(cache_size=0, fast_windows=False)
+
+
+def _mid_start(site_id: str = "connecting-ridge") -> datetime:
+    first, _ = data_range(site_id)
+    return datetime(first.year + 1, 10, 15, tzinfo=timezone.utc)  # well inside the data, whatever its range
+
+
+def _dump(model) -> dict:
+    return model.model_dump(mode="json")
+
+
+@pytest.mark.parametrize("site_id", REAL_IDS)
+def test_window_series_equals_the_canonical_conversion(site_id):
+    """The fast path hands the engine exactly the series the compat layer builds for each window."""
+    site = get_site(site_id).to_site()
+    prov = PrecomputedTimelineProvider(fallback=SyntheticTimelineProvider())
+    _, last = data_range(site_id)
+    t0 = _mid_start(site_id)
+    n = 7 * 24
+    # one fetch, the last window ending exactly on the file's final sample
+    final = last - timedelta(hours=n)
+    starts = [t0 + timedelta(hours=12 * k) for k in range(6)] + [final]
+    tl = prov.timeline(site, min(starts), max(starts) + timedelta(hours=n - 1))
+    full = compat.timeline_to_series(tl)
+    for t in starts:
+        scen = Scenario(site=site, landing_utc=t, duration_days=7)
+        i = tl.index_of(t)
+        mission = compat.scenario_to_mission(scen)
+        canonical = compat.timeline_to_series(tl.slice(i, i + n), mission_end_utc=mission.mission_end_utc)
+        fast = window_series(full, tl, mission.mission_end_utc, i, i + n)
+        assert fast == canonical
+        assert (compat.assessment_to_result(evaluate_scenario(mission, fast), scen, tl.source)
+                == compat.evaluate_timeline(scen, tl.slice(i, i + n)))
+
+
+def test_evaluate_many_same_with_fast_path_cache_and_without():
+    site = get_site("connecting-ridge").to_site()
+    req = Scenario(site=site, landing_utc=_mid_start()).requirements
+    starts = [_mid_start() + timedelta(hours=12 * k) for k in range(20)]
+    before = _slow().evaluate_many(site, starts, 7, req)
+    ev = Evaluator()
+    cold = ev.evaluate_many(site, starts, 7, req)
+    warm = ev.evaluate_many(site, starts, 7, req)  # served from the cache
+    assert cold == before and warm == before
+    assert ev.evaluations == len(starts) and ev.cache_hits == len(starts)
+    # a different subset of the same starts reuses what it can and still agrees
+    assert ev.evaluate_many(site, starts[5:9], 7, req) == before[5:9]
+
+
+def test_rescue_response_unchanged_by_speedups():
+    """Connecting Ridge, 10-day delay, default search options: alternatives (order, scores, verdicts),
+    summary and everything else equal the pre-optimisation behaviour, also on a repeat from the cache."""
+    sc = Scenario(site=get_site("connecting-ridge").to_site(), landing_utc=_mid_start())
+    req = RescueRequest(original=sc, change=PlanChange(launch_delay_days=10))
+    expected = rescue(req, _slow())
+    ev = Evaluator()
+    got = rescue(req, ev)
+    again = rescue(req, ev)
+    assert _dump(got) == _dump(expected) and _dump(again) == _dump(expected)
+    assert [a.viability.score for a in got.alternatives] == [a.viability.score for a in expected.alternatives]
+    assert [a.viability.verdict for a in got.alternatives] == [a.viability.verdict for a in expected.alternatives]
+    assert got.summary == expected.summary and got.status == expected.status
+    assert ev.cache_hits > 0
+
+
+def test_sensitivity_and_compromise_unchanged_by_speedups():
+    sc = Scenario(site=get_site("connecting-ridge").to_site(), landing_utc=_mid_start())
+    assert _dump(sensitivity(SensitivityRequest(scenario=sc), Evaluator())) == \
+        _dump(sensitivity(SensitivityRequest(scenario=sc), _slow()))
+    creq = CompromiseRequest(scenario=sc, science=ScienceGoal(target_psr_id="shackleton-psr"),
+                             search=SearchOptions(date_window_days=10, date_step_hours=24))
+    ev = Evaluator()
+    rescue(RescueRequest(original=sc, search=creq.search), ev)  # fills the cache with overlapping evaluations
+    assert _dump(compromise(creq, ev)) == _dump(compromise(creq, _slow()))
+
+
+def test_cached_results_are_copies():
+    site = get_site("connecting-ridge").to_site()
+    req = Scenario(site=site, landing_utc=_mid_start()).requirements
+    ev = Evaluator()
+    first = ev.evaluate_many(site, [_mid_start()], 7, req)[0]
+    first.metrics.sunlight_fraction = -1.0
+    n_viol = len(first.violations)
+    first.violations.append(Violation(constraint="x", required=1, actual=0, unit="h", shortfall=1,
+                                      relative_shortfall=1, message="mutated"))
+    again = ev.evaluate_many(site, [_mid_start()], 7, req)[0]  # from the cache
+    assert ev.cache_hits == 1 and len(again.violations) == n_viol and again.metrics.sunlight_fraction != -1.0
+    assert again == _slow().evaluate_many(site, [_mid_start()], 7, req)[0]
+
+
+def test_cache_is_thread_safe():
+    """The router shares one Evaluator across a thread pool: hammer a tiny cache from several threads."""
+    import threading
+    site = get_site("connecting-ridge").to_site()
+    res = Evaluator(cache_size=0).evaluate_many(site, [_mid_start()], 2, Scenario(site=site, landing_utc=_mid_start()).requirements)[0]
+    ev = Evaluator(cache_size=4)
+    errors = []
+
+    def hammer(seed: int):
+        try:
+            for i in range(3000):
+                key = ("k", (i * 7 + seed) % 11)
+                ev._cache_put(key, res)
+                ev._cache_get(key)
+                ev._cache_get(("k", (i + seed) % 11))
+        except Exception as e:  # noqa: BLE001
+            errors.append(e)
+
+    threads = [threading.Thread(target=hammer, args=(s,)) for s in range(8)]
+    [t.start() for t in threads]
+    [t.join() for t in threads]
+    assert not errors and len(ev._cache) <= 4
+
+
+def test_cache_is_bounded_and_never_mixes_real_and_synthetic():
+    site = get_site("connecting-ridge").to_site()
+    req = Scenario(site=site, landing_utc=_mid_start()).requirements
+    ev = Evaluator(cache_size=3)
+    ev.evaluate_many(site, [_mid_start() + timedelta(hours=h) for h in range(10)], 2, req)
+    assert len(ev._cache) == 3
+    # past the real data: unknown without simulation, synthetic with it, whichever is asked first
+    _, last = data_range("connecting-ridge")
+    late = last + timedelta(days=30)
+    for order in ((False, True), (True, False)):
+        ev = Evaluator()
+        out = {sim: ev.evaluate_many(site, [late, late + timedelta(hours=1)], 2, req, simulation=sim)
+               for sim in order}
+        assert all(not is_real(r) and r.eligibility == "unknown" for r in out[False])
+        assert all(r.data_source == "synthetic-placeholder" for r in out[True])
