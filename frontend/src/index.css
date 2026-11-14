@@ -732,3 +732,111 @@
 .lp-light input[type='range'].mango-range::-moz-range-track {
   background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
 }
+
+/* ==========================================================================
+ * Glass (see ui/GlassSurface.tsx): frosted, lightly translucent surfaces over the peach / coral gradient.
+ * Neutral tint only, so the colours behind show through; highlights follow the cursor without moving the panel.
+ * ========================================================================== */
+.glass-on {
+  --mx: 30%;
+  --my: 0%;
+  position: relative;
+  isolation: isolate;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.12) 55%, rgba(255, 255, 255, 0.2) 100%);
+  -webkit-backdrop-filter: blur(18px) saturate(1.7);
+  backdrop-filter: blur(18px) saturate(1.7);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),           /* top edge catches the light */
+    inset 0 -1px 0 rgba(255, 255, 255, 0.14),
+    inset 0 0 14px rgba(255, 255, 255, 0.1),
+    0 10px 28px -8px rgba(130, 40, 20, 0.28),          /* soft, warm, restrained depth */
+    0 2px 6px rgba(130, 40, 20, 0.12);
+  transition: box-shadow var(--md-dur-medium2) var(--md-ease-standard), background-color var(--md-dur-medium2) var(--md-ease-standard);
+}
+/* Optional edge refraction: Chromium can distort the blurred backdrop through an SVG filter. */
+.glass-on[data-refract='true'] {
+  -webkit-backdrop-filter: blur(16px) saturate(1.7) url(#glass-refract);
+  backdrop-filter: blur(16px) saturate(1.7) url(#glass-refract);
+}
+/* Cursor light: a soft spot that slides along the surface (the surface itself stays still). */
+.glass-on::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(180px circle at var(--mx) var(--my), rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 70%);
+  opacity: 0.35;
+  transition: opacity var(--md-dur-medium2) var(--md-ease-standard);
+}
+.glass-on:hover::before {
+  opacity: 1;
+}
+/* Fine frosted grain. */
+.glass-on::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.glass-on > * {
+  position: relative;
+  z-index: 1;
+}
+/* Hover: a touch more light and depth, no movement. */
+.glass-on:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 18px rgba(255, 255, 255, 0.14),
+    0 14px 34px -8px rgba(130, 40, 20, 0.34),
+    0 3px 8px rgba(130, 40, 20, 0.14);
+}
+/* Browsers without backdrop-filter: a denser, still translucent surface so text stays readable. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-on {
+    background: linear-gradient(135deg, rgba(255, 248, 244, 0.9), rgba(255, 236, 228, 0.82));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-on::before {
+    opacity: 0.5;
+    transition: none;
+  }
+  .glass-on:hover::before {
+    opacity: 0.5;
+  }
+}
+
+/* Links and status text inside a glass surface use charcoal so they stay readable over the gradient. */
+.glass-on .cmp-navlink,
+.glass-on [aria-live] {
+  color: var(--color-calcite-ink);
+}
+.glass-on .cmp-navlink:hover {
+  color: #000;
+}
+
+/* The sidebar's drag bar does not react to presses: no shrink, so no panel edge shows around it. */
+.no-press:active {
+  transform: none !important;
+}
+.no-press::before {
+  display: none;
+}
+
+/* Scenario Comparison keeps plain coral slider fills (no mango mesh there). */
+.cmp-page.lp-light input[type='range']::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+}
+.cmp-page.lp-light input[type='range']::-moz-range-track {
+  background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+}
