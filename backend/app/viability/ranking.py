@@ -32,6 +32,8 @@ Stored (rounded) values are compared exactly, never with a tolerance.
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from enum import StrEnum
+from typing import Final
 
 from .enums import (
     ComparabilityPolicy,
@@ -44,11 +46,15 @@ from .enums import (
 from .outputs import RankedScenario, RankingResult, ViabilityAssessment
 
 __all__ = [
+    "ORDER_KEY_CRITERIA",
     "RANKING_METHOD_VERSION",
     "RankingComparabilityError",
+    "RankingCriterion",
+    "comparability_issues",
     "partition_comparable",
     "rank_assessments",
     "ranking_explanations",
+    "ranking_order_key",
 ]
 
 # method_version of an empty ranking (no scoring method exists to report).
@@ -69,6 +75,50 @@ _TIER: dict[Eligibility, int] = {
 
 class RankingComparabilityError(ValueError):
     """The assessments cannot share one ranking (duplicate ids, legacy score or incompatible basis)."""
+
+
+class RankingCriterion(StrEnum):
+    """Name of one position of the D8 ordering key (see :data:`ORDER_KEY_CRITERIA`)."""
+
+    ELIGIBILITY = "eligibility"  # tier: PASS, then UNKNOWN, then FAIL
+    FAIL_CONSTRAINT_COUNT = "fail_constraint_count"  # fewer FAIL constraints first (FAIL tier)
+    UNKNOWN_CONSTRAINT_COUNT = "unknown_constraint_count"  # fewer UNKNOWN constraints first
+    SCORED_BEFORE_UNSCORED = "scored_before_unscored"  # known/bounded before no number
+    SCORE_LOWER_BOUND = "score_lower_bound"  # exact score or guaranteed lower bound, descending
+    EXACT_BEFORE_BOUNDED = "exact_before_bounded"  # at an equal lower bound, known before bounded
+    OVERALL_RISK = "overall_risk"  # low < moderate < high < unknown
+    MIN_COVERAGE = "min_coverage"  # min(sun, earth coverage) descending
+    SCENARIO_ID = "scenario_id"  # stable, preference-free final tie-break
+
+
+# Name of each position of ``_order_key`` per tier, kept next to it so the two cannot drift apart
+# (tested position by position). Used by ``ranking_evidence`` to name the deciding criterion.
+ORDER_KEY_CRITERIA: Final[dict[Eligibility, tuple[RankingCriterion, ...]]] = {
+    Eligibility.PASS: (
+        RankingCriterion.ELIGIBILITY,
+        RankingCriterion.SCORED_BEFORE_UNSCORED,
+        RankingCriterion.SCORE_LOWER_BOUND,
+        RankingCriterion.EXACT_BEFORE_BOUNDED,
+        RankingCriterion.OVERALL_RISK,
+        RankingCriterion.MIN_COVERAGE,
+        RankingCriterion.SCENARIO_ID,
+    ),
+    Eligibility.UNKNOWN: (
+        RankingCriterion.ELIGIBILITY,
+        RankingCriterion.UNKNOWN_CONSTRAINT_COUNT,
+        RankingCriterion.MIN_COVERAGE,
+        RankingCriterion.SCENARIO_ID,
+    ),
+    Eligibility.FAIL: (
+        RankingCriterion.ELIGIBILITY,
+        RankingCriterion.FAIL_CONSTRAINT_COUNT,
+        RankingCriterion.UNKNOWN_CONSTRAINT_COUNT,
+        RankingCriterion.SCORED_BEFORE_UNSCORED,
+        RankingCriterion.SCORE_LOWER_BOUND,
+        RankingCriterion.OVERALL_RISK,
+        RankingCriterion.SCENARIO_ID,
+    ),
+}
 
 
 # --- helpers -----------------------------------------------------------------------------------
@@ -186,6 +236,35 @@ def _entry(a: ViabilityAssessment, rank: int | None) -> RankedScenario:
 # --- public API --------------------------------------------------------------------------------
 
 
+def ranking_order_key(assessment: ViabilityAssessment) -> tuple[object, ...]:
+    """The exact sort key ``rank_assessments`` uses (ascending = earlier in the ranking).
+
+    Position ``i`` is named by ``ORDER_KEY_CRITERIA[assessment.eligibility][i]``. Keys are only
+    meaningful between assessments that are comparable (see :func:`comparability_issues`).
+    """
+    return _order_key(assessment)
+
+
+def comparability_issues(
+    a: ViabilityAssessment,
+    b: ViabilityAssessment,
+    policy: ComparabilityPolicy | str = ComparabilityPolicy.STRICT,
+) -> list[str]:
+    """Why ``a`` and ``b`` may not share one ranking under ``policy``; empty when they may.
+
+    Same rule as :func:`rank_assessments` (data basis, scoring method, effective weights, and under
+    STRICT the configuration fingerprint and evaluated duration). A legacy score without Phase 5
+    metadata is reported as an issue instead of raising. Scenario ids are not checked here.
+    """
+    pol = _coerce_policy(policy)
+    try:
+        if _comparison_key(a, pol) == _comparison_key(b, pol):
+            return []
+    except RankingComparabilityError as exc:
+        return [str(exc)]
+    return _mismatches(a, b, pol) or ["comparability key"]
+
+
 def partition_comparable(
     assessments: Iterable[ViabilityAssessment],
     policy: ComparabilityPolicy | str = ComparabilityPolicy.STRICT,
@@ -282,7 +361,9 @@ def ranking_explanations(assessments: Iterable[ViabilityAssessment], result: Ran
         if a.eligibility is Eligibility.PASS:
             out[e.scenario_id] = (
                 f"Rank {e.rank}: all hard constraints pass; {_score_text(a)}; overall risk "
-                f"{a.overall_risk.value}. Ties are broken by risk, then coverage, then scenario id."
+                f"{a.overall_risk.value}. Ordered by score lower bound (scored before unscored); at an equal "
+                "lower bound an exact score precedes a bounded one, then lower risk, then higher coverage, "
+                "then scenario id."
             )
             continue
         statuses = ConstraintStatus.UNKNOWN if a.eligibility is Eligibility.UNKNOWN else ConstraintStatus.FAIL
