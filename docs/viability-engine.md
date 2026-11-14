@@ -3,8 +3,10 @@
 Owner: Member 2 (Mission Viability, Risk Assessment & Ranking)
 Status: **Phases 2–4 implemented** (sunlight / Earth-visibility analysis, §5b; constraint
 verdicts PASS / FAIL / UNKNOWN and eligibility, §5c; operational margins and rule-based risk
-indicators, §5d). **Phases 5–6 not started**, so there is still no score, explanation text or
-full `evaluate_scenario`.
+indicators, §5d). **Phase 5 contract prepared (C0, §5e)**: score status and bounds, comparability
+metadata, data basis and ranking policy are defined and validated, but the scoring and ranking
+algorithms (5A / 5B) are not implemented yet, so there is still no score, explanation text or full
+`evaluate_scenario`.
 Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.4.0-phase4"`.
 Synchronized with `main` as of 2026-11-13: Member 1 site-file format **1.1** (§3a) and Member 5's
 shared `ViabilityResult` with `eligibility` / nullable `score` / `Violation.is_unknown` (§5a).
@@ -42,7 +44,8 @@ Members 3/4/5 ──────────────────────
 | `constraints.py` | PASS / FAIL / UNKNOWN / NOT_APPLICABLE per requirement, eligibility; `assess_constraints` (§5c) | 3 ✅ |
 | `margins.py` | Signed operational margins per hard constraint, bounds, classification (§5d) | 4 ✅ |
 | `risk.py` | Rule-based risk indicators and `overall_risk`, consuming the margins (§5d) | 4 ✅ |
-| `scoring.py` | Desirability score, ranking | 5 (stub) |
+| `scoring.py` | Desirability score (5A); `rank_assessments` re-exported from `ranking.py` after integration | 5 (stub; contract C0 ✅, §5e) |
+| `ranking.py` | Eligibility-aware, comparability-checked ranking (5B) | 5 (not yet created; contract C0 ✅) |
 | `explain.py` | Explanations; `STANDARD_LIMITATIONS` (defined now) | 6 (stub) |
 | `engine.py` | `evaluate_scenario(scenario, series)` pipeline | 5–6 (stub; Phases 2–4 callable directly) |
 
@@ -207,7 +210,7 @@ format 1.0, direct sunlight rose by 0.02–0.07 pp and full sunlight fell by 0.0
 | `LandingSite` | `id`, `name`, `lat`, `lon`, `surface_height_m?` | Same field names as the shared `Site` |
 | `SpacecraftConfiguration` | `power_source` (solar/radioisotope/battery_only/hybrid/other), `communication_mode` (direct_to_earth/relay/direct_and_relay/none), `max_continuous_darkness_s`, `max_communication_blackout_s`, `solar_power_min_disk_fraction` | No such limit → constraint `not_applicable`; no threshold → "power-lit" = direct sunlight (any visible disk) |
 | `MissionRequirements` (hard) | `min_sunlight_percent` (share of *time* with direct sunlight), `min_earth_visibility_percent`, `min_simultaneous_percent`, `min_mean_solar_disk_fraction` (time-average of the visible disk fraction), `min_initial_sunlight_s`, `min_initial_earth_visibility_s`, `min_sun_clearance_deg`, `min_earth_clearance_deg`, `unknown_data_policy` | Not required |
-| `RankingPreferences` (soft) | Non-negative relative weights for sunlight, Earth visibility, simultaneity, darkness/blackout/clearance margins | At least one weight > 0 |
+| `RankingPreferences` (soft) | Non-negative relative weights for sunlight, Earth visibility, simultaneity, darkness/blackout/clearance margins. Defaults: 1, 1, 0, 1, 1, **0** (clearance changed from 0.5 in C0: not supported yet, §5e) | At least one weight > 0 |
 
 **Power-lit / power-dark.** When `solar_power_min_disk_fraction` (rescue's `panel_threshold`,
 e.g. 0.25) is set, a sample is power-lit iff some solar disk is visible and `visible_fraction ≥`
@@ -237,7 +240,7 @@ reported as a failure (§5c). **There is no optimistic option.**
 | `windows[]` | `kind` (see §5b table), start/end/`duration_s`, `clipped_at_start/end` |
 | `margins[]` | Signed headroom (+ = safe), `reference`, `related_constraint` |
 | `risks[]`, `overall_risk` | Rule-triggered indicators with the explicit `rule` text |
-| `score` | `score` 0–100 or null, `rank_eligible`, per-component breakdown |
+| `score` | `score` 0–100 (exact only) or null, `rank_eligible`, per-component breakdown; Phase 5 adds `status`, `score_bounds`, `configuration_key` (§5e) |
 | `explanations[]` | `category`, `severity`, `message` |
 | `data_quality` | Provenance (incl. `is_synthetic`), basis, criteria, sampling policy, evaluated duration, sample count, largest gap, uncovered time and gap count, Sun/Earth unknown time and coverage %, `assumptions[]`, `warnings[]` |
 | `limitations[]` | Always includes `explain.STANDARD_LIMITATIONS` |
@@ -881,6 +884,162 @@ Fixes applied in the integration:
 `evaluate_scenario` still raises `NotImplementedError` until Phases 5–6 assemble the
 `ViabilityAssessment` (margins → `margins[]`, indicators → `risks[]`, `overall_risk`).
 
+## 5e. Phase 5: scoring and ranking contract (C0)
+
+C0 fixes the shared contract before the scoring (5A) and ranking (5B) algorithms are written in
+parallel. Every new field is **optional with a default of `null`**, so existing constructors and JSON
+stay valid. A missing score is never read as 0. Scoring and ranking never change eligibility: it is
+still derived from the constraints only (§5, §5c).
+
+### Contract fields
+
+| Model | New fields (C0) | Meaning |
+|---|---|---|
+| `ScoreBreakdown` | `status: ScoreStatus`, `score_bounds: Metric` (unit percent), `configuration_key` | the four score states below; exact or bounded score; configuration identity |
+| `ScoreComponentResult` | `status: ScoreComponentStatus`, `declared_weight`, `normalized: Metric` (unit fraction) | why the component is (not) scored; the user's weight; its value in [0, 1], KNOWN or BOUNDED |
+| `RankedScenario` | `score_status`, `score_bounds`, `data_basis` | same score semantics as `ScoreBreakdown` |
+| `RankingResult` | `data_basis: DataBasis`, `policy: ComparabilityPolicy` | the single data basis and the policy of this ranking |
+| `DataQualitySummary` / `ViabilityAssessment` | `data_basis` (property) | derived, not stored (D6) |
+| `ViabilityAssessment` | `comparability_key(policy)` | entries may share a ranking only if their keys are equal (D7) |
+| `MissionScenario` | `score_component_status(c)`, `effective_score_weights()`, `configuration_key()` | configuration-only scoring metadata (D5, D7) |
+
+New enums: `ScoreStatus`, `ScoreComponentStatus`, `DataBasis`, `ComparabilityPolicy`. A legacy
+`ScoreBreakdown` (no `status`) keeps its Phase 1 meaning and can't be ranked by the Phase 5 rules.
+
+### Score states (enforced)
+
+| `status` | `score` | `score_bounds` | When |
+|---|---|---|---|
+| `known` | exact value, rounded to 6 decimals | KNOWN, same value | every ACTIVE component is KNOWN |
+| `bounded` | **null** | BOUNDED `[lower, upper]`, rounded **outward** to 6 decimals | some ACTIVE component is only bounded |
+| `eligibility_unknown` | null | null | eligibility is UNKNOWN (D4) |
+| `no_scorable_components` | null | null | eligibility is PASS or FAIL and no component is ACTIVE (D5) |
+
+A conservative lower bound is **never** written into `score`. Validators check: KNOWN score = 100·Σ
+ŵ·v within 1e-6; BOUNDED bounds = 100·Σ ŵ·v_lo and 100·Σ ŵ·v_hi, rounded outward; ACTIVE weights =
+declared / Σ declared over ACTIVE; components listed once each, in `ScoreComponent` order.
+
+### D1. Solar component
+
+`SUNLIGHT` v = `mean_solar_disk_fraction`, the time-mean visible fraction of the solar disk, in
+[0, 1]. **It is an illumination proxy, not solar electrical energy:** it ignores array orientation and
+incidence angle, efficiency, temperature, dust and the power system, and it does not apply the panel
+threshold (`solar_power_min_disk_fraction`, which enters only through `SIMULTANEOUS` and
+`DARKNESS_MARGIN`). `EARTH_VISIBILITY` v = `earth_visible_percent / 100`; `SIMULTANEOUS` v =
+`simultaneous_percent / 100`. Metric KNOWN → exact; BOUNDED → its bounds; UNAVAILABLE → [0, 1].
+
+### D2. Outage margins
+
+For `DARKNESS_MARGIN` / `BLACKOUT_MARGIN`, with limit `t` (seconds) and Phase 4A margin interval
+`[m_lo, m_hi]` (`m = t − D`, `D` = longest outage within the mission):
+
+```
+g(m) = min(1, max(0, m / t)) = clamp(1 − D/t, 0, 1)      # share of the limit left unused
+normalized = [g(m_lo), g(m_hi)]                           # g is monotone non-decreasing
+```
+
+- **Missing requirement** (limit unset, margin NOT_APPLICABLE): the component is `not_configured`
+  and excluded (D5). No reference value is invented.
+- **Zero threshold:** impossible; both limits are `PositiveDurationS` (rescue: `gt=0`). Scoring
+  raises `ValueError` for `t ≤ 0` or a non-finite `t`. Minimum-requirement margins are not score
+  components, so a zero minimum never enters the score.
+- **Negative margin:** clamps to 0 at that bound. A FAIL keeps a descriptive score, but the clamp
+  hides how far the limit was missed (rescue reads that from `relative_shortfall`).
+- **Missing data:** a bounded margin is an interval. An UNAVAILABLE metric gives `m ∈ [t − |R|, t]`,
+  i.e. v ∈ `[max(0, 1 − |R|/t), 1]`.
+- **Outage already in progress at landing:** the margin is mission-scoped and used as is. Landing
+  in darkness is a risk indicator (§5d), not a score input.
+
+### D3. Uncertainty
+
+A component is KNOWN when its normalized lower and upper values are exactly equal (after the
+clamp), otherwise BOUNDED (`lower < upper`). With `ŵ` the effective weights (D5):
+`S_lo = 100·fsum(ŵ·v_lo)`, `S_hi = 100·fsum(ŵ·v_hi)` in enum order. All ACTIVE components KNOWN →
+`known`; otherwise `bounded` (table above). The true score lies in `[S_lo, S_hi]` for every value
+consistent with the evidence. The bounds are valid but not necessarily tight: they treat components
+as independent and ignore relations such as simultaneous ≤ min(power-lit, Earth visible).
+`normalized_value` and `contribution` are filled only for KNOWN components. Missing measurements
+never remove a component; they widen the bounds.
+
+### D4. Score by eligibility
+
+- **UNKNOWN** → `score = null`, `score_bounds = null`, `status = eligibility_unknown`,
+  `rank_eligible = false`. Components keep their weights, with no normalized values. Enforced on
+  `ViabilityAssessment` for every producer, including legacy breakdowns.
+- **FAIL** → may carry a descriptive score (`known` or `bounded`), never rank-eligible, never ranked.
+- **PASS** → scored. A PASS with a `bounded` score keeps `score = null` and its interval; a PASS
+  with `no_scorable_components` has no number at all. Neither is given an artificial value. Their
+  place in a ranking follows D8.
+- Scoring reads eligibility only to withhold the score for UNKNOWN. It never changes PASS / FAIL /
+  UNKNOWN (§5c), and `rank_eligible == (eligibility == pass)` is still enforced.
+
+### D5. Weights from configuration only
+
+Component status, checked in this order: `unsupported` (CLEARANCE_MARGIN: clearance is not evaluable,
+§5c, and mean clearance is never a stand-in) → `not_configured` (DARKNESS / BLACKOUT without their
+limit) → `zero_weight` → `active`. Effective weights `ŵ_c = w_c / Σ_active w` (computed after
+scaling by the largest active weight, so huge weights cannot overflow), 0 for the others; all zero
+when nothing is active (`no_scorable_components`). The status and weights depend only on the
+preferences, spacecraft limits and engine version, **never on measurements**, so every scenario with
+the same configuration has the same weights. The user's weights are kept as given
+(`declared_weight`); a positive clearance weight is accepted but stays `unsupported`.
+Defaults: sunlight 1, Earth 1, simultaneous 0, darkness 1, blackout 1, clearance **0** (was 0.5).
+With both outage limits set (every rescue scenario), the four active components weigh ¼ each.
+
+### D6. Data basis (never mixed)
+
+`data_basis` = `synthetic` if `provenance.is_synthetic`; otherwise `real_geometric_only` if
+`calculation_basis = geometric_only`; otherwise `real_terrain_aware`. A ranking has exactly one data
+basis (`RankingResult.data_basis`, enforced on every entry). No policy can put synthetic and real
+scenarios, or real terrain-aware and real geometric-only scenarios, into one ranking, **including in
+rescue's simulation mode**. Synthetic scores are computed the same way and their note starts with
+`[SYNTHETIC DATA]`.
+
+### D7. Comparability
+
+`ViabilityAssessment.comparability_key(policy)` = (data basis, `method_version`, exact effective
+weights as rationals from `ScoreBreakdown.weights_signature()`), plus `configuration_key` under
+`strict`. Rationals make the comparison exact and scale-invariant (1:1 equals 2:2).
+
+| Policy | Must match | Use |
+|---|---|---|
+| `strict` (**default**) | data basis, method, effective weights, `configuration_key` | ordinary ranking |
+| `same_method_and_weights` (explicit opt-in) | data basis, method, effective weights | ranking scenarios with different requirements or durations; scores then do not express the same requirement set, and `RankingResult.policy` records the choice |
+
+`configuration_key` = `"sha256:"` + SHA-256 of canonical JSON (sorted keys, no whitespace, numbers
+as floats, `-0.0` → `0.0`) of: key version; mission duration in integer microseconds; the
+spacecraft's power source, communication mode, both outage limits and panel threshold; and every
+`MissionRequirements` field except the inert `unknown_data_policy`. It ignores scenario id, name,
+site, start time, spacecraft name and preferences. Assessments with different keys can still be
+shown side by side, grouped by key, but their scores are not ranked against each other.
+
+### D8. Ranking order and missing scores
+
+Tiers stay PASS, then UNKNOWN, then FAIL (§5); only PASS entries get ranks 1..n. Within each tier,
+sort ascending by these keys (the last key is unique, so the order is total and independent of the
+input order):
+
+| Tier | Keys, in order |
+|---|---|
+| PASS | 1. scored before unscored (`no_scorable_components` last); 2. **score lower bound descending** (exact score for `known`, `score_bounds.lower` for `bounded`); 3. `known` before `bounded`; 4. `overall_risk`: low < moderate < high < unknown; 5. min(`sun_coverage_percent`, `earth_coverage_percent`) descending; 6. `scenario_id` ascending (code-point order) |
+| UNKNOWN | 1. number of UNKNOWN constraints ascending; 2. min coverage descending; 3. `scenario_id` ascending |
+| FAIL | 1. number of FAIL constraints ascending; 2. number of UNKNOWN constraints ascending; 3. scored before unscored, then score lower bound descending; 4. `overall_risk` as above; 5. `scenario_id` ascending |
+
+- Ordering a bounded score by its lower bound is a documented **conservative ordering policy**: the
+  entry still shows `score = null` and its `score_bounds`, so the bound is never presented as the score.
+- Scores are compared exactly on the stored, rounded values, never with a tolerance (approximate
+  equality is not transitive).
+- **Risk is a tie-breaker only** and never changes a score. UNKNOWN sorts after HIGH because its worst
+  case is HIGH, so on a tie the evidence-backed result goes first.
+- `RankingResult` enforces PASS keys 1–3 from its own entries. Keys 4–6 need the assessments and are
+  tested in 5B.
+
+### Phase 5 limitations
+
+The score is a relative desirability index for illumination and line-of-sight geometry under the
+stated preferences. It is not a probability, a power or energy estimate, a radio-link estimate or a
+landing-safety rating, and it never replaces the hard-constraint verdicts.
+
 ## 6. Assumptions and limitations
 
 - The engine consumes geometry; it **does not compute** ephemerides, terrain or horizons.
@@ -976,7 +1135,7 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 | 2 ✅ | Windows, durations, percentages, longest outages, bounded metrics, coverage gaps (§5b) |
 | 3 ✅ | Constraint evaluation with unknown-data policy; coverage-aware bounds; eligibility (§5c) |
 | 4 ✅ | Operational margins with bounds and classes; rule-based risk indicators (§5d); clearance margins pending item 10 |
-| 5 | Normalised, explainable score; ranking |
+| 5 | Normalised, explainable score; ranking (contract C0 ✅, §5e; algorithms 5A / 5B pending) |
 | 6 | Assembled `ViabilityAssessment`; explanation text |
 | 7 | Real-data tests with Member 1 output; validation with Member 6; FastAPI endpoint wiring |
 
@@ -1029,5 +1188,5 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
     minimums at scenario construction.
 
 **With Members 3/4/5:** the field names above; whether `windows[]` should be paginated or
-down-sampled for long missions (a full 2-year analysis yields 300–600 windows per site); and whether failed scenarios should be scored, so rescue can
-show the closest misses (currently allowed but unranked).
+down-sampled for long missions (a full 2-year analysis yields 300–600 windows per site). *Resolved in C0:* failed
+scenarios may carry a descriptive score but are never ranked; UNKNOWN eligibility is never scored (§5e, D4).

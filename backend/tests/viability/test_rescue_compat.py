@@ -119,6 +119,8 @@ def _assessment(
     metrics: dict[str, Metric] | None = None,
 ) -> ViabilityAssessment:
     eligibility = derive_eligibility(c.status for c in constraints)
+    if eligibility is Eligibility.UNKNOWN:
+        score = None  # contract invariant (docs §5e, D4): UNKNOWN eligibility is never scored
     return ViabilityAssessment(
         engine_version="test-double",
         scenario_id=mission.scenario_id,
