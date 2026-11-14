@@ -2,6 +2,7 @@
 
 GET /api/terrain/info                     tiling description (shared with frontend/src/viz/globe/cubeSphere.ts)
 GET /api/terrain/tile/{face}/{z}/{x}/{y}  heights of one cube-sphere tile (binary float32, N x N)
+GET /api/imagery/tile/{face}/{z}/{x}/{y}  LRO WAC imagery of a tile (8-bit grayscale PNG, levels 0-7)
 GET /api/psr                              PSR points and surface-ice detections near the south pole
 """
 
@@ -10,6 +11,7 @@ from functools import lru_cache
 from fastapi import APIRouter, HTTPException, Query, Response
 
 from .engine import psr
+from .engine.imagery import IMAGERY_MAX_ZOOM, TEXTURE_PX, imagery_tile, png_gray
 from .engine.dem import SOURCES
 from .engine.tiles import FACES, MAX_ZOOM, N, max_zoom_for, tile_heights, validate_tile
 
@@ -66,6 +68,32 @@ def terrain_tile(
             "Cache-Control": "public, max-age=604800",
             "Access-Control-Expose-Headers": "X-Tile-Leaf, X-Tile-Min, X-Tile-Max",
         },
+    )
+
+
+@lru_cache(maxsize=1024)  # ~40 MB of recently served PNGs
+def _imagery_png(face: int, z: int, x: int, y: int) -> bytes:
+    return png_gray(imagery_tile(face, z, x, y))
+
+
+@router.get("/imagery/tile/{face}/{z}/{x}/{y}")
+def imagery_tile_png(face: int, z: int, x: int, y: int) -> Response:
+    """LRO WAC mosaic (Moon Trek) over one tile: TEXTURE_PX^2 grayscale PNG, top row = the tile's
+    largest v. Only levels 0-IMAGERY_MAX_ZOOM; deeper tiles use their ancestor's image."""
+    try:
+        validate_tile(face, z, x, y)
+        if z > IMAGERY_MAX_ZOOM:
+            raise ValueError(f"Imagery tiles stop at level {IMAGERY_MAX_ZOOM}")
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    try:
+        content = _imagery_png(face, z, x, y)
+    except OSError as e:
+        raise HTTPException(502, f"Imagery source unavailable: {e}")
+    return Response(
+        content=content,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=604800", "X-Texture-Px": str(TEXTURE_PX), "Access-Control-Expose-Headers": "X-Texture-Px"},
     )
 
 

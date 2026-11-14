@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MOON_RADIUS_M, SiteFrame, TILE_N, tileAt, tileVertexUV, uvToVec, type Vec3 } from './cubeSphere'
-import { buildTileMesh, innerHeights, tileTopology } from './tileGeometry'
+import { buildTileMesh, innerHeights, tilePadding, tileTopology } from './tileGeometry'
 
 const site = new SiteFrame(-89.53432, 209.94767, 1654)
 const flat = (h: number) => new Float32Array(TILE_N * TILE_N).fill(h)
@@ -71,6 +71,17 @@ describe('buildTileMesh', () => {
     expect(a.indices).toBe(tileTopology().indices)
     expect(a.indices).toBeInstanceOf(Uint16Array)
   })
+
+  it('gives every tile the same texture coordinates (corners = texture corners, skirts copy their edge)', () => {
+    const t = tileTopology()
+    const uv = (k: number) => [t.uvs[2 * k], t.uvs[2 * k + 1]]
+    const N = TILE_N
+    expect(uv(0)).toEqual([0, 0])
+    expect(uv(N - 1)).toEqual([1, 0])
+    expect(uv(N * N - 1)).toEqual([1, 1])
+    for (let s = 0; s < t.border.length; s++) expect(uv(N * N + s)).toEqual(uv(t.border[s]))
+    expect(tileTopology().uvs).toBe(t.uvs) // shared, like the index
+  })
 })
 
 describe('tile normals', () => {
@@ -108,6 +119,15 @@ describe('tile normals', () => {
     }
     expect(worst(1)).toBeLessThan(1e-4)
     expect(worst(0)).toBeGreaterThan(1) // what the unpadded edges looked like
+  })
+
+  it('recognises padded and plain tile responses (a backend from before padding sends plain ones)', () => {
+    expect(tilePadding(67 * 67)).toBe(1)
+    expect(tilePadding(65 * 65)).toBe(0)
+    expect(tilePadding(64 * 64)).toBeNull()
+    // A plain tile still builds (edges with one-sided normals), so an older backend still shows terrain.
+    const m = buildTileMesh(f, 12, x, y, heightsFor(f, 12, x, y, 0), site, TILE_N, tilePadding(TILE_N * TILE_N)!)
+    expect(m.positions.length).toBe(tileTopology().vertexCount * 3)
   })
 
   it('cuts the tile itself out of a padded array', () => {

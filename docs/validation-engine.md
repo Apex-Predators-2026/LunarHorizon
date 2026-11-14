@@ -149,7 +149,7 @@ Nothing is recalculated in the browser except placing objects at the given azimu
 | Hourly samples | Rise/set times known to ±30 min | Fine for planning; finer steps on request |
 | Data covers 2027-01-01 to 2029-01-01 | Dates outside this range have no real data | Other dates need a re-run of `precompute.py` |
 | Unknown terrain (custom sites only) is `null`, never guessed | Some hours can be "unknown" | Curated sites: 0% unknown |
-| 3D view: terrain casts shadows only within ~6 km of the lander (one shadow map; none in the Low graphics setting) | Farther terrain is shaded by its slope but casts no shadows, so distant ground can look lit when it is in shadow | Display only: the numbers, the lander's lighting and the skyline use the engine's full 300 km horizon |
+| 3D view: by default terrain casts shadows only within ~6 km of the lander (one shadow map; none in the Low graphics setting). The "Far shadows" option (cascaded shadow maps) extends them to everything on screen | Without it, distant ground can look lit when it is in shadow. With it, only terrain that is drawn casts shadows, so a mountain off screen or behind the camera can't shadow the view | Display only: the numbers, the lander's lighting and the skyline use the engine's full 300 km horizon |
 | Sunlight % at one point | Sharp edges make single points sensitive to tens of metres | See check 3: quote to about ±10 points |
 
 ## Suggested follow-ups (for the validation member)
