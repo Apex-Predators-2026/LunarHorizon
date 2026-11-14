@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppStore } from '../store'
+import { LoadingIndicator } from '../ui/LoadingIndicator'
 import { MangoRange } from '../ui/MangoRange'
 import type { SiteInfo, TimelineStep } from '../types'
 import { HOUR_MS, longestRun, parseUtc, roundHour, runs, sunUp, toIsoMinute } from './timeline'
@@ -317,7 +318,7 @@ export function TimeBar({
           </select>
         </label>
         <span className="ml-auto font-mono tabular-nums text-slate-100">{fmtTime(now)}</span>
-        {loading && <span className="text-slate-500">loading…</span>}
+        {loading && <LoadingIndicator size={22} contained={false} label="Loading timeline" />}
       </div>
 
       {steps.length ? <Strip steps={steps} win={win} now={now} onSeek={seek} mission={mission} /> : <div style={{ height: STRIP_H + 14 }} />}
