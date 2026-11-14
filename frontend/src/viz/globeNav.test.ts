@@ -7,6 +7,7 @@ import {
   lookAt,
   lookOffset,
   maxNadirAngleAt,
+  maxTiltForNadir,
   nadirAngle,
   orbitAbout,
   raySphere,
@@ -260,5 +261,28 @@ describe('top-down toggle turns the view to north-up (tilting along north-south)
     expect(Math.abs(viewHeading(c, pivot, centre, axis)!)).toBeLessThan(1e-6) // facing north
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(c.quaternion)
     expect(Math.abs(right.y)).toBeLessThan(1e-6) // horizon level
+  })
+})
+
+describe('right-drag tilt from far away (no fighting with the zoomed-out view limit)', () => {
+  it('allows only the tilt that keeps the view within the altitude limit', () => {
+    const pivot = new THREE.Vector3(0, 0, 0)
+    // The Globe view: straight down from ~4,300 km (screen-up = north, so the view is well defined).
+    const c = new THREE.PerspectiveCamera(50, 16 / 9, 0.5, 1e9)
+    c.position.set(0, 4_273_000, 0)
+    c.up.set(0, 0, -1)
+    lookAt(c, pivot)
+    const limit = maxNadirAngleAt(4_273_000)
+    const maxTilt = maxTiltForNadir(limit, R, 4_273_000)
+    expect(maxTilt).toBeGreaterThan(limit) // far away, the tilt about the surface can be a bit more
+    expect(maxTilt).toBeLessThan((10 * Math.PI) / 180) // ... but only a few degrees
+    orbitAbout(c, pivot, centre, 0, 1, 0.02, maxTilt) // try to tilt a lot
+    expect(nadirAngle(c, centre)).toBeLessThanOrEqual(limit + 1e-6)
+    expect(distanceToRay(rayAt(c, 0, 0), pivot)).toBeLessThan(1) // still looking at the same point
+    expect(c.position.distanceTo(centre) - R).toBeGreaterThan(4_200_000) // no dive towards the surface
+  })
+
+  it('leaves near-ground tilting free', () => {
+    expect(maxTiltForNadir(maxNadirAngleAt(5_000), R, 5_000)).toBeCloseTo((85 * Math.PI) / 180, 9)
   })
 })
