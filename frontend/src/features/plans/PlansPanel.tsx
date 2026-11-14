@@ -208,6 +208,35 @@ export function PlansPanel({ onCompare }: { onCompare: () => void }) {
   const setActive = usePlansStore((s) => s.setActive)
   const showDialog = usePlanDialog((d) => d.show)
 
+  // Seed a default plan into the rescue store on first load if none is set yet, so Mission Playback
+  // and Rescue/Compromise tools work immediately out of the box even before a plan card is saved.
+  useEffect(() => {
+    if (useRescueStore.getState().original) return
+    const { plans: saved, activeId } = usePlansStore.getState()
+    const active = saved.find((p) => p.id === activeId) ?? saved[0]
+    if (active) {
+      useRescueStore.getState().setOriginal(active.scenario)
+      return
+    }
+    const ctl = new AbortController()
+    fetchRescueCatalog(ctl.signal)
+      .then((c) => {
+        if (useRescueStore.getState().original) return
+        const appSite = useAppStore.getState().siteId
+        const chosen = c.sites.find((s) => s.id === appSite) ?? c.sites.find((s) => s.id === 'connecting-ridge') ?? c.sites[0]
+        if (chosen) {
+          useRescueStore.getState().setOriginal({
+            site: { id: chosen.id, name: chosen.name, lat: chosen.lat, lon: chosen.lon },
+            landing_utc: '2027-10-15T00:00:00.000Z',
+            duration_days: 7,
+            requirements: DEFAULT_REQUIREMENTS,
+          })
+        }
+      })
+      .catch(() => {})
+    return () => ctl.abort()
+  }, [])
+
   const run = (p: Plan) => {
     useRescueStore.getState().setOriginal(p.scenario)
     const app = useAppStore.getState()

@@ -7,12 +7,25 @@ import type { SiteInfo } from '../types'
 import { createCustomSite, fetchHorizon, fetchPsr, fetchSites, fetchStatus, fetchTimeline, useAsync } from './api'
 import { CameraRig, type ViewMode } from './CameraRig'
 import { FollowCamera } from './FollowCamera'
-import { MOON_RADIUS_M, SiteFrame, vecToLatLon } from './globe/cubeSphere'
+import { MOON_RADIUS_M, SiteFrame, vecToLatLon, vertexSpacingM } from './globe/cubeSphere'
 import { GlobeControls } from './GlobeControls'
+import {
+  analyseTraverse,
+  findNearbyWaypoint,
+  isLanderWaypointPresent,
+  reindexWaypoints,
+  removeWaypointById,
+  renameWaypointById,
+  waypointLabel,
+  type MeasureWaypoint,
+  type ProfileSample,
+} from './globe/measure'
 import { currentBlockers, fmtDistance, KIND_COLOR, surfacePoint } from './globe/overlays'
-import { BlockerLines, PsrLayer, SitePins } from './globe/SurfaceOverlays'
+import { BlockerLines, MeasureOverlay, PsrLayer, SitePins } from './globe/SurfaceOverlays'
+import type { TileHeights } from './globe/terrainHeight'
 import { TileTree, type TileStats } from './globe/TileTree'
 import { ColorKey, MapTools, type Layers, type PinState } from './MapTools'
+import type { MeasureDrawer } from './MeasureCard'
 import { HorizonCurtain } from './HorizonCurtain'
 import { BEACON_HEIGHT, BEACON_HIDE_WITHIN_M, Lander } from './Lander'
 import { skyPositions } from './geometry'
@@ -61,6 +74,13 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   const [terrainStats, setTerrainStats] = useState<TileStats | null>(null)
   const [layers, setLayers] = useState<Layers>({ sites: true, psr: true, blockers: true, paths: true })
   const [pin, setPin] = useState<PinState>({ phase: 'idle' })
+  const [measureArmed, setMeasureArmed] = useState(false)
+  const [waypoints, setWaypoints] = useState<MeasureWaypoint[]>([])
+  const [selectedWaypointId, setSelectedWaypointId] = useState<string | null>(null)
+  const [hoveredWaypointId, setHoveredWaypointId] = useState<string | null>(null)
+  const [measureDrawer, setMeasureDrawer] = useState<MeasureDrawer>('none')
+  const [hoveredSample, setHoveredSample] = useState<ProfileSample | null>(null)
+  const tileHeightsRef = useRef<TileHeights | null>(null)
   const [createdSites, setCreatedSites] = useState<SiteInfo[]>([]) // pins dropped this session
   const setSite = useAppStore((s) => s.setSite)
 
@@ -200,6 +220,51 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   const blockers = useMemo(() => currentBlockers(current, horizon.data, eye), [current, horizon.data, eye])
   const blockerRefs = useMemo(() => [createRef<HTMLDivElement>(), createRef<HTMLDivElement>()], [])
 
+  // Clear active measurement waypoints when switching to a different landing site.
+  useEffect(() => {
+    setWaypoints([])
+    setSelectedWaypointId(null)
+    setHoveredWaypointId(null)
+    setHoveredSample(null)
+  }, [siteId])
+
+  // Re-evaluate the lunar traverse profile whenever waypoints change or finer LOLA tiles stream in.
+  const measureAnalysis = useMemo(
+    () => (frame ? analyseTraverse(waypoints, frame, tileHeightsRef.current, psr.data, eye) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [waypoints, frame, psr.data, eye, terrainStats],
+  )
+
+  // Keep DOM label refs stable across waypoint renames and background LOLA tile loads.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const waypointLabelRefs = useMemo(() => waypoints.map(() => createRef<HTMLDivElement>()), [waypoints.length])
+  const segmentCount = measureAnalysis?.segments.length ?? 0
+  const segmentLabelRefs = useMemo(
+    () => Array.from({ length: segmentCount }, () => createRef<HTMLDivElement>()),
+    [segmentCount],
+  )
+  const hoverLabelRef = useRef<HTMLDivElement>(null)
+  const hasLanderWaypoint = Boolean(site && isLanderWaypointPresent(waypoints, site.lat, site.lon))
+
+  // Keyboard shortcuts while measuring: Escape disarms, Backspace removes last waypoint.
+  useEffect(() => {
+    if (!measureArmed) return
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+      if (e.key === 'Escape') {
+        setMeasureArmed(false)
+      } else if (e.key === 'Backspace' && waypoints.length > 0) {
+        e.preventDefault()
+        setWaypoints((prev) => reindexWaypoints(prev.slice(0, -1)))
+        setHoveredWaypointId(null)
+        setHoveredSample(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [measureArmed, waypoints.length])
+
   // Drop a pin: a click on the terrain becomes a custom site analysed by the engine.
   // Analyse a spot (a click on the terrain, or typed coordinates) as a custom site and select it.
   const analyseSpot = useCallback(
@@ -222,15 +287,72 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     },
     [setSite],
   )
+
+  const deleteWaypoint = useCallback((id: string) => {
+    setWaypoints((prev) => removeWaypointById(prev, id))
+    setSelectedWaypointId((sel) => (sel === id ? null : sel))
+    setHoveredWaypointId((hov) => (hov === id ? null : hov))
+    setHoveredSample(null)
+  }, [])
+
+  const renameWaypoint = useCallback((id: string, name: string) => {
+    setWaypoints((prev) => renameWaypointById(prev, id, name))
+  }, [])
+
   const onPick = useCallback(
     (p: [number, number, number]) => {
-      if (frame) analyseSpot(...vecToLatLon(frame.toMoon(p)))
+      if (!frame) return
+      const m = frame.toMoon(p)
+      const [lat, lon] = vecToLatLon(m)
+      if (measureArmed) {
+        // Clicking near an existing waypoint on the terrain removes it and re-indexes the path.
+        const hit = findNearbyWaypoint(waypoints, lat, lon, 75)
+        if (hit) {
+          deleteWaypoint(hit.id)
+          showSnackbar(`Removed waypoint ${hit.label}${hit.name ? ` (${hit.name})` : ''}`)
+          return
+        }
+        const heightM = Math.hypot(m[0], m[1], m[2]) - MOON_RADIUS_M
+        const id = `${Date.now()}-${waypoints.length}`
+        setSelectedWaypointId(id)
+        setWaypoints((prev) => [
+          ...prev,
+          {
+            id,
+            label: waypointLabel(prev.length),
+            lat,
+            lon,
+            heightM,
+          },
+        ])
+        return
+      }
+      analyseSpot(lat, lon)
     },
-    [frame, analyseSpot],
+    [frame, measureArmed, waypoints, deleteWaypoint, analyseSpot],
   )
 
+  const startMeasureAtLander = useCallback(() => {
+    if (!site) return
+    if (!isLanderWaypointPresent(waypoints, site.lat, site.lon)) {
+      const id = `lander-${Date.now()}`
+      setSelectedWaypointId(id)
+      setWaypoints((prev) =>
+        reindexWaypoints([
+          { id, label: 'A', name: 'Lander', lat: site.lat, lon: site.lon, heightM: site.ground_height_m },
+          ...prev,
+        ]),
+      )
+    }
+    setMeasureArmed(true)
+    setPin((p) => (p.phase === 'armed' ? { phase: 'idle' } : p))
+    showSnackbar('Waypoint A anchored at Lander — click terrain to measure outward')
+  }, [site, waypoints])
+
+  const finestResM = terrainStats ? Math.max(5, Math.round(vertexSpacingM(terrainStats.deepest))) : null
+
   return (
-    <div className={`absolute inset-0 overflow-hidden ${pin.phase === 'armed' ? 'pin-cursor' : ''}`}>
+    <div className={`absolute inset-0 overflow-hidden ${pin.phase === 'armed' ? 'pin-cursor' : measureArmed ? 'measure-cursor' : ''}`}>
       {/* Renders only when something changes (camera, time, tiles arriving): an idle view costs
           nothing. Components that animate on their own must call invalidate(). */}
       {/* A new graphics preset gets a fresh canvas: anti-aliasing is fixed when the WebGL context is made. */}
@@ -256,13 +378,17 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             frame={frame}
             material={terrainMaterial}
             onStats={onStats}
-            onPick={pin.phase === 'armed' ? onPick : undefined}
+            onPick={pin.phase === 'armed' || measureArmed ? onPick : undefined}
+            tileHeightsRef={tileHeightsRef}
             lodThresholdPx={gfx.lodThresholdPx}
             maxCachedMeshes={gfx.maxCachedMeshes}
           />
         )}
         {frame && layers.sites && <SitePins frame={frame} sites={otherSites} selectedId={siteId} />}
         {frame && layers.psr && psr.data && <PsrLayer frame={frame} data={psr.data} />}
+        {frame && waypoints.length > 0 && (
+          <MeasureOverlay frame={frame} waypoints={waypoints} analysis={measureAnalysis} hoveredSample={hoveredSample} />
+        )}
         {layers.blockers && horizon.data && (
           <BlockerLines steps={timeline.data ?? []} current={blockers} horizon={horizon.data} eyeHeightM={eye} />
         )}
@@ -307,7 +433,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             { ref: earthLabel, position: sky?.earth ?? null, followCamera: true },
             {
               ref: landerLabel,
-              position: eyeView ? null : [0, BEACON_HEIGHT + 10, 0],
+              position: eyeView || hasLanderWaypoint ? null : [0, BEACON_HEIGHT + 10, 0],
               hideWithinM: BEACON_HIDE_WITHIN_M,
             },
             ...otherSites.map((x) => ({
@@ -321,6 +447,24 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
               position: layers.blockers && blockers[k] ? blockers[k].to : null,
               hideBeyondM: 200_000,
             })),
+            ...waypoints.map((wp, idx) => ({
+              ref: waypointLabelRefs[idx],
+              position: frame ? surfacePoint(frame, wp.lat, wp.lon, wp.heightM, 48) : null,
+              onSurface: true,
+            })),
+            ...(measureAnalysis?.segments ?? []).map((seg, idx) => ({
+              ref: segmentLabelRefs[idx],
+              position: seg.midpointSitePos,
+              onSurface: true,
+            })),
+            {
+              ref: hoverLabelRef,
+              position:
+                hoveredSample && frame
+                  ? surfacePoint(frame, hoveredSample.lat, hoveredSample.lon, hoveredSample.heightM, 68)
+                  : null,
+              onSurface: true,
+            },
           ]}
         />
         {PERF_ENABLED && <PerfProbe />}
@@ -365,6 +509,65 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           </div>
         )
       })}
+      {waypoints.map((wp, idx) => {
+        const isSel = wp.id === selectedWaypointId
+        const isHov = wp.id === hoveredWaypointId
+        return (
+          <div
+            key={wp.id}
+            ref={waypointLabelRefs[idx]}
+            onPointerEnter={() => setHoveredWaypointId(wp.id)}
+            onPointerLeave={() => setHoveredWaypointId((cur) => (cur === wp.id ? null : cur))}
+            onClick={() => {
+              setSelectedWaypointId(wp.id)
+              setMeasureDrawer('points')
+            }}
+            data-tip={`Waypoint ${wp.label}${wp.name ? ` (${wp.name})` : ''}: click to inspect or rename`}
+            className="group pointer-events-auto absolute left-0 top-0 hidden cursor-pointer select-none"
+          >
+            <div
+              className={`flex origin-bottom items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums text-white shadow-md transition-[transform,background-color,border-color,box-shadow] duration-150 ease-out group-hover:scale-[1.07] group-hover:shadow-lg ${
+                isSel || isHov
+                  ? 'scale-[1.07] border-white bg-[#ff634a] ring-2 ring-white/80'
+                  : 'border-white/75 bg-slate-950/90 group-hover:border-white group-hover:bg-[#ff634a]'
+              }`}
+            >
+              <span>
+                {wp.label}
+                {wp.name ? ` · ${wp.name}` : ''} · {Math.round(wp.heightM)}m
+              </span>
+              <button
+                type="button"
+                aria-label={`Delete waypoint ${wp.label}`}
+                data-tip={`Delete waypoint ${wp.label}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  deleteWaypoint(wp.id)
+                }}
+                className="ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-black/35 text-[10px] leading-none transition-colors hover:bg-red-600"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )
+      })}
+      {(measureAnalysis?.segments ?? []).map((seg, idx) => (
+        <div
+          key={`seg-${idx}`}
+          ref={segmentLabelRefs[idx]}
+          className="pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded border border-slate-600/80 bg-slate-950/85 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-slate-100"
+        >
+          {fmtDistance(seg.surfaceDistanceM)} · {seg.maxSlopeDeg.toFixed(1)}° max
+        </div>
+      ))}
+      <div
+        ref={hoverLabelRef}
+        className="pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded border border-white/80 bg-slate-950/90 px-2 py-0.5 font-mono text-[10px] tabular-nums text-white shadow"
+      >
+        {hoveredSample &&
+          `${fmtDistance(hoveredSample.distanceM)} · ${Math.round(hoveredSample.heightM)} m · ${hoveredSample.slopeDeg.toFixed(1)}°`}
+      </div>
 
       {/* Floating UI. Containers ignore the pointer so the 3D view stays interactive around them. */}
       <div
@@ -453,7 +656,10 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
               layers={layers}
               onLayers={setLayers}
               pin={pin}
-              onArmPin={(armed) => setPin(armed ? { phase: 'armed' } : { phase: 'idle' })}
+              onArmPin={(armed) => {
+                setPin(armed ? { phase: 'armed' } : { phase: 'idle' })
+                if (armed) setMeasureArmed(false)
+              }}
               onCoordinates={analyseSpot}
               siteId={siteId}
               timeUtc={timeUtc}
@@ -466,6 +672,45 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
               farShadowsAvailable={gfx.shadows}
               onFarShadows={setFarShadows}
               mission={{ available: mission.available, active: !!mission.run, reason: mission.reason, start: mission.start, stop: mission.stop }}
+              measure={{
+                armed: measureArmed,
+                onArm: (armed) => {
+                  setMeasureArmed(armed)
+                  if (armed) setPin((p) => (p.phase === 'armed' ? { phase: 'idle' } : p))
+                },
+                waypoints,
+                selectedWaypointId,
+                onSelectWaypoint: setSelectedWaypointId,
+                hoveredWaypointId,
+                onHoverWaypoint: setHoveredWaypointId,
+                onRenameWaypoint: renameWaypoint,
+                onDeleteWaypoint: deleteWaypoint,
+                analysis: measureAnalysis,
+                hoveredSample,
+                onHoverSample: setHoveredSample,
+                onStartAtLander: startMeasureAtLander,
+                onUndo: () => {
+                  setWaypoints((prev) => reindexWaypoints(prev.slice(0, -1)))
+                  setHoveredWaypointId(null)
+                  setHoveredSample(null)
+                },
+                onClear: () => {
+                  setWaypoints([])
+                  setSelectedWaypointId(null)
+                  setHoveredWaypointId(null)
+                  setHoveredSample(null)
+                },
+                onClose: () => {
+                  setMeasureArmed(false)
+                  setWaypoints([])
+                  setSelectedWaypointId(null)
+                  setHoveredWaypointId(null)
+                  setHoveredSample(null)
+                },
+                finestResM,
+                drawer: measureDrawer,
+                onDrawerChange: setMeasureDrawer,
+              }}
             />
           </div>
           {site && win && (
