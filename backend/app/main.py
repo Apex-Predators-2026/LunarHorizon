@@ -20,6 +20,7 @@ from .models import (
     TerrainGrid,
     TimelineStep,
 )
+from .compare.router import router as compare_router
 from .rescue.router import router as rescue_router
 
 app = FastAPI(title="Lunar Landing Site Navigator API")
@@ -30,6 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(rescue_router)  # Member 5: /api/rescue/*
+app.include_router(compare_router)  # Member 4: /api/compare
 
 
 # ---------- helpers ----------
