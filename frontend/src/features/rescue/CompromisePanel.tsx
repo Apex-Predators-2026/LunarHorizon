@@ -1,5 +1,6 @@
 // Science vs engineering: the landing that best satisfies both teams, or what each side
 // would have to give up when nothing satisfies both.
+import { MangoRange } from '../../ui/MangoRange'
 import { SelectField, TextField } from '../../ui/MdFields'
 import { useEffect, useState } from 'react'
 
@@ -70,9 +71,9 @@ export function CompromisePanel() {
           type="number" min={0} max={1} step={0.05} value={s.science.min_science_score ?? 0.5}
           onChange={(e) => s.setScience({ min_science_score: Number(e.target.value) })}
         />
-        <label className="col-span-2 flex flex-col gap-1 text-slate-400" data-tip="Slide toward engineering to favour safe, easy missions, or toward science to favour valuable targets.">
+        <label className="flex flex-col gap-1 text-slate-400" data-tip="Slide toward engineering to favour safe, easy missions, or toward science to favour valuable targets.">
           Priority: engineering {Math.round((1 - sciShare) * 100)}% / science {Math.round(sciShare * 100)}%
-          <input type="range" min={0} max={100} value={Math.round(sciShare * 100)}
+          <MangoRange min={0} max={100} value={Math.round(sciShare * 100)}
             onChange={(e) => {
               const v = Number(e.target.value) / 100
               s.setWeights({ science: Math.max(v, 0.001), engineering: Math.max(1 - v, 0.001) })
@@ -80,7 +81,7 @@ export function CompromisePanel() {
         </label>
         <button type="button" disabled={loading || !s.original} onClick={() => void s.findCompromise()}
           data-tip="Find the landing that best balances what science and engineering each want."
-          className="md-btn col-span-2 bg-sky-600 text-white hover:bg-sky-500 disabled:opacity-50">
+          className="md-btn bg-sky-600 text-white hover:bg-sky-500 disabled:opacity-50">
           {loading ? 'Searching…' : 'Find best compromise'}
         </button>
       </div>

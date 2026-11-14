@@ -3,7 +3,6 @@ import { useState } from 'react'
 
 import { CompromisePanel } from './CompromisePanel'
 import { fmtUtc } from './format'
-import { PlanForm } from './PlanForm'
 import { RescuePanel } from './RescuePanel'
 import { useRescueStore } from './useRescueStore'
 
@@ -19,21 +18,11 @@ export function MissionRescue() {
 
   return (
     <div className="space-y-6">
-      <section aria-label="Plan">
-        <h2 className="mb-2 text-sm font-semibold text-slate-100">Plan</h2>
-        <PlanForm />
-        {original && (
-          <p className="mt-2 text-xs text-slate-400">
-            Current: <span className="text-slate-200">{original.site.name}</span>, {fmtUtc(original.landing_utc)},{' '}
-            {original.duration_days} days
-          </p>
-        )}
-        {selected && selected !== original && (
-          <p className="mt-1 text-xs text-sky-300">
-            Viewing: {selected.site.name}, {fmtUtc(selected.landing_utc)}
-          </p>
-        )}
-      </section>
+      {selected && selected !== original && (
+        <p className="text-xs text-sky-300">
+          Viewing: {selected.site.name}, {fmtUtc(selected.landing_utc)}
+        </p>
+      )}
 
       <div role="tablist" aria-label="Rescue tools" className="flex border-b border-slate-800 text-xs">
         {TABS.map((t) => (
