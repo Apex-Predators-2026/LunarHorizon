@@ -1,13 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore } from '../store'
 import type { SiteInfo, SiteStatus, TimelineStep } from '../types'
 import type { ViewMode } from './CameraRig'
 import { vertexSpacingM } from './globe/cubeSphere'
 import type { TileStats } from './globe/TileTree'
+import { DatePopup } from './DatePopup'
 import { fmtDeg, fmtPct, sunUp } from './timeline'
 
-const toInput = (iso: string) => iso.slice(0, 16) // "2027-01-01T00:00"
-const fromInput = (v: string) => `${v}:00Z`
 const fmt = (iso: string | null) => (iso ? `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC` : 'not before 2029')
 
 function hoursUntil(fromIso: string, toIso: string | null) {
@@ -77,98 +76,111 @@ export function SiteSelect({ sites, error, loading }: { sites: SiteInfo[] | null
   )
 }
 
-/** Time, camera view and conditions at the selected time (lives in the bottom panel). */
-export function SimControls({
+/** Camera view buttons (live in the bottom panel). */
+export function ViewButtons({ view, onView }: { view: ViewMode; onView: (v: ViewMode) => void }) {
+  return (
+    <div className="flex gap-1 text-xs" role="group" aria-label="Camera view">
+      {VIEWS.map((v) => (
+        <button
+          key={v.id}
+          type="button"
+          title={v.title}
+          onClick={() => onView(v.id)}
+          aria-pressed={view === v.id}
+          className={`rounded-lg border px-2.5 py-1 transition-colors ${
+            view === v.id
+              ? 'border-coral bg-coral/15 font-semibold text-sky-300'
+              : 'border-opal-300 bg-white hover:bg-calcite-peach/40'
+          }`}
+        >
+          {v.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Readout under the title, over the simulation: the time (click to change it), terrain detail and the
+ * Sun / Earth conditions at that time.
+ */
+export function TopInfo({
   sites,
   current,
   events,
-  view,
-  onView,
   terrainStats,
 }: {
   sites: SiteInfo[] | null
   current: TimelineStep | null // conditions at the selected time
   events: SiteStatus | null // next sunset/Earthset etc. (fetched while paused)
-  view: ViewMode
-  onView: (v: ViewMode) => void
   terrainStats?: TileStats | null
 }) {
   const playing = useAppStore((s) => s.playing)
   const { siteId, timeUtc, setTime } = useAppStore()
   const site = sites?.find((s) => s.id === siteId) ?? null
+  const [calendar, setCalendar] = useState(false)
+
+  const shadow = { textShadow: '0 1px 4px rgba(0,0,0,0.9)' }
+  const pending = playing ? 'shown when paused' : '…'
 
   return (
-    <div className="space-y-2 text-xs">
-      <label className="block">
-        <span className="text-slate-400">Time (UTC)</span>
-        <input
-          type="datetime-local"
-          className={input}
-          value={toInput(timeUtc)}
-          min={site ? toInput(site.data_start_utc) : undefined}
-          max={site ? toInput(site.data_stop_utc) : undefined}
-          onChange={(e) => e.target.value && setTime(fromInput(e.target.value))}
-        />
-      </label>
-
-      <div className="flex flex-wrap gap-1" role="group" aria-label="Camera view">
-        {VIEWS.map((v) => (
-          <button
-            key={v.id}
-            type="button"
-            title={v.title}
-            onClick={() => onView(v.id)}
-            aria-pressed={view === v.id}
-            className={`flex-1 rounded-lg border px-1.5 py-1 transition-colors ${
-              view === v.id
-                ? 'border-coral bg-coral/15 font-semibold text-sky-300'
-                : 'border-opal-300 bg-white hover:bg-calcite-peach/40'
-            }`}
-          >
-            {v.label}
-          </button>
-        ))}
-      </div>
-      {terrainStats && (
-        <p className="text-[10px] text-slate-500" aria-live="polite">
-          Terrain: {terrainStats.visible} tiles · finest ~{Math.max(5, Math.round(vertexSpacingM(terrainStats.deepest)))} m
-          {terrainStats.loading > 0 ? ` · loading ${terrainStats.loading}…` : ''}
-        </p>
-      )}
-
+    <div className="pointer-events-none text-[clamp(11px,0.95vw,13px)] leading-snug text-white" style={{ fontFamily: 'var(--font-inter)', ...shadow }}>
+      <p className="flex flex-wrap items-baseline gap-x-3">
+        <button
+          type="button"
+          onClick={() => setCalendar((o) => !o)}
+          aria-expanded={calendar}
+          aria-label={`Simulation time ${timeUtc.slice(0, 16).replace('T', ' ')} UTC. Click to change.`}
+          title="Click to change the time"
+          className="pointer-events-auto cursor-pointer font-display underline underline-offset-2 transition-colors duration-200 hover:text-calcite-peach"
+        >
+          {timeUtc.slice(0, 10)} {timeUtc.slice(11, 16)} UTC
+        </button>
+        {terrainStats && (
+          <span aria-live="polite">
+            Terrain: {terrainStats.visible} tiles · finest ~{Math.max(5, Math.round(vertexSpacingM(terrainStats.deepest)))} m
+            {terrainStats.loading > 0 ? ` · loading ${terrainStats.loading}…` : ''}
+          </span>
+        )}
+      </p>
       {current && (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
-          <dt className="text-slate-400">Sunlight</dt>
+        <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+          <dt className="text-white/70">Sunlight</dt>
           <dd>
             {fmtPct(current.sun.visible_fraction, current.sun.visible)} of disk · el{' '}
             {fmtDeg(current.sun.elevation_deg)} vs terrain {fmtDeg(current.sun.horizon_deg)}
           </dd>
-          <dt className="text-slate-400">Earth</dt>
+          <dt className="text-white/70">Earth</dt>
           <dd>
             {current.earth.visible === null ? 'unknown' : current.earth.visible ? 'in view' : 'blocked'} · margin{' '}
             {fmtDeg(current.earth.margin_deg)}
           </dd>
-          <dt className="text-slate-400">{sunUp(current.sun) ? 'Next sunset' : 'Next sunrise'}</dt>
-          <dd className={events ? '' : 'text-slate-500'}>
+          <dt className="text-white/70">{sunUp(current.sun) ? 'Next sunset' : 'Next sunrise'}</dt>
+          <dd className={events ? '' : 'text-white/60'}>
             {!events
-              ? playing
-                ? 'shown when paused'
-                : '…'
+              ? pending
               : sunUp(current.sun)
                 ? fmt(events.next_sunset_utc) + hoursUntil(events.time_utc, events.next_sunset_utc)
                 : fmt(events.next_sunrise_utc) + hoursUntil(events.time_utc, events.next_sunrise_utc)}
           </dd>
-          <dt className="text-slate-400">{current.earth.visible ? 'Next Earthset' : 'Next Earthrise'}</dt>
-          <dd className={events ? '' : 'text-slate-500'}>
+          <dt className="text-white/70">{current.earth.visible ? 'Next Earthset' : 'Next Earthrise'}</dt>
+          <dd className={events ? '' : 'text-white/60'}>
             {!events
-              ? playing
-                ? 'shown when paused'
-                : '…'
+              ? pending
               : current.earth.visible
                 ? fmt(events.next_earthset_utc) + hoursUntil(events.time_utc, events.next_earthset_utc)
                 : fmt(events.next_earthrise_utc) + hoursUntil(events.time_utc, events.next_earthrise_utc)}
           </dd>
         </dl>
+      )}
+      {calendar && site && (
+        <DatePopup
+          timeUtc={timeUtc}
+          min={site.data_start_utc}
+          max={site.data_stop_utc}
+          onPick={setTime}
+          onClose={() => setCalendar(false)}
+        />
       )}
     </div>
   )

@@ -186,7 +186,7 @@ export function TimeBar({
   windowDays,
   onWindowDays,
   loading,
-  aside,
+  views,
 }: {
   site: SiteInfo
   steps: TimelineStep[]
@@ -194,7 +194,7 @@ export function TimeBar({
   windowDays: number
   onWindowDays: (d: number) => void
   loading: boolean
-  aside?: ReactNode // site/time/view controls and conditions, shown beside the strip
+  views?: ReactNode // camera view buttons, shown under the slider
 }) {
   const timeUtc = useAppStore((s) => s.timeUtc)
   const playing = useAppStore((s) => s.playing)
@@ -247,30 +247,29 @@ export function TimeBar({
         {loading && <span className="text-slate-500">loading…</span>}
       </div>
 
-      <div className="grid gap-x-5 gap-y-2 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
-        {aside && <div>{aside}</div>}
-        <div className={`min-w-0 ${aside ? '' : 'lg:col-span-2'}`}>
       {steps.length ? <Strip steps={steps} win={win} now={now} onSeek={seek} /> : <div style={{ height: STRIP_H + 14 }} />}
 
-      <input
-        type="range"
-        aria-label="Time across the whole data range"
-        className="mt-1 w-full accent-coral"
-        min={0}
-        max={totalHours}
-        step={1}
-        value={Math.round((now - start) / HOUR_MS)}
-        onChange={(e) => seek(start + Number(e.target.value) * HOUR_MS)}
-      />
-      <div className="flex justify-between text-[10px] text-slate-500">
-        <span>{site.data_start_utc.slice(0, 10)}</span>
-        <span>
+      <div className="mt-1 flex items-center gap-2">
+        <span className="shrink-0 text-[10px] tabular-nums text-slate-500">{site.data_start_utc.slice(0, 10)}</span>
+        <input
+          type="range"
+          aria-label="Time across the whole data range"
+          className="min-w-0 flex-1 accent-coral"
+          min={0}
+          max={totalHours}
+          step={1}
+          value={Math.round((now - start) / HOUR_MS)}
+          onChange={(e) => seek(start + Number(e.target.value) * HOUR_MS)}
+        />
+        <span className="shrink-0 text-[10px] tabular-nums text-slate-500">{site.data_stop_utc.slice(0, 10)}</span>
+      </div>
+
+      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        {views}
+        <span className="min-w-0 flex-1 text-right text-[10px] leading-tight text-slate-500">
           {site.lat.toFixed(4)}°, {site.lon.toFixed(4)}°E · ground {Math.round(site.ground_height_m)} m · terrain: Moon Trek LOLA ·
           ephemeris: {site.kind === 'custom' ? 'JPL DE421 (local, checked against Horizons)' : 'JPL Horizons'} · drag to orbit, scroll to zoom
         </span>
-        <span>{site.data_stop_utc.slice(0, 10)}</span>
-      </div>
-        </div>
       </div>
     </div>
   )
