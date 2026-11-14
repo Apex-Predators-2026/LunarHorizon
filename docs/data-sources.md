@@ -6,7 +6,7 @@ Check script: `backend/scripts/phase1_check.py`
 - API: `https://ssd.jpl.nasa.gov/api/horizons.api`
 - Key params: `CENTER='coord@301'` (Moon), `COORD_TYPE='GEODETIC'`, `SITE_COORD='<E-lon deg>,<lat deg>,<alt km>'`,
   `COMMAND='10'` (Sun) or `'399'` (Earth), `QUANTITIES='4'` (apparent azimuth/elevation), `ANG_FORMAT='DEG'`, `CSV_FORMAT='YES'`.
-- 2 years hourly = 17,545 rows per body in one request. Works.
+- Long ranges are requested one calendar year at a time and stitched (5 years hourly = 43,825 rows per body in 5 requests; identical to one big request where both were tried).
 - Elevations are relative to the flat (sphere) horizon. Terrain blocking is our job.
 
 ## Lunar coordinate frame (checked)
