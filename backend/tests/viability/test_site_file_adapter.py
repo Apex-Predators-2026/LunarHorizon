@@ -579,6 +579,26 @@ def test_fraction_precision_is_taken_from_generator_version(
     assert _convert(mini).fraction_decimals == decimals
 
 
-def test_unpublished_precision_metadata_is_ignored_not_trusted(mini: dict[str, Any]) -> None:
-    mini["meta"].update(generator_version="1.2", fraction_decimals=3, angle_decimals=2)
-    assert _convert(mini).fraction_decimals == 6  # until Member 1 publishes and documents the fields
+def test_explicit_fraction_decimals_beats_the_version_table(mini: dict[str, Any]) -> None:
+    mini["meta"].update(generator_version="1.2", fraction_decimals=6, angle_decimals=3)
+    s = _convert(mini)
+    assert s.fraction_decimals == 6 and "meta.angle_decimals=3" in (s.provenance.notes or "")
+    mini["meta"].update(generator_version="1.1", fraction_decimals=3)  # explicit statement wins over inference
+    assert _convert(mini).fraction_decimals == 3
+    del mini["meta"]["generator_version"]  # works without any version at all
+    assert _convert(mini).fraction_decimals == 3
+
+
+@pytest.mark.parametrize("key", ["fraction_decimals", "angle_decimals"])
+@pytest.mark.parametrize("bad", [True, 6.0, "6", -1, 18])
+def test_invalid_precision_metadata_is_rejected(mini: dict[str, Any], key: str, bad: object) -> None:
+    mini["meta"][key] = bad
+    with pytest.raises(SiteFileError, match=key):
+        _convert(mini)
+
+
+def test_real_published_files_state_their_precision() -> None:
+    for site in REAL_SITES:
+        meta = _raw(site)["meta"]
+        assert (meta["fraction_decimals"], meta["angle_decimals"]) == (6, 3)
+        assert _real(site).fraction_decimals == meta["fraction_decimals"]
