@@ -4,7 +4,7 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Too
 
 import { comparableEntries, fmtMetric, okEntries, rankByViability, type Entry } from './analysis'
 import { STATE, seriesColor } from './palette'
-import { DataKindBadge, Explain, PassBadge, ScenarioChip } from './ui'
+import { DataKindBadge, Explain, PassBadge, ScenarioChip, Icon } from './ui'
 
 interface BarRow {
   id: string
@@ -24,7 +24,7 @@ function ScenarioBars({ rows, unit, title, max, format, limitLabel }: {
 }) {
   return (
     <div>
-      <h3 className="mb-1 text-xs font-semibold text-slate-200">{title}</h3>
+      <h3 className="mb-1 text-xs font-medium text-slate-200">{title}</h3>
       <div style={{ height: 46 + rows.length * 34 }} role="img" aria-label={`${title}: ${rows.map((r) => `${r.name} ${format(r.value)}`).join(', ')}`}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 70, bottom: 4, left: 4 }} barCategoryGap={8}>
@@ -37,7 +37,7 @@ function ScenarioBars({ rows, unit, title, max, format, limitLabel }: {
                 const r = active && (payload?.[0]?.payload as BarRow | undefined)
                 if (!r) return null
                 return (
-                  <div className="rounded-md border border-[#2a3c63] bg-[#08111f]/95 px-2.5 py-2 text-xs">
+                  <div className="cmp-tip">
                     <div className="flex items-center gap-2"><ScenarioChip s={r.entry.scenario} size="sm" /> {r.entry.scenario.name}</div>
                     <div className="mt-1 tabular-nums text-slate-200">{format(r.value)}{r.limit !== undefined && ` (${limitLabel ?? 'limit'} ${format(r.limit)})`}</div>
                   </div>
@@ -56,8 +56,8 @@ function ScenarioBars({ rows, unit, title, max, format, limitLabel }: {
           {rows.map((r) => r.limit !== undefined && (
             <li key={r.id} className="flex items-center gap-1.5">
               <ScenarioChip s={r.entry.scenario} size="sm" />
-              {r.value > r.limit ? <span className="text-red-300">✕ exceeds {limitLabel} {format(r.limit)} by {format(r.value - r.limit)}</span>
-                : <span className="text-emerald-300">✓ within {limitLabel} {format(r.limit)} (margin {format(r.limit - r.value)})</span>}
+              {r.value > r.limit ? <span className="inline-flex items-center gap-1 text-red-300"><Icon name="close" size={14} />exceeds {limitLabel} {format(r.limit)} by {format(r.value - r.limit)}</span>
+                : <span className="inline-flex items-center gap-1 text-emerald-300"><Icon name="check" size={14} />within {limitLabel} {format(r.limit)} (margin {format(r.limit - r.value)})</span>}
             </li>
           ))}
         </ul>
@@ -78,12 +78,12 @@ export function AvailabilityCharts({ entries }: { entries: Entry[] }) {
     <div className="grid gap-5 lg:grid-cols-2">
       {left.length > 0 && (
         <p className="text-[11px] text-amber-300 lg:col-span-2">
-          ⚠ {left.map((e) => e.scenario.label).join(', ')} {left.length > 1 ? 'use' : 'uses'} demonstration data and {left.length > 1 ? 'are' : 'is'} left out of these real-data charts.
+          <Icon name="warning" size={14} className="mr-1 align-[-2px]" />{left.map((e) => e.scenario.label).join(', ')} {left.length > 1 ? 'use' : 'uses'} demonstration data and {left.length > 1 ? 'are' : 'is'} left out of these real-data charts.
         </p>
       )}
-      <ScenarioBars title="☀ Mission illuminated (any solar disk visible)" unit="%" max={100} format={pctf}
+      <ScenarioBars title="Mission illuminated (any solar disk visible)" unit="%" max={100} format={pctf}
         rows={ok.map((e) => row(e, e.result!.solar!.sunlit_fraction * 100))} />
-      <ScenarioBars title="⊕ Mission with Earth in line of sight" unit="%" max={100} format={pctf}
+      <ScenarioBars title="Mission with Earth in line of sight" unit="%" max={100} format={pctf}
         rows={ok.map((e) => row(e, e.result!.earth!.visible_fraction * 100))} />
       <ScenarioBars title="Longest power gap (Sun below panel threshold) vs battery limit" unit=" h" format={h} limitLabel="battery limit"
         rows={ok.filter((e) => e.result!.viability).map((e) => row(e, e.result!.viability!.metrics.longest_dark_gap_hours, e.scenario.requirements.battery_hours))} />
@@ -99,21 +99,21 @@ export function MissionPerformance({ entries }: { entries: Entry[] }) {
   const placeholder = viabilitySource.includes('placeholder')
   const list = (ranked: typeof real, title: string) => (
     <div>
-      <h3 className="mb-2 text-xs font-semibold text-slate-200">{title}</h3>
+      <h3 className="mb-2 text-xs font-medium text-slate-200">{title}</h3>
       <ol className="space-y-2">
         {ranked.map(({ entry: e, rank }) => {
           const v = e.result!.viability!
           return (
-            <li key={e.scenario.id} className="rounded-lg border border-[#1c2a48] bg-[#08111f] p-3">
+            <li key={e.scenario.id} className="rounded-lg border border-line bg-inset p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-lg font-bold tabular-nums text-slate-500">#{rank}</span>
+                <span className="text-lg font-medium tabular-nums text-slate-500">#{rank}</span>
                 <ScenarioChip s={e.scenario} />
                 <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{e.scenario.name}</span>
                 <PassBadge passes={v.passes} />
                 <DataKindBadge kind={e.result!.data_kind} />
                 <span className="ml-1 text-right">
-                  <span className="block text-xl font-semibold tabular-nums text-slate-50">{v.score?.toFixed(1) ?? '—'}</span>
-                  <span className="block text-[10px] text-slate-500">viability score</span>
+                  <span className="block text-xl font-medium tabular-nums text-slate-50">{v.score?.toFixed(1) ?? '—'}</span>
+                  <span className="block text-[11px] text-slate-500">viability score</span>
                 </span>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded bg-slate-800" aria-hidden="true">
@@ -123,12 +123,12 @@ export function MissionPerformance({ entries }: { entries: Entry[] }) {
                 <ul className="mt-2 space-y-0.5 text-xs text-red-200">
                   {v.violations.map((x) => (
                     <li key={x.constraint}>
-                      ✕ {x.message} <span className="text-red-300/70">(short by {(x.relative_shortfall * 100).toFixed(0)}%)</span>
+                      <Icon name="close" size={14} className="mr-1 align-[-2px]" />{x.message} <span className="text-red-300/70">(short by {(x.relative_shortfall * 100).toFixed(0)}%)</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-xs text-emerald-300">✓ No constraint violations.</p>
+                <p className="mt-2 text-xs text-emerald-300"><Icon name="check" size={14} className="mr-1 align-[-2px]" />No constraint violations</p>
               )}
             </li>
           )
@@ -144,7 +144,7 @@ export function MissionPerformance({ entries }: { entries: Entry[] }) {
         {placeholder && ' This is the interim placeholder implementation until Brandon’s evaluator is connected; the comparison will use his automatically.'}
       </p>
       {real.length > 0 && list(real, 'Real-data scenarios')}
-      {demo.length > 0 && list(demo, '⚠ Demonstration-data scenarios (ranked separately, not comparable with real data)')}
+      {demo.length > 0 && list(demo, 'Demonstration-data scenarios (ranked separately, not comparable with real data)')}
       <Explain title="Why are long darkness periods dangerous?">
         <p>Without sunlight the lander runs on its battery for heaters and electronics. If darkness lasts longer than the battery can supply (the “max darkness” requirement), the lander can freeze or shut down. At the poles, nights are irregular: terrain can block the Sun for a few hours or for many days.</p>
         <p>The viability score combines how comfortably each requirement is met. It is a team engineering heuristic, not a NASA mission assessment.</p>

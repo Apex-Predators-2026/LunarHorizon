@@ -100,14 +100,14 @@ const Lanes = memo(function Lanes({ e, top, x, view, w }: { e: Entry; top: numbe
         const up = ev.type === 'sunrise' || ev.type === 'earthrise'
         return (
           <path key={`${ev.type}${ev.hour}`} d={up ? `M${px - 4},${y - 1} L${px + 4},${y - 1} L${px},${y - 7} Z` : `M${px - 4},${y - 7} L${px + 4},${y - 7} L${px},${y - 1} Z`}
-            fill={sun ? STATE.sun : STATE.earth} stroke="#06101f" strokeWidth={0.5}>
+            fill={sun ? STATE.sun : STATE.earth} stroke="#1f2326" strokeWidth={0.5}>
             <title>{ev.type} · {ev.time_utc}</title>
           </path>
         )
       })}
       {/* data-kind marker */}
       {r.data_kind === 'demonstration' && (
-        <text x={missionA + 4} y={top + 12} fontSize={9} fill="#fcd34d">DEMONSTRATION DATA</text>
+        <text x={missionA + 4} y={top + 12} fontSize={9} fill="#fcd34d">Demonstration data</text>
       )}
     </g>
   )
@@ -242,11 +242,11 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
                 </text>
               )
             })}
-            {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={AXIS_H - 4} y2={height} stroke="#94a3b8" strokeDasharray="2 3" opacity={0.6} />}
+            {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={AXIS_H - 4} y2={height} stroke="#6b7076" strokeDasharray="2 3" opacity={0.7} />}
             {cursor !== null && cursor >= view[0] && cursor <= view[1] && (
               <g>
-                <line x1={x(cursor)} x2={x(cursor)} y1={AXIS_H - 6} y2={height} stroke="#e2e8f0" strokeWidth={1.5} />
-                <rect x={x(cursor) - 3} y={AXIS_H - 8} width={6} height={6} fill="#e2e8f0" transform={`rotate(45 ${x(cursor)} ${AXIS_H - 5})`} />
+                <line x1={x(cursor)} x2={x(cursor)} y1={AXIS_H - 6} y2={height} stroke="#d9472f" strokeWidth={1.5} />
+                <rect x={x(cursor) - 3} y={AXIS_H - 8} width={6} height={6} fill="#d9472f" transform={`rotate(45 ${x(cursor)} ${AXIS_H - 5})`} />
               </g>
             )}
           </g>
@@ -258,7 +258,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
                 <foreignObject x={0} y={top - 2} width={GUTTER - 8} height={2 * LANE + LANE_GAP + 4}>
                   <div className="flex h-full flex-col justify-center gap-0.5 pr-1 text-[11px] leading-tight text-slate-300">
                     <div className="flex items-center gap-1.5 truncate"><ScenarioChip s={e.scenario} size="sm" /><span className="truncate">{e.scenario.site.name}</span></div>
-                    <div className="truncate text-[10px] text-slate-500">☀ Sun · ⊕ Earth</div>
+                    <div className="truncate text-[11px] text-slate-500">Sun · Earth</div>
                   </div>
                 </foreignObject>
               </g>
@@ -266,7 +266,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
           })}
         </svg>
       </div>
-      <input type="range" aria-label="Selected time" className="mt-1 w-full accent-cyan-500"
+      <input type="range" aria-label="Selected time" className="mt-2 w-full"
         min={full[0]} max={full[1]} step={minStep} value={cursor ?? full[0]}
         style={{ marginLeft: 0 }} onChange={(ev) => {
           const c = Number(ev.target.value)

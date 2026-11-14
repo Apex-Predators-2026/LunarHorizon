@@ -2,7 +2,7 @@
 import { Fragment, useState } from 'react'
 
 import { METRICS, bestIds, deltaVsBaseline, fmtDeltaValue, fmtMetric, type Entry, type MetricDef } from './analysis'
-import { DataKindBadge, Explain, ProvenanceTag, ScenarioChip } from './ui'
+import { DataKindBadge, Explain, ProvenanceTag, ScenarioChip, Icon } from './ui'
 import { useCompareStore } from './useCompareStore'
 
 const GROUPS: { id: MetricDef['group']; title: string; note?: string }[] = [
@@ -25,7 +25,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
           <caption className="sr-only">Scientific metrics for each compared scenario</caption>
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 z-10 bg-[#0b1426] pb-2 text-left text-xs font-medium text-slate-400">Metric</th>
+              <th scope="col" className="sticky left-0 z-10 bg-surface pb-2 text-left text-xs font-medium text-slate-400">Metric</th>
               {entries.map((e) => (
                 <th key={e.scenario.id} scope="col" className="pb-2 pl-3 text-left text-xs font-medium text-slate-300">
                   <span className="flex items-center gap-1.5"><ScenarioChip s={e.scenario} size="sm" />
@@ -40,22 +40,22 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
             {GROUPS.map((g) => (
               <Fragment key={g.id}>
                 <tr>
-                  <th colSpan={cols + 1} scope="colgroup" className="border-t border-[#1c2a48] pt-3 text-left">
-                    <button type="button" className="text-xs font-semibold uppercase tracking-wider text-cyan-300/90"
+                  <th colSpan={cols + 1} scope="colgroup" className="border-t border-line pt-3 text-left">
+                    <button type="button" className="text-sm font-medium text-ink"
                       aria-expanded={open[g.id]} onClick={() => setOpen({ ...open, [g.id]: !open[g.id] })}>
                       {open[g.id] ? '▾' : '▸'} {g.title}
                     </button>
-                    {g.note && open[g.id] && <div className="text-[10px] font-normal text-slate-500">{g.note}</div>}
+                    {g.note && open[g.id] && <div className="text-[11px] font-normal text-slate-500">{g.note}</div>}
                   </th>
                 </tr>
                 {open[g.id] && g.id === 'mission' && (
                   <tr>
-                    <th scope="row" className="sticky left-0 bg-[#0b1426] py-1 text-left text-xs font-normal text-slate-300">Verdict</th>
+                    <th scope="row" className="sticky left-0 bg-surface py-1 text-left text-xs font-normal text-slate-300">Verdict</th>
                     {entries.map((e) => {
                       const v = e.result?.viability
                       return (
                         <td key={e.scenario.id} className="py-1 pl-3 text-xs">
-                          {v ? (v.passes ? <span className="text-emerald-300">✓ passes</span> : <span className="text-red-300">✕ fails</span>) : <span className="text-slate-500">—</span>}
+                          {v ? (v.passes ? <span className="inline-flex items-center gap-1 text-emerald-300"><Icon name="check" size={14} />passes</span> : <span className="inline-flex items-center gap-1 text-red-300"><Icon name="close" size={14} />fails</span>) : <span className="text-slate-500">—</span>}
                         </td>
                       )
                     })}
@@ -64,8 +64,8 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                 {open[g.id] && METRICS.filter((m) => m.group === g.id).map((m) => {
                   const best = bestIds(entries, m)
                   return (
-                    <tr key={m.id} className="hover:bg-[#0f1c35]">
-                      <th scope="row" title={m.hint} className="sticky left-0 bg-[#0b1426] py-1 pr-2 text-left text-xs font-normal text-slate-300">
+                    <tr key={m.id} className="hover:bg-inset">
+                      <th scope="row" title={m.hint} className="sticky left-0 bg-surface py-1 pr-2 text-left text-xs font-normal text-slate-300">
                         <span className="mr-1.5">{m.label}</span><ProvenanceTag p={m.provenance} />
                       </th>
                       {entries.map((e) => {
@@ -74,10 +74,10 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                         const isBest = best.has(e.scenario.id)
                         return (
                           <td key={e.scenario.id} className="py-1 pl-3 align-top tabular-nums">
-                            <span className={isBest ? 'font-semibold text-slate-50' : 'text-slate-300'}>{fmtMetric(v, m.unit)}</span>
-                            {isBest && <span className="ml-1 text-[10px] text-cyan-300" title="Best among compared real-data scenarios">★ best</span>}
+                            <span className={isBest ? 'font-medium text-slate-50' : 'text-slate-300'}>{fmtMetric(v, m.unit)}</span>
+                            {isBest && <span className="ml-1 text-xs text-emerald-300" title="Best among compared real-data scenarios">best</span>}
                             {d && (
-                              <span className={`block text-[10px] ${d.better === null ? 'text-slate-500' : d.better ? 'text-emerald-400' : 'text-red-400'}`}>
+                              <span className={`block text-[11px] ${d.better === null ? 'text-slate-500' : d.better ? 'text-emerald-400' : 'text-red-400'}`}>
                                 {d.better === null ? '' : d.better ? '▲ ' : '▼ '}{fmtDeltaValue(d.value, m.unit)} vs {base!.scenario.label}
                               </span>
                             )}
@@ -92,7 +92,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-[10px] text-slate-500">
+      <p className="mt-2 text-[11px] text-slate-500">
         Tags: <b>ephemeris</b> = JPL Horizons Sun/Earth positions · <b>derived</b> = computed from the Horizons + LOLA timeline ·{' '}
         <b>idealised</b> = geometric upper bound · <b>viability</b> = team viability evaluator · <b>config</b> = your inputs.
         {!base && ' Set a baseline scenario to see improvements (▲) and regressions (▼).'}
