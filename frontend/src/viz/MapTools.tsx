@@ -1,9 +1,10 @@
 // Floating toolbar over the 3D view (M3 "floating toolbar"): camera menu, layers menu (switches),
 // drop pin (click the terrain or type coordinates), verify with JPL, and play / pause. Messages, the legend and the JPL result open above it.
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useAppStore } from '../store'
 import type { VerifyResult } from '../types'
 import { fetchVerify } from './api'
+import { showSnackbar } from './snackbarStore'
 import type { ViewMode } from './CameraRig'
 import { KIND_COLOR } from './globe/overlays'
 import { parseCoordinates } from './coordinates'
@@ -110,6 +111,7 @@ function ToolMenu({
   id,
   openId,
   setOpenId,
+  onHeight,
   label,
   icon,
   children,
@@ -117,6 +119,7 @@ function ToolMenu({
   id: string
   openId: string | null // the one menu that is open (menus are mutually exclusive)
   setOpenId: (id: string | null) => void
+  onHeight: (h: number) => void // the open menu's height, so other popups can make room for it
   label: string
   icon: string
   children: (close: () => void) => ReactNode
@@ -124,7 +127,12 @@ function ToolMenu({
   const open = openId === id
   const [closing, setClosing] = useState(false)
   const root = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const close = () => setClosing(true)
+
+  useLayoutEffect(() => {
+    if (open && menuRef.current) onHeight(menuRef.current.offsetHeight)
+  }, [open, onHeight])
 
   useEffect(() => {
     if (!open) return
@@ -157,6 +165,7 @@ function ToolMenu({
       />
       {open && (
         <div
+          ref={menuRef}
           role="menu"
           aria-label={label}
           className={`absolute bottom-full left-1/2 mb-3 min-w-56 rounded-2xl bg-opal-50 py-2 shadow-xl shadow-black/40 ${closing ? 'md-menu-out' : 'md-menu'}`}
@@ -243,6 +252,7 @@ export function MapTools({
 }) {
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const [menuH, setMenuH] = useState(0)
   const playing = useAppStore((s) => s.playing)
   const setPlaying = useAppStore((s) => s.setPlaying)
 
@@ -250,10 +260,21 @@ export function MapTools({
     if (!siteId) return
     setVerify({ loading: true, result: null, error: null })
     fetchVerify(siteId, timeUtc)
-      .then((result) => setVerify({ loading: false, result, error: null }))
-      .catch((e: unknown) => setVerify({ loading: false, result: null, error: e instanceof Error ? e.message : String(e) }))
+      .then((result) => {
+        setVerify({ loading: false, result, error: null })
+        showSnackbar('JPL Horizons check complete', 'success')
+      })
+      .catch((e: unknown) => {
+        const message = e instanceof Error ? e.message : String(e)
+        setVerify({ loading: false, result: null, error: message })
+        showSnackbar(`JPL check failed: ${message}`, 'error')
+      })
   }
-  const toggle = (k: keyof Layers) => onLayers({ ...layers, [k]: !layers[k] })
+  const toggle = (k: keyof Layers) => {
+    onLayers({ ...layers, [k]: !layers[k] })
+    const name = LAYER_ROWS.find((r) => r.key === k)?.label ?? k
+    showSnackbar(`${name} ${layers[k] ? 'hidden' : 'shown'}`)
+  }
   const armed = pin.phase === 'armed'
 
   return (
@@ -268,7 +289,7 @@ export function MapTools({
           onClick={() => setPlaying(!playing)}
         />
         <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} id="camera" label="Camera position" icon={ICON.camera}>
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" label="Camera position" icon={ICON.camera}>
           {(close) =>
             VIEWS.map((v) => (
               <button
@@ -278,6 +299,7 @@ export function MapTools({
                 aria-checked={view === v.id}
                 title={v.hint}
                 onClick={() => {
+                  if (v.id !== view) showSnackbar(`Camera: ${v.label}`)
                   onView(v.id)
                   close()
                 }}
@@ -289,7 +311,7 @@ export function MapTools({
             ))
           }
         </ToolMenu>
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} id="layers" label="Map layers" icon={ICON.layers}>
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="layers" label="Map layers" icon={ICON.layers}>
           {() =>
             LAYER_ROWS.map((r) => (
               <button
@@ -327,7 +349,7 @@ export function MapTools({
           onClick={runVerify}
         />
         <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} id="graphics" label="Graphics quality" icon={ICON.speed}>
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="graphics" label="Graphics quality" icon={ICON.speed}>
           {(close) =>
             (Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
               <button
@@ -337,6 +359,7 @@ export function MapTools({
                 aria-checked={graphics === q}
                 title={GRAPHICS[q].hint}
                 onClick={() => {
+                  if (q !== graphics) showSnackbar(`Graphics set to ${GRAPHICS[q].label}`, 'success')
                   onGraphics(q)
                   close()
                 }}
@@ -360,7 +383,10 @@ export function MapTools({
                     : 'Not available in the Low graphics setting (no shadows)'
                 }
                 data-no-ripple
-                onClick={() => onFarShadows(!farShadows)}
+                onClick={() => {
+                  onFarShadows(!farShadows)
+                  showSnackbar(`Far shadows ${farShadows ? 'off' : 'on'}`)
+                }}
                 className="md-row flex h-14 w-full items-center justify-between gap-6 px-4 text-left text-sm disabled:opacity-40"
               >
                 Far shadows
@@ -375,25 +401,13 @@ export function MapTools({
         </ToolMenu>
       </div>
 
+      {/* Room for the open menu: everything above the toolbar is pushed up while it is open and falls back after. */}
+      <div aria-hidden className="transition-[height] duration-300 ease-[var(--md-ease-emph-decel)]" style={{ height: openMenu ? menuH + 12 : 0 }} />
+
       {armed && <CoordinateForm onSubmit={onCoordinates} />}
       {pin.phase === 'working' && (
         <p className="md-reveal pointer-events-auto rounded bg-slate-950/85 px-2 py-1 text-xs text-slate-200">
           Analysing {fmtLat(pin.lat)}, {pin.lon.toFixed(3)}°E… downloading terrain can take up to a minute in a new area.
-        </p>
-      )}
-      {pin.phase === 'error' && (
-        <p className="md-reveal pointer-events-auto rounded bg-red-950/85 px-2 py-1 text-xs text-red-200">Couldn't analyse that spot: {pin.message}</p>
-      )}
-
-      {layers.sites && (
-        <p className="md-reveal pointer-events-auto flex flex-wrap gap-x-2 rounded bg-slate-950/70 px-2 py-0.5 text-[10px] text-slate-300">
-          {(['artemis', 'apollo', 'clps', 'international', 'custom'] as const).map((k) => (
-            <span key={k} className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full" style={{ background: KIND_COLOR[k] }} />
-              {{ artemis: 'Artemis candidates', apollo: 'Apollo', clps: 'Commercial (CLPS)', international: 'Other countries', custom: 'Your pins' }[k]}
-            </span>
-          ))}
-          {layers.psr && <span className="text-sky-300">○ PSR (approx. extent) · · surface ice</span>}
         </p>
       )}
 
@@ -444,6 +458,38 @@ export function MapTools({
             </>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+/** Colour key for the map layers that are switched on (small white text, top-left of the view). */
+export function ColorKey({ layers }: { layers: Layers }) {
+  if (!layers.sites && !layers.psr && !layers.blockers) return null
+  const dot = (c: string) => <span className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />
+  return (
+    <div className="md-reveal pointer-events-none mt-3 max-w-[30rem] text-[10px] leading-snug text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }} aria-label="Colour key">
+      {layers.sites && (
+        <p className="flex flex-wrap gap-x-2.5">
+          {(['artemis', 'apollo', 'clps', 'international', 'custom'] as const).map((k) => (
+            <span key={k} className="flex items-center gap-1">
+              {dot(KIND_COLOR[k])}
+              {{ artemis: 'Artemis candidates', apollo: 'Apollo', clps: 'Commercial (CLPS)', international: 'Other countries', custom: 'Your pins' }[k]}
+            </span>
+          ))}
+        </p>
+      )}
+      {layers.psr && (
+        <p className="flex flex-wrap gap-x-2.5">
+          <span className="flex items-center gap-1">{dot('#7dd3fc')} PSR (approx. extent)</span>
+          <span className="flex items-center gap-1">{dot('#e0f2fe')} Surface ice</span>
+        </p>
+      )}
+      {layers.blockers && (
+        <p className="flex flex-wrap gap-x-2.5">
+          <span className="flex items-center gap-1">{dot('#ef4444')} Terrain blocking the Sun</span>
+          <span className="flex items-center gap-1">{dot('#60a5fa')} Terrain blocking Earth</span>
+        </p>
       )}
     </div>
   )
