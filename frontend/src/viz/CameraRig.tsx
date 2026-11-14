@@ -39,6 +39,7 @@ export function CameraRig({
 }) {
   // Read camera/controls from the store inside the effect (they are mutable three.js objects).
   const get = useThree((s) => s.get)
+  const invalidate = useThree((s) => s.invalidate)
   const controlsReady = useThree((s) => s.controls !== null)
 
   // Only the body views follow the Sun/Earth; the others reset when chosen or when the site changes.
@@ -71,7 +72,8 @@ export function CameraRig({
       controls.target.y += 12
     }
     controls.update()
-  }, [view, siteId, az, el, maxTerrainHeight, cy, controlsReady, get])
+    invalidate()
+  }, [view, siteId, az, el, maxTerrainHeight, cy, controlsReady, get, invalidate])
 
   return null
 }

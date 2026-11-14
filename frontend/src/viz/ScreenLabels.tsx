@@ -1,5 +1,5 @@
-import { useFrame } from '@react-three/fiber'
-import type { RefObject } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useEffect, type RefObject } from 'react'
 import * as THREE from 'three'
 
 export interface ScreenLabel {
@@ -26,6 +26,11 @@ export function ScreenLabels({
   labels: ScreenLabel[]
   moonCentre?: [number, number, number] | null
 }) {
+  // Labels are positioned in useFrame; with frameloop="demand", ask for a frame whenever the
+  // labels (or their text, rendered by the same parent) change.
+  const invalidate = useThree((s) => s.invalidate)
+  useEffect(() => invalidate())
+
   useFrame(({ camera, size }) => {
     for (const { ref, position, hideWithinM, hideBeyondM, followCamera, onSurface } of labels) {
       const el = ref.current
