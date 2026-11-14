@@ -14,10 +14,10 @@ The engine is a pure Python library: no network, no file I/O in the evaluation p
 frontend/3D/optimisation code. Members 3, 4 and 5 call one function; Member 1 supplies data.
 
 ```
-Member 1 ──ScientificTimeSeries──┐
-                                 ├─► evaluate_scenario() ─► ViabilityAssessment ─► Members 3, 4, 6
-Members 3/4/5 ──MissionScenario──┘                                 │
-                                         rank_assessments() ◄──────┘─► RankingResult ─► Members 4, 5
+data/sites/<id>.json ─► adapters.load_site_file() ─► ScientificTimeSeries ─┐
+                                                                            ├─► evaluate_scenario() ─► ViabilityAssessment ─► Members 3, 4, 6
+Members 3/4/5 ─────────────────────────────────────── MissionScenario ──────┘                                 │
+                                                                    rank_assessments() ◄─────────────────────┘─► RankingResult ─► Members 4, 5
 ```
 
 | Module | Responsibility | Phase |
@@ -28,6 +28,7 @@ Members 3/4/5 ──MissionScenario──┘                                 │
 | `mission.py` | Site, spacecraft, hard requirements, soft preferences, scenario | 1 ✅ |
 | `outputs.py` | Assessment/ranking contract + invariant validators, `derive_eligibility` | 1 ✅ |
 | `fixtures/` | Synthetic datasets (JSON) + deterministic builders | 1 ✅ |
+| `adapters/site_file.py` | Andrew's precomputed site files → `ScientificTimeSeries` (§3a) | 1 ✅ |
 | `windows.py` | Samples → visibility windows | 2 (stub) |
 | `metrics.py` | Durations, percentages, longest outages, data-quality summary | 2 (stub) |
 | `constraints.py` | PASS / FAIL / UNKNOWN / NOT_APPLICABLE per requirement | 3 (stub) |
@@ -53,8 +54,8 @@ Three verdicts are kept **separate**:
 | Angles | Degrees (`*_deg`) |
 | Percent / fraction | 0–100 (`*_percent`) / 0–1 |
 | Latitude | Selenographic, north positive (south pole = −90) |
-| Longitude | **East positive, [−180, 180]**. Convert Horizons' 0–360 east longitudes. |
-| Frame | Moon mean-Earth/polar-axis (ME). **To confirm with Member 1** (§10). |
+| Longitude | **East positive, [−180, 180]**. The site-file adapter converts Andrew's 0–360 values (§3a). |
+| Frame | **Unverified.** The DEM is Moon2000 (IAU 2000 sphere, LOLA). The frame of Horizons `coord@301` sites is not yet confirmed as the same (ME vs PA, ~1 km apart). Don't claim spatial compatibility until it is (§10). |
 | Azimuth | Clockwise from local north, [0, 360). Undefined exactly at a pole. |
 | Elevation | Above the local horizontal plane (⊥ radius vector), [−90, 90] |
 | Terrain horizon | Elevation of the terrain skyline at an azimuth; **may be negative** (summits) |
@@ -83,19 +84,23 @@ complete examples.
   "sampling": { "nominal_interval_s": 3600.0, "max_gap_s": 5400.0 },
   "provenance": { "is_synthetic": false, "ephemeris_source": "JPL Horizons …",
                   "terrain_source": "LOLA …", "terrain_resolution_m": 20.0,
-                  "horizon_azimuth_step_deg": 0.5, "generated_at_utc": "…Z",
+                  "horizon_azimuth_step_deg": 0.5, "generated_at_utc": "…Z",  // or null = not recorded
                   "generator": "engine vX", "references": [], "notes": null },
   "uncertainty": { "ephemeris_angle_uncertainty_deg": null, "horizon_angle_uncertainty_deg": null },
   "horizon_profile": { "azimuths_deg": [0.0, 0.5, …], "horizon_deg": [1.2, null, …] },  // optional
   "samples": [
     { "time_utc": "…Z",
       "sun":   { "azimuth_deg": 120.0, "elevation_deg": 1.5, "horizon_deg": 0.9,
-                 "state": "visible", "visible_fraction": 1.0 },
+                 "state": "visible", "visible_fraction": 1.0, "angular_radius_deg": 0.2666 },
       "earth": { "azimuth_deg": 20.0, "elevation_deg": 3.0, "horizon_deg": 1.0,
-                 "state": "visible", "visible_fraction": null } }
+                 "state": "visible", "visible_fraction": null, "angular_radius_deg": null } }
   ]
 }
 ```
+
+`angular_radius_deg` (optional) is the apparent radius actually used for disk calculations.
+`provenance.generated_at_utc` is required but may be `null` when the producer didn't record it.
+It is never back-filled.
 
 **States:** `visible`, `partial` (only with `apparent_disk`), `not_visible`, `unknown`.
 
@@ -112,20 +117,66 @@ complete examples.
 7. Missing samples are not darkness. Consecutive samples more than `sampling.max_gap_s` apart bound a **coverage gap**, which Phase 2 treats as unknown.
 8. `schema_version` must match exactly.
 
-**Mapping from the current shared draft** (`docs/interfaces.md`, `app/models.py` `TimelineStep`):
+Validating a two-year hourly series (~17.5k samples) takes about 0.3 s, or about 0.6 s
+through the adapter. Load once and reuse the object for many scenarios (Member 5).
 
-| Draft field | Proposed contract |
-|---|---|
-| `time_utc: str` | `time_utc`: validated UTC datetime |
-| `sun/earth.azimuth_deg`, `elevation_deg` | same names; nullable |
-| `horizon_deg: float` | same name; **nullable**, so unknown terrain ≠ 0 |
-| `sun.visible_fraction` | same name; with `sun_criterion = "apparent_disk"` |
-| `earth.visible: bool` | `earth.state` enum (adds `unknown`) |
-| `earth.margin_deg` | dropped (derivable as `elevation_deg − horizon_deg`; avoids inconsistency) |
-| *(none)* | series-level basis, criteria, angle type, sampling, provenance, uncertainty |
+## 3a. Andrew's precomputed site files and the adapter
 
-Validating a two-year hourly series (~17.5k samples, ~5 MB JSON) takes about 0.3 s.
-Validate once and reuse the object for many scenarios (Member 5).
+Andrew's engine (`backend/app/engine/`, run by `backend/scripts/precompute.py`) writes one
+**column-oriented** file per curated site, `data/sites/<id>.json` (format in
+`docs/interfaces.md`). Index `i` across every `timeline` array is one hourly time step,
+2027-01-01 → 2029-01-01 (17,545 steps). His format and engine are **not modified**.
+`app.viability.adapters` translates it:
+
+```python
+from app.viability.adapters import load_site_file
+series = load_site_file("data/sites/peak-near-shackleton.json")   # -> ScientificTimeSeries
+```
+
+| Site-file field | Contract field | Conversion |
+|---|---|---|
+| `site.id`, `name`, `lat` | `site.id`, `name`, `lat` | unchanged |
+| `site.lon` (0–360 °E) | `site.lon` [−180, 180] | `lon − 360` if `lon > 180`; original kept in `provenance.notes` |
+| `site.ground_height_m` | `site.surface_height_m` | unchanged (both: m above the 1737.4 km sphere) |
+| `site.observer_height_m` | `observer_height_m` | unchanged |
+| `site.source` | `provenance.references[0]` | unchanged |
+| `site.x_m`, `y_m` | `provenance.notes` | recorded (Moon Trek south-polar stereographic) |
+| `meta.ephemeris` | `provenance.ephemeris_source`; `angle_type = apparent` | rejected unless it states "apparent" |
+| `meta.terrain[]` | `provenance.terrain_source`; `calculation_basis = terrain_aware` | an empty list is rejected |
+| `meta.step` | `sampling.nominal_interval_s`; `max_gap_s = 1.5 × step` | `1h`/`30m`/`10 min`/`1d`; samples closer than the step are rejected |
+| `meta.generated_utc` *(absent today)* | `provenance.generated_at_utc` | otherwise `null` |
+| `horizon.azimuth_deg`, `elevation_deg` | `horizon_profile` | step → `horizon_azimuth_step_deg` (0.5°); `distance_m` is not carried |
+| `timeline.time_utc` (`…T00:00Z`) | `samples[i].time_utc` | must be UTC; other offsets or naive times are rejected |
+| `sun_azimuth/elevation/horizon_deg` | `sun.*` | azimuth exactly 360.0 → 0.0 |
+| `sun_visible_fraction` | `sun.visible_fraction` + `sun.state` | 0 → `not_visible`, (0,1) → `partial`, 1 → `visible`; `sun_criterion = apparent_disk` |
+| `earth_azimuth/elevation/horizon_deg` | `earth.*` | azimuth exactly 360.0 → 0.0 |
+| `earth_visible` | `earth.state` | `visible` / `not_visible`; `earth_criterion = center` (his rule: margin > 0) |
+| `earth_margin_deg` | *(not stored)* | checked against `elevation − horizon` (±0.002°) and against `earth_visible` |
+| `sun/earth_angular_radius_deg` *(absent today)* | `*.angular_radius_deg` | otherwise `null` |
+| `summary` | *(not used)* | test cross-check only |
+
+**Missing data:** a `null` or `NaN` element makes that body's state `unknown` and keeps the
+known values. A visibility value whose input angle is missing (for example a fraction without a
+horizon) is **rejected as inconsistent**. A missing horizon never becomes a clear horizon.
+`Infinity`, booleans or strings in numeric columns, unequal array lengths, missing columns or
+metadata, fewer than 2 samples, and states that contradict the angles all raise
+`SiteFileError` with the field and index. Unknown extra columns are listed in
+`provenance.notes`, not silently dropped.
+
+**Results on the committed files:** all four validate.
+
+| Site | lon (file → contract) | Sun visible / partial / not visible | Earth visible |
+|---|---|---|---|
+| connecting-ridge | 209.94767 → −150.05233 | 9044 / 1443 / 7058 | 49.6% |
+| malapert-massif | 357.6326 → −2.3674 | 13371 / 1116 / 3058 | 99.9% |
+| peak-near-shackleton | 126.27302 (unchanged) | 4347 / 2196 / 11002 | 50.4% |
+| shackleton-floor (control) | 129.78 (unchanged) | 0 / 0 / 17545 | 0% |
+
+**Known precision effect:** the file rounds fractions to 3 decimals. Disk slivers below 0.0005
+(centre 0.261–0.266° below the horizon) are written as 0, so they become `not_visible`. That is
+4–16 samples per site (0.02–0.09 percentage points of sunlit time), and it explains why his
+`summary.sunlit_pct`, which uses unrounded values, is slightly higher. The adapter stays faithful
+to the file; recomputing fractions is Member 1's job.
 
 ## 4. Mission models: Members 3/4/5 → engine
 
@@ -222,7 +273,10 @@ mypy --strict app/viability tests/viability           # optional
 ```
 
 Requires Python ≥ 3.11, `pydantic` 2 and `pytest` (both already in `requirements.txt`).
-No new dependencies. Tests import `app.viability` only, so FastAPI need not be installed.
+No new dependencies. The viability tests import `app.viability` only, so FastAPI, NumPy and
+rasterio are not needed. The adapter tests read the committed `data/sites/*.json`. Andrew's
+`tests/test_engine.py` needs `numpy` and `rasterio`; run `python -m pytest tests` for
+everything.
 
 ## 9. Roadmap
 
@@ -235,21 +289,26 @@ No new dependencies. Tests import `app.viability` only, so FastAPI need not be i
 | 6 | Assembled `ViabilityAssessment`; explanation text |
 | 7 | Real-data tests with Member 1 output; validation with Member 6; FastAPI endpoint wiring |
 
-## 10. Decisions needed before integration
+## 10. Remaining integration decisions
 
-**With Member 1 (input contract):**
-1. Accept this schema, or propose changes. Should the shared `TimelineStep` in `docs/interfaces.md`, `app/models.py` and `types.ts` adopt nullable `horizon_deg` and a `state` enum?
-2. Which body-fixed frame do Horizons topocentric sites and the DEM use (ME vs PA, which differ by ~1 km at the surface)? Are longitudes converted to [−180, 180]?
-3. Should the Sun use `apparent_disk` and the Earth `center`? Which solar radius is used (fixed or distance-dependent)?
-4. Is `horizon_deg` the skyline at the body-centre azimuth? Does it include the curvature correction and the observer height from Plan.txt?
-5. Sampling: nominal interval, `max_gap_s`, and whether transitions are refined with extra samples.
-6. Is one observer height enough, or are separate solar-array and antenna heights needed?
-7. Can uncertainty estimates be provided (with Member 6)?
+**Settled by reading Andrew's engine (no action needed):**
+- Sun = apparent disk, using the distance-dependent radius from Horizons `Ang-diam` (0.2666° fallback). Earth = centre above terrain, margin > 0.
+- `horizon_deg` = the 0.5°-sampled skyline interpolated at the body-centre azimuth. It includes exact spherical curvature and the 2 m observer height.
+- Angles are Horizons apparent az/el (quantity 4), measured against the spherical horizon. Times are UT, hourly.
+- Longitude: the file keeps 0–360; the adapter converts (no change needed on his side).
+
+**Open, with Member 1 (Andrew):**
+1. **Lunar body-fixed frame (unresolved).** The LOLA DEMs are Moon2000/ME. Which frame does Horizons use for `CENTER='coord@301'` geodetic site coordinates? ME and PA differ by ~1 km on the surface, which matters for which terrain point is "the site". Spatial compatibility is not claimed until this is verified.
+2. Precision: write `sun_visible_fraction` with more decimals (e.g. 6), or add a `sunlit` column, so slivers below 0.0005 are not lost (§3a).
+3. Add `sun_angular_radius_deg` (and `meta.generated_utc` / generator version) to the file. The adapter already reads them if present.
+4. Should the shared `TimelineStep` (`docs/interfaces.md`, `app/models.py`, `types.ts`) gain `unknown` states / nullable horizons for custom sites? His precompute currently errors out rather than emitting gaps.
+5. Is one observer height enough, or are separate solar-array and antenna heights needed?
+6. Can uncertainty estimates be provided (with Member 6)?
 
 **Engine semantics (Phase 2, team input welcome):**
-8. Integration rule between samples: transition at the interpolated zero-crossing of clearance, or at the sample midpoint?
-9. Does `partial` sunlight count as sunlit, dark, or fraction-weighted toward sunlight duration and longest darkness?
-10. Darkness spanning mission start is clipped. Is landing assumed to happen with a full battery?
+7. Integration rule between samples: transition at the interpolated zero-crossing of clearance, or at the sample midpoint?
+8. Does `partial` sunlight count as sunlit, dark, or fraction-weighted toward sunlight duration and longest darkness? This is material: partial-disk hours are 6–13% of the timeline at each real site that gets any sun. Andrew's summaries use "any part of the disk" (fraction > 0). The adapter preserves the fraction, so any rule remains possible.
+9. Darkness spanning mission start is clipped. Is landing assumed to happen with a full battery?
 
 **With Members 3/4/5:** the field names above; whether `windows[]` should be paginated or
 down-sampled for long missions; and whether failed scenarios should be scored, so rescue can

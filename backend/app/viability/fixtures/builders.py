@@ -111,7 +111,12 @@ def _observation(
             else VisibilityState.PARTIAL
         )
         return BodyObservation(
-            azimuth_deg=az_r, elevation_deg=el_r, horizon_deg=horizon, state=state, visible_fraction=fraction
+            azimuth_deg=az_r,
+            elevation_deg=el_r,
+            horizon_deg=horizon,
+            state=state,
+            visible_fraction=fraction,
+            angular_radius_deg=SUN_RADIUS_DEG,
         )
     # Centre criterion: visible only when the centre is strictly above the horizon.
     state = VisibilityState.VISIBLE if actual > 0.0 else VisibilityState.NOT_VISIBLE

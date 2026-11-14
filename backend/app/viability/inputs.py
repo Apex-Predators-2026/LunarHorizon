@@ -21,9 +21,9 @@ Key rules (enforced by validators below):
 from __future__ import annotations
 
 from itertools import pairwise
-from typing import Self
+from typing import Annotated, Self
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, Strict, field_validator, model_validator
 
 from .conventions import (
     SCHEMA_VERSION,
@@ -57,7 +57,8 @@ class Provenance(ContractModel):
     terrain_source: NonEmptyStr | None = None  # e.g. DEM product name; None if geometric-only
     terrain_resolution_m: PositiveFloat | None = None
     horizon_azimuth_step_deg: PositiveFloat | None = None
-    generated_at_utc: UTCDatetime
+    # Required but nullable: null means the producer did not record it (never back-filled).
+    generated_at_utc: UTCDatetime | None
     generator: NonEmptyStr  # software name + version that produced the file
     references: list[NonEmptyStr] = Field(default_factory=list)
     notes: str | None = None
@@ -102,8 +103,8 @@ class HorizonProfile(ContractModel):
 class BodyObservation(ContractModel):
     """Sun or Earth as seen from the site at one instant.
 
-    All fields except ``visible_fraction`` are required but nullable, so a producer must
-    state explicitly that a value is unknown rather than omit it.
+    All fields except ``visible_fraction`` and ``angular_radius_deg`` are required but
+    nullable, so a producer must state explicitly that a value is unknown rather than omit it.
     """
 
     azimuth_deg: AzimuthDeg | None
@@ -111,6 +112,8 @@ class BodyObservation(ContractModel):
     horizon_deg: ElevationDeg | None  # terrain horizon at azimuth_deg; None = unknown/not modelled
     state: VisibilityState
     visible_fraction: Fraction | None = None  # fraction of apparent disk above the horizon
+    # Apparent angular radius actually used for disk calculations (e.g. Horizons Ang-diam / 2).
+    angular_radius_deg: Annotated[float, Strict(), Field(gt=0.0, le=10.0)] | None = None
 
     @model_validator(mode="after")
     def _self_consistent(self) -> Self:

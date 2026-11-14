@@ -44,14 +44,16 @@
         "elevation_deg": 1.5,
         "horizon_deg": 0.7,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.0,
         "elevation_deg": 3.0,
         "horizon_deg": 2.2809,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -61,14 +63,16 @@
         "elevation_deg": 1.5261,
         "horizon_deg": 0.7534,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.05,
         "elevation_deg": 3.02,
         "horizon_deg": 1.9847,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -78,14 +82,16 @@
         "elevation_deg": 1.5521,
         "horizon_deg": 0.8593,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.1,
         "elevation_deg": 3.04,
         "horizon_deg": 1.759,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -95,14 +101,16 @@
         "elevation_deg": 1.5776,
         "horizon_deg": 1.012,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.15,
         "elevation_deg": 3.06,
         "horizon_deg": 1.6207,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -112,14 +120,16 @@
         "elevation_deg": 1.6026,
         "horizon_deg": 1.2026,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.2,
         "elevation_deg": 3.08,
         "horizon_deg": 1.5804,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -129,14 +139,16 @@
         "elevation_deg": 1.6268,
         "horizon_deg": 1.4197,
         "state": "partial",
-        "visible_fraction": 0.9389
+        "visible_fraction": 0.9389,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.25,
         "elevation_deg": 3.1,
         "horizon_deg": 1.6424,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -146,14 +158,16 @@
         "elevation_deg": 1.65,
         "horizon_deg": 1.65,
         "state": "partial",
-        "visible_fraction": 0.5
+        "visible_fraction": 0.5,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.3,
         "elevation_deg": 3.12,
         "horizon_deg": 1.8036,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -163,14 +177,16 @@
         "elevation_deg": 1.6721,
         "horizon_deg": 1.8791,
         "state": "partial",
-        "visible_fraction": 0.0613
+        "visible_fraction": 0.0613,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.35,
         "elevation_deg": 3.14,
         "horizon_deg": 2.0546,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -180,14 +196,16 @@
         "elevation_deg": 1.6928,
         "horizon_deg": 2.0928,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.4,
         "elevation_deg": 3.16,
         "horizon_deg": 2.3796,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -197,14 +215,16 @@
         "elevation_deg": 1.7121,
         "horizon_deg": 2.2778,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.45,
         "elevation_deg": 3.18,
         "horizon_deg": 2.7577,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -214,14 +234,16 @@
         "elevation_deg": 1.7298,
         "horizon_deg": 2.4226,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.5,
         "elevation_deg": 3.2,
         "horizon_deg": 3.1646,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -231,14 +253,16 @@
         "elevation_deg": 1.7457,
         "horizon_deg": 2.5185,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.55,
         "elevation_deg": 3.22,
         "horizon_deg": 3.5739,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -248,14 +272,16 @@
         "elevation_deg": 1.7598,
         "horizon_deg": 2.5598,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.6,
         "elevation_deg": 3.24,
         "horizon_deg": 3.9591,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -265,14 +291,16 @@
         "elevation_deg": 1.7719,
         "horizon_deg": 2.5446,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.65,
         "elevation_deg": 3.26,
         "horizon_deg": 4.2953,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -282,14 +310,16 @@
         "elevation_deg": 1.7819,
         "horizon_deg": 2.4747,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.7,
         "elevation_deg": 3.28,
         "horizon_deg": 4.561,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -299,14 +329,16 @@
         "elevation_deg": 1.7898,
         "horizon_deg": 2.3555,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.75,
         "elevation_deg": 3.3,
         "horizon_deg": 4.7393,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -316,14 +348,16 @@
         "elevation_deg": 1.7954,
         "horizon_deg": 2.1954,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.8,
         "elevation_deg": 3.32,
         "horizon_deg": 4.8196,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -333,14 +367,16 @@
         "elevation_deg": 1.7989,
         "horizon_deg": 2.0059,
         "state": "partial",
-        "visible_fraction": 0.0613
+        "visible_fraction": 0.0613,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.85,
         "elevation_deg": 3.34,
         "horizon_deg": 4.7976,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -350,14 +386,16 @@
         "elevation_deg": 1.8,
         "horizon_deg": 1.8,
         "state": "partial",
-        "visible_fraction": 0.5
+        "visible_fraction": 0.5,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.9,
         "elevation_deg": 3.36,
         "horizon_deg": 4.6764,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -367,14 +405,16 @@
         "elevation_deg": 1.7989,
         "horizon_deg": 1.5918,
         "state": "partial",
-        "visible_fraction": 0.9389
+        "visible_fraction": 0.9389,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 20.95,
         "elevation_deg": 3.38,
         "horizon_deg": 4.4654,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -384,14 +424,16 @@
         "elevation_deg": 1.7954,
         "horizon_deg": 1.3954,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.0,
         "elevation_deg": 3.4,
         "horizon_deg": 4.1804,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -401,14 +443,16 @@
         "elevation_deg": 1.7898,
         "horizon_deg": 1.2241,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.05,
         "elevation_deg": 3.42,
         "horizon_deg": 3.8423,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -418,14 +462,16 @@
         "elevation_deg": 1.7819,
         "horizon_deg": 1.0891,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.1,
         "elevation_deg": 3.44,
         "horizon_deg": 3.4754,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -435,14 +481,16 @@
         "elevation_deg": 1.7719,
         "horizon_deg": 0.9992,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.15,
         "elevation_deg": 3.46,
         "horizon_deg": 3.1061,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -452,14 +500,16 @@
         "elevation_deg": 1.7598,
         "horizon_deg": 0.9598,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.2,
         "elevation_deg": 3.48,
         "horizon_deg": 2.7609,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -469,14 +519,16 @@
         "elevation_deg": 1.7457,
         "horizon_deg": 0.973,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.25,
         "elevation_deg": 3.5,
         "horizon_deg": 2.4647,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -486,14 +538,16 @@
         "elevation_deg": 1.7298,
         "horizon_deg": 1.037,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.3,
         "elevation_deg": 3.52,
         "horizon_deg": 2.239,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -503,14 +557,16 @@
         "elevation_deg": 1.7121,
         "horizon_deg": 1.1464,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.35,
         "elevation_deg": 3.54,
         "horizon_deg": 2.1007,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -520,14 +576,16 @@
         "elevation_deg": 1.6928,
         "horizon_deg": 1.2928,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.4,
         "elevation_deg": 3.56,
         "horizon_deg": 2.0604,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -537,14 +595,16 @@
         "elevation_deg": 1.6721,
         "horizon_deg": 1.465,
         "state": "partial",
-        "visible_fraction": 0.9389
+        "visible_fraction": 0.9389,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.45,
         "elevation_deg": 3.58,
         "horizon_deg": 2.1224,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -554,14 +614,16 @@
         "elevation_deg": 1.65,
         "horizon_deg": 1.65,
         "state": "partial",
-        "visible_fraction": 0.5
+        "visible_fraction": 0.5,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.5,
         "elevation_deg": 3.6,
         "horizon_deg": 2.2836,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -571,14 +633,16 @@
         "elevation_deg": 1.6268,
         "horizon_deg": 1.8338,
         "state": "partial",
-        "visible_fraction": 0.0613
+        "visible_fraction": 0.0613,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.55,
         "elevation_deg": 3.62,
         "horizon_deg": 2.5346,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -588,14 +652,16 @@
         "elevation_deg": 1.6026,
         "horizon_deg": 2.0026,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.6,
         "elevation_deg": 3.64,
         "horizon_deg": 2.8596,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -605,14 +671,16 @@
         "elevation_deg": 1.5776,
         "horizon_deg": 2.1433,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.65,
         "elevation_deg": 3.66,
         "horizon_deg": 3.2377,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -622,14 +690,16 @@
         "elevation_deg": 1.5521,
         "horizon_deg": 2.2449,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.7,
         "elevation_deg": 3.68,
         "horizon_deg": 3.6446,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -639,14 +709,16 @@
         "elevation_deg": 1.5261,
         "horizon_deg": 2.2989,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.75,
         "elevation_deg": 3.7,
         "horizon_deg": 4.0539,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -656,14 +728,16 @@
         "elevation_deg": 1.5,
         "horizon_deg": 2.3,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.8,
         "elevation_deg": 3.72,
         "horizon_deg": 4.4391,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -673,14 +747,16 @@
         "elevation_deg": 1.4739,
         "horizon_deg": 2.2466,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.85,
         "elevation_deg": 3.74,
         "horizon_deg": 4.7753,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -690,14 +766,16 @@
         "elevation_deg": 1.4479,
         "horizon_deg": 2.1407,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.9,
         "elevation_deg": 3.76,
         "horizon_deg": 5.041,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -707,14 +785,16 @@
         "elevation_deg": 1.4224,
         "horizon_deg": 1.988,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 21.95,
         "elevation_deg": 3.78,
         "horizon_deg": 5.2193,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -724,14 +804,16 @@
         "elevation_deg": 1.3974,
         "horizon_deg": 1.7974,
         "state": "not_visible",
-        "visible_fraction": 0.0
+        "visible_fraction": 0.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 22.0,
         "elevation_deg": 3.8,
         "horizon_deg": 5.2996,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -741,14 +823,16 @@
         "elevation_deg": 1.3732,
         "horizon_deg": 1.5803,
         "state": "partial",
-        "visible_fraction": 0.0611
+        "visible_fraction": 0.0611,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 22.05,
         "elevation_deg": 3.82,
         "horizon_deg": 5.2776,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -758,14 +842,16 @@
         "elevation_deg": 1.35,
         "horizon_deg": 1.35,
         "state": "partial",
-        "visible_fraction": 0.5
+        "visible_fraction": 0.5,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 22.1,
         "elevation_deg": 3.84,
         "horizon_deg": 5.1564,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -775,14 +861,16 @@
         "elevation_deg": 1.3279,
         "horizon_deg": 1.1209,
         "state": "partial",
-        "visible_fraction": 0.9387
+        "visible_fraction": 0.9387,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 22.15,
         "elevation_deg": 3.86,
         "horizon_deg": 4.9454,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -792,14 +880,16 @@
         "elevation_deg": 1.3072,
         "horizon_deg": 0.9072,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 22.2,
         "elevation_deg": 3.88,
         "horizon_deg": 4.6604,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -809,14 +899,16 @@
         "elevation_deg": 1.2879,
         "horizon_deg": 0.7222,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 22.25,
         "elevation_deg": 3.9,
         "horizon_deg": 4.3223,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -826,14 +918,16 @@
         "elevation_deg": 1.2702,
         "horizon_deg": 0.5774,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 22.3,
         "elevation_deg": 3.92,
         "horizon_deg": 3.9554,
         "state": "not_visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -843,14 +937,16 @@
         "elevation_deg": 1.2543,
         "horizon_deg": 0.4815,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 22.35,
         "elevation_deg": 3.94,
         "horizon_deg": 3.5861,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     },
     {
@@ -860,14 +956,16 @@
         "elevation_deg": 1.2402,
         "horizon_deg": 0.4402,
         "state": "visible",
-        "visible_fraction": 1.0
+        "visible_fraction": 1.0,
+        "angular_radius_deg": 0.2666
       },
       "earth": {
         "azimuth_deg": 22.4,
         "elevation_deg": 3.96,
         "horizon_deg": 3.2409,
         "state": "visible",
-        "visible_fraction": null
+        "visible_fraction": null,
+        "angular_radius_deg": null
       }
     }
   ]
