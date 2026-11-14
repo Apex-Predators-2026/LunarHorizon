@@ -518,15 +518,15 @@
   --md-field-bg: #e8e8e8; /* the surface behind the field: the floating label "cuts" the outline with it */
   position: relative;
   display: block;
-  margin-top: 6px;
+  margin-top: 8px; /* room for the floated label; with an 8 dp gap that makes 16 dp between fields */
   color: var(--color-calcite-ink);
 }
 .md-field-control {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  height: 48px;
-  padding: 0 14px;
+  height: 56px;
+  padding: 0 16px;
   border: 1px solid #79747e;
   border-radius: 4px;
   background: transparent;
@@ -563,8 +563,8 @@
 }
 .md-field-label {
   position: absolute;
-  left: 10px;
-  top: 24px;
+  left: 12px;
+  top: 28px;
   max-width: calc(100% - 20px);
   padding: 0 4px;
   overflow: hidden;
@@ -594,14 +594,14 @@
 .md-field-select {
   appearance: none;
   -webkit-appearance: none;
-  padding-right: 40px;
+  padding-right: 48px;
   cursor: pointer;
   text-overflow: ellipsis;
 }
 .md-field-trailing {
   position: absolute;
   right: 12px;
-  top: 24px;
+  top: 28px;
   width: 24px;
   height: 24px;
   color: #49454f;
@@ -616,7 +616,7 @@
   color: var(--color-coral);
 }
 .md-field-support {
-  margin: 4px 16px 0;
+  margin: 4px 16px 0; /* M3: supporting text sits 4 dp under the field, inset 16 dp */
   font-size: 11px;
   line-height: 16px;
   color: #49454f;
@@ -684,4 +684,29 @@
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.1px;
+}
+
+/* ---- Spacing (https://m3.material.io/styles/spacing): 8 dp grid, 4 dp for small steps, 48 dp targets ---- */
+/* Buttons: 40 dp tall, 24 dp side padding, pill shaped. */
+.md-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 24px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+/* Compact controls (timeline): 40 dp tall; the surrounding 8 dp gap gives a 48 dp touch zone. */
+.md-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  min-width: 40px;
+  padding: 0 12px;
+  border-radius: 20px;
+  font-size: 13px;
 }
