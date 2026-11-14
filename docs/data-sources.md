@@ -67,5 +67,15 @@ https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/
 - Background only: Artemis, Gateway/Canadarm3, Canadian utility rover, LEAP program, infographics.
 - **No datasets or APIs.** Useful for the educational/explanation text and presentation context.
 
+## Validation-only references
+Used by `backend/scripts/validate_engine.py` (results: `docs/validation-engine.md`), not by the app.
+- **Independent ephemeris:** Skyfield + JPL DE421 (`https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp`) and the
+  Moon ME frame kernels from NAIF (`fk/satellites/moon_080317.tf`, `pck/moon_pa_de421_1900-2050.bpc`,
+  `pck/a_old_versions/pck00008.tpc` under `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/`).
+- **Observed illumination:** LROC `WAC_POLE_ILL_TWI_SOUTH_100M.IMG` (32-bit % sunlit, 88–90°S, 100 m/px,
+  2010-02-15 to 2011-02-05), from
+  `https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/DATA/BDR/WAC_POLE/WAC_POLE_ILL_TWI_SOUTH/`.
+  Use the `.IMG`; the `.TIF` next to it is an 8-bit display stretch with no stated scaling.
+
 ## Network note
 On machines with HTTPS inspection (antivirus/proxy), Python needs `truststore.inject_into_ssl()` to use the OS certificate store.

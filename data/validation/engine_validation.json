@@ -1,0 +1,346 @@
+{
+  "reference": {
+    "ephemeris": "Skyfield + JPL DE421 + MOON_ME_DE421 frame (moon_080317.tf, moon_pa_de421_1900-2050.bpc)",
+    "illumination": "LROC WAC_POLE_ILL_TWI_SOUTH_100M (Speyerer & Robinson 2013), 2010-02-15..2011-02-05",
+    "ephemeris_sample_every_hours": 6
+  },
+  "sites": {
+    "connecting-ridge": {
+      "ephemeris": {
+        "sun": {
+          "samples": 2925,
+          "elevation_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "azimuth_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "separation_deg": {
+            "max": 0.00071,
+            "rms": 0.00041,
+            "p99": 0.00066
+          },
+          "verdict_changes": 1
+        },
+        "earth": {
+          "samples": 2925,
+          "elevation_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "azimuth_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "separation_deg": {
+            "max": 0.00069,
+            "rms": 0.00041,
+            "p99": 0.00066
+          },
+          "verdict_changes": 0
+        }
+      },
+      "illumination": {
+        "covered": true,
+        "lroc_pct_at_pixel": 8.7,
+        "lroc_pct_3x3_min": 7.9,
+        "lroc_pct_3x3_max": 30.1,
+        "model_period": "2010-02-15 .. 2011-02-05",
+        "model_any_sun_pct": 42.8,
+        "model_half_disk_pct": 37.1,
+        "model_mean_fraction_pct": 37.1,
+        "model_hours": 8521
+      },
+      "spatial": {
+        "points": 121,
+        "grid": "11x11 at 400 m",
+        "ours": {
+          "pearson_r": 0.682,
+          "mean_bias_pct": -3.9,
+          "mean_abs_diff_pct": 5.9
+        },
+        "mirrored_EW": {
+          "pearson_r": 0.682,
+          "mean_bias_pct": -4.0,
+          "mean_abs_diff_pct": 5.9
+        },
+        "rotated_180": {
+          "pearson_r": 0.712,
+          "mean_bias_pct": -3.3,
+          "mean_abs_diff_pct": 6.1
+        },
+        "lroc_mean_pct": 25.4,
+        "model_mean_pct": 21.5
+      },
+      "horizon_geometry": {
+        "directions": 36,
+        "file_vs_independent_deg": {
+          "max": 0.00052,
+          "rms": 0.00033,
+          "p99": 0.00051
+        },
+        "mirrored_vs_independent_deg": {
+          "max": 6.46152,
+          "rms": 3.71264,
+          "p99": 6.46141
+        },
+        "horizon_range_deg": [
+          -2.41,
+          4.88
+        ]
+      }
+    },
+    "peak-near-shackleton": {
+      "ephemeris": {
+        "sun": {
+          "samples": 2925,
+          "elevation_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "azimuth_diff_deg": {
+            "max": 0.0005,
+            "rms": 0.00029,
+            "p99": 0.00049
+          },
+          "separation_deg": {
+            "max": 0.00071,
+            "rms": 0.00041,
+            "p99": 0.00066
+          },
+          "verdict_changes": 0
+        },
+        "earth": {
+          "samples": 2925,
+          "elevation_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.00049
+          },
+          "azimuth_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "separation_deg": {
+            "max": 0.00071,
+            "rms": 0.00041,
+            "p99": 0.00066
+          },
+          "verdict_changes": 0
+        }
+      },
+      "illumination": {
+        "covered": true,
+        "lroc_pct_at_pixel": 7.1,
+        "lroc_pct_3x3_min": 7.1,
+        "lroc_pct_3x3_max": 12.6,
+        "model_period": "2010-02-15 .. 2011-02-05",
+        "model_any_sun_pct": 12.2,
+        "model_half_disk_pct": 9.0,
+        "model_mean_fraction_pct": 9.2,
+        "model_hours": 8521
+      },
+      "spatial": {
+        "points": 121,
+        "grid": "11x11 at 400 m",
+        "ours": {
+          "pearson_r": 0.66,
+          "mean_bias_pct": -0.5,
+          "mean_abs_diff_pct": 5.1
+        },
+        "mirrored_EW": {
+          "pearson_r": 0.655,
+          "mean_bias_pct": -0.5,
+          "mean_abs_diff_pct": 5.2
+        },
+        "rotated_180": {
+          "pearson_r": 0.679,
+          "mean_bias_pct": 4.7,
+          "mean_abs_diff_pct": 8.2
+        },
+        "lroc_mean_pct": 11.2,
+        "model_mean_pct": 10.7
+      },
+      "horizon_geometry": {
+        "directions": 36,
+        "file_vs_independent_deg": {
+          "max": 0.00053,
+          "rms": 0.00031,
+          "p99": 0.00052
+        },
+        "mirrored_vs_independent_deg": {
+          "max": 1.32253,
+          "rms": 0.80867,
+          "p99": 1.32232
+        },
+        "horizon_range_deg": [
+          -1.01,
+          3.96
+        ]
+      }
+    },
+    "malapert-massif": {
+      "ephemeris": {
+        "sun": {
+          "samples": 2925,
+          "elevation_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "azimuth_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "separation_deg": {
+            "max": 0.0007,
+            "rms": 0.00041,
+            "p99": 0.00066
+          },
+          "verdict_changes": 0
+        },
+        "earth": {
+          "samples": 2925,
+          "elevation_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "azimuth_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "separation_deg": {
+            "max": 0.00069,
+            "rms": 0.00041,
+            "p99": 0.00065
+          },
+          "verdict_changes": 0
+        }
+      },
+      "illumination": {
+        "covered": false,
+        "note": "outside the LROC map (88-90 S)"
+      },
+      "spatial": null,
+      "horizon_geometry": {
+        "directions": 36,
+        "file_vs_independent_deg": {
+          "max": 0.00524,
+          "rms": 0.00157,
+          "p99": 0.00475
+        },
+        "mirrored_vs_independent_deg": {
+          "max": 3.38149,
+          "rms": 1.56912,
+          "p99": 3.38122
+        },
+        "horizon_range_deg": [
+          -4.77,
+          0.69
+        ]
+      }
+    },
+    "shackleton-floor": {
+      "ephemeris": {
+        "sun": {
+          "samples": 2925,
+          "elevation_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "azimuth_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "separation_deg": {
+            "max": 0.00071,
+            "rms": 0.00041,
+            "p99": 0.00065
+          },
+          "verdict_changes": 0
+        },
+        "earth": {
+          "samples": 2925,
+          "elevation_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "azimuth_diff_deg": {
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
+          },
+          "separation_deg": {
+            "max": 0.0007,
+            "rms": 0.00041,
+            "p99": 0.00066
+          },
+          "verdict_changes": 0
+        }
+      },
+      "illumination": {
+        "covered": true,
+        "lroc_pct_at_pixel": 0.0,
+        "lroc_pct_3x3_min": 0.0,
+        "lroc_pct_3x3_max": 0.0,
+        "model_period": "2010-02-15 .. 2011-02-05",
+        "model_any_sun_pct": 0.0,
+        "model_half_disk_pct": 0.0,
+        "model_mean_fraction_pct": 0.0,
+        "model_hours": 8521
+      },
+      "spatial": {
+        "points": 121,
+        "grid": "11x11 at 400 m",
+        "ours": {
+          "pearson_r": null,
+          "mean_bias_pct": 0.0,
+          "mean_abs_diff_pct": 0.0
+        },
+        "mirrored_EW": {
+          "pearson_r": null,
+          "mean_bias_pct": 0.0,
+          "mean_abs_diff_pct": 0.0
+        },
+        "rotated_180": {
+          "pearson_r": null,
+          "mean_bias_pct": 0.0,
+          "mean_abs_diff_pct": 0.0
+        },
+        "lroc_mean_pct": 0.0,
+        "model_mean_pct": 0.0
+      },
+      "horizon_geometry": {
+        "directions": 36,
+        "file_vs_independent_deg": {
+          "max": 0.00068,
+          "rms": 0.00035,
+          "p99": 0.00065
+        },
+        "mirrored_vs_independent_deg": {
+          "max": 2.00336,
+          "rms": 1.05593,
+          "p99": 2.00315
+        },
+        "horizon_range_deg": [
+          19.85,
+          23.51
+        ]
+      }
+    }
+  }
+}

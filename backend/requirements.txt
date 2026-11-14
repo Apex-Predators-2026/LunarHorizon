@@ -8,3 +8,4 @@ rasterio
 pytest
 truststore
 httpx2  # FastAPI TestClient (API tests); replaces the deprecated httpx backend
+skyfield  # validation only: independent ephemeris check (scripts/validate_engine.py)
