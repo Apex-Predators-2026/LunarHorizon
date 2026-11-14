@@ -7,3 +7,4 @@ pandas
 rasterio
 pytest
 truststore
+httpx2  # FastAPI TestClient (API tests); replaces the deprecated httpx backend
