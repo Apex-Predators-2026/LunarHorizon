@@ -3,6 +3,7 @@ import { useAppStore } from '../store'
 import type { SiteInfo, SiteStatus, TimelineStep } from '../types'
 import { vertexSpacingM } from './globe/cubeSphere'
 import type { TileStats } from './globe/TileTree'
+import { SelectField } from '../ui/MdFields'
 import { DatePopup } from './DatePopup'
 import { fmtDeg, fmtPct, sunUp } from './timeline'
 
@@ -23,9 +24,6 @@ const SITE_GROUPS: [string, string][] = [
   ['control', 'Validation control'],
 ]
 
-const input =
-  'w-full rounded-lg border border-opal-300 bg-white px-2 py-1 text-calcite-ink transition-colors hover:border-calcite-peach'
-
 /** Default site + keep the selected time inside the site's data range. Call once. */
 export function useViewerSetup(sites: SiteInfo[] | null) {
   const { siteId, timeUtc, setSite, setTime } = useAppStore()
@@ -42,27 +40,24 @@ export function useViewerSetup(sites: SiteInfo[] | null) {
 export function SiteSelect({ sites, error, loading }: { sites: SiteInfo[] | null; error: string | null; loading: boolean }) {
   const { siteId, setSite } = useAppStore()
   return (
-    <div className="space-y-1 text-xs">
-      <label className="block">
-        <span className="text-slate-400">Site</span>
-        <select className={input} value={siteId ?? ''} onChange={(e) => setSite(e.target.value)}>
-          {SITE_GROUPS.map(([kind, label]) => {
-            const group = sites?.filter((s) => (s.kind ?? 'custom') === kind) ?? []
-            return group.length ? (
-              <optgroup key={kind} label={label}>
-                {group.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                    {s.approximate ? ' (approx.)' : ''}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null
-          })}
-        </select>
-      </label>
-      {error && <p className="text-red-400">{error}. Is the backend running on port 8000?</p>}
-      {!error && loading && <p className="text-slate-400">Loading…</p>}
+    <div className="space-y-2 text-xs">
+      <SelectField label="Site" tip="The landing site shown in the 3D view and used for the timeline." value={siteId ?? ''} onChange={(e) => setSite(e.target.value)}>
+        {SITE_GROUPS.map(([kind, label]) => {
+          const group = sites?.filter((s) => (s.kind ?? 'custom') === kind) ?? []
+          return group.length ? (
+            <optgroup key={kind} label={label}>
+              {group.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                  {s.approximate ? ' (approx.)' : ''}
+                </option>
+              ))}
+            </optgroup>
+          ) : null
+        })}
+      </SelectField>
+      {error && <p className="px-4 text-red-400">{error}. Is the backend running on port 8000?</p>}
+      {!error && loading && <p className="px-4 text-slate-400">Loading…</p>}
     </div>
   )
 }
@@ -99,7 +94,7 @@ export function TopInfo({
           aria-expanded={calendar}
           aria-label={`Simulation time ${timeUtc.slice(0, 16).replace('T', ' ')} UTC. Click to change.`}
           data-tip="Click to change the time"
-          className="pointer-events-auto cursor-pointer font-display underline underline-offset-2 transition-colors duration-200 hover:text-calcite-peach"
+          className="pointer-events-auto -my-2 cursor-pointer py-2 font-display underline underline-offset-2 transition-colors duration-200 hover:text-calcite-peach"
         >
           {timeUtc.slice(0, 10)} {timeUtc.slice(11, 16)} UTC
         </button>
@@ -111,7 +106,7 @@ export function TopInfo({
         )}
       </p>
       {current && (
-        <dl className="md-reveal mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+        <dl className="md-reveal mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
           <dt className="text-white/70">Sunlight</dt>
           <dd>
             {fmtPct(current.sun.visible_fraction, current.sun.visible)} of disk · el{' '}

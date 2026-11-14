@@ -46,7 +46,7 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
             type="button"
             aria-current={view === v.id ? 'page' : undefined}
             onClick={() => onView(v.id)}
-            className="cursor-pointer font-[var(--font-inter)] text-[clamp(15px,1.9vw,28px)] font-bold leading-tight tracking-[-0.06em] text-opal-50 transition-colors duration-200 hover:text-opal-300"
+            className="flex min-h-10 cursor-pointer items-center font-[var(--font-inter)] text-[clamp(15px,1.9vw,28px)] font-bold leading-tight tracking-[-0.06em] text-opal-50 transition-colors duration-200 hover:text-opal-300"
           >
             {v.label}
           </button>
@@ -75,7 +75,7 @@ export default function App() {
         <TopNav view={view} onView={setView} />
       </header>
       {compare ? (
-        <main key="compare" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+20px)]">
+        <main key="compare" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
           <ComparisonDashboard onOpen3D={() => setView('planner')} />
         </main>
       ) : (

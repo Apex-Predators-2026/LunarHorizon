@@ -18,7 +18,7 @@ export function MissionRescue() {
   const selected = useRescueStore((s) => s.selected)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <section aria-label="Plan">
         <h2 className="mb-2 text-sm font-semibold text-slate-100">Plan</h2>
         <PlanForm />
@@ -44,7 +44,7 @@ export function MissionRescue() {
             data-tip={t.tip}
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
-            className={`-mb-px border-b-2 px-3 py-1.5 ${tab === t.id ? 'border-sky-500 text-slate-100' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+            className={`-mb-px h-12 border-b-2 px-4 ${tab === t.id ? 'border-sky-500 text-slate-100' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
           >
             {t.label}
           </button>
