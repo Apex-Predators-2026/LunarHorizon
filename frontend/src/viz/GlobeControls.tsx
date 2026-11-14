@@ -1,6 +1,7 @@
 // Google-Earth-style camera controls for the Moon (replaces OrbitControls).
 //   * Left-drag: grab the Moon. The point under the cursor follows the cursor and the Moon spins
 //     about its own centre, so it stays where it is on screen; close up, this slides the ground.
+//     Let go while moving and it keeps spinning for a moment, slowing down (like Google Earth).
 //   * Right-drag (or Ctrl / Shift + left-drag): turn and tilt around the point you're looking at.
 //   * Wheel / two-finger pinch: smooth zoom towards the point under the cursor, faster when far.
 //   * At eye level (the Sun / Earth views), dragging looks around in place instead.
@@ -32,6 +33,8 @@ const ZOOM_PER_WHEEL_PX = 0.0015 // log-scale zoom per wheel pixel (100 px notch
 const ZOOM_EASE = 0.3 // fraction of the remaining zoom applied per frame (smooth, not instant)
 const EYE_LEVEL_M = 200 // below this height, dragging looks around instead of grabbing the ground
 const MIN_FOCUS_DISTANCE_M = 2
+const SPIN_DECAY_MS = 220 // after a flick, the Moon keeps spinning and slows down over about this long
+const MAX_SPIN_COAST_RAD = 0.5 // at most about this much extra turn after letting go
 
 type Mode =
   | { kind: 'grab'; grabbed: THREE.Vector3; radius: number }
@@ -53,6 +56,7 @@ export function GlobeControls({
   const invalidate = useThree((s) => s.invalidate)
   const nav = useRef<GlobeNavigation | null>(null)
   const zoom = useRef<{ focus: THREE.Vector3; remaining: number } | null>(null)
+  const spin = useRef<{ axis: THREE.Vector3; rate: number; last: number; maxStep: number } | null>(null) // rad/ms
   const limits = useRef({ groundRadius, maxDistance })
 
   useEffect(() => {
@@ -78,6 +82,8 @@ export function GlobeControls({
     const pointers = new Map<number, { x: number; y: number }>()
     let mode: Mode | null = null
     let last = { x: 0, y: 0 }
+    // How fast the Moon is being spun by the current drag (smoothed), for the flick on release.
+    let velocity: { axis: THREE.Vector3; rate: number; at: number } | null = null
 
     const changed = () => {
       n.dispatchEvent({ type: 'change' })
@@ -107,6 +113,17 @@ export function GlobeControls({
       return { x: r.left + ((s.x + 1) / 2) * r.width, y: r.top + ((1 - s.y) / 2) * r.height }
     }
 
+    /** Where the middle of the view is on screen (the camera's forward axis; the lens shift moves it). */
+    const viewCentreOnScreen = () => {
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+      return screenOf(camera.position.clone().addScaledVector(forward, 1000))
+    }
+    /** The surface point in the middle of the view (terrain if loaded there, else the sphere). */
+    const viewCentrePoint = () => {
+      const at = viewCentreOnScreen()
+      return pick(at.x, at.y) ?? viewPivot(camera, n.centre, limits.current.groundRadius)
+    }
+
     /** Pitch the view towards straight down as far as this altitude requires (Moon centred). */
     const relevel = () => {
       if (limitNadirAngle(camera, n.centre, maxNadirAngleAt(altitude()))) {
@@ -118,7 +135,9 @@ export function GlobeControls({
       n.dispatchEvent({ type: 'start' }) // the user takes over (e.g. stops a view flight)
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       el.setPointerCapture(e.pointerId)
-      zoom.current = null // a new gesture stops any zoom still easing in
+      zoom.current = null // a new gesture stops any zoom still easing in or spin still going
+      spin.current = null
+      velocity = null
       last = { x: e.clientX, y: e.clientY }
       if (pointers.size === 2) {
         const [a, b] = [...pointers.values()]
@@ -130,9 +149,7 @@ export function GlobeControls({
       if (altitude() < EYE_LEVEL_M) {
         mode = { kind: 'look' }
       } else if (turn) {
-        const at = screenOf(n.target)
-        const pivot = pick(at.x, at.y) ?? n.target.clone()
-        mode = { kind: 'orbit', pivot }
+        mode = { kind: 'orbit', pivot: viewCentrePoint() }
       } else {
         const grabbed = pick(e.clientX, e.clientY) ?? grabPoint(rayAt(e.clientX, e.clientY), n.centre, limits.current.groundRadius)
         mode = { kind: 'grab', grabbed, radius: grabbed.distanceTo(n.centre) }
@@ -161,7 +178,17 @@ export function GlobeControls({
         const angle = 2 * Math.acos(THREE.MathUtils.clamp(Math.abs(q.w), -1, 1))
         if (angle > maxAngle) q.slerp(new THREE.Quaternion(), 1 - maxAngle / angle)
         rotateAbout(camera, n.centre, q, n.target)
-        relevel()
+        // No re-levelling while dragging: it would slide the grabbed point away from the cursor.
+        const now = performance.now()
+        const step = 2 * Math.acos(THREE.MathUtils.clamp(Math.abs(q.w), -1, 1))
+        if (step > 1e-9) {
+          const axis = new THREE.Vector3(q.x, q.y, q.z).normalize().multiplyScalar(Math.sign(q.w) || 1)
+          const dt = velocity ? Math.max(1, now - velocity.at) : 16
+          const rate = step / dt
+          velocity = velocity
+            ? { axis: velocity.axis.multiplyScalar(0.5).addScaledVector(axis, 0.5).normalize(), rate: velocity.rate * 0.5 + rate * 0.5, at: now }
+            : { axis, rate, at: now }
+        }
         changed()
       } else if (mode.kind === 'orbit') {
         orbitAbout(camera, mode.pivot, n.centre, -dx * TURN_RAD_PER_PX, -dy * TURN_RAD_PER_PX)
@@ -185,6 +212,17 @@ export function GlobeControls({
     }
 
     const onUp = (e: PointerEvent) => {
+      // A flick: released while still moving, so keep spinning and slow down.
+      if (mode?.kind === 'grab' && pointers.size === 1 && velocity && performance.now() - velocity.at < 60) {
+        spin.current = {
+          axis: velocity.axis.clone(),
+          rate: Math.min(velocity.rate, MAX_SPIN_COAST_RAD / SPIN_DECAY_MS), // coast = rate x decay time
+          last: performance.now(),
+          maxStep: Math.min(0.5, (2 * Math.max(altitude(), 1)) / mode.radius),
+        }
+        invalidate()
+      }
+      velocity = null
       pointers.delete(e.pointerId)
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
       if (pointers.size === 0) {
@@ -221,9 +259,9 @@ export function GlobeControls({
       const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1)
       // In: towards the cursor. Out: away from the view's centre, so the Moon doesn't drift sideways.
       let focus: THREE.Vector3
+      spin.current = null
       if (px > 0) {
-        const at = screenOf(n.target)
-        focus = pick(at.x, at.y) ?? viewPivot(camera, n.centre, limits.current.groundRadius)
+        focus = viewCentrePoint()
       } else {
         focus = pick(e.clientX, e.clientY) ?? grabPoint(rayAt(e.clientX, e.clientY), n.centre, limits.current.groundRadius)
       }
@@ -260,7 +298,20 @@ export function GlobeControls({
 
   // Ease wheel zoom over a few frames (runs before TileTree keeps the camera above the ground).
   const zoomStep = useRef<((focus: THREE.Vector3, factor: number) => void) | null>(null)
-  useFrame(() => {
+  useFrame(({ camera }) => {
+    const sp = spin.current
+    const n = nav.current
+    if (sp && n) {
+      const now = performance.now()
+      const dt = Math.min(50, now - sp.last)
+      sp.last = now
+      const angle = Math.min(sp.rate * dt, sp.maxStep)
+      rotateAbout(camera, n.centre, new THREE.Quaternion().setFromAxisAngle(sp.axis, angle), n.target)
+      n.dispatchEvent({ type: 'change' })
+      sp.rate *= Math.exp(-dt / SPIN_DECAY_MS)
+      if (sp.rate * 16 < 1e-7) spin.current = null
+      else invalidate()
+    }
     const z = zoom.current
     if (!z || !zoomStep.current) return
     const step = Math.abs(z.remaining) < 1e-3 ? z.remaining : z.remaining * ZOOM_EASE

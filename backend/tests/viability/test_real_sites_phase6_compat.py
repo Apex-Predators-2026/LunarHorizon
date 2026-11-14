@@ -39,6 +39,7 @@ from app.rescue.schemas import (
     SensitivityRequest,
 )
 from app.rescue.timeline import PrecomputedTimelineProvider, SyntheticTimelineProvider
+from app.rescue.viability.placeholder import evaluate_timeline as placeholder_evaluate_fn
 from app.viability.adapters import load_site_file
 from app.viability.adapters.site_file import normalize_longitude_deg
 from app.viability.compat.rescue import (
@@ -128,7 +129,8 @@ def canonical(provider: PrecomputedTimelineProvider) -> Evaluator:
 
 @pytest.fixture(scope="module")
 def placeholder(provider: PrecomputedTimelineProvider) -> Evaluator:
-    return Evaluator(provider=provider)
+    # Explicit: rescue's default evaluator is now the canonical engine (switched by Member 5).
+    return Evaluator(provider=provider, evaluate=placeholder_evaluate_fn)
 
 
 def compare(old: ViabilityResult, new: ViabilityResult) -> list[str]:
@@ -335,36 +337,21 @@ def _boundary_cases() -> Iterator[tuple[Site, int, RescueRequirements]]:
 
 
 def test_last_sample_hour_is_unknown_never_flipped(canonical: Evaluator, placeholder: Evaluator) -> None:
-    """Expected difference: rescue counts the file's final instant (DATA_END) as covering one more
-    hour, so the latest landing it accepts ends at 01:00. The canonical engine does not invent that hour:
-    the score is bounded (None) and a verdict may become UNKNOWN, but PASS and FAIL never swap and every
-    canonical failure is a placeholder failure too. One hour earlier the results are identical."""
-    flips: list[str] = []
+    """Finding 3, fixed in rescue: a mission must end by the file's final instant (DATA_END).
+    The landing that would need one more hour after it is now answered UNKNOWN by rescue's coverage
+    check, before any engine runs, so no verdict can flip there. One hour earlier, the latest landing
+    rescue accepts, both engines agree exactly and the canonical score is exact."""
     for site, days, req in _boundary_cases():
         last = DATA_END - timedelta(hours=days * 24 - 1)
-        a, b = (
-            placeholder.evaluate_many(site, [last], days, req)[0],
-            canonical.evaluate_many(site, [last], days, req)[0],
-        )
-        assert is_real(b) and b.score is None  # the unknown hour bounds the score
-        if b.verdict != a.verdict:
-            if b.verdict != "unknown":
-                flips.append(f"{site.id} {days}d: {a.verdict} -> {b.verdict}")
-            assert all(v.is_unknown for v in b.violations if v.constraint not in {w.constraint for w in a.violations})
-        decided_fail = {v.constraint for v in b.violations if not v.is_unknown}
-        assert decided_fail <= {v.constraint for v in a.violations}, (site.id, days)
-        if days == 1 and req.min_initial_sun_hours == 24 and a.verdict == "pass":
-            assert b.verdict == "unknown"  # 24 h of initial sun needs the uncovered last hour too
-            assert [(v.constraint, v.is_unknown) for v in b.violations] == [("min_initial_sun_hours", True)]
+        for ev in (placeholder, canonical):
+            r = ev.evaluate_many(site, [last], days, req)[0]
+            assert r.source == "rescue-coverage-check" and r.verdict == "unknown" and r.score is None
         earlier = last - timedelta(hours=1)
         a2, b2 = (
             placeholder.evaluate_many(site, [earlier], days, req)[0],
             canonical.evaluate_many(site, [earlier], days, req)[0],
         )
         assert compare(a2, b2) == [] and b2.score is not None
-        later = canonical.evaluate_many(site, [last + timedelta(hours=1)], days, req)[0]
-        assert later.source == "rescue-coverage-check"
-    assert not flips, flips
 
 
 # --- missing terrain, slivers and precision metadata (copies of a real file) ------------------------
