@@ -62,6 +62,22 @@ Since generator 1.2 the engine and the 3D terrain sample all of these through on
 - **Not used:** Moon Trek's Cesium terrain (`marshub.s3.amazonaws.com/moon_v14/`): whole Moon only to level 9
   (~165 m) and no extra detail below 80°S, coarser than the polar products.
 
+## Moon Trek: LRO WAC imagery, optional 3D layer (`backend/app/engine/imagery.py`)
+The "LRO imagery" toggle drapes Lunar Reconnaissance Orbiter Wide Angle Camera mosaics over the terrain.
+
+| Service | Resolution | Projection | Used |
+|---|---|---|---|
+| `LRO_WAC_Mosaic_SPole60_100m_v02` | 100 m | south polar stereographic (same as the LOLA products: 1737.4 km sphere, central meridian 0) | poleward of 60°S |
+| `LRO_WAC_Mosaic_NPole60_100m_v02` | 100 m | north polar stereographic | poleward of 60°N |
+| `LRO_WAC_Mosaic_Global_303ppd_v02` | 303.23 px/deg (~100 m) | lon/lat | everywhere else |
+
+- Fetched and cached exactly like the elevation data (exportImage blocks, `data/cache/imagery/`, git-ignored).
+  `pixelType=U8`; 0 means no data (real pixels are ≥ 1), so the 180° edge of the global mosaic doesn't show as a line.
+- `/api/imagery/tile/{face}/{z}/{x}/{y}`: a 256 × 256 grayscale PNG per tile for levels 0–7 (~83 m/px at level 7,
+  about the mosaics' resolution). Deeper tiles show their level-7 ancestor's image.
+- **Not the selected time:** the mosaics are photographs, so their shadows are from when they were taken. Near the
+  pole most of the mosaic is in shadow. The layer helps recognise places; nothing is calculated from it.
+
 ## Moon Trek: permanently shadowed regions and surface ice (`backend/app/engine/psr.py`)
 - `PSR_SP/MapServer/0`: 164 south-polar PSRs as **points** (centre, area 10–1,075 km², ID, LRO imaging notes),
   80–90°S. Moon Trek has no PSR outlines, so the app draws a circle of the same area, labelled approximate.

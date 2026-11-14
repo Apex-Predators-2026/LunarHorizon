@@ -17,6 +17,7 @@ export interface GraphicsSettings {
   maxCachedMeshes: number // terrain tiles kept in memory
   stars: number
   material: 'standard' | 'lambert' // terrain shading: physically based, or cheaper diffuse-only
+  detailedModels: boolean // the rover model (11 MB, textured) instead of a simple primitive lander
 }
 
 export const GRAPHICS: Record<GraphicsQuality, GraphicsSettings> = {
@@ -31,6 +32,7 @@ export const GRAPHICS: Record<GraphicsQuality, GraphicsSettings> = {
     maxCachedMeshes: 500,
     stars: 4000,
     material: 'standard',
+    detailedModels: true,
   },
   low: {
     label: 'Low',
@@ -43,6 +45,7 @@ export const GRAPHICS: Record<GraphicsQuality, GraphicsSettings> = {
     maxCachedMeshes: 200,
     stars: 1500,
     material: 'lambert',
+    detailedModels: false,
   },
 }
 
@@ -58,6 +61,30 @@ function loadQuality(): GraphicsQuality {
   } catch {
     return DEFAULT_GRAPHICS // storage blocked (private window etc.)
   }
+}
+
+/** An on/off graphics option (e.g. far shadows), remembered in this browser. */
+export function useStoredFlag(key: string, initial: boolean): [boolean, (on: boolean) => void] {
+  const [on, setOn] = useState<boolean>(() => {
+    try {
+      const v = window.localStorage.getItem(key)
+      return v === null ? initial : v === '1'
+    } catch {
+      return initial
+    }
+  })
+  const set = useCallback(
+    (v: boolean) => {
+      setOn(v)
+      try {
+        window.localStorage.setItem(key, v ? '1' : '0')
+      } catch {
+        // not remembered, but still applied
+      }
+    },
+    [key],
+  )
+  return [on, set]
 }
 
 /** The chosen preset, remembered in this browser. */
