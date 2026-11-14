@@ -1,13 +1,15 @@
+import math
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
 
 from app.rescue.geo import distance_km
-from app.rescue import Evaluator, rescue
-from app.rescue.schemas import PlanChange, RequirementOverrides, RescueRequest, SearchOptions
+from app.rescue import Evaluator, compromise, rescue, sensitivity
+from app.rescue.schemas import (CompromiseRequest, PlanChange, RequirementOverrides, RescueRequest, ScienceGoal,
+                                SearchOptions, SensitivityRequest)
 from app.models import MissionRequirements, Scenario, ViabilityMetrics, ViabilityResult, Violation
-from app.rescue.catalog import get_site
+from app.rescue.catalog import PSRS_BY_ID, get_site
 from app.rescue.timeline import SyntheticTimelineProvider
 
 
@@ -150,3 +152,78 @@ def test_aware_times_are_converted_to_utc(ev):
     assert sc.landing_utc == datetime(2027, 3, 1, tzinfo=timezone.utc) and sc.landing_utc.tzinfo == timezone.utc
     rescue(RescueRequest(original=sc, change=PlanChange(launch_delay_days=2),
                          search=SearchOptions(date_window_days=3, robustness_check=False)), ev)
+
+
+def _violating_result(scenario: Scenario, passes: bool, constraint: str = "min_sunlight_fraction",
+                      required: float = 0.5, actual: float = 0.351651, unit: str = "fraction") -> ViabilityResult:
+    res = _fake_result(scenario, True, 80 if passes else 30)
+    if not passes:
+        raw = (f"time-mean visible solar-disk fraction is {actual}; required >= {required}. Requirement violated")
+        res.passes = False
+        res.violations = [Violation(constraint=constraint, required=required, actual=actual, unit=unit,
+                                    shortfall=required - actual, relative_shortfall=0.3, message=raw)]
+    return res
+
+
+def test_rescue_text_uses_short_labels_and_input_units(pns_scenario):
+    target_day = pns_scenario.landing_utc + timedelta(days=21 + 4)
+
+    def fake(scenario, timeline):
+        return _violating_result(scenario, scenario.landing_utc == target_day)
+
+    ev = Evaluator(provider=SyntheticTimelineProvider(), simulation=True, evaluate=fake)
+    opts = SearchOptions(date_window_days=10, date_step_hours=24, include_nearby_points=False, robustness_check=False)
+    r = rescue(RescueRequest(original=pns_scenario, change=PlanChange(launch_delay_days=21), search=opts), ev)
+    assert r.status == "rescued"
+    fixes = [x for x in r.alternatives[0].reasons if x.startswith("Fixes:")]
+    assert fixes and "average sunlight" in fixes[0] and "time-mean" not in fixes[0]
+    assert "Average sunlight 35% (needs at least 50%)" in r.summary
+    assert "0.351651" not in r.summary and "time-mean" not in r.summary
+    assert r.near_misses
+    for nm in r.near_misses:
+        assert nm.why_it_fails == ["Average sunlight 35% (needs at least 50%)"]
+
+
+def test_sensitivity_explanation_uses_short_label(pns_scenario):
+    def fake(scenario, timeline):
+        return _violating_result(scenario, scenario.landing_utc == pns_scenario.landing_utc,
+                                 "min_initial_sun_hours", 10, 5, "h")
+
+    ev = Evaluator(provider=SyntheticTimelineProvider(), simulation=True, evaluate=fake)
+    s = sensitivity(SensitivityRequest(scenario=pns_scenario, date_offsets_hours=[24], position_offsets_km=[]), ev)
+    assert "min_initial_sun_hours" not in s.explanation
+    assert "sunlight right after landing" in s.explanation
+
+
+def test_compromise_traverse_suggestion_is_the_limit_that_reaches_the_science_minimum(pns_scenario):
+    psr = "shackleton-psr"
+    p = PSRS_BY_ID[psr]
+
+    def fake(scenario, timeline):  # only far-away locations pass engineering, so science has to give
+        far = distance_km(scenario.site.lat, scenario.site.lon, p.lat, p.lon) - p.radius_km > 8
+        return _fake_result(scenario, far, 70)
+
+    ev = Evaluator(provider=SyntheticTimelineProvider(), simulation=True, evaluate=fake)
+    opts = SearchOptions(date_window_days=1, date_step_hours=24, robustness_check=False)
+    c = compromise(CompromiseRequest(scenario=pns_scenario, search=opts,
+                                     science=ScienceGoal(target_psr_id=psr, max_traverse_km=15, min_science_score=0.8)), ev)
+    assert c.status == "tradeoff_required"
+    closest = max((o for o in c.pareto_front + [c.best_for_engineering, c.best_for_science] if o.meets_engineering),
+                  key=lambda o: o.science_score)
+    needed = math.ceil(closest.distance_to_science_km / (1 - 0.8))
+    msg = c.suggestions[0]
+    assert f"allow a {needed} km traverse (currently 15 km)" in msg
+
+
+def test_compromise_without_a_traverse_fix_when_min_science_is_one(pns_scenario):
+    p = PSRS_BY_ID["shackleton-psr"]
+
+    def fake(scenario, timeline):
+        return _fake_result(scenario, distance_km(scenario.site.lat, scenario.site.lon, p.lat, p.lon) - p.radius_km > 8, 70)
+
+    ev = Evaluator(provider=SyntheticTimelineProvider(), simulation=True, evaluate=fake)
+    opts = SearchOptions(date_window_days=1, date_step_hours=24, robustness_check=False)
+    c = compromise(CompromiseRequest(scenario=pns_scenario, search=opts,
+                                     science=ScienceGoal(target_psr_id="shackleton-psr", min_science_score=1.0)), ev)
+    assert c.status == "tradeoff_required"
+    assert "traverse" not in c.suggestions[0]

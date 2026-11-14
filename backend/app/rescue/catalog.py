@@ -6,11 +6,11 @@ Sites come from two places:
    coordinates and, once precomputed, real Horizons + LOLA timelines in data/sites/.
    Validation controls (e.g. the permanently dark Shackleton floor) are not landing
    candidates and are skipped.
-2. EXTRA_SITES below: more candidate regions with APPROXIMATE coordinates (~0.1-0.5 deg)
-   and no real data yet. They only ever get synthetic timelines, and rescue leaves them out
-   by default whenever the plan being rescued has real data.
+2. EXTRA_SITES below: more candidate regions with APPROXIMATE coordinates (~0.1-0.5 deg).
+   A site's data comes from data/sites/ when a file is present there; a site without one only
+   gets synthetic timelines, and rescue leaves it out unless simulation mode is on.
 
-`horizon_base_deg` / `horizon_roughness_deg` only feed the synthetic timeline provider.
+`horizon_base_deg` / `horizon_roughness_deg` only feed the synthetic timeline provider (sites without data in data/sites/).
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ class CatalogSite:
     horizon_base_deg: float  # synthetic only: mean terrain horizon height
     horizon_roughness_deg: float  # synthetic only: how bumpy the horizon is
     source: str = ""
-    approximate: bool = False  # True = placeholder coordinates, no real data
+    approximate: bool = False  # True = approximate coordinates (data comes from data/sites/ when present)
 
     def to_site(self) -> Site:
         return Site(id=self.id, name=self.name, lat=self.lat, lon=self.lon)

@@ -2,7 +2,8 @@
 
 For each location we fetch ONE timeline that covers every candidate landing time plus the
 mission duration, then slice it per candidate. That keeps a 30-day x 20-location search
-well under a second with the synthetic provider.
+well under a second. Timelines come from data/sites/ when present; the synthetic provider
+only fills in during simulation mode.
 """
 from __future__ import annotations
 
@@ -125,6 +126,7 @@ class Evaluator:
                       req: MissionRequirements, simulation: bool | None = None) -> list[ViabilityResult]:
         if not starts:
             return []
+        starts = [snap_to_grid(t) for t in starts]  # the data grid is on whole hours
         sim = self.simulation if simulation is None else simulation
         step = TIMELINE_STEP_HOURS
         n = max(1, int(round(duration_days * 24 / step)))
@@ -159,6 +161,17 @@ class Evaluator:
 
 def _utc(dt: datetime) -> datetime:
     return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
+
+
+def snap_to_grid(t: datetime, step_hours: float = TIMELINE_STEP_HOURS) -> datetime:
+    """Round a time to the nearest whole timeline step on the UTC clock (half rounds up).
+
+    The data grid sits on whole UTC hours; a start between samples would lose its first sample.
+    """
+    t = _utc(t)
+    step = timedelta(hours=step_hours)
+    origin = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    return origin + ((t - origin + step / 2) // step) * step
 
 
 def candidate_times(earliest: datetime, opts: SearchOptions) -> list[datetime]:

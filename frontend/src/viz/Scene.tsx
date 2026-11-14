@@ -1,4 +1,3 @@
-import { Stars } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { createRef, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import * as THREE from 'three'
@@ -32,6 +31,7 @@ import { RoverFlag, RoverFlagTag } from './RoverFlag'
 import { skyPositions } from './geometry'
 import { ScreenLabels } from './ScreenLabels'
 import { SkyBodies } from './SkyBodies'
+import { StarField } from './StarField'
 import { SkyTrails } from './SkyTrails'
 import { SunLight } from './SunLight'
 import { TimeBar } from './TimeBar'
@@ -444,9 +444,9 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         {/* Sky (and, in the lander's-eye views, the engine skyline) stays centred on the camera,
             like a skybox: these things are effectively at infinity. */}
         <FollowCamera>
-          <Stars radius={SKY_DISTANCE_M * 0.5} depth={SKY_DISTANCE_M * 0.2} count={gfx.stars} factor={SKY_DISTANCE_M / 100} fade />
+          <StarField frame={frame} timeUtc={s?.time_utc ?? null} radius={SKY_DISTANCE_M * 0.95} count={gfx.stars} />
           {horizon.data && eyeView && <HorizonCurtain horizon={horizon.data} radius={CURTAIN_RADIUS_M} />}
-          {s && <SkyBodies status={s} distance={SKY_DISTANCE_M} />}
+          {s && <SkyBodies status={s} distance={SKY_DISTANCE_M} frame={frame} />}
           {layers.paths && timeline.data && <SkyTrails steps={timeline.data} radius={SKY_DISTANCE_M * 0.98} />}
         </FollowCamera>
         <Lander status={s} observerHeight={eye} showBeacon={view === 'overview'} detailed={gfx.detailedModels} />

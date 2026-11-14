@@ -8,7 +8,9 @@
    "description": "Ridge linking Shackleton and de Gerlache craters; some of the best-lit terrain at the pole.",
    "source": "Gracy & Lee 2024, LPSC 55, abstract 1695 (candidate site in NASA Artemis III region)",
    "approximate": false,
-   "has_real_data": true
+   "has_real_data": true,
+   "data_start_utc": "2026-01-01T00:00:00Z",
+   "data_end_utc": "2031-01-01T00:00:00Z"
   },
   {
    "id": "peak-near-shackleton",
@@ -18,7 +20,9 @@
    "description": "Elevated peak beside Shackleton crater, close to its permanently shadowed floor.",
    "source": "Gracy & Lee 2024, LPSC 55, abstract 1695 (candidate site in NASA Artemis III region)",
    "approximate": false,
-   "has_real_data": true
+   "has_real_data": true,
+   "data_start_utc": "2026-01-01T00:00:00Z",
+   "data_end_utc": "2031-01-01T00:00:00Z"
   },
   {
    "id": "malapert-massif",
@@ -28,7 +32,9 @@
    "description": "Tall massif facing Earth: near-constant direct-to-Earth contact, but real lunar nights.",
    "source": "Local summit (4993 m) found in the Moon Trek 30 m LOLA DEM within 4 km of the commonly quoted Malapert Mountain point (-85.99, 357.07). That point sits on the flank: a ridge 100 m north blocks Earth 100% of the time; the summit sees Earth 99.9%.",
    "approximate": false,
-   "has_real_data": true
+   "has_real_data": true,
+   "data_start_utc": "2026-01-01T00:00:00Z",
+   "data_end_utc": "2031-01-01T00:00:00Z"
   },
   {
    "id": "de-gerlache-rim",
@@ -36,9 +42,11 @@
    "lat": -89.05,
    "lon": 280.0,
    "description": "Rim of de Gerlache crater, next to a large PSR.",
-   "source": "",
+   "source": "Approximate point in NASA's Artemis III candidate region of this name (estimate used by the rescue catalog, accurate to ~0.1-0.5 deg). Not a published landing point.",
    "approximate": true,
-   "has_real_data": false
+   "has_real_data": true,
+   "data_start_utc": "2026-01-01T00:00:00Z",
+   "data_end_utc": "2031-01-01T00:00:00Z"
   },
   {
    "id": "haworth-rim",
@@ -46,9 +54,11 @@
    "lat": -86.6,
    "lon": 350.0,
    "description": "Rim of Haworth crater, close to a large PSR.",
-   "source": "",
+   "source": "Approximate point in NASA's Artemis III candidate region of this name (estimate used by the rescue catalog, accurate to ~0.1-0.5 deg). Not a published landing point.",
    "approximate": true,
-   "has_real_data": false
+   "has_real_data": true,
+   "data_start_utc": "2026-01-01T00:00:00Z",
+   "data_end_utc": "2031-01-01T00:00:00Z"
   },
   {
    "id": "nobile-rim-1",
@@ -56,9 +66,11 @@
    "lat": -85.4,
    "lon": 38.0,
    "description": "Rim of Nobile crater (VIPER's former target region).",
-   "source": "",
+   "source": "Approximate point in NASA's Artemis III candidate region of this name (estimate used by the rescue catalog, accurate to ~0.1-0.5 deg). Not a published landing point.",
    "approximate": true,
-   "has_real_data": false
+   "has_real_data": true,
+   "data_start_utc": "2026-01-01T00:00:00Z",
+   "data_end_utc": "2031-01-01T00:00:00Z"
   },
   {
    "id": "mons-mouton",
@@ -66,9 +78,11 @@
    "lat": -84.6,
    "lon": 31.0,
    "description": "Broad high plateau; gentle slopes, strong Earth view.",
-   "source": "",
+   "source": "Approximate point in NASA's Artemis III candidate region of this name (estimate used by the rescue catalog, accurate to ~0.1-0.5 deg). Not a published landing point.",
    "approximate": true,
-   "has_real_data": false
+   "has_real_data": true,
+   "data_start_utc": "2026-01-01T00:00:00Z",
+   "data_end_utc": "2031-01-01T00:00:00Z"
   },
   {
    "id": "faustini-rim-a",
@@ -76,9 +90,11 @@
    "lat": -86.95,
    "lon": 92.0,
    "description": "Rim of Faustini crater, beside a PSR with likely ice.",
-   "source": "",
+   "source": "Approximate point in NASA's Artemis III candidate region of this name (estimate used by the rescue catalog, accurate to ~0.1-0.5 deg). Not a published landing point.",
    "approximate": true,
-   "has_real_data": false
+   "has_real_data": true,
+   "data_start_utc": "2026-01-01T00:00:00Z",
+   "data_end_utc": "2031-01-01T00:00:00Z"
   }
  ],
  "psrs": [
@@ -123,5 +139,5 @@
    "ice_interest": 0.7
   }
  ],
- "note": "Sites with has_real_data use the data engine's precomputed Horizons + LOLA timelines. 'approximate' sites are placeholders with synthetic data only."
+ "note": "Sites with has_real_data use the data engine's precomputed Horizons + LOLA timelines for data_start_utc..data_end_utc; missions outside that period are reported as unknown. 'approximate' sites sit at estimated coordinates inside their named region."
 }

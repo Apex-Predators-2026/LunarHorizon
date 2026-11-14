@@ -188,6 +188,25 @@ export function maxNadirAngleAt(altitude: number, low = 30_000, high = 1_000_000
 
 /** The surface point the view is centred on: where the camera's forward ray meets the sphere, or,
  * looking past the edge of the Moon, the point on it closest to that ray. */
+/**
+ * The most a camera `distance` from a surface point (`pivotRadius` from the Moon's centre) may tilt
+ * about it (radians from straight above it) and still look within `nadirLimit` of straight down
+ * (maxNadirAngleAt). Seen from the camera, tilting by t about the point turns the view only by
+ * t - atan(D sin t / (R + D cos t)), so far away a little nadir allowance is a little more tilt.
+ */
+export function maxTiltForNadir(nadirLimit: number, pivotRadius: number, distance: number): number {
+  const nadir = (t: number) => t - Math.atan2(distance * Math.sin(t), pivotRadius + distance * Math.cos(t))
+  if (nadir(MAX_TILT) <= nadirLimit) return MAX_TILT
+  let lo = 0
+  let hi = MAX_TILT
+  for (let k = 0; k < 40; k++) {
+    const mid = (lo + hi) / 2
+    if (nadir(mid) <= nadirLimit) lo = mid
+    else hi = mid
+  }
+  return lo
+}
+
 export function viewPivot(camera: CameraLike, centre: THREE.Vector3, radius: number): THREE.Vector3 {
   const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
   return grabPoint(new THREE.Ray(camera.position.clone(), forward), centre, radius)
