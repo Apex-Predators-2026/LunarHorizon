@@ -6,6 +6,7 @@ import type { VerifyResult } from '../types'
 import { fetchVerify } from './api'
 import { showSnackbar } from './snackbarStore'
 import type { ViewMode } from './CameraRig'
+import { InteractiveGrainGradient } from '../ui/InteractiveGrainGradient'
 import { KIND_COLOR } from './globe/overlays'
 import { parseCoordinates } from './coordinates'
 import { GRAPHICS, type GraphicsQuality } from './graphics'
@@ -69,6 +70,16 @@ function Icon({ d, size = 24 }: { d: string; size?: number }) {
   )
 }
 
+/** An icon that is lit (toggled on): its glyph is cut out of the live mango mesh. */
+function LitIcon({ d }: { d: string }) {
+  const mask = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='${d}'/></svg>`)}")`
+  return (
+    <span aria-hidden className="block h-6 w-6" style={{ WebkitMaskImage: mask, maskImage: mask, WebkitMaskSize: '100% 100%', maskSize: '100% 100%' }}>
+      <InteractiveGrainGradient className="h-full w-full" />
+    </span>
+  )
+}
+
 function fmtLat(lat: number) {
   return `${Math.abs(lat).toFixed(3)}°${lat < 0 ? 'S' : 'N'}`
 }
@@ -94,7 +105,7 @@ function ToolButton({
   haspopup?: boolean
 }) {
   const tone = selected
-    ? 'bg-coral text-white'
+    ? 'bg-coral/10 text-coral'
     : open
       ? 'bg-coral/20 text-calcite-ink'
       : 'text-calcite-ink'
@@ -110,7 +121,7 @@ function ToolButton({
       onClick={onClick}
       className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${tone}`}
     >
-      <Icon d={icon} />
+      {selected ? <LitIcon d={icon} /> : <Icon d={icon} />}
     </button>
   )
 }

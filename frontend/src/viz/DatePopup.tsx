@@ -118,7 +118,7 @@ export function DatePopup({
       ref={ref}
       role="dialog"
       aria-label="Select date and time (UTC)"
-      className={`lp-light pointer-events-auto z-40 w-[328px] select-none overflow-hidden rounded-[28px] bg-opal-50 text-calcite-ink shadow-2xl shadow-black/50 ${closing ? 'md-dialog-out' : 'md-dialog-in'}`}
+      className={`lp-light pointer-events-auto z-[70] w-[328px] select-none overflow-hidden rounded-[28px] bg-opal-50 text-calcite-ink shadow-2xl shadow-black/50 ${closing ? 'md-dialog-out' : 'md-dialog-in'}`}
       style={{ textShadow: 'none', position: 'fixed', ...(pos ? { left: pos.x, top: pos.y } : { left: 'clamp(16px,4.5vw,65px)', top: 150 }) }}
       onAnimationEnd={(e) => {
         if (closing && e.target === e.currentTarget) onClose()

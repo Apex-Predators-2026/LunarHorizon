@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { ComparisonDashboard } from './features/compare'
+import { PlanDialogHost, PlanFab, PlansPanel } from './features/plans/PlansPanel'
 import { MissionRescue } from './features/rescue'
+import { GradientPreview } from './ui/GradientPreview'
+import { installMangoTexture } from './ui/mangoShader'
 import { initMaterialMotion } from './viz/materialMotion'
 import { Scene } from './viz/Scene'
 
@@ -67,6 +70,9 @@ export default function App() {
   const [view, setView] = useState<View>('planner')
   const compare = view === 'compare'
   useEffect(() => initMaterialMotion(), [])
+  useEffect(() => installMangoTexture(), [])
+
+  if (window.location.hash === '#mango') return <GradientPreview />
 
   return (
     <div className="relative h-full overflow-hidden bg-black">
@@ -74,6 +80,7 @@ export default function App() {
       <header className={`md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${compare ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
         <TopNav view={view} onView={setView} />
       </header>
+      <PlanDialogHost />
       {compare ? (
         <main key="compare" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
           <ComparisonDashboard onOpen3D={() => setView('planner')} />
@@ -81,7 +88,15 @@ export default function App() {
       ) : (
         <main key="planner" className="md-fade-through h-full">
           {/* Full-screen 3D simulation; the sidebar content is Member 5's mission-rescue panel. */}
-          <Scene sidebar={<MissionRescue />} />
+          <Scene
+            fab={<PlanFab />}
+            sidebar={
+              <div className="space-y-6">
+                <PlansPanel onCompare={() => setView('compare')} />
+                <MissionRescue />
+              </div>
+            }
+          />
         </main>
       )}
     </div>
