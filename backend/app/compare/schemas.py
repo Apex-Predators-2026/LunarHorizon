@@ -136,6 +136,40 @@ class TimelineColumns(BaseModel):
     incidence_factor: list[float]
 
 
+class RankingInfo(BaseModel):
+    """This scenario's place in the viability engine's canonical ranking (app/viability/ranking.py).
+
+    Only ``eligibility == "pass"`` entries carry a ``rank``, and only within their ``group``: scenarios in
+    different groups (different data basis, scoring method, requirements or mission duration) are never
+    ranked against each other. ``score`` is the exact score or ``None``; ``None`` never means 0."""
+
+    eligibility: Literal["pass", "fail", "unknown"]
+    rank: int | None = Field(None, ge=1)
+    group: str | None = Field(None, description="Comparable group id (G1 = primary group)")
+    group_size: int
+    ranked_in_group: int = Field(description="Number of PASS (ranked) scenarios in the group")
+    explanation: str = Field(description="The engine's own reason for this rank or absence of rank")
+    score_status: str | None = Field(None, description="known | bounded | eligibility_unknown | no_scorable_components")
+    score: float | None = Field(None, description="Exact score only (status known); None = no exact number")
+    score_lower: float | None = Field(None, description="Guaranteed lower bound (equals score when known)")
+    score_upper: float | None = None
+    overall_risk: str
+    data_basis: str
+
+
+class RankingGroup(BaseModel):
+    """One set of scenarios that may share a ranking, in the engine's canonical order."""
+
+    id: str
+    primary: bool = Field(description="The largest group; the others are listed separately")
+    keys: list[str] = Field(description="All member scenario keys in canonical order (PASS, UNKNOWN, FAIL)")
+    ranked_keys: list[str] = Field(description="PASS members, in rank order")
+    data_basis: str | None
+    policy: str
+    method_version: str
+    separate_reason: str | None = Field(None, description="Why this group cannot share the primary group's ranking")
+
+
 class CompareResult(BaseModel):
     key: str
     status: Literal["ok", "unavailable"]
@@ -145,6 +179,7 @@ class CompareResult(BaseModel):
     site_context: SiteContext | None = None
     science_context: ScienceContext | None = None
     viability: ViabilityResult | None = None
+    ranking: RankingInfo | None = Field(None, description="Canonical ranking; None when no assessment exists")
     solar: SolarStats | None = None
     earth: EarthStats | None = None
     power: PowerStats | None = None
@@ -158,5 +193,7 @@ class CompareResult(BaseModel):
 
 class CompareResponse(BaseModel):
     results: list[CompareResult]
+    ranking_groups: list[RankingGroup] = []
+    ranking_method: str | None = None
     viability_source: str
     notes: list[str]

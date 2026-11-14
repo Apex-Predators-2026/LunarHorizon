@@ -1,8 +1,8 @@
 // Section 3: side-by-side scientific metrics, best values marked, deltas against the baseline.
 import { Fragment, useState } from 'react'
 
-import { METRICS, bestIds, deltaVsBaseline, fmtDeltaValue, fmtMetric, type Entry, type MetricDef } from './analysis'
-import { DataKindBadge, Explain, ProvenanceTag, ScenarioChip, Icon } from './ui'
+import { METRICS, bestIds, deltaVsBaseline, eligibilityOf, fmtDeltaValue, fmtMetric, groupCountOf, rankText, type Entry, type MetricDef } from './analysis'
+import { DataKindBadge, EligibilityBadge, Explain, ProvenanceTag, RankBadge, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
 
 const GROUPS: { id: MetricDef['group']; title: string; note?: string }[] = [
@@ -13,6 +13,7 @@ const GROUPS: { id: MetricDef['group']; title: string; note?: string }[] = [
 ]
 
 export function MetricsTable({ entries }: { entries: Entry[] }) {
+  const groupCount = groupCountOf(entries)
   const baselineId = useCompareStore((s) => s.baselineId)
   const [open, setOpen] = useState<Record<string, boolean>>({ solar: true, power: true, earth: true, mission: true })
   const base = entries.find((e) => e.scenario.id === baselineId)
@@ -50,12 +51,17 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                 </tr>
                 {open[g.id] && g.id === 'mission' && (
                   <tr>
-                    <th scope="row" className="sticky left-0 bg-surface py-1 text-left text-xs font-normal text-slate-300">Verdict</th>
+                    <th scope="row" className="sticky left-0 bg-surface py-1 text-left text-xs font-normal text-slate-300">Eligibility · canonical rank</th>
                     {entries.map((e) => {
                       const v = e.result?.viability
                       return (
                         <td key={e.scenario.id} className="py-1 pl-3 text-xs">
-                          {v ? (v.passes ? <span className="inline-flex items-center gap-1 text-emerald-300"><Icon name="check" size={14} />passes</span> : <span className="inline-flex items-center gap-1 text-red-300"><Icon name="close" size={14} />fails</span>) : <span className="text-slate-500">—</span>}
+                          {v && eligibilityOf(e) ? (
+                            <span className="inline-flex flex-wrap items-center gap-1">
+                              <EligibilityBadge eligibility={eligibilityOf(e)!} />
+                              {rankText(e.ranking, groupCount) && <RankBadge text={rankText(e.ranking, groupCount)!} />}
+                            </span>
+                          ) : <span className="text-slate-500" title="No canonical assessment">—</span>}
                         </td>
                       )
                     })}
@@ -74,7 +80,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                         const isBest = best.has(e.scenario.id)
                         return (
                           <td key={e.scenario.id} className="py-1 pl-3 align-top tabular-nums">
-                            <span className={isBest ? 'font-medium text-slate-50' : 'text-slate-300'}>{fmtMetric(v, m.unit)}</span>
+                            <span className={isBest ? 'font-medium text-slate-50' : 'text-slate-300'}>{(e.result && m.text?.(e.result)) ?? fmtMetric(v, m.unit)}</span>
                             {isBest && <span className="ml-1 text-xs text-emerald-300" title="Best among compared real-data scenarios">best</span>}
                             {d && (
                               <span className={`block text-[11px] ${d.better === null ? 'text-slate-500' : d.better ? 'text-emerald-400' : 'text-red-400'}`}>

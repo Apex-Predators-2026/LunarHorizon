@@ -1,7 +1,7 @@
 // Multi-Scenario Comparison (Member 4).
 // Request/response types mirror backend/app/compare/schemas.py (see docs/comparison.md).
 // Shared types (Site, Scenario, MissionRequirements, ViabilityResult) live in src/types.ts.
-import type { MissionRequirements, Scenario, Site, ViabilityResult } from '../../types'
+import type { Eligibility, MissionRequirements, Scenario, Site, ViabilityResult } from '../../types'
 
 // ---------------------------------------------------------------- scenario objects
 
@@ -133,6 +133,38 @@ export interface TimelineColumns {
   incidence_factor: number[]
 }
 
+/**
+ * This scenario's place in the viability engine's canonical ranking (backend compare/ranking.py, which calls
+ * app/viability/ranking.py). Only PASS entries have a rank, and only within their comparable group.
+ * `score` is the exact score or null; null is never 0.
+ */
+export interface RankingInfo {
+  eligibility: Eligibility
+  rank: number | null
+  group: string | null
+  group_size: number
+  ranked_in_group: number
+  explanation: string // the engine's own reason for this rank or absence of rank
+  score_status: 'known' | 'bounded' | 'eligibility_unknown' | 'no_scorable_components' | null
+  score: number | null
+  score_lower: number | null
+  score_upper: number | null
+  overall_risk: string
+  data_basis: string
+}
+
+/** Scenarios that may share one ranking, in canonical order (PASS ranked, then UNKNOWN, then FAIL). */
+export interface RankingGroup {
+  id: string
+  primary: boolean
+  keys: string[]
+  ranked_keys: string[]
+  data_basis: string | null
+  policy: string
+  method_version: string
+  separate_reason: string | null // why it cannot share the primary group's ranking
+}
+
 export interface CompareResult {
   key: string
   status: 'ok' | 'unavailable'
@@ -142,6 +174,7 @@ export interface CompareResult {
   site_context: SiteContext | null
   science_context: ScienceContext | null
   viability: ViabilityResult | null
+  ranking: RankingInfo | null // null = no canonical assessment (e.g. no data)
   solar: SolarStats | null
   earth: EarthStats | null
   power: PowerStats | null
@@ -155,6 +188,8 @@ export interface CompareResult {
 
 export interface CompareResponse {
   results: CompareResult[]
+  ranking_groups: RankingGroup[]
+  ranking_method: string | null
   viability_source: string
   notes: string[]
 }
