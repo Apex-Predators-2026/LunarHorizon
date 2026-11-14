@@ -1,5 +1,6 @@
 # API models. Mirrors docs/interfaces.md and frontend/src/types.ts. Keep all three in sync.
 from datetime import datetime, timezone
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -151,6 +152,9 @@ class Violation(BaseModel):
     shortfall: float = Field(description="How far the actual value misses the requirement, in `unit` (>= 0)")
     relative_shortfall: float = Field(description="shortfall / required (0.2 = misses by 20%)")
     message: str
+    is_unknown: bool = Field(False, description=(
+        "True when the check could not be decided because data is missing (not a real failure). "
+        "Relaxing the requirement would not fix it, so rescue gives no loosening advice for it."))
 
 
 class ViabilityMetrics(BaseModel):
@@ -168,11 +172,26 @@ class ViabilityMetrics(BaseModel):
     mean_solar_elevation_deg: float
 
 
+Eligibility = Literal["pass", "fail", "unknown"]
+
+
 class ViabilityResult(BaseModel):
     scenario: Scenario
-    passes: bool
-    score: float = Field(ge=0, le=100)
+    passes: bool = Field(description="True only when eligibility is 'pass'. Kept for backward compatibility")
+    eligibility: Eligibility | None = Field(None, description=(
+        "'pass' / 'fail' / 'unknown' (= could not be decided, e.g. missing data). None = not provided by the "
+        "evaluator; then read `passes` (True = pass, False = fail)"))
+    score: float | None = Field(None, ge=0, le=100, description="0-100, or None if the scenario was not scored")
     metrics: ViabilityMetrics
     violations: list[Violation]
     source: str = Field(description="Which viability implementation produced this result")
     data_source: str = Field(description="Which timeline source the metrics came from")
+
+    @property
+    def verdict(self) -> Eligibility:
+        """Eligibility, falling back to `passes` for evaluators that don't report it."""
+        return self.eligibility or ("pass" if self.passes else "fail")
+
+    @property
+    def score_or_zero(self) -> float:
+        return 0.0 if self.score is None else self.score

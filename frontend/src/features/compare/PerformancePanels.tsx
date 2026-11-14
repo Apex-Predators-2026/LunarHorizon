@@ -107,12 +107,12 @@ export function MissionPerformance({ entries }: { entries: Entry[] }) {
                 <PassBadge passes={v.passes} />
                 <DataKindBadge kind={e.result!.data_kind} />
                 <span className="ml-1 text-right">
-                  <span className="block text-xl font-semibold tabular-nums text-slate-50">{v.score.toFixed(1)}</span>
+                  <span className="block text-xl font-semibold tabular-nums text-slate-50">{v.score?.toFixed(1) ?? '—'}</span>
                   <span className="block text-[10px] text-slate-500">viability score</span>
                 </span>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded bg-slate-800" aria-hidden="true">
-                <div className="h-full rounded" style={{ width: `${Math.max(0, Math.min(100, v.score))}%`, background: seriesColor(e.scenario.colorSlot) }} />
+                <div className="h-full rounded" style={{ width: `${Math.max(0, Math.min(100, v.score ?? 0))}%`, background: seriesColor(e.scenario.colorSlot) }} />
               </div>
               {v.violations.length > 0 ? (
                 <ul className="mt-2 space-y-0.5 text-xs text-red-200">
