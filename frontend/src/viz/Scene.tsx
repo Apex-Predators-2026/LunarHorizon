@@ -27,6 +27,7 @@ import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor
 import { FloatingSidebar } from './FloatingSidebar'
 import { GRAPHICS, useGraphicsQuality, useStoredFlag } from './graphics'
 import { MiniMapPanel } from './MiniMapPanel'
+import { MiniMapTracker } from './MiniMapTracker'
 import { MissionPanel } from './MissionPlayback'
 import { useMissionPlayback } from './useMissionPlayback'
 import { SnackbarHost } from './Snackbar'
@@ -244,6 +245,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         <color attach="background" args={['#000000']} />
         <ViewCentre shiftLeftPx={viewShiftPx} />
         <CameraReadout frame={frame} target={readoutRef} scaleBar={scaleBarRef} scaleLabel={scaleLabelRef} compassRing={compassRingRef} compassNorth={compassNorthRef} />
+        <MiniMapTracker frame={frame} />
         {/* Display aid, not real light: a dim overhead fill so terrain in shadow still shows its
             shape. Sunlight (intensity 3 x visible fraction near the lander) stays >10x brighter. */}
         <ambientLight intensity={0.03} />
@@ -411,7 +413,17 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           <ColorKey layers={layers} />
         </div>
         <div ref={sideRef} className="absolute bottom-44 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4">
-          {site && <MiniMapPanel horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />}
+          {site && (
+            <MiniMapPanel
+              horizon={horizon.data}
+              steps={timeline.data ?? []}
+              current={s}
+              windowLabel={windowLabel}
+              sites={sites.data}
+              siteId={siteId}
+              frame={frame}
+            />
+          )}
           <FloatingSidebar>
             <div className="space-y-4">
               <SiteSelect sites={sites.data} error={error} loading={loading} />
