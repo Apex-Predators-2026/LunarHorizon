@@ -57,7 +57,7 @@ class SearchOptions(BaseModel):
     clearance_bonus_per_deg: float = Field(1.0, ge=0, description="Ranking points gained per degree the Sun/Earth clear the terrain (capped at 3 deg)")
     robustness_check: bool = True
     include_synthetic: bool | None = Field(
-        None, description="Compare against synthetic-placeholder data? None = only if the plan itself has no real data")
+        None, description="Simulation mode: use synthetic placeholder data where there is no real data. Off (None/false) = real data only; anything real data doesn't fully cover is reported as UNKNOWN")
 
 
 class RescueRequest(BaseModel):
@@ -137,7 +137,8 @@ class SearchStats(BaseModel):
     candidates_evaluated: int
     locations_considered: int
     passing: int
-    synthetic_candidates_excluded: int = Field(0, description="Candidates skipped because they only had synthetic data")
+    synthetic_candidates_excluded: int = Field(
+        0, description="Candidates skipped because there is no real data for them (only searched in simulation mode)")
     undecided: int = Field(0, description="Candidates whose viability could not be decided (eligibility 'unknown')")
     date_range_start: datetime
     date_range_end: datetime
@@ -164,7 +165,7 @@ class SensitivityRequest(BaseModel):
     position_offsets_km: list[float] = Field(default_factory=lambda: [0.5, 1.0, 2.0])
     bearings: int = Field(8, ge=1, le=36)
     include_synthetic: bool | None = Field(
-        None, description="Use synthetic data for points without real data? None = only if the plan has no real data")
+        None, description="Simulation mode: use synthetic placeholder data where there is no real data. Off (None/false) = real data only; anything real data doesn't fully cover is reported as UNKNOWN")
 
 
 class SensitivityPoint(BaseModel):
@@ -189,7 +190,7 @@ class SensitivityResponse(BaseModel):
     score_max: float
     most_sensitive_constraint: str | None
     skipped_points: int = Field(0, description="Points left out because they only had synthetic data")
-    verdict: Literal["robust", "sensitive", "fragile", "fails"]
+    verdict: Literal["robust", "sensitive", "fragile", "fails", "unknown"]
     explanation: str
 
 

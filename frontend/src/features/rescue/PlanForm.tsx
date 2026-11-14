@@ -82,7 +82,7 @@ export function PlanForm() {
           {catalog?.sites.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
-              {s.has_real_data ? '' : ' (synthetic data)'}
+              {s.has_real_data ? '' : ' (no real data: simulation only)'}
             </option>
           ))}
         </select>
@@ -90,7 +90,9 @@ export function PlanForm() {
       {site && (
         <p className="text-slate-500">
           {site.description}
-          {site.has_real_data ? ' Real Horizons + LOLA data (2027–2028).' : ' No real data yet: results are synthetic.'}
+          {site.has_real_data
+            ? ' Real Horizons + LOLA data covers 2027-01-01 to 2029-01-01; missions outside that are reported as unknown.'
+            : ' No real data yet: results are unknown unless simulation mode is on.'}
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">

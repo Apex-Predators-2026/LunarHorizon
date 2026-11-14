@@ -30,7 +30,7 @@ export interface SearchOptions {
   distance_penalty_per_km?: number
   clearance_bonus_per_deg?: number
   robustness_check?: boolean
-  include_synthetic?: boolean | null // null = only if the plan itself has no real data
+  include_synthetic?: boolean | null // simulation mode: true = synthetic placeholder data allowed; off = real data only (else UNKNOWN)
 }
 
 export interface RescueRequest {
@@ -109,7 +109,7 @@ export interface SearchStats {
   candidates_evaluated: number
   locations_considered: number
   passing: number
-  synthetic_candidates_excluded: number
+  synthetic_candidates_excluded: number // skipped: no real data there (only searched in simulation mode)
   undecided: number // eligibility "unknown" (missing data)
   date_range_start: string
   date_range_end: string
@@ -137,7 +137,7 @@ export interface SensitivityRequest {
   date_offsets_hours?: number[]
   position_offsets_km?: number[]
   bearings?: number
-  include_synthetic?: boolean | null
+  include_synthetic?: boolean | null // simulation mode, as in SearchOptions
 }
 
 export interface SensitivityPoint {
@@ -161,7 +161,7 @@ export interface SensitivityResponse {
   score_max: number
   most_sensitive_constraint: RequirementKey | null
   skipped_points: number
-  verdict: 'robust' | 'sensitive' | 'fragile' | 'fails'
+  verdict: 'robust' | 'sensitive' | 'fragile' | 'fails' | 'unknown' // unknown = no real data for the plan
   explanation: string
 }
 

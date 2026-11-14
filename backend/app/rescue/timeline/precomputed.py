@@ -11,6 +11,8 @@ Also accepted: a list of TimelineStep objects, or {"timeline": [TimelineStep, ..
 Files are looked up as data/sites/<id>.json, then <id>/timeline.json, then <id>.timeline.json.
 A site with no file, or a request outside the file's time range or step, falls back to
 another provider (synthetic by default); each timeline's `source` says which one answered.
+Rescue only takes that fallback in simulation mode: by default its Evaluator checks
+`coverage()` first and reports anything not fully covered by real data as UNKNOWN.
 """
 from __future__ import annotations
 
@@ -106,6 +108,11 @@ class PrecomputedTimelineProvider:
             self._cache[site.id] = (load_timeline_file(path, site, path.relative_to(self.data_dir).as_posix())
                                     if path else None)
         return self._cache[site.id]
+
+    def coverage(self, site: Site) -> tuple[np.datetime64, np.datetime64] | None:
+        """(first, last) sample time of the real data for this site, or None if there is none."""
+        tl = self._load(site)
+        return None if tl is None else (tl.times[0], tl.times[-1])
 
     def has_data(self, site: Site, start: datetime | None = None, end: datetime | None = None) -> bool:
         """True if real precomputed data exists for this site (and covers start..end if given)."""

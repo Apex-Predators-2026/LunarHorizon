@@ -121,7 +121,7 @@ def test_rescue_uses_whatever_evaluator_it_is_given(pns_scenario):
         ok = scenario.site.id == "malapert-massif" and scenario.landing_utc == target_day
         return _fake_result(scenario, ok, 80 if ok else 30)
 
-    ev = Evaluator(provider=SyntheticTimelineProvider(), evaluate=fake)
+    ev = Evaluator(provider=SyntheticTimelineProvider(), simulation=True, evaluate=fake)
     opts = SearchOptions(date_window_days=10, date_step_hours=24, include_nearby_points=False, robustness_check=False)
     r = rescue(RescueRequest(original=pns_scenario, change=PlanChange(launch_delay_days=21), search=opts), ev)
     assert r.status == "rescued"

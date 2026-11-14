@@ -72,7 +72,7 @@ export function RescuePanel() {
         <label className="col-span-2 flex items-center gap-2 text-slate-400">
           <input type="checkbox" checked={s.search.include_synthetic === true}
             onChange={(e) => s.setSearch({ include_synthetic: e.target.checked ? true : null })} />
-          Also consider options with only synthetic data (nearby points, approximate sites)
+          Simulation mode: use synthetic placeholder data where there is no real data (not real results)
         </label>
         <button type="submit" disabled={loading || !s.original}
           className="col-span-2 rounded bg-sky-600 py-1.5 font-medium text-white hover:bg-sky-500 disabled:opacity-50">

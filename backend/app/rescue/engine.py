@@ -13,7 +13,7 @@ from typing import Callable
 import numpy as np
 
 from .geo import destination, distance_km
-from ..models import MissionRequirements, Scenario, Site, ViabilityResult
+from ..models import MissionRequirements, Scenario, Site, ViabilityMetrics, ViabilityResult, Violation
 from .catalog import SITES, custom_site, get_site, is_catalog, nearest_catalog_site
 from .timeline import Timeline, TimelineProvider, default_provider
 from .viability import evaluate_timeline as default_evaluate
@@ -40,45 +40,115 @@ class Candidate:
         return round(s.lat, 4), round(s.lon, 4)
 
 
+NO_DATA_SOURCE = "no-real-data"
+SIMULATION_HINT = "Turn on simulation mode to use synthetic placeholder data instead (not real)."
+
+
 def is_real(res: ViabilityResult) -> bool:
     """True if the result was computed from real (precomputed Horizons + LOLA) data."""
     return res.data_source.startswith("precomputed")
 
 
-def use_real_only(include_synthetic: bool | None, base: ViabilityResult) -> bool:
-    """Policy shared by rescue, sensitivity and compromise: never rank real against synthetic
-    data unless asked to. None (auto) = real-only whenever the plan itself has real data."""
-    return include_synthetic is False or (include_synthetic is None and is_real(base))
+def resolve_simulation(include_synthetic: bool | None, ev: "Evaluator") -> bool:
+    """Simulation mode (synthetic placeholder data allowed) only when deliberately selected:
+    the request's include_synthetic, or the evaluator's own default when the request leaves it unset."""
+    return ev.simulation if include_synthetic is None else include_synthetic
+
+
+def _np(t: datetime) -> np.datetime64:
+    return np.datetime64(_utc(t).replace(tzinfo=None), "s")
+
+
+def _fmt_day(t: np.datetime64) -> str:
+    return str(t.astype("datetime64[D]"))
+
+
+def no_data_result(site: Site, t: datetime, duration_days: float, req: MissionRequirements,
+                   coverage: tuple[np.datetime64, np.datetime64] | None) -> ViabilityResult:
+    """UNKNOWN result for a mission that real data does not fully cover.
+
+    Metrics are reported at their worst-case bounds (no sunlight or Earth contact proven, outages
+    as long as the mission), the same convention as the canonical engine's compatibility layer.
+    """
+    hours = duration_days * 24.0
+    start, end = _np(t), _np(t) + np.timedelta64(int(round(hours * 3600)), "s")
+    if coverage is None:
+        covered = 0.0
+        msg = (f"UNKNOWN: no real Horizons + LOLA data exists for {site.name}, so this plan can't be checked. "
+               + SIMULATION_HINT)
+    else:
+        first, last = coverage
+        last_end = last + np.timedelta64(3600, "s")  # the final hourly sample covers one more hour
+        lo, hi = max(start, first), min(end, last_end)
+        covered = max(0.0, float((hi - lo).astype("timedelta64[s]").astype(np.int64)) / 3600.0)
+        msg = (f"UNKNOWN: real data for {site.name} covers {_fmt_day(first)} to {_fmt_day(last_end)}, but this "
+               f"mission runs {_fmt_day(start)} to {_fmt_day(end)}, so it can't be fully checked. " + SIMULATION_HINT)
+    short = max(0.0, hours - covered)
+    metrics = ViabilityMetrics(
+        sunlight_fraction=0.0, equivalent_sun_hours=0.0, longest_dark_gap_hours=hours,
+        earth_visibility_fraction=0.0, longest_comms_gap_hours=hours, initial_sun_hours=0.0,
+        initial_comms_hours=0.0, hours_to_first_sunset=None, hours_to_first_earthset=None,
+        mean_sun_clearance_deg=None, mean_earth_clearance_deg=None, mean_solar_elevation_deg=0.0,
+    )
+    return ViabilityResult(
+        scenario=Scenario(site=site, landing_utc=t, duration_days=duration_days, requirements=req),
+        passes=False, eligibility="unknown", score=None, metrics=metrics,
+        violations=[Violation(constraint="data_coverage", required=hours, actual=covered, unit="h", shortfall=short,
+                              relative_shortfall=short / hours if hours else 1.0, message=msg, is_unknown=True)],
+        source="rescue-coverage-check", data_source=NO_DATA_SOURCE,
+    )
 
 
 class Evaluator:
-    def __init__(self, provider: TimelineProvider | None = None, evaluate: EvaluateFn | None = None):
+    """Evaluates scenarios on real data. `simulation=True` makes synthetic placeholder data the
+    default fallback (used by unit tests); each call can still override it."""
+
+    def __init__(self, provider: TimelineProvider | None = None, evaluate: EvaluateFn | None = None,
+                 simulation: bool = False):
         self.provider = provider or default_provider()
         self.evaluate_fn = evaluate or default_evaluate
+        self.simulation = simulation
         self.evaluations = 0
+
+    def coverage(self, site: Site) -> tuple[np.datetime64, np.datetime64] | None:
+        cov = getattr(self.provider, "coverage", None)
+        return cov(site) if cov else None
 
     def has_real_data(self, site: Site, start: datetime | None = None, end: datetime | None = None) -> bool:
         check = getattr(self.provider, "has_data", None)
         return bool(check and check(site, start, end))
 
-    def evaluate(self, scenario: Scenario) -> ViabilityResult:
-        return self.evaluate_many(scenario.site, [scenario.landing_utc], scenario.duration_days, scenario.requirements)[0]
+    def evaluate(self, scenario: Scenario, simulation: bool | None = None) -> ViabilityResult:
+        return self.evaluate_many(scenario.site, [scenario.landing_utc], scenario.duration_days,
+                                  scenario.requirements, simulation=simulation)[0]
 
     def evaluate_many(self, site: Site, starts: list[datetime], duration_days: float,
-                      req: MissionRequirements) -> list[ViabilityResult]:
+                      req: MissionRequirements, simulation: bool | None = None) -> list[ViabilityResult]:
         if not starts:
             return []
+        sim = self.simulation if simulation is None else simulation
         step = TIMELINE_STEP_HOURS
         n = max(1, int(round(duration_days * 24 / step)))
-        first, last = min(starts), max(starts)
-        tl = self.provider.timeline(site, first, last + timedelta(hours=(n - 1) * step), step)
-        out = []
-        for t in starts:
-            i = tl.index_of(t)
-            scen = Scenario(site=site, landing_utc=t, duration_days=duration_days, requirements=req)
-            out.append(self.evaluate_fn(scen, tl.slice(i, i + n)))
-            self.evaluations += 1
-        return out
+        span = timedelta(hours=(n - 1) * step)
+
+        cov = None if sim else self.coverage(site)
+        if sim:
+            ok = list(range(len(starts)))
+        else:  # real data only: every sample of the mission must come from the real dataset
+            ok = [] if cov is None else [k for k, t in enumerate(starts)
+                                         if cov[0] <= _np(t) and _np(t + span) <= cov[1]]
+
+        results: dict[int, ViabilityResult] = {}
+        if ok:
+            tl = self.provider.timeline(site, min(starts[k] for k in ok), max(starts[k] for k in ok) + span, step)
+            for k in ok:
+                t = starts[k]
+                i = tl.index_of(t)
+                scen = Scenario(site=site, landing_utc=t, duration_days=duration_days, requirements=req)
+                results[k] = self.evaluate_fn(scen, tl.slice(i, i + n))
+                self.evaluations += 1
+        return [results[k] if k in results else no_data_result(site, t, duration_days, req, cov)
+                for k, t in enumerate(starts)]
 
 
 def _utc(dt: datetime) -> datetime:
@@ -136,13 +206,13 @@ def classify(shift_h: float, dist_km: float) -> AltKind:
 
 def search_grid(ev: Evaluator, ref_site: Site, ref_time: datetime, duration_days: float,
                 req: MissionRequirements, sites: list[tuple[Site, bool]],
-                times: list[datetime]) -> list[Candidate]:
+                times: list[datetime], simulation: bool | None = None) -> list[Candidate]:
     ref_time = _utc(ref_time)
     out = []
     for site, is_catalog in sites:
         dist = distance_km(ref_site.lat, ref_site.lon, site.lat, site.lon)
         group = site_group(site)
-        for t, res in zip(times, ev.evaluate_many(site, times, duration_days, req)):
+        for t, res in zip(times, ev.evaluate_many(site, times, duration_days, req, simulation=simulation)):
             shift = (t - ref_time).total_seconds() / 3600.0
             out.append(Candidate(res.scenario, res, shift, dist, classify(shift, dist), is_catalog, group))
     return out

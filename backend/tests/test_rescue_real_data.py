@@ -69,9 +69,11 @@ def test_provider_coverage_and_unaligned_times(ev):
     # A landing at 12:30 still uses the real hourly data.
     r = ev.evaluate(Scenario(site=site, landing_utc=datetime(2027, 3, 1, 12, 30, tzinfo=timezone.utc)))
     assert is_real(r)
-    # Outside the precomputed range -> synthetic fallback, clearly labelled.
-    r = ev.evaluate(Scenario(site=site, landing_utc=datetime(2030, 3, 1, tzinfo=timezone.utc)))
-    assert r.data_source == "synthetic-placeholder"
+    # Outside the precomputed range -> UNKNOWN by default; synthetic only in simulation mode.
+    late = Scenario(site=site, landing_utc=datetime(2030, 3, 1, tzinfo=timezone.utc))
+    r = ev.evaluate(late)
+    assert r.verdict == "unknown" and r.score is None and r.data_source == "no-real-data"
+    assert ev.evaluate(late, simulation=True).data_source == "synthetic-placeholder"
 
 
 def test_rescue_on_real_data_never_mixes_in_synthetic(ev, plan):

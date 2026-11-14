@@ -167,11 +167,13 @@ changing a response model, regenerate them by calling the endpoints, e.g. from t
 
 ## Limitations (say these out loud in the demo)
 
-- **Real data covers 3 landing sites for 2027–2028** (Peak Near Shackleton, Connecting Ridge,
-  Malapert Massif). Plans there are rescued only with real data by default.
-- **Other sites, custom nearby points and other dates use synthetic placeholder geometry
-  and invented terrain.** Every result's `data_source` says which was used, the UI shows a
-  "real data" / "synthetic" badge, and synthetic results carry a warning.
+- **Real data covers 3 landing sites from 2027-01-01 to 2029-01-01** (Peak Near Shackleton,
+  Connecting Ridge, Malapert Massif). By default rescue uses only that data. Anything it doesn't
+  fully cover (later or earlier dates, the "approx." sites, custom nearby points) is reported
+  as **unknown**, never as a pass or fail.
+- **Simulation mode** (the checkbox in the rescue panel, `include_synthetic: true`) fills those gaps
+  with synthetic placeholder geometry and invented terrain. Every result's `data_source` says which
+  was used, the UI shows a "real data" / "synthetic" badge, and synthetic results carry a warning.
 - The extra regions in `backend/app/rescue/catalog.py` (marked "approx.") have approximate
   coordinates.
 - Landing-position sensitivity is not checked for real sites yet (no real data around them).

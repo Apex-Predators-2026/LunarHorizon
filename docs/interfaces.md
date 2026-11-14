@@ -177,11 +177,17 @@ A list of `TimelineStep` objects is also accepted. Sites, custom points or dates
 data fall back to a **synthetic placeholder**, and every result's `data_source` says which was
 used (`precomputed:<file>` or `synthetic-placeholder`).
 
-**Real and synthetic data are never ranked together by default.** If the plan being rescued
-has real data, rescue, sensitivity and compromise skip candidates that only have synthetic
-data. Today that means custom nearby points, the approximate extra sites, and dates outside
-2027–2028. `SearchOptions.include_synthetic = true` opts in; the response reports how many
-candidates were left out (`stats.synthetic_candidates_excluded`).
+**Rescue never falls back to synthetic data unless simulation mode is selected.**
+By default (`include_synthetic` unset or `false`), a mission that real data does not fully
+cover is reported as `eligibility: "unknown"`, with `score: null`, `data_source: "no-real-data"`
+and one violation `{constraint: "data_coverage", is_unknown: true}` explaining the covered period.
+That applies to missions that run past the end of the data (2029-01-01), start before it, or are
+at sites/points with no real data at all. Its metrics are reported at worst-case bounds.
+Rescue, sensitivity and compromise don't search places with no real data
+(`stats.synthetic_candidates_excluded`), and count out-of-range dates as undecided
+(`stats.undecided`), never as passes or failures. Sensitivity returns `verdict: "unknown"` for
+such a plan. `include_synthetic: true` is **simulation mode**: synthetic placeholder data is
+used where there is no real data, and results carry the SYNTHETIC DATA warning.
 
 Rescue's landing candidates are the engine's curated sites (`app/engine/sites.py`, minus
 validation controls such as `shackleton-floor`) plus a few approximate extra regions

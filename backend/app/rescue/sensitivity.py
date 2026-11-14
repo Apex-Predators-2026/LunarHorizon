@@ -11,9 +11,13 @@ from datetime import timedelta
 
 from ..models import Scenario
 from .catalog import custom_site
-from .engine import Evaluator, is_real, use_real_only
+from .engine import Evaluator, resolve_simulation
 from .geo import destination
 from .schemas import Robustness, SensitivityPoint, SensitivityRequest, SensitivityResponse
+
+
+def _sentence(text: str) -> str:
+    return text[:1].upper() + text[1:]
 
 
 def _verdict(rate: float) -> str:
@@ -27,16 +31,24 @@ def _point(r, h: float, dist: float, bearing: float | None, lat: float, lon: flo
 
 def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
     sc = req.scenario
-    base = ev.evaluate(sc)
-    real_only = use_real_only(req.include_synthetic, base)
+    sim = resolve_simulation(req.include_synthetic, ev)
+    base = ev.evaluate(sc, simulation=sim)
+    n_requested = len(set(req.date_offsets_hours) - {0.0}) + len(req.position_offsets_km) * req.bearings
+    if base.verdict == "unknown":
+        return SensitivityResponse(
+            base=base, points=[], date_pass_rate=None, position_pass_rate=None, safe_date_window_hours=None,
+            score_min=0.0, score_max=0.0, most_sensitive_constraint=None, skipped_points=n_requested,
+            verdict="unknown",
+            explanation="No real data covers this plan, so its sensitivity can't be checked. "
+                        + _sentence(base.violations[0].message.removeprefix("UNKNOWN: ")))
     points: list[SensitivityPoint] = []
     skipped = 0
 
     # Date slips at the same spot (one timeline fetch for all of them).
     offsets = sorted(set(req.date_offsets_hours) - {0.0})
     times = [sc.landing_utc + timedelta(hours=h) for h in offsets]
-    for h, r in zip(offsets, ev.evaluate_many(sc.site, times, sc.duration_days, sc.requirements)):
-        if real_only and not is_real(r):
+    for h, r in zip(offsets, ev.evaluate_many(sc.site, times, sc.duration_days, sc.requirements, simulation=sim)):
+        if r.verdict == "unknown":  # slips outside the real data can't be judged
             skipped += 1
             continue
         points.append(_point(r, h, 0.0, None, sc.site.lat, sc.site.lon))
@@ -47,11 +59,11 @@ def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
             b = 360.0 * j / req.bearings
             lat, lon = destination(sc.site.lat, sc.site.lon, b, dist)
             site = custom_site(f"{sc.site.name} +{dist:g} km @ {b:.0f}°", lat, lon)
-            if real_only and not ev.has_real_data(site):
+            if not sim and not ev.has_real_data(site):
                 skipped += 1
                 continue
             r = ev.evaluate(Scenario(site=site, landing_utc=sc.landing_utc, duration_days=sc.duration_days,
-                                     requirements=sc.requirements))
+                                     requirements=sc.requirements), simulation=sim)
             points.append(_point(r, 0.0, dist, b, lat, lon))
 
     date_pts = [p for p in points if p.distance_km == 0]
@@ -96,7 +108,7 @@ def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
         if most:
             expl += f" The requirement that breaks first is '{most}'."
     if skipped:
-        expl += (f" {skipped} point(s) skipped: only synthetic data exists there"
+        expl += (f" {skipped} point(s) skipped: no real data there"
                  + (" (landing-position checks need terrain for points around the site)." if pos_rate is None else "."))
     return SensitivityResponse(base=base, points=points, date_pass_rate=date_rate, position_pass_rate=pos_rate,
                                safe_date_window_hours=window, score_min=min(scores), score_max=max(scores),

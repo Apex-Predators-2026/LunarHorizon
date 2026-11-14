@@ -38,7 +38,7 @@ def _result(sc: Scenario, verdict: str, *, mixed: bool = False) -> ViabilityResu
 
 
 def _rescue_with(verdict_for, **search):
-    ev = Evaluator(provider=SyntheticTimelineProvider(),
+    ev = Evaluator(provider=SyntheticTimelineProvider(), simulation=True,
                    evaluate=lambda sc, tl: _result(sc, *verdict_for(sc)))
     plan = Scenario(site=get_site("peak-near-shackleton").to_site(), landing_utc=T0)
     opts = SearchOptions(date_window_days=6, date_step_hours=24, include_nearby_points=False,
@@ -65,14 +65,14 @@ def test_missing_data_never_gets_loosening_advice_and_summary_says_so():
     r = _rescue_with(lambda sc: ("unknown",))
     assert r.status == "no_viable_alternative"
     assert r.alternatives == [] and r.near_misses == [] and r.loosening == []
-    assert "could not be checked because data is missing" in r.summary
+    assert "can't be checked" in r.summary and "missing data" in r.summary
     assert r.changed.score is None  # unscored result passes through without becoming 0
 
 
 def test_failure_that_is_partly_unknown_gets_no_loosening():
     r = _rescue_with(lambda sc: ("fail",))
     assert r.loosening  # plain failures do get advice
-    ev = Evaluator(provider=SyntheticTimelineProvider(), evaluate=lambda sc, tl: _result(sc, "fail", mixed=True))
+    ev = Evaluator(provider=SyntheticTimelineProvider(), simulation=True, evaluate=lambda sc, tl: _result(sc, "fail", mixed=True))
     plan = Scenario(site=get_site("peak-near-shackleton").to_site(), landing_utc=T0)
     r2 = rescue(RescueRequest(original=plan, change=PlanChange(launch_delay_days=1),
                               search=SearchOptions(date_window_days=3, date_step_hours=24, include_nearby_points=False,
@@ -82,7 +82,7 @@ def test_failure_that_is_partly_unknown_gets_no_loosening():
 
 
 def test_compromise_tolerates_unscored_results():
-    ev = Evaluator(provider=SyntheticTimelineProvider(), evaluate=lambda sc, tl: _result(sc, "unknown"))
+    ev = Evaluator(provider=SyntheticTimelineProvider(), simulation=True, evaluate=lambda sc, tl: _result(sc, "unknown"))
     plan = Scenario(site=get_site("peak-near-shackleton").to_site(), landing_utc=T0)
     c = compromise(CompromiseRequest(scenario=plan, science=ScienceGoal(target_psr_id="shackleton-psr"),
                                      search=SearchOptions(date_window_days=2, include_nearby_points=False)), ev)

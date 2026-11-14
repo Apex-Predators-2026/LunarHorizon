@@ -11,7 +11,7 @@ from __future__ import annotations
 from .geo import destination, distance_km
 from ..models import Site
 from .catalog import PSRS, PSRS_BY_ID, custom_site, nearest_psr_edge_km
-from .engine import Candidate, Evaluator, candidate_sites, candidate_times, is_real, search_grid, use_real_only
+from .engine import Candidate, Evaluator, candidate_sites, candidate_times, resolve_simulation, search_grid
 from .explain import fmt_time
 from .loosen import loosening_suggestions
 from .schemas import CompromiseOption, CompromiseRequest, CompromiseResponse, SearchStats
@@ -56,16 +56,16 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
                 if (round(lat, 4), round(lon, 4)) not in seen:
                     sites.append((custom_site(f"{label} rim +{extra:g} km @ {b:.0f}°", lat, lon), False))
 
-    real_only = use_real_only(opts.include_synthetic, ev.evaluate(sc))
+    sim = resolve_simulation(opts.include_synthetic, ev)
     excluded = 0
-    if real_only:
+    if not sim:  # no real data there: could only ever be UNKNOWN
         keep = [(s, c) for s, c in sites if ev.has_real_data(s)]
         excluded = (len(sites) - len(keep)) * len(times)
         sites = keep
-    cands = search_grid(ev, sc.site, sc.landing_utc, sc.duration_days, sc.requirements, sites, times)
-    if real_only:
-        excluded += sum(not is_real(c.result) for c in cands)
-        cands = [c for c in cands if is_real(c.result)]
+    cands = search_grid(ev, sc.site, sc.landing_utc, sc.duration_days, sc.requirements, sites, times, simulation=sim)
+    # Undecided (missing data) options can't be weighed against decided ones; count them and leave them out.
+    undecided = sum(c.result.verdict == "unknown" for c in cands)
+    cands = [c for c in cands if c.result.verdict != "unknown"]
 
     wsum = req.engineering_weight + req.science_weight
 
@@ -153,9 +153,13 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
         assumptions.insert(0, SYNTHETIC_WARNING)
     elif data_sources:
         assumptions.insert(0, REAL_DATA_NOTE)
-    if real_only and excluded:
-        assumptions.append(f"{excluded} candidates were left out because only synthetic placeholder data exists for "
-                           "them (e.g. points around the science target). Set include_synthetic=true to include them.")
+    if excluded:
+        assumptions.append(f"{excluded} candidates were left out because there is no real data for them (e.g. points "
+                           "around the science target). Simulation mode (include_synthetic=true) would use synthetic "
+                           "placeholder data for them.")
+    if undecided:
+        assumptions.append(f"{undecided} candidates are UNKNOWN (mission outside the real data's time range) and "
+                           "were left out of the trade-off.")
     if target is None:
         assumptions.append(f"No science target given; using distance to the nearest of {len(PSRS)} catalog PSRs.")
 
@@ -164,6 +168,7 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
         pareto_front=front[:10], suggestions=suggestions, loosening=loosening,
         stats=SearchStats(candidates_evaluated=len(cands), locations_considered=len(sites),
                           passing=sum(c.result.passes for c in cands), synthetic_candidates_excluded=excluded,
+                          undecided=undecided,
                           date_range_start=times[0], date_range_end=times[-1]),
         data_source=", ".join(data_sources), assumptions=assumptions,
     )

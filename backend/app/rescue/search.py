@@ -14,8 +14,8 @@ from __future__ import annotations
 from datetime import timedelta
 
 from ..models import Scenario
-from .engine import (Candidate, Evaluator, candidate_sites, candidate_times, classify, diverse_top, is_real,
-                     search_grid, site_group, use_real_only)
+from .engine import (Candidate, Evaluator, candidate_sites, candidate_times, classify, diverse_top,
+                     SIMULATION_HINT, resolve_simulation, search_grid, site_group)
 from .catalog import is_catalog
 from .explain import fmt_score, fmt_time, headline_for, metric_deltas, reasons_for, why_fails
 from .loosen import loosening_suggestions
@@ -64,23 +64,21 @@ def _rank_score(c: Candidate, opts) -> float:
 def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
     ev = ev or Evaluator()
     opts = req.search
-    original = ev.evaluate(req.original)
+    sim = resolve_simulation(opts.include_synthetic, ev)
+    original = ev.evaluate(req.original, simulation=sim)
     changed_sc = changed_scenario(req)
-    changed = ev.evaluate(changed_sc)
+    changed = ev.evaluate(changed_sc, simulation=sim)
 
     times = candidate_times(changed_sc.landing_utc, opts)
     sites = candidate_sites(changed_sc.site, opts)
-    real_only = use_real_only(opts.include_synthetic, changed)
     excluded = 0
-    if real_only:
+    if not sim:  # places with no real data at all can only be UNKNOWN: don't search them
         keep = [(s, c) for s, c in sites if ev.has_real_data(s)]
         excluded = (len(sites) - len(keep)) * len(times)
         sites = keep
+    # Without simulation mode, dates the real data doesn't cover come back UNKNOWN (counted as undecided).
     cands = search_grid(ev, changed_sc.site, changed_sc.landing_utc, changed_sc.duration_days,
-                        changed_sc.requirements, sites, times)
-    if real_only:  # dates beyond the data's range fall back to synthetic; drop those too
-        excluded += sum(not is_real(c.result) for c in cands)
-        cands = [c for c in cands if is_real(c.result)]
+                        changed_sc.requirements, sites, times, simulation=sim)
     passing = [c for c in cands if c.result.verdict == "pass"]
     failing = [c for c in cands if c.result.verdict == "fail"]
     undecided = [c for c in cands if c.result.verdict == "unknown"]  # missing data: not a real failure
@@ -91,7 +89,7 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
     shortlist = diverse_top(passing, lambda c: _rank_score(c, opts), opts.top_n * 2, opts.min_separation_hours)
     scored = []
     for c in shortlist:
-        rob = quick_robustness(c.scenario, ev, opts.include_synthetic) if opts.robustness_check else None
+        rob = quick_robustness(c.scenario, ev, sim) if opts.robustness_check else None
         rs = _rank_score(c, opts) - (ROBUSTNESS_PENALTY * (1 - rob.pass_rate) if rob else 0.0)
         scored.append((rs, c, rob))
     scored.sort(key=lambda x: -x[0])
@@ -127,10 +125,16 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
         broken = "; ".join(v.message.rstrip(".") for v in changed.violations)
         verb = "can't be checked (missing data)" if changed.verdict == "unknown" else "fails"
         summary = f"The changed plan {verb}: {broken}. Best rescue: {alternatives[0].headline}"
+    elif changed.verdict == "unknown" and not passing and not failing:
+        status = "no_viable_alternative"
+        reason = (changed.violations[0].message.removeprefix("UNKNOWN: ").replace(" " + SIMULATION_HINT, "")
+                  if changed.violations else "")
+        summary = (f"The changed plan can't be checked: {reason} None of the {len(cands)} options searched could be "
+                   "checked either (missing data). Try other dates, or turn on simulation mode for a synthetic estimate.")
     else:
         status = "no_viable_alternative"
         summary = (f"No candidate in the search passes all requirements ({len(cands)} checked"
-                   + (f"; {excluded} synthetic-only candidates left out" if excluded else "") + "). "
+                   + (f"; {excluded} without real data left out" if excluded else "") + "). "
                    + (f"Smallest fix: {loosening[0].message}" if loosening else "Widen the search window or site list.")
                    + unknown_note)
 
@@ -140,10 +144,13 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
         assumptions.insert(0, SYNTHETIC_WARNING)
     else:
         assumptions.insert(0, REAL_DATA_NOTE)
-    if real_only and excluded:
-        assumptions.append(f"{excluded} candidates were left out because only synthetic placeholder data exists for "
-                           "them (custom nearby points, approximate sites, or dates outside the precomputed range). "
-                           "Set include_synthetic=true to include them.")
+    if excluded:
+        assumptions.append(f"{excluded} candidates were left out because there is no real data for them (custom "
+                           "nearby points, approximate sites). Simulation mode (include_synthetic=true) would use "
+                           "synthetic placeholder data for them.")
+    if undecided and not sim:
+        assumptions.append(f"{len(undecided)} candidates are UNKNOWN because their mission runs outside the real "
+                           "data's time range. They are not counted as failures.")
     if req.change.reason:
         assumptions.append(f"Change reason given: {req.change.reason}")
 

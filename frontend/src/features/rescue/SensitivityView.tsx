@@ -5,6 +5,7 @@ const VERDICT_STYLE = {
   sensitive: 'text-amber-400',
   fragile: 'text-red-400',
   fails: 'text-red-400',
+  unknown: 'text-slate-300',
 } as const
 
 export function SensitivityView({ data }: { data: SensitivityResponse }) {

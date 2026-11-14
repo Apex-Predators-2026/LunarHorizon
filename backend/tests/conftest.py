@@ -11,7 +11,7 @@ from app.rescue.timeline import SyntheticTimelineProvider
 @pytest.fixture
 def ev() -> Evaluator:
     # Synthetic only, so tests never depend on whatever is in data/sites/.
-    return Evaluator(provider=SyntheticTimelineProvider())
+    return Evaluator(provider=SyntheticTimelineProvider(), simulation=True)
 
 
 @pytest.fixture

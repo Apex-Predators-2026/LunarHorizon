@@ -122,7 +122,7 @@ export interface Scenario {
 }
 
 export interface Violation {
-  constraint: RequirementKey
+  constraint: RequirementKey | 'data_coverage' // data_coverage = mission not covered by real data (is_unknown)
   required: number
   actual: number
   unit: 'fraction' | 'h'

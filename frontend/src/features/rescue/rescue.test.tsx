@@ -7,6 +7,8 @@ import { useAppStore } from '../../store'
 import catalog from './__fixtures__/catalog-response.json'
 import compromiseRes from './__fixtures__/compromise-response.json'
 import noneRes from './__fixtures__/rescue-none-response.json'
+import outsideRes from './__fixtures__/rescue-outside-data-response.json'
+import sensUnknownRes from './__fixtures__/sensitivity-unknown-response.json'
 import rescueRes from './__fixtures__/rescue-response.json'
 import sensitivityRes from './__fixtures__/sensitivity-response.json'
 import { ApiError, errorMessage, runRescue } from './api'
@@ -21,6 +23,8 @@ import { useRescueStore } from './useRescueStore'
 const rescue = rescueRes as unknown as RescueResponse
 const none = noneRes as unknown as RescueResponse
 const sensitivity = sensitivityRes as unknown as SensitivityResponse
+const outside = outsideRes as unknown as RescueResponse
+const sensUnknown = sensUnknownRes as unknown as SensitivityResponse
 const compromise = compromiseRes as unknown as CompromiseResponse
 
 const jsonResponse = (body: unknown, status = 200) =>
@@ -147,6 +151,20 @@ describe('components render real backend responses', () => {
     expect(html).toContain(alt.robustness!.verdict)
     expect(html).toContain('real data')
     for (const r of alt.reasons) expect(html).toContain(r.replace(/&/g, '&amp;').slice(0, 20))
+  })
+
+  it('a plan outside the real data is shown as unknown, never as a synthetic rescue', () => {
+    expect(outside.changed.eligibility).toBe('unknown')
+    expect(outside.changed.score).toBeNull()
+    expect(outside.alternatives).toHaveLength(0)
+    const html = renderToString(
+      <RescueResults res={outside} selected={null} sensitivity={sensUnknown} onSelect={() => {}} onCheckSensitivity={() => {}} />,
+    )
+    expect(html).toContain('can&#x27;t be checked')
+    expect(html).toContain('could not be checked (missing data)')
+    expect(html).not.toContain('SYNTHETIC DATA')
+    expect(html).toContain('unknown')
+    expect(sensUnknown.points).toHaveLength(0)
   })
 
   it('DataBadge labels synthetic data', () => {

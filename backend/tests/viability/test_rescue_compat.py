@@ -480,7 +480,8 @@ def test_rescue_evaluator_runs_through_compat_layer_with_test_double(pns: Scenar
         cons = _all_constraints({cid: ConstraintStatus.UNKNOWN for cid in CONSTRAINT_TO_RESCUE})
         return _assessment(mission, series, cons, score=None, metrics=KNOWN_GOOD)
 
-    ev = Evaluator(provider=SyntheticTimelineProvider(), evaluate=make_evaluate_fn(test_double_engine))
+    ev = Evaluator(provider=SyntheticTimelineProvider(), evaluate=make_evaluate_fn(test_double_engine),
+                   simulation=True)  # synthetic data must be opted into explicitly
     result = ev.evaluate(pns)
 
     ((mission, series),) = calls

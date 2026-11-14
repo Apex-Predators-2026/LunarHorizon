@@ -1,0 +1,64 @@
+{
+ "base": {
+  "scenario": {
+   "site": {
+    "id": "peak-near-shackleton",
+    "name": "Peak Near Shackleton",
+    "lat": -89.01701,
+    "lon": 126.27302
+   },
+   "landing_utc": "2030-03-01T00:00:00Z",
+   "duration_days": 7.0,
+   "requirements": {
+    "min_sunlight_fraction": 0.5,
+    "battery_hours": 50.0,
+    "panel_threshold": 0.25,
+    "min_earth_visibility_fraction": 0.4,
+    "max_comms_gap_hours": 96.0,
+    "min_initial_sun_hours": 24.0,
+    "min_initial_comms_hours": 12.0
+   }
+  },
+  "passes": false,
+  "eligibility": "unknown",
+  "score": null,
+  "metrics": {
+   "sunlight_fraction": 0.0,
+   "equivalent_sun_hours": 0.0,
+   "longest_dark_gap_hours": 168.0,
+   "earth_visibility_fraction": 0.0,
+   "longest_comms_gap_hours": 168.0,
+   "initial_sun_hours": 0.0,
+   "initial_comms_hours": 0.0,
+   "hours_to_first_sunset": null,
+   "hours_to_first_earthset": null,
+   "mean_sun_clearance_deg": null,
+   "mean_earth_clearance_deg": null,
+   "mean_solar_elevation_deg": 0.0
+  },
+  "violations": [
+   {
+    "constraint": "data_coverage",
+    "required": 168.0,
+    "actual": 0.0,
+    "unit": "h",
+    "shortfall": 168.0,
+    "relative_shortfall": 1.0,
+    "message": "UNKNOWN: real data for Peak Near Shackleton covers 2027-01-01 to 2029-01-01, but this mission runs 2030-03-01 to 2030-03-08, so it can't be fully checked. Turn on simulation mode to use synthetic placeholder data instead (not real).",
+    "is_unknown": true
+   }
+  ],
+  "source": "rescue-coverage-check",
+  "data_source": "no-real-data"
+ },
+ "points": [],
+ "date_pass_rate": null,
+ "position_pass_rate": null,
+ "safe_date_window_hours": null,
+ "score_min": 0.0,
+ "score_max": 0.0,
+ "most_sensitive_constraint": null,
+ "skipped_points": 32,
+ "verdict": "unknown",
+ "explanation": "No real data covers this plan, so its sensitivity can't be checked. Real data for Peak Near Shackleton covers 2027-01-01 to 2029-01-01, but this mission runs 2030-03-01 to 2030-03-08, so it can't be fully checked. Turn on simulation mode to use synthetic placeholder data instead (not real)."
+}
