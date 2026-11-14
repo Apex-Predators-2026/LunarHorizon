@@ -149,8 +149,7 @@ function CascadedSunLight({ status }: { status: TimelineStep }) {
     gl.shadowMap.autoUpdate = true // the cascades follow the camera
     invalidate()
     return () => {
-      c.csm.dispose() // un-patches every material it set up
-      for (const m of c.patched) m.needsUpdate = true
+      unpatchAll(c.csm, c.patched)
       c.csm.remove()
       for (const l of c.csm.lights) l.dispose()
       live.current = null
@@ -175,11 +174,7 @@ function CascadedSunLight({ status }: { status: TimelineStep }) {
       const mesh = o as THREE.Mesh
       if (!mesh.isMesh) return
       for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-        if (!c.patched.has(m) && isLit(m)) {
-          csm.setupMaterial(m)
-          m.needsUpdate = true
-          c.patched.add(m)
-        }
+        if (!c.patched.has(m) && isLit(m)) patchForCascades(csm, m, c.patched)
       }
     })
     // Ranges from the camera's distance to the lander: detail near the target, out to the horizon.
@@ -200,6 +195,35 @@ function CascadedSunLight({ status }: { status: TimelineStep }) {
   })
 
   return null
+}
+
+/** A material's own shader tweak (e.g. the imagery mix, globe/tileImagery.ts), kept in userData. */
+const ownHook = (m: THREE.Material) => m.userData.beforeCompile as THREE.Material['onBeforeCompile'] | undefined
+
+/** Set a material up for the cascades. CSM replaces onBeforeCompile, so a hook of the material's own
+ * runs first, then CSM's. */
+function patchForCascades(csm: CSM, m: THREE.Material, patched: Set<THREE.Material>) {
+  csm.setupMaterial(m)
+  const own = ownHook(m)
+  if (own) {
+    const csmHook = m.onBeforeCompile
+    m.onBeforeCompile = (shader, renderer) => {
+      own(shader, renderer)
+      csmHook.call(m, shader, renderer)
+    }
+  }
+  m.needsUpdate = true
+  patched.add(m)
+}
+
+/** Undo patchForCascades on every material (CSM deletes onBeforeCompile: put the material's own back). */
+function unpatchAll(csm: CSM, patched: Set<THREE.Material>) {
+  csm.dispose()
+  for (const m of patched) {
+    const own = ownHook(m)
+    if (own) m.onBeforeCompile = own
+    m.needsUpdate = true
+  }
 }
 
 /** Sun intensity on every cascade light, and shadow bias in proportion to each cascade's texel size

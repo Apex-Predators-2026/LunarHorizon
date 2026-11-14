@@ -31,6 +31,7 @@ import { MissionPanel } from './MissionPlayback'
 import { useMissionPlayback } from './useMissionPlayback'
 import { SnackbarHost } from './Snackbar'
 import { TerrainLoadingOverlay, TerrainProgressBar } from './TerrainProgress'
+import { CoverageBadge } from './CoverageBadge'
 import { TooltipHost } from './TooltipHost'
 import { showSnackbar } from './snackbarStore'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
@@ -57,7 +58,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const [view, setView] = useState<ViewMode>('overview')
   const [windowDays, setWindowDays] = useState(14)
   const [terrainStats, setTerrainStats] = useState<TileStats | null>(null)
-  const [layers, setLayers] = useState<Layers>({ sites: true, psr: true, blockers: true, imagery: false, paths: true })
+  const [layers, setLayers] = useState<Layers>({ sites: true, psr: true, blockers: true, paths: true })
   const [pin, setPin] = useState<PinState>({ phase: 'idle' })
   const [createdSites, setCreatedSites] = useState<SiteInfo[]>([]) // pins dropped this session
   const setSite = useAppStore((s) => s.setSite)
@@ -244,7 +245,6 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             onStats={onStats}
             onPick={pin.phase === 'armed' ? onPick : undefined}
             lodThresholdPx={gfx.lodThresholdPx}
-            imagery={layers.imagery}
             maxCachedMeshes={gfx.maxCachedMeshes}
           />
         )}
@@ -390,7 +390,11 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           <TerrainProgressBar />
           <MissionPanel mission={mission} />
           {/* Lifted above the "show timeline" arrow while the panel is hidden. */}
-          <div className={`md-slide transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>
+          <div className={`md-slide relative transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>
+            {/* Which surface data is showing, level with the toolbar at the left (wide screens). */}
+            <div className="pointer-events-none absolute bottom-2 left-0 hidden h-14 items-center md:flex">
+              <CoverageBadge />
+            </div>
             <MapTools
               layers={layers}
               onLayers={setLayers}
