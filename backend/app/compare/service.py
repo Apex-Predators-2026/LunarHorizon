@@ -2,7 +2,9 @@
 
 Inputs come from other members' modules and are only read here:
   - timelines: the data engine's site records (app/store.py) — JPL Horizons + LOLA
-  - viability: app/rescue/viability.evaluate_timeline (the team's swap point for Brandon's evaluator)
+  - viability: app/viability/compat/rescue.evaluate_timeline_detailed (Member 2's canonical engine, the same
+    adapter Rescue uses) for the shared ViabilityResult plus the full canonical assessment
+  - ranking: app/viability/ranking via compare/ranking.py (only eligible PASS scenarios are ranked)
   - PSR distances: app/rescue/catalog (approximate PSR centres/radii)
 """
 from __future__ import annotations
@@ -17,7 +19,8 @@ from ..models import Scenario
 from ..rescue.catalog import SITES_BY_ID, nearest_psr_edge_km
 from ..rescue.timeline import SyntheticTimelineProvider, Timeline
 from ..rescue.timeline.base import to_np_utc
-from ..rescue.viability import evaluate_timeline
+from ..viability.compat.rescue import RescueCompatError, evaluate_timeline_detailed
+from .ranking import Assessed, rank_comparison
 from .schemas import (CompareRequest, CompareResponse, CompareResult, CompareScenarioIn, EarthStats, MissionEvent,
                       PowerStats, ScienceContext, SiteContext, SolarStats, SpacecraftConfig, TimelineColumns, Window)
 
@@ -30,8 +33,9 @@ NOTES = [
     "Sunlit = any part of the solar disk above the local terrain horizon. Earth visible = Earth's centre above "
     "the terrain horizon. This is geometric line of sight only; it does not guarantee a working radio link "
     "(antenna pointing, ground-station schedules and link budget are not modelled).",
-    "Viability (pass/fail, score, violations) comes from the team's viability evaluator; the comparison "
-    "system only displays and sorts it.",
+    "Viability (PASS / FAIL / UNKNOWN, score, violations) and the ranking come from the team's canonical viability "
+    "engine. Only PASS scenarios are ranked, and only against scenarios with the same data basis, requirements and "
+    "mission duration. A missing score is never treated as 0.",
 ]
 DEMO_NOTE = ("DEMONSTRATION DATA: scenarios marked 'demonstration' use the synthetic placeholder timeline (approximate "
              "Sun/Earth motion, invented terrain horizon). They are for illustrating the tool only and must not be "
@@ -225,7 +229,16 @@ def science_context(scenario: Scenario) -> ScienceContext:
 
 # ---------------------------------------------------------------- entry points
 
-def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> CompareResult:
+def _viability(sc: Scenario, tl: Timeline):
+    """Shared ViabilityResult + canonical assessment, or (None, None, reason) if the engine refuses the input."""
+    try:
+        result, assessment = evaluate_timeline_detailed(sc, tl)
+        return result, assessment, None
+    except RescueCompatError as exc:  # input the adapter cannot convert faithfully: report, never guess
+        return None, None, f"The viability engine could not assess this scenario: {exc}"
+
+
+def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> tuple[CompareResult, Assessed | None]:
     sc = item.scenario
     tl = real_timeline(sc)
     kind = "real"
@@ -234,29 +247,40 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
             return CompareResult(key=item.key, status="unavailable", data_kind="unavailable", data_source="none",
                                  message=data_coverage(sc) + " Enable demonstration data to see a synthetic "
                                                              "illustration instead.",
-                                 site_context=site_context(sc), science_context=science_context(sc))
+                                 site_context=site_context(sc), science_context=science_context(sc)), None
         tl, kind = demo_timeline(sc), "demonstration"
 
     lit, vis = tl.sun_visible_fraction > 0, tl.earth_visible.astype(bool)
     sun_w, dark_w, earth_w, black_w = windows(lit, tl), windows(~lit, tl), windows(vis, tl), windows(~vis, tl)
     f = incidence_factor(tl, item.spacecraft)
-    return CompareResult(
-        key=item.key, status="ok", data_kind=kind, data_source=tl.source,
-        message=DEMO_NOTE if kind == "demonstration" else None,
+    viability, assessment, problem = _viability(sc, tl)
+    message = DEMO_NOTE if kind == "demonstration" else None
+    if problem:
+        message = f"{message} {problem}" if message else problem
+    result = CompareResult(
+        key=item.key, status="ok", data_kind=kind, data_source=tl.source, message=message,
         site_context=site_context(sc), science_context=science_context(sc),
-        viability=evaluate_timeline(sc, tl),
+        viability=viability,
         solar=solar_stats(tl, sun_w, dark_w), earth=earth_stats(tl, earth_w, black_w),
         power=power_stats(tl, f, item.spacecraft),
         sun_windows=sun_w, dark_windows=dark_w, earth_windows=earth_w, blackout_windows=black_w,
         events=events(tl), timeline=columns(tl, f, max_points),
     )
+    return result, (Assessed(item.key, assessment) if assessment is not None else None)
 
 
 def compare(req: CompareRequest) -> CompareResponse:
-    results = [evaluate_one(s, req.allow_demo_data, req.max_points) for s in req.scenarios]
+    pairs = [evaluate_one(s, req.allow_demo_data, req.max_points) for s in req.scenarios]
+    results = [r for r, _ in pairs]
+    ranking, groups, method = rank_comparison([a for _, a in pairs if a is not None])
+    for r in results:
+        r.ranking = ranking.get(r.key)
     sources = sorted({r.viability.source for r in results if r.viability})
     notes = list(NOTES)
     if any(r.data_kind == "demonstration" for r in results):
         notes.insert(0, DEMO_NOTE)
-    return CompareResponse(results=results, viability_source=", ".join(sources) or "n/a", notes=notes)
-
+    if len(groups) > 1:
+        notes.append(f"The scenarios form {len(groups)} separate ranking groups (different data basis, requirements "
+                     "or mission duration). Ranks are only meaningful inside a group.")
+    return CompareResponse(results=results, viability_source=", ".join(sources) or "n/a", notes=notes,
+                           ranking_groups=groups, ranking_method=method)

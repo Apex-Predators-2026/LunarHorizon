@@ -1,5 +1,7 @@
-// Multi-Scenario Comparison tests. The fixture is a real /api/compare response (Horizons + LOLA data,
-// 7-day missions from 2027-01-15 at three curated sites, plus one out-of-range scenario).
+// Multi-Scenario Comparison tests. The fixture is a real /api/compare response (Horizons + LOLA data, canonical
+// viability engine). Same requirements for every scenario; 7-day missions landing 2027-01-15:
+//   A Peak Near Shackleton  FAIL (score 61.7, never ranked)   B Malapert Massif  PASS #1   C Connecting Ridge  PASS #2
+//   D Malapert 2035: no data (no assessment)   E Malapert, 3-day mission: PASS, rank 1 in separate group G2
 import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -17,7 +19,10 @@ import {
   mergeSeries,
   METRIC_BY_ID,
   outageIndex,
-  rankByViability,
+  canonicalRanking,
+  eligibilityOf,
+  rankText,
+  scoreText,
   type Entry,
 } from './analysis'
 import fixture from './__fixtures__/compare-response.json'
@@ -26,7 +31,7 @@ import { OverviewCards } from './OverviewCards'
 import { MissionPerformance } from './PerformancePanels'
 import { duplicateShifted, makeScenario, nextLabel, resultKey, toTeamScenario, validateScenario } from './scenario'
 import { SummaryPanel } from './SummaryPanel'
-import type { CompareResponse, CompareResult, ComparisonScenario } from './types'
+import type { CompareResponse, CompareResult, ComparisonScenario, RankingInfo } from './types'
 import { sendToComparison, useCompareStore } from './useCompareStore'
 
 const res = fixture as unknown as CompareResponse
@@ -37,16 +42,33 @@ const SITES = {
   B: { id: 'malapert-massif', name: 'Malapert Massif', lat: -85.9635, lon: 357.6326 },
   C: { id: 'connecting-ridge', name: 'Connecting Ridge', lat: -89.53432, lon: 209.94767 },
   D: { id: 'malapert-massif', name: 'Malapert Massif', lat: -85.9635, lon: 357.6326 },
+  E: { id: 'malapert-massif', name: 'Malapert Massif', lat: -85.9635, lon: 357.6326 },
 }
+// The requirements the fixture was generated with.
+const REQ = { min_sunlight_fraction: 0.5, battery_hours: 100, panel_threshold: 0.25, min_earth_visibility_fraction: 0.3,
+  max_comms_gap_hours: 150, min_initial_sun_hours: 0, min_initial_comms_hours: 0 }
 
 function entries(keys: (keyof typeof SITES)[] = ['A', 'B', 'C']): Entry[] {
   const labels: string[] = []
   return keys.map((k, i) => {
-    const s = makeScenario({ site: SITES[k], landing_utc: k === 'D' ? '2030-01-15T00:00:00Z' : '2027-01-15T00:00:00Z', duration_days: 7, colorSlot: i }, labels)
+    const s = makeScenario({ site: SITES[k], landing_utc: k === 'D' ? '2035-01-15T00:00:00Z' : '2027-01-15T00:00:00Z',
+      duration_days: k === 'E' ? 3 : 7, requirements: REQ, colorSlot: i % 4 }, labels)
     labels.push(s.label)
     const r = byKey[k]
-    return { scenario: s, state: { state: 'done', result: r }, result: r.status === 'ok' ? r : null, offsetHours: 0 }
+    const result = r.status === 'ok' ? r : null
+    return { scenario: s, state: { state: 'done', result: r }, result, offsetHours: 0, ranking: result?.ranking ?? null }
   })
+}
+
+/** A scenario the engine could not decide (UNKNOWN): A's data with an UNKNOWN verdict and an undecided requirement. */
+function unknownEntry(label = 'U'): Entry {
+  const [a] = entries(['A'])
+  const ranking: RankingInfo = { ...a.ranking!, eligibility: 'unknown', rank: null, score: null, score_lower: null,
+    score_upper: null, score_status: 'eligibility_unknown', explanation: 'Not ranked: eligibility is UNKNOWN (undetermined constraints: battery).' }
+  const viability = { ...a.result!.viability!, passes: false, eligibility: 'unknown' as const, score: null,
+    violations: [{ ...a.result!.viability!.violations[0], is_unknown: true, message: 'UNKNOWN: longest power gap cannot be decided (data missing).' }] }
+  const result = { ...a.result!, key: `unknown-${label}`, viability, ranking }
+  return { ...a, scenario: { ...a.scenario, id: `u-${label}`, label }, result, state: { state: 'done', result }, ranking }
 }
 
 const jsonResponse = (body: unknown, status = 200) =>
@@ -105,11 +127,83 @@ describe('analysis on real data', () => {
     expect(deltaVsBaseline(METRIC_BY_ID.dark_longest, e[0], e[0])).toBeNull()
   })
 
-  it('ranks by the team viability result, passing first', () => {
-    const { real, demo } = rankByViability(entries(['A', 'B', 'C', 'D']))
-    expect(real.map((r) => r.entry.scenario.site.id)).toEqual(['connecting-ridge', 'malapert-massif', 'peak-near-shackleton'])
-    expect(real[0].entry.result!.viability!.passes).toBe(true)
-    expect(demo).toEqual([])
+  it('shows exactly the canonical ranking from the backend: only PASS scenarios are ranked', () => {
+    const e = entries(['A', 'B', 'C', 'D', 'E'])
+    const { groups, unassessed } = canonicalRanking(e, res.ranking_groups)
+    const g1 = groups.find((g) => g.group.id === 'G1')!
+    expect(g1.ranked.map((x) => x.scenario.label)).toEqual(['B', 'C']) // backend order, not re-sorted
+    expect(g1.ranked.map((x) => x.ranking!.rank)).toEqual([1, 2])
+    expect(g1.failed.map((x) => x.scenario.label)).toEqual(['A'])
+    expect(unassessed.map((x) => x.scenario.label)).toEqual(['D'])
+    // Every rank shown equals the backend's, and only PASS has one.
+    for (const x of e.filter((x) => x.ranking)) {
+      expect(x.ranking!.rank !== null).toBe(x.ranking!.eligibility === 'pass')
+      expect(x.ranking!.rank).toBe(byKey[x.result!.key].ranking!.rank)
+    }
+  })
+
+  it('never ranks a FAIL scenario, even when its score is higher than nothing', () => {
+    const [a] = entries(['A'])
+    expect(eligibilityOf(a)).toBe('fail')
+    expect(a.ranking!.score).toBeGreaterThan(0)
+    expect(a.ranking!.rank).toBeNull()
+    expect(rankText(a.ranking, 1)).toBeNull()
+  })
+
+  it('keeps a PASS in a different comparison group out of the main ranking', () => {
+    const e = entries(['A', 'B', 'C', 'E'])
+    const ex = e[3]
+    expect(ex.ranking!.group).toBe('G2')
+    expect(rankText(ex.ranking, 2)).toBe('#1 of 1 in separate group G2')
+    expect(rankText(e[1].ranking, 2)).toBe('#1 of 2')
+    const sep = res.ranking_groups.find((g) => g.id === 'G2')!
+    expect(sep.primary).toBe(false)
+    expect(sep.separate_reason).toMatch(/duration/)
+    expect(buildSummary(e).caveats.join(' ')).toMatch(/2 separate ranking groups/)
+  })
+
+  it('never turns a missing score into 0, and keeps a measured 0', () => {
+    const base = entries(['B'])[0].ranking!
+    const bounded: RankingInfo = { ...base, score: null, score_status: 'bounded', score_lower: 79.04, score_upper: 80.5 }
+    expect(scoreText(bounded)).toBe('between 79.0 and 80.5')
+    expect(scoreText({ ...base, score: null, score_status: 'eligibility_unknown', score_lower: null, score_upper: null }))
+      .toBe('not scored: eligibility unknown')
+    expect(scoreText({ ...base, score: null, score_status: 'no_scorable_components', score_lower: null, score_upper: null }))
+      .toBe('not scored: no active score component')
+    expect(scoreText(null, null)).toBe('—')
+    expect(scoreText({ ...base, score: 0, score_status: 'known', score_lower: 0, score_upper: 0 })).toBe('0.0')
+    expect(METRIC_BY_ID.score.better).toBeNull() // the canonical ranking, not a "best score" highlight, decides
+  })
+
+  it('keeps UNKNOWN as UNKNOWN: not a failure, not ranked, not scored', () => {
+    const u = unknownEntry()
+    expect(eligibilityOf(u)).toBe('unknown')
+    const e = [...entries(['B', 'C']), u]
+    const sum = buildSummary(e)
+    const hl = sum.highlights.find((h) => h.entry === u)!
+    expect(hl.uncertain).toHaveLength(1)
+    expect(hl.weaknesses.join(' ')).not.toMatch(/UNKNOWN/)
+    expect(sum.overall.join(' ')).toMatch(/cannot be decided from the available data \(UNKNOWN\)/)
+    expect(METRIC_BY_ID.violations.get(u.result!, u.scenario)).toBe(0) // no proven failure
+    expect(METRIC_BY_ID.undecided.get(u.result!, u.scenario)).toBe(1)
+  })
+
+  it('two UNKNOWN scenarios produce no winner', () => {
+    const e = [unknownEntry('U'), unknownEntry('V')]
+    const sum = buildSummary(e)
+    expect(sum.bests.find((b) => b.label === 'Top canonical rank')).toBeUndefined()
+    expect(e.every((x) => x.ranking!.rank === null)).toBe(true)
+  })
+
+  it('names the canonical rank 1 only when it was ranked against other PASS scenarios', () => {
+    const e = entries(['A', 'B', 'C'])
+    const top = buildSummary(e).bests.find((b) => b.label === 'Top canonical rank')!
+    expect(top.ids).toEqual([e[1].scenario.id]) // B, the backend's rank 1
+    expect(top.detail).toMatch(/#1 of 2 passing/)
+    // A PASS that was the only passing scenario in its group is not presented as a ranked winner.
+    const [a, b] = entries(['A', 'B'])
+    const lone = { ...b, ranking: { ...b.ranking!, ranked_in_group: 1 } }
+    expect(buildSummary([a, lone]).bests.find((x) => x.label === 'Top canonical rank')).toBeUndefined()
   })
 
   it('trade-off ranking follows the weights and exposes its inputs', () => {
@@ -130,7 +224,8 @@ describe('analysis on real data', () => {
     const sum = buildSummary(entries(['A', 'B', 'C', 'D']))
     const text = sum.overall.join(' ')
     expect(text).toContain('Scenario B provides the greatest solar availability')
-    expect(text).toContain('95.7%')
+    expect(text).toContain('95.6%')
+    expect(text).toContain('Scenario B, Scenario C pass every requirement')
     expect(text).toContain('same landing time')
     expect(sum.bests.find((b) => b.label === 'Best Earth communication')).toBeUndefined() // tied at 100%
     expect(sum.caveats.join(' ')).toMatch(/Scenario D has no scientific data/)
@@ -197,7 +292,7 @@ describe('compare store', () => {
     expect(c.origin).toBe('duplicate')
   })
 
-  it('fetches only changed scenarios and caches results', async () => {
+  it('ranks the whole selected set together and caches it until the set changes', async () => {
     useCompareStore.setState({ scenarios: [], selectedIds: [] })
     const st = useCompareStore.getState()
     st.addScenario({ site: SITES.A, landing_utc: '2027-01-15T00:00:00Z', duration_days: 7 })
@@ -220,7 +315,9 @@ describe('compare store', () => {
     s.updateScenario(s.selectedIds[0], { duration_days: 3 })
     await useCompareStore.getState().refresh()
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).scenarios).toHaveLength(1)
+    // The canonical ranking compares the scenarios together, so the whole set is re-ranked.
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string).scenarios).toHaveLength(2)
+    expect(useCompareStore.getState().rankingSetKey).not.toBeNull()
   })
 
   it('marks scenarios as unavailable when the backend is down (no fake data)', async () => {
@@ -264,7 +361,7 @@ describe('components render real results', () => {
       <>
         <OverviewCards entries={e} />
         <MetricsTable entries={e} />
-        <MissionPerformance entries={e} />
+        <MissionPerformance entries={e} groups={res.ranking_groups} />
         <SummaryPanel entries={e} />
       </>,
     )
@@ -273,19 +370,33 @@ describe('components render real results', () => {
     expect(html).toContain('title="Best among compared real-data scenarios">best</span>') // the best value is marked
     expect(html).toContain('Longest continuous darkness')
     expect(html).toContain('falls outside it') // D: unavailable message, not fabricated numbers
-    expect(html).toContain('Real-data scenarios')
-    expect(html).toContain('placeholder')
+    expect(html).toContain('Canonical ranking from the viability engine')
+    expect(html).toContain('Fails a requirement, not ranked')
+    expect(html).toContain('#1 of 2')
+    expect(html).toContain('Not assessed')
     expect(html).toContain('greatest solar availability')
   })
 
   it('renders safely with missing data', () => {
     const s = makeScenario({ site: SITES.A, landing_utc: '2027-01-15T00:00:00Z' }, []) as ComparisonScenario
     const e: Entry[] = [
-      { scenario: s, state: undefined, result: null, offsetHours: 0 },
-      { scenario: { ...s, id: 'x', label: 'B' }, state: { state: 'error', message: 'Backend unavailable' }, result: null, offsetHours: 0 },
+      { scenario: s, state: undefined, result: null, offsetHours: 0, ranking: null },
+      { scenario: { ...s, id: 'x', label: 'B' }, state: { state: 'error', message: 'Backend unavailable' }, result: null, offsetHours: 0, ranking: null },
     ]
-    const html = renderToString(<><OverviewCards entries={e} /><MetricsTable entries={e} /><MissionPerformance entries={e} /><SummaryPanel entries={e} /></>)
+    const html = renderToString(<><OverviewCards entries={e} /><MetricsTable entries={e} /><MissionPerformance entries={e} groups={[]} /><SummaryPanel entries={e} /></>)
     expect(html).toContain('Backend unavailable')
     expect(html).toContain('No viability results yet')
+  })
+})
+
+describe('UNKNOWN in the ranking panel', () => {
+  it('lists UNKNOWN separately as "cannot be decided", never as failed or ranked', () => {
+    const u = unknownEntry()
+    const e = [...entries(['B', 'C']), u]
+    const group = { ...res.ranking_groups[0], keys: ['B', 'C', u.result!.key], ranked_keys: ['B', 'C'] }
+    const html = renderToString(<MissionPerformance entries={e} groups={[group]} />)
+    expect(html).toContain('Cannot be decided (UNKNOWN), not ranked')
+    expect(html).toContain('not scored: eligibility unknown')
+    expect(html).not.toMatch(/Fails a requirement, not ranked/)
   })
 })
