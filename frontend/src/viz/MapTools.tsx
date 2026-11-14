@@ -1,8 +1,10 @@
-// Toolbar over the 3D view: drop a pin anywhere on the Moon, toggle the surface layers, and
-// check the current hour against JPL Horizons live.
-import { useState } from 'react'
+// Floating toolbar over the 3D view (M3 "floating toolbar"): camera menu, layers menu (switches),
+// drop pin, verify with JPL, and play / pause. Messages, the legend and the JPL result open above it.
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useAppStore } from '../store'
 import type { VerifyResult } from '../types'
 import { fetchVerify } from './api'
+import type { ViewMode } from './CameraRig'
 import { KIND_COLOR } from './globe/overlays'
 import { GRAPHICS, type GraphicsQuality } from './graphics'
 
@@ -18,12 +20,139 @@ export type PinState =
   | { phase: 'working'; lat: number; lon: number }
   | { phase: 'error'; message: string }
 
-const btn = 'rounded border px-2 py-1 text-xs'
-const on = 'border-sky-500 bg-sky-500/20 text-sky-200'
-const off = 'border-opal-300 bg-white text-slate-300 hover:bg-calcite-peach/40'
+const VIEWS: { id: ViewMode; label: string; hint: string }[] = [
+  { id: 'globe', label: 'Globe', hint: 'The whole Moon' },
+  { id: 'region', label: 'Region', hint: 'A few hundred km around the site' },
+  { id: 'overview', label: 'Site', hint: 'A few km around the lander' },
+  { id: 'sun', label: 'Sun', hint: 'Stand behind the lander and look at the Sun' },
+  { id: 'earth', label: 'Earth', hint: 'Stand behind the lander and look at Earth' },
+]
+
+const LAYER_ROWS: { key: keyof Layers; label: string; hint: string }[] = [
+  { key: 'sites', label: 'Sites', hint: 'Landing sites on the Moon' },
+  { key: 'psr', label: 'PSRs & ice', hint: 'Permanently shadowed regions and surface-ice detections (Moon Trek)' },
+  { key: 'blockers', label: 'Blockers', hint: 'Lines from the lander to the terrain that blocks the Sun (red) or Earth (blue)' },
+]
+
+// Material icons (24 dp).
+const ICON = {
+  camera: 'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z',
+  layers: 'M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z',
+  pin: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+  verify: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z',
+  play: 'M8 5v14l11-7z',
+  pause: 'M6 19h4V5H6v14zm8-14v14h4V5h-4z',
+  speed: 'M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z',
+  check: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
+}
+
+function Icon({ d, size = 24 }: { d: string; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d={d} />
+    </svg>
+  )
+}
 
 function fmtLat(lat: number) {
   return `${Math.abs(lat).toFixed(3)}°${lat < 0 ? 'S' : 'N'}`
+}
+
+/** M3 icon button. `selected` = toggled on (filled), `open` = its menu is showing (tonal). */
+function ToolButton({
+  label,
+  icon,
+  selected,
+  open,
+  disabled,
+  onClick,
+  haspopup,
+}: {
+  label: string
+  icon: string
+  selected?: boolean
+  open?: boolean
+  disabled?: boolean
+  onClick: () => void
+  haspopup?: boolean
+}) {
+  const tone = selected
+    ? 'bg-coral text-white'
+    : open
+      ? 'bg-coral/20 text-calcite-ink'
+      : 'text-calcite-ink'
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      aria-pressed={selected === undefined ? undefined : selected}
+      aria-haspopup={haspopup ? 'menu' : undefined}
+      aria-expanded={haspopup ? !!open : undefined}
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${tone}`}
+    >
+      <Icon d={icon} />
+    </button>
+  )
+}
+
+/** A toolbar button with a menu that pops out above it; closes on outside press or Escape. */
+function ToolMenu({
+  label,
+  icon,
+  children,
+}: {
+  label: string
+  icon: string
+  children: (close: () => void) => ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  const [closing, setClosing] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+  const close = () => setClosing(true)
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => {
+      if (root.current && !root.current.contains(e.target as Node)) setClosing(true)
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setClosing(true)
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div ref={root} className="relative">
+      <ToolButton
+        label={label}
+        icon={icon}
+        haspopup
+        open={open && !closing}
+        onClick={() => (open && !closing ? close() : (setOpen(true), setClosing(false)))}
+      />
+      {open && (
+        <div
+          role="menu"
+          aria-label={label}
+          className={`absolute bottom-full left-1/2 mb-3 min-w-56 rounded-2xl bg-opal-50 py-2 shadow-xl shadow-black/40 ${closing ? 'md-menu-out' : 'md-menu'}`}
+          onAnimationEnd={() => {
+            if (closing) {
+              setOpen(false)
+              setClosing(false)
+            }
+          }}
+        >
+          {children(close)}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function MapTools({
@@ -33,6 +162,8 @@ export function MapTools({
   onArmPin,
   siteId,
   timeUtc,
+  view,
+  onView,
   graphics,
   onGraphics,
 }: {
@@ -42,10 +173,14 @@ export function MapTools({
   onArmPin: (armed: boolean) => void
   siteId: string | null
   timeUtc: string
+  view: ViewMode
+  onView: (v: ViewMode) => void
   graphics: GraphicsQuality
   onGraphics: (q: GraphicsQuality) => void
 }) {
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
+  const playing = useAppStore((s) => s.playing)
+  const setPlaying = useAppStore((s) => s.setPlaying)
 
   const runVerify = () => {
     if (!siteId) return
@@ -58,55 +193,101 @@ export function MapTools({
   const armed = pin.phase === 'armed'
 
   return (
-    // Bottom centre, just above the time bar (the top corners hold the HUD and the sky plot);
-    // column-reverse so messages and the verify panel open upwards.
+    // Column-reverse: the toolbar is the bottom item; messages and the verify panel open upwards.
     <div className="lp-light pointer-events-none mb-2 flex flex-col-reverse items-center gap-1.5">
-      <div className="pointer-events-auto flex flex-wrap items-center gap-1 rounded-xl bg-opal-50 p-1.5 shadow-lg shadow-black/30">
-        <button
-          type="button"
-          className={`${btn} ${armed ? 'border-calcite-orange bg-calcite-orange/20 text-slate-100' : off}`}
-          aria-pressed={armed}
+      <div role="toolbar" aria-label="Map tools" className="pointer-events-auto flex items-center gap-1 rounded-full bg-opal-50 p-1.5 shadow-lg shadow-black/30">
+        <ToolButton
+          label={playing ? 'Pause' : 'Play'}
+          icon={playing ? ICON.pause : ICON.play}
+          selected={playing}
+          disabled={!siteId}
+          onClick={() => setPlaying(!playing)}
+        />
+        <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
+        <ToolMenu label="Camera position" icon={ICON.camera}>
+          {(close) =>
+            VIEWS.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={view === v.id}
+                title={v.hint}
+                onClick={() => {
+                  onView(v.id)
+                  close()
+                }}
+                className={`flex h-12 w-full items-center gap-3 px-4 text-left text-sm transition-colors ${view === v.id ? 'bg-coral/15 font-semibold' : ''}`}
+              >
+                <span className="flex h-6 w-6 items-center justify-center text-coral">{view === v.id && <Icon d={ICON.check} size={20} />}</span>
+                {v.label}
+              </button>
+            ))
+          }
+        </ToolMenu>
+        <ToolMenu label="Map layers" icon={ICON.layers}>
+          {() =>
+            LAYER_ROWS.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                role="switch"
+                aria-checked={layers[r.key]}
+                title={r.hint}
+                data-no-ripple
+                onClick={() => toggle(r.key)}
+                className="md-row flex h-14 w-full items-center justify-between gap-6 px-4 text-left text-sm"
+              >
+                {r.label}
+                <span className="md-switch" aria-hidden>
+                  <span className="md-switch-handle">
+                    <Icon d={ICON.check} size={16} />
+                  </span>
+                </span>
+              </button>
+            ))
+          }
+        </ToolMenu>
+        <ToolButton
+          label={armed ? 'Click the terrain to drop a pin (click again to cancel)' : 'Drop pin: click anywhere on the terrain to analyse that spot'}
+          icon={ICON.pin}
+          selected={armed}
           disabled={pin.phase === 'working'}
           onClick={() => onArmPin(!armed)}
-          title="Click anywhere on the terrain to analyse that spot"
-        >
-          {armed ? 'Click the terrain…' : 'Drop pin'}
-        </button>
-        <span className="mx-0.5 h-4 w-px bg-slate-700" aria-hidden="true" />
-        <button type="button" className={`${btn} ${layers.sites ? on : off}`} aria-pressed={layers.sites} onClick={() => toggle('sites')}>
-          Sites
-        </button>
-        <button type="button" className={`${btn} ${layers.psr ? on : off}`} aria-pressed={layers.psr} onClick={() => toggle('psr')}
-          title="Permanently shadowed regions and surface-ice detections (Moon Trek)">
-          PSRs & ice
-        </button>
-        <button type="button" className={`${btn} ${layers.blockers ? on : off}`} aria-pressed={layers.blockers} onClick={() => toggle('blockers')}
-          title="Lines from the lander to the terrain that blocks the Sun (red) or Earth (blue)">
-          Blockers
-        </button>
-        <span className="mx-0.5 h-4 w-px bg-slate-700" aria-hidden="true" />
-        <button type="button" className={`${btn} ${off}`} onClick={runVerify} disabled={!siteId || verify?.loading}
-          title="Compare this hour's Sun/Earth positions with JPL Horizons, live">
-          {verify?.loading ? 'Asking JPL…' : 'Verify with JPL'}
-        </button>
-        <span className="mx-0.5 h-4 w-px bg-slate-700" aria-hidden="true" />
-        <label className="flex items-center gap-1 text-xs text-slate-300" title={GRAPHICS[graphics].hint}>
-          Graphics
-          <select
-            className="rounded border border-opal-300 bg-white px-1 py-1 text-xs text-slate-300"
-            value={graphics}
-            onChange={(e) => onGraphics(e.target.value as GraphicsQuality)}
-          >
-            {(Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
-              <option key={q} value={q} title={GRAPHICS[q].hint}>
+        />
+        <ToolButton
+          label={verify?.loading ? 'Asking JPL…' : "Verify with JPL: compare this hour's Sun/Earth positions with JPL Horizons, live"}
+          icon={ICON.verify}
+          selected={verify?.loading ? true : undefined}
+          disabled={!siteId || verify?.loading}
+          onClick={runVerify}
+        />
+        <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
+        <ToolMenu label="Graphics quality" icon={ICON.speed}>
+          {(close) =>
+            (Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
+              <button
+                key={q}
+                type="button"
+                role="menuitemradio"
+                aria-checked={graphics === q}
+                title={GRAPHICS[q].hint}
+                onClick={() => {
+                  onGraphics(q)
+                  close()
+                }}
+                className={`flex h-12 w-full items-center gap-3 px-4 text-left text-sm transition-colors ${graphics === q ? 'bg-coral/15 font-semibold' : ''}`}
+              >
+                <span className="flex h-6 w-6 items-center justify-center text-coral">{graphics === q && <Icon d={ICON.check} size={20} />}</span>
                 {GRAPHICS[q].label}
                 {q === 'high' ? ' (default)' : ' (Chromebook)'}
-              </option>
-            ))}
-          </select>
-        </label>
+              </button>
+            ))
+          }
+        </ToolMenu>
       </div>
 
+      {armed && <p className="md-reveal pointer-events-auto rounded-full bg-calcite-ink/90 px-3 py-1 text-xs text-opal-50">Click the terrain…</p>}
       {pin.phase === 'working' && (
         <p className="md-reveal pointer-events-auto rounded bg-slate-950/85 px-2 py-1 text-xs text-slate-200">
           Analysing {fmtLat(pin.lat)}, {pin.lon.toFixed(3)}°E… downloading terrain can take up to a minute in a new area.
