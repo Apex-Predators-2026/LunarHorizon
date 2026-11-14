@@ -17,6 +17,7 @@ import { BEACON_HEIGHT, BEACON_HIDE_WITHIN_M, Lander } from './Lander'
 import { skyPositions } from './geometry'
 import { ScreenLabels } from './ScreenLabels'
 import { SkyBodies } from './SkyBodies'
+import { SkyTrails } from './SkyTrails'
 import { SunLight } from './SunLight'
 import { TimeBar } from './TimeBar'
 import { ViewCentre } from './ViewCentre'
@@ -24,6 +25,8 @@ import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor
 import { FloatingSidebar } from './FloatingSidebar'
 import { GRAPHICS, useGraphicsQuality, useStoredFlag } from './graphics'
 import { MiniMapPanel } from './MiniMapPanel'
+import { MissionPanel } from './MissionPlayback'
+import { useMissionPlayback } from './useMissionPlayback'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
 import { SiteSelect, TopInfo, useViewerSetup } from './ViewerHud'
@@ -48,7 +51,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const [view, setView] = useState<ViewMode>('overview')
   const [windowDays, setWindowDays] = useState(14)
   const [terrainStats, setTerrainStats] = useState<TileStats | null>(null)
-  const [layers, setLayers] = useState<Layers>({ sites: true, psr: true, blockers: true, imagery: false })
+  const [layers, setLayers] = useState<Layers>({ sites: true, psr: true, blockers: true, imagery: false, paths: true })
   const [pin, setPin] = useState<PinState>({ phase: 'idle' })
   const [createdSites, setCreatedSites] = useState<SiteInfo[]>([]) // pins dropped this session
   const setSite = useAppStore((s) => s.setSite)
@@ -147,6 +150,8 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const loading = sites.loading || horizon.loading || timeline.loading
 
   useViewerSetup(sites.data)
+  // Plays the sidebar's plan (landing to end) in the 3D view, pausing where it fails.
+  const mission = useMissionPlayback(sites.data)
   const barRef = useRef<HTMLDivElement>(null)
   const [barHidden, setBarHidden] = useState(false)
   const [barH, setBarH] = useState(0)
@@ -245,6 +250,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           <Stars radius={SKY_DISTANCE_M * 0.5} depth={SKY_DISTANCE_M * 0.2} count={gfx.stars} factor={SKY_DISTANCE_M / 100} fade />
           {horizon.data && eyeView && <HorizonCurtain horizon={horizon.data} radius={CURTAIN_RADIUS_M} />}
           {s && <SkyBodies status={s} distance={SKY_DISTANCE_M} />}
+          {layers.paths && timeline.data && <SkyTrails steps={timeline.data} radius={SKY_DISTANCE_M * 0.98} />}
         </FollowCamera>
         <Lander status={s} observerHeight={eye} showBeacon={view === 'overview'} detailed={gfx.detailedModels} />
 
@@ -343,6 +349,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         </div>
         {/* Bottom stack: map tools (pin / layers / JPL check) sit just above the timeline panel. */}
         <div className="absolute bottom-0 left-3 right-3 flex flex-col md:left-[3.6vw] md:right-[calc(4vw+var(--lp-side-w)+16px)]">
+          <MissionPanel mission={mission} />
           <MapTools
             layers={layers}
             onLayers={setLayers}
@@ -358,6 +365,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             farShadows={farShadows && gfx.shadows}
             farShadowsAvailable={gfx.shadows}
             onFarShadows={setFarShadows}
+            mission={{ available: mission.available, active: !!mission.run, reason: mission.reason, start: mission.start, stop: mission.stop }}
           />
           {site && win && (
             <div
@@ -375,6 +383,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
                 windowDays={windowDays}
                 onWindowDays={setWindowDays}
                 loading={timeline.loading}
+                mission={mission.strip}
                 onHide={() => {
                   setBarH(barRef.current?.offsetHeight ?? 0)
                   setBarHidden(true)

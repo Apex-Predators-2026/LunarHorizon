@@ -1,0 +1,141 @@
+// Panel above the map toolbar while a mission plays (state: useMissionPlayback.ts).
+import { useAppStore } from '../store'
+import { verdictOf } from '../types'
+import { fmtHours, missionAt } from './mission'
+import { parseUtc } from './timeline'
+import type { MissionPlayback } from './useMissionPlayback'
+
+const fmtH = fmtHours
+
+/** Panel above the map toolbar while a mission plays: day, power and contact counters, failures. */
+export function MissionPanel({ mission }: { mission: MissionPlayback }) {
+  const timeUtc = useAppStore((s) => s.timeUtc)
+  const playing = useAppStore((s) => s.playing)
+  const setPlaying = useAppStore((s) => s.setPlaying)
+  const run = mission.run
+  if (!run) return null
+  const { plan, track } = run
+  const req = plan.requirements
+  const t = parseUtc(timeUtc)
+
+  const box = 'md-reveal lp-light pointer-events-auto w-[30rem] max-w-full rounded-xl bg-opal-50 p-2.5 text-xs text-slate-300 shadow-lg shadow-black/30'
+  const button = 'rounded-lg border border-opal-300 bg-white px-2 py-0.5 transition-colors hover:bg-calcite-peach/40'
+  const header = (
+    <div className="mb-1 flex items-center justify-between gap-2">
+      <span className="font-medium text-calcite-ink">
+        Mission: {plan.site.name} · {plan.duration_days} days from {plan.landing_utc.slice(0, 16).replace('T', ' ')} UTC
+      </span>
+      <button type="button" className="text-slate-400 hover:text-slate-100" onClick={mission.stop} aria-label="Stop mission playback">
+        ✕
+      </button>
+    </div>
+  )
+  if (run.error) {
+    return (
+      <div className={box} role="status">
+        {header}
+        <p className="text-red-300">Couldn't load the mission's data: {run.error}</p>
+      </div>
+    )
+  }
+  if (!track) {
+    return (
+      <div className={box} role="status">
+        {header}
+        <p>Loading the mission's hourly data…</p>
+      </div>
+    )
+  }
+
+  const m = missionAt(track, t)
+  const pending = track.failures.find((f, i) => i >= run.acknowledged && f.t <= t && f.t < track.end)
+  const ended = t >= track.end
+  const darkLevel = m.darkStreak / req.battery_hours
+  const gapLevel = m.gapStreak / req.max_comms_gap_hours
+  const tone = (x: number) => (x > 1 ? 'text-red-400' : x > 0.75 ? 'text-amber-300' : 'text-emerald-300')
+  const verdict = mission.verdict
+
+  return (
+    <div className={box} role="status" aria-live="polite">
+      {header}
+      <div className="mb-1.5 flex items-center gap-2">
+        <span className="shrink-0 tabular-nums">
+          Day {m.day} of {m.totalDays}
+        </span>
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-opal-300" aria-hidden>
+          <div className="h-full rounded-full bg-coral" style={{ width: `${m.progress * 100}%` }} />
+        </div>
+        {!ended && !pending && (
+          <button type="button" className={button} onClick={() => setPlaying(!playing)}>
+            {playing ? 'Pause' : 'Resume'}
+          </button>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 tabular-nums">
+        <span>
+          Panels: {m.hour?.dark === null ? 'unknown' : m.hour?.dark ? 'dark' : 'in sunlight'}
+          {m.darkStreak > 0 && (
+            <span className={tone(darkLevel)}>
+              {' '}
+              for {fmtH(m.darkStreak)} (battery lasts {fmtH(req.battery_hours)})
+            </span>
+          )}
+        </span>
+        <span>
+          Earth: {m.hour?.blackout === null ? 'unknown' : m.hour?.blackout ? 'out of view' : 'in contact'}
+          {m.gapStreak > 0 && (
+            <span className={tone(gapLevel)}>
+              {' '}
+              for {fmtH(m.gapStreak)} (limit {fmtH(req.max_comms_gap_hours)})
+            </span>
+          )}
+        </span>
+      </div>
+
+      {pending && (
+        <div className="mt-2 rounded-lg border border-red-400/60 bg-red-950/40 p-2 text-red-200">
+          <p className="font-medium">Mission fails here: {pending.message}</p>
+          <p className="mt-0.5 text-[11px] text-red-200/80">The red/blue lines in the 3D view run to the terrain blocking the Sun / Earth.</p>
+          <div className="mt-1.5 flex gap-2">
+            <button type="button" className={button} onClick={mission.next}>
+              Continue
+            </button>
+            <button type="button" className={button} onClick={mission.stop}>
+              Stop
+            </button>
+          </div>
+        </div>
+      )}
+
+      {ended && (
+        <div className="mt-2 rounded-lg border border-opal-300 p-2">
+          <p className="font-medium text-calcite-ink">
+            {track.failures.length ? `Mission over: ${track.failures.length} requirement${track.failures.length > 1 ? 's' : ''} broken` : 'Mission over: every requirement held'}
+          </p>
+          <ul className="mt-0.5 list-disc pl-4">
+            {track.failures.map((f) => (
+              <li key={f.constraint} className="text-red-300">
+                {f.message}
+              </li>
+            ))}
+            <li>
+              Longest darkness {track.longestDark ? fmtH(track.longestDark.hours) : 'none'}, longest without Earth{' '}
+              {track.longestBlackout ? fmtH(track.longestBlackout.hours) : 'none'}
+              {track.unknownHours ? `, ${track.unknownHours} h unknown (missing terrain data)` : ''}.
+            </li>
+          </ul>
+          <button type="button" className={`${button} mt-1.5`} onClick={mission.start}>
+            Play again
+          </button>
+        </div>
+      )}
+
+      {verdict && (
+        <p className="mt-1.5 text-[11px] text-slate-400">
+          Viability engine: <span className="font-medium uppercase">{verdictOf(verdict)}</span>
+          {verdict.violations.length ? ` · ${verdict.violations.map((v) => v.message).join(' · ')}` : ''}
+        </p>
+      )}
+    </div>
+  )
+}

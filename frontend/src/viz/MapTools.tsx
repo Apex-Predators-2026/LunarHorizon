@@ -14,6 +14,7 @@ export interface Layers {
   psr: boolean
   blockers: boolean
   imagery: boolean // LRO WAC photo mosaic on the terrain (off by default: its shadows are not "now")
+  paths: boolean // the Sun's and Earth's paths across the sky over the time window
 }
 
 export type PinState =
@@ -35,6 +36,11 @@ const LAYER_ROWS: { key: keyof Layers; label: string; hint: string }[] = [
   { key: 'psr', label: 'PSRs & ice', hint: 'Permanently shadowed regions and surface-ice detections (Moon Trek)' },
   { key: 'blockers', label: 'Blockers', hint: 'Lines from the lander to the terrain that blocks the Sun (red) or Earth (blue)' },
   {
+    key: 'paths',
+    label: 'Sun & Earth paths',
+    hint: "The Sun's and Earth's paths across the sky over the time window: bright where they clear the terrain, dim where it blocks them",
+  },
+  {
     key: 'imagery',
     label: 'LRO imagery',
     hint: 'LRO Wide Angle Camera photo mosaic (Moon Trek, ~100 m/px) on the terrain. Its shadows are from when the photos were taken, not from the time shown.',
@@ -51,6 +57,7 @@ const ICON = {
   pause: 'M6 19h4V5H6v14zm8-14v14h4V5h-4z',
   speed: 'M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z',
   check: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
+  flag: 'M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z',
 }
 
 function Icon({ d, size = 24 }: { d: string; size?: number }) {
@@ -213,6 +220,7 @@ export function MapTools({
   farShadows,
   farShadowsAvailable,
   onFarShadows,
+  mission,
 }: {
   layers: Layers
   onLayers: (l: Layers) => void
@@ -228,6 +236,7 @@ export function MapTools({
   farShadows: boolean
   farShadowsAvailable: boolean // not in the Low preset (no shadows at all there)
   onFarShadows: (on: boolean) => void
+  mission: { available: boolean; active: boolean; reason: string; start: () => void; stop: () => void } // mission playback
 }) {
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
   const playing = useAppStore((s) => s.playing)
@@ -253,6 +262,13 @@ export function MapTools({
           selected={playing}
           disabled={!siteId}
           onClick={() => setPlaying(!playing)}
+        />
+        <ToolButton
+          label={mission.active ? 'Stop the mission playback' : mission.available ? `Play mission: ${mission.reason.replace(/^Play the plan: /, '')}` : `Play mission: ${mission.reason}`}
+          icon={ICON.flag}
+          selected={mission.active}
+          disabled={!mission.active && !mission.available}
+          onClick={() => (mission.active ? mission.stop() : mission.start())}
         />
         <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
         <ToolMenu label="Camera position" icon={ICON.camera}>
