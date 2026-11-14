@@ -41,6 +41,8 @@ class DemSource:
     native: float  # native pixel size: metres (sp/np) or degrees (eq)
     extent: tuple[float, float, float, float]  # xmin, ymin, xmax, ymax in the source's units
     native_m: float  # native pixel size in metres (for choosing between sources)
+    pixel_type: str = "F32"  # exportImage pixelType: F32 for elevations, U8 for imagery (see imagery.py)
+    zero_is_nodata: bool = False  # imagery mosaics mark missing pixels with 0
 
 
 R_DEG_M = 2 * np.pi * 1_737_400.0 / 360  # metres per degree on the reference sphere
@@ -138,6 +140,8 @@ class _BlockStore:
                 with open(tmp, "wb") as f:
                     np.save(f, z)
                 tmp.replace(path)
+            if src.zero_is_nodata:  # on load, so blocks cached before this rule are covered too
+                z = np.where(z == 0, np.float32(np.nan), z)
             with self.lock:
                 self.mem[key] = z
                 while len(self.mem) > MAX_BLOCKS_IN_MEMORY:
@@ -163,7 +167,7 @@ class _BlockStore:
             "bbox": f"{cx0},{cy0},{cx1},{cy1}",
             "size": f"{w},{h}",
             "format": "tiff",
-            "pixelType": "F32",
+            "pixelType": src.pixel_type,
             "interpolation": "RSP_BilinearInterpolation",
             "f": "image",
         }

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '../store'
 import type { SiteInfo, SiteStatus, TimelineStep } from '../types'
-import type { ViewMode } from './CameraRig'
 import { vertexSpacingM } from './globe/cubeSphere'
 import type { TileStats } from './globe/TileTree'
 import { DatePopup } from './DatePopup'
@@ -22,14 +21,6 @@ const SITE_GROUPS: [string, string][] = [
   ['apollo', 'Apollo'],
   ['custom', 'Your pins'],
   ['control', 'Validation control'],
-]
-
-const VIEWS: { id: ViewMode; label: string; title: string }[] = [
-  { id: 'globe', label: 'Globe', title: 'The whole Moon' },
-  { id: 'region', label: 'Region', title: 'A few hundred km around the site' },
-  { id: 'overview', label: 'Site', title: 'A few km around the lander' },
-  { id: 'sun', label: 'Sun', title: "Stand behind the lander and look at the Sun" },
-  { id: 'earth', label: 'Earth', title: 'Stand behind the lander and look at Earth' },
 ]
 
 const input =
@@ -72,30 +63,6 @@ export function SiteSelect({ sites, error, loading }: { sites: SiteInfo[] | null
       </label>
       {error && <p className="text-red-400">{error}. Is the backend running on port 8000?</p>}
       {!error && loading && <p className="text-slate-400">Loading…</p>}
-    </div>
-  )
-}
-
-/** Camera view buttons (live in the bottom panel). */
-export function ViewButtons({ view, onView }: { view: ViewMode; onView: (v: ViewMode) => void }) {
-  return (
-    <div className="flex gap-1 text-xs" role="group" aria-label="Camera view">
-      {VIEWS.map((v) => (
-        <button
-          key={v.id}
-          type="button"
-          title={v.title}
-          onClick={() => onView(v.id)}
-          aria-pressed={view === v.id}
-          className={`rounded-lg border px-2.5 py-1 transition-colors ${
-            view === v.id
-              ? 'border-coral bg-coral/15 font-semibold text-sky-300'
-              : 'border-opal-300 bg-white hover:bg-calcite-peach/40'
-          }`}
-        >
-          {v.label}
-        </button>
-      ))}
     </div>
   )
 }
