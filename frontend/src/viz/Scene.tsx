@@ -26,7 +26,7 @@ import { GRAPHICS, useGraphicsQuality } from './graphics'
 import { MiniMapPanel } from './MiniMapPanel'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
-import { SiteSelect, TopInfo, useViewerSetup, ViewButtons } from './ViewerHud'
+import { SiteSelect, TopInfo, useViewerSetup } from './ViewerHud'
 
 const SHADOW_HALF_WIDTH_M = 6000 // shadow map covers ~12 km around the lander
 const CURTAIN_RADIUS_M = 28000 // engine skyline (from 300 km of terrain), drawn this far out in eye views
@@ -335,6 +335,8 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             onArmPin={(armed) => setPin(armed ? { phase: 'armed' } : { phase: 'idle' })}
             siteId={siteId}
             timeUtc={timeUtc}
+            view={view}
+            onView={setView}
             graphics={graphicsQuality}
             onGraphics={setGraphicsQuality}
           />
@@ -354,7 +356,6 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
                 windowDays={windowDays}
                 onWindowDays={setWindowDays}
                 loading={timeline.loading}
-                views={<ViewButtons view={view} onView={setView} />}
                 onHide={() => {
                   setBarH(barRef.current?.offsetHeight ?? 0)
                   setBarHidden(true)
