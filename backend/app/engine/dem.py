@@ -173,9 +173,11 @@ class _BlockStore:
         }
         url = f"{TREK}/{src.service}/ImageServer/exportImage?" + urllib.parse.urlencode(params)
         # Moon Trek occasionally answers 500/502 for a request that works moments later.
+        # A block (<= 1024^2 px) normally arrives in seconds; 120 s per attempt keeps a stalled
+        # connection from tying up a terrain request for many minutes (the 3D view retries).
         for attempt in range(4):
             try:
-                with urllib.request.urlopen(url, timeout=600) as r:
+                with urllib.request.urlopen(url, timeout=120) as r:
                     data = r.read()
                 break
             except OSError:
