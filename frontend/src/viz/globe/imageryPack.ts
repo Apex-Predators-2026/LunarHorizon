@@ -42,3 +42,45 @@ export function imageryPack(): Promise<Map<string, string> | null> {
     })
   return pack
 }
+
+let faces: Promise<{ faces: Uint8ClampedArray[]; size: number } | null> | null = null
+
+/**
+ * The pack's level-2 imagery joined into one greyscale image per cube face (512 px, row 0 = the face's
+ * top, v = 1), for the minimap. Decoded once; null if the pack is missing.
+ */
+export function packFaceImages(): Promise<{ faces: Uint8ClampedArray[]; size: number } | null> {
+  faces ??= imageryPack().then(async (urls) => {
+    if (!urls) return null
+    const z = 2
+    const n = 2 ** z
+    const tile = 128
+    const size = n * tile
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = size
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    if (!ctx) return null
+    const out: Uint8ClampedArray[] = []
+    for (let f = 0; f < 6; f++) {
+      ctx.clearRect(0, 0, size, size)
+      await Promise.all(
+        Array.from({ length: n * n }, async (_, k) => {
+          const x = k % n
+          const y = Math.floor(k / n)
+          const url = urls.get(`${f}/${z}/${x}/${y}`)
+          if (!url) return
+          const img = new Image()
+          img.src = url
+          await img.decode()
+          ctx.drawImage(img, x * tile, (n - 1 - y) * tile, tile, tile) // tile y grows with v: upwards
+        }),
+      )
+      const rgba = ctx.getImageData(0, 0, size, size).data
+      const grey = new Uint8ClampedArray(size * size)
+      for (let i = 0; i < grey.length; i++) grey[i] = rgba[i * 4]
+      out.push(grey)
+    }
+    return { faces: out, size }
+  })
+  return faces
+}
