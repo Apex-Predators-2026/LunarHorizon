@@ -207,7 +207,7 @@ def _sliver_hours(raw: dict[str, Any]) -> list[datetime]:
     """Hours where sun_visible is true but the 6-decimal fraction was written as 0.0 (disk sliver < 5e-7)."""
     tl = raw["timeline"]
     return [
-        datetime.fromisoformat(t.replace("Z", "+00:00"))
+        datetime.fromisoformat(t)
         for t, f, vis in zip(tl["time_utc"], tl["sun_visible_fraction"], tl["sun_visible"], strict=True)
         if vis and f == 0.0
     ]

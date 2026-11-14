@@ -133,14 +133,10 @@ def _check_ids(items: Sequence[ViabilityAssessment]) -> None:
     for a in items:
         (dupes if a.scenario_id in seen else seen).add(a.scenario_id)
     if dupes:
-        raise RankingComparabilityError(
-            f"duplicate scenario_id in ranking input: {sorted(dupes)}"
-        )
+        raise RankingComparabilityError(f"duplicate scenario_id in ranking input: {sorted(dupes)}")
 
 
-def _comparison_key(
-    a: ViabilityAssessment, policy: ComparabilityPolicy
-) -> tuple[object, ...]:
+def _comparison_key(a: ViabilityAssessment, policy: ComparabilityPolicy) -> tuple[object, ...]:
     try:
         key = a.comparability_key(policy)
     except ValueError as exc:  # legacy score without Phase 5 metadata
@@ -150,9 +146,7 @@ def _comparison_key(
     return key
 
 
-def _mismatches(
-    ref: ViabilityAssessment, other: ViabilityAssessment, policy: ComparabilityPolicy
-) -> list[str]:
+def _mismatches(ref: ViabilityAssessment, other: ViabilityAssessment, policy: ComparabilityPolicy) -> list[str]:
     rs, os_ = ref.score, other.score
     out: list[str] = []
     if ref.data_basis is not other.data_basis:
@@ -165,18 +159,12 @@ def _mismatches(
         if rs.configuration_key != os_.configuration_key:
             out.append("requirements/configuration fingerprint")
         if ref.evaluated_duration_s != other.evaluated_duration_s:
-            out.append(
-                f"evaluated duration ({ref.evaluated_duration_s:g} s vs {other.evaluated_duration_s:g} s)"
-            )
+            out.append(f"evaluated duration ({ref.evaluated_duration_s:g} s vs {other.evaluated_duration_s:g} s)")
     return out
 
 
 def _coerce_policy(policy: ComparabilityPolicy | str) -> ComparabilityPolicy:
-    return (
-        policy
-        if isinstance(policy, ComparabilityPolicy)
-        else ComparabilityPolicy(policy)
-    )
+    return policy if isinstance(policy, ComparabilityPolicy) else ComparabilityPolicy(policy)
 
 
 def _entry(a: ViabilityAssessment, rank: int | None) -> RankedScenario:
@@ -211,9 +199,7 @@ def partition_comparable(
     groups: dict[tuple[object, ...], list[ViabilityAssessment]] = {}
     for a in items:
         groups.setdefault(_comparison_key(a, pol), []).append(a)
-    return list(
-        groups.values()
-    )  # dicts keep first-insertion order == smallest id first
+    return list(groups.values())  # dicts keep first-insertion order == smallest id first
 
 
 def rank_assessments(
@@ -242,9 +228,7 @@ def rank_assessments(
         key=lambda a: a.scenario_id,
     )
     if bad:
-        details = "; ".join(
-            f"{a.scenario_id}: {', '.join(_mismatches(ref, a, pol))}" for a in bad
-        )
+        details = "; ".join(f"{a.scenario_id}: {', '.join(_mismatches(ref, a, pol))}" for a in bad)
         raise RankingComparabilityError(
             f"assessments are not comparable under policy {pol.value!r} "
             f"(reference {ref.scenario_id!r}); differing: {details}. "
@@ -281,9 +265,7 @@ def _score_text(a: ViabilityAssessment) -> str:
     return "not scored"
 
 
-def ranking_explanations(
-    assessments: Iterable[ViabilityAssessment], result: RankingResult
-) -> dict[str, str]:
+def ranking_explanations(assessments: Iterable[ViabilityAssessment], result: RankingResult) -> dict[str, str]:
     """Plain-language reason for each entry's place (or absence of rank) in ``result``.
 
     Derived from the assessments and the result only; ``RankedScenario`` has no text field.
@@ -301,17 +283,8 @@ def ranking_explanations(
                 f"{a.overall_risk.value}. Ties are broken by risk, then coverage, then scenario id."
             )
             continue
-        statuses = (
-            ConstraintStatus.UNKNOWN
-            if a.eligibility is Eligibility.UNKNOWN
-            else ConstraintStatus.FAIL
-        )
-        ids = (
-            ", ".join(
-                c.constraint_id.value for c in a.constraints if c.status is statuses
-            )
-            or "none"
-        )
+        statuses = ConstraintStatus.UNKNOWN if a.eligibility is Eligibility.UNKNOWN else ConstraintStatus.FAIL
+        ids = ", ".join(c.constraint_id.value for c in a.constraints if c.status is statuses) or "none"
         if a.eligibility is Eligibility.UNKNOWN:
             out[e.scenario_id] = (
                 f"Not ranked: eligibility is UNKNOWN (undetermined constraints: {ids}); "
