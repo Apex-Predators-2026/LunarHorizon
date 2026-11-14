@@ -110,6 +110,47 @@ export function orbitAbout(
   rotateCameraAbout(camera, pivot, new THREE.Quaternion().setFromAxisAngle(side.normalize(), next - tilt))
 }
 
+/**
+ * "Straight down" for the top-down toggle: a hair off vertical (~0.2 deg, not visible), so the way the
+ * view faces is kept and tilting back later goes back the same way.
+ */
+export const TOP_DOWN_TILT = 0.003
+
+/** How far the camera is tilted away from straight above `pivot` (0 = looking straight down at it). */
+export function tiltAt(camera: CameraLike, pivot: THREE.Vector3, centre: THREE.Vector3): number {
+  const up = pivot.clone().sub(centre).normalize()
+  const offset = camera.position.clone().sub(pivot).normalize()
+  return Math.acos(THREE.MathUtils.clamp(offset.dot(up), -1, 1))
+}
+
+/** Swing the camera about `pivot` to the given tilt (same distance and heading, horizon level). */
+export function tiltTo(camera: CameraLike, pivot: THREE.Vector3, centre: THREE.Vector3, tilt: number) {
+  orbitAbout(camera, pivot, centre, 0, tilt - tiltAt(camera, pivot, centre), Math.min(tilt, TOP_DOWN_TILT))
+}
+
+/**
+ * How far the view is pitched up from looking at `pivot` (radians, about the camera's own right-hand
+ * axis): 0 when the pivot is in the middle of the view. At eye level the view looks at the horizon,
+ * above the ground point the top-down toggle swings about.
+ */
+export function lookOffset(camera: CameraLike, pivot: THREE.Vector3): number {
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion)
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+  const toPivot = pivot.clone().sub(camera.position).normalize()
+  forward.addScaledVector(right, -forward.dot(right))
+  toPivot.addScaledVector(right, -toPivot.dot(right))
+  return Math.atan2(new THREE.Vector3().crossVectors(toPivot, forward).dot(right), toPivot.dot(forward))
+}
+
+/** Pitch the view in place (no roll) so that lookOffset(camera, pivot) is `offset`. */
+export function setLookOffset(camera: CameraLike, pivot: THREE.Vector3, offset: number) {
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion)
+  const turn = offset - lookOffset(camera, pivot)
+  if (Math.abs(turn) < 1e-12) return
+  camera.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(right, turn))
+  camera.updateMatrixWorld()
+}
+
 export const MAX_TILT = (85 * Math.PI) / 180
 
 /**
