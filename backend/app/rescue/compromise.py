@@ -8,6 +8,8 @@ satisfies both sides we say what each side would have to give up.
 """
 from __future__ import annotations
 
+import math
+
 from .geo import destination, distance_km
 from ..models import Site
 from .catalog import PSRS, PSRS_BY_ID, custom_site, nearest_psr_edge_km
@@ -134,10 +136,15 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
         summary = "No option meets both the engineering requirements and the science goal."
         if eng_ok:
             closest = max(eng_ok, key=lambda o: o.science_score)
-            suggestions.append(
-                f"Science could accept {closest.scenario.site.name} ({closest.distance_to_science_km:.1f} km from "
-                f"{label}): lower the science minimum to {closest.science_score:.2f} or allow a "
-                f"{closest.distance_to_science_km:.0f} km traverse (currently {g.max_traverse_km:.0f} km).")
+            # Unrounded values, so following the advice always works (rounding must not tip it the wrong way).
+            d_exact = _science_distance(closest.scenario.site, target, radius)
+            floor_score = math.floor(_science_score(d_exact, req) * 100 + 1e-9) / 100
+            text = (f"Science could accept {closest.scenario.site.name} ({closest.distance_to_science_km:.1f} km from "
+                    f"{label}): lower the science minimum to {floor_score:.2f}")
+            if g.min_science_score < 1:  # score = 1 - d / traverse, so d / (1 - minimum) reaches the minimum
+                needed = math.ceil(d_exact / (1 - g.min_science_score) - 1e-9)
+                text += f" or allow a {needed} km traverse (currently {g.max_traverse_km:.0f} km)"
+            suggestions.append(text + ".")
         else:
             suggestions.append("No location passes the engineering requirements at all in this window — "
                                "widen the date window or relax engineering requirements first.")
@@ -147,7 +154,13 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
         if loosening:
             suggestions.append("Or engineering could relax: " + loosening[0].message)
         if not sci_ok_keys:
-            suggestions.append(f"No candidate is within {g.max_traverse_km:.0f} km of {label}; add sites near it.")
+            in_reach = any(_science_distance(c.scenario.site, target, radius) <= g.max_traverse_km
+                           for c in by_loc.values())
+            if not in_reach:
+                suggestions.append(f"No candidate is within {g.max_traverse_km:.0f} km of {label}; add sites near it.")
+            else:  # some are within the traverse but none close enough for the science minimum
+                suggestions.append(f"No candidate meets the science minimum (needs to be within "
+                                   f"{g.max_traverse_km * (1 - g.min_science_score):.1f} km of {label}).")
 
     data_sources = sorted({c.result.data_source for c in cands})
     assumptions = ["Science score = 1 − distance to the target ÷ max traverse distance (0 beyond it).",

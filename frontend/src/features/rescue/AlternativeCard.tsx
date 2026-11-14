@@ -5,6 +5,7 @@ const VERDICT_STYLE = {
   robust: 'bg-emerald-950 text-emerald-300 ring-emerald-800',
   sensitive: 'bg-amber-950 text-amber-300 ring-amber-800',
   fragile: 'bg-red-950 text-red-300 ring-red-800',
+  unchecked: 'bg-slate-800 text-slate-300 ring-slate-600',
 } as const
 
 export function DataBadge({ source }: { source: string }) {
@@ -90,7 +91,9 @@ export function AlternativeCard({ alt, selected, onSelect, onCheckSensitivity }:
             title={robustness.note}
             className={`rounded px-1.5 py-0.5 text-[11px] ring-1 ${VERDICT_STYLE[robustness.verdict]}`}
           >
-            {robustness.verdict} · {robustness.passing_points}/{robustness.checked_points} nearby checks pass
+            {robustness.verdict === 'unchecked'
+              ? 'Not checked'
+              : `${robustness.verdict} · ${robustness.passing_points}/${robustness.checked_points} nearby checks pass`}
           </span>
         )}
         <div className="ml-auto flex gap-2">
