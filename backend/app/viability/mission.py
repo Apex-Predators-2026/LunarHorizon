@@ -8,7 +8,11 @@ assumes solar power or a direct-to-Earth link.
 
 from __future__ import annotations
 
-from typing import Self
+import hashlib
+import json
+import math
+from datetime import timedelta
+from typing import Final, Self
 
 from pydantic import Field, model_validator
 
@@ -28,7 +32,21 @@ from .conventions import (
     StrictFloat,
     UTCDatetime,
 )
-from .enums import CommunicationMode, PowerSource, ScoreComponent, UnknownDataPolicy
+from .enums import CommunicationMode, PowerSource, ScoreComponent, ScoreComponentStatus, UnknownDataPolicy
+
+# Score components this engine version cannot evaluate. Clearance requirements are unsupported
+# (docs §5c), and the time-mean clearance is never used as a stand-in, so CLEARANCE_MARGIN is
+# never part of a score whatever its weight.
+UNSUPPORTED_SCORE_COMPONENTS: Final = frozenset({ScoreComponent.CLEARANCE_MARGIN})
+
+# Score components that need a spacecraft outage limit as their reference (docs §5e, D2).
+_LIMIT_FIELD: Final = {
+    ScoreComponent.DARKNESS_MARGIN: "max_continuous_darkness_s",
+    ScoreComponent.BLACKOUT_MARGIN: "max_communication_blackout_s",
+}
+
+# Version of the configuration-key payload below; bump if its content changes.
+CONFIGURATION_KEY_VERSION: Final = 1
 
 
 class LandingSite(ContractModel):
@@ -88,8 +106,13 @@ class MissionRequirements(ContractModel):
 class RankingPreferences(ContractModel):
     """Soft preferences: relative weights for the desirability score (Phase 5).
 
-    Weights are relative (normalised by their sum). They only order scenarios; they can
-    never turn a failed hard requirement into an eligible scenario.
+    Weights are relative: they are normalised over the scenario's ACTIVE components
+    (``MissionScenario.effective_score_weights``), which depend on configuration only. They only
+    order scenarios; they can never turn a failed hard requirement into an eligible scenario.
+
+    ``clearance_margin_weight`` defaults to 0 because clearance scoring is not supported yet
+    (docs §5c, §5e). A user-specified positive value is kept as given, but that component stays
+    UNSUPPORTED and does not enter the score.
     """
 
     sunlight_weight: NonNegativeFloat = 1.0
@@ -97,7 +120,7 @@ class RankingPreferences(ContractModel):
     simultaneous_weight: NonNegativeFloat = 0.0
     darkness_margin_weight: NonNegativeFloat = 1.0
     blackout_margin_weight: NonNegativeFloat = 1.0
-    clearance_margin_weight: NonNegativeFloat = 0.5
+    clearance_margin_weight: NonNegativeFloat = 0.0
 
     @model_validator(mode="after")
     def _at_least_one_weight(self) -> Self:
@@ -139,3 +162,71 @@ class MissionScenario(ContractModel):
     @property
     def duration_s(self) -> float:
         return (self.mission_end_utc - self.mission_start_utc).total_seconds()
+
+    # --- Phase 5 scoring configuration (docs §5e). Configuration only: never measurements. ---
+
+    def score_component_status(self, component: ScoreComponent) -> ScoreComponentStatus:
+        """Whether ``component`` takes part in this scenario's score, from configuration alone.
+
+        Order: UNSUPPORTED (engine cannot evaluate it), NOT_CONFIGURED (its outage limit is not
+        set), ZERO_WEIGHT (preference weight 0), otherwise ACTIVE.
+        """
+        if component in UNSUPPORTED_SCORE_COMPONENTS:
+            return ScoreComponentStatus.UNSUPPORTED
+        limit_field = _LIMIT_FIELD.get(component)
+        if limit_field is not None and getattr(self.spacecraft, limit_field) is None:
+            return ScoreComponentStatus.NOT_CONFIGURED
+        if self.preferences.weights()[component] == 0.0:
+            return ScoreComponentStatus.ZERO_WEIGHT
+        return ScoreComponentStatus.ACTIVE
+
+    def effective_score_weights(self) -> dict[ScoreComponent, float]:
+        """Normalised weights: ``w_c / sum(w over ACTIVE)`` for ACTIVE components, 0 otherwise.
+
+        Every component appears, in ``ScoreComponent`` order. All zeros when no component is
+        ACTIVE (the score is then NO_SCORABLE_COMPONENTS). Missing measurements never change
+        these weights; they widen the score bounds instead. Weights are scaled by their maximum
+        before summing, so very large declared weights cannot overflow.
+        """
+        declared = self.preferences.weights()
+        active = [c for c in ScoreComponent if self.score_component_status(c) is ScoreComponentStatus.ACTIVE]
+        if not active:
+            return dict.fromkeys(ScoreComponent, 0.0)
+        top = max(declared[c] for c in active)
+        scaled = {c: declared[c] / top for c in active}
+        total = math.fsum(scaled.values())
+        return {c: (scaled[c] / total if c in scaled else 0.0) for c in ScoreComponent}
+
+    def configuration_key(self) -> str:
+        """Deterministic identity of what a score is measured against (strict comparability, D7).
+
+        ``"sha256:"`` + the SHA-256 of canonical JSON (sorted keys, no whitespace, no NaN) of:
+        the key version; the mission duration in integer microseconds; the spacecraft's power
+        source, communication mode, both outage limits and ``solar_power_min_disk_fraction``;
+        and every ``MissionRequirements`` field except the inert ``unknown_data_policy``. Numbers
+        are written as floats (so ``50`` and ``50.0`` agree, and ``-0.0`` becomes ``0.0``).
+        Scenario id, name, site, start time, spacecraft name and preferences are not part of it.
+        """
+
+        def number(value: float | None) -> float | None:
+            return None if value is None else float(value) + 0.0
+
+        sc = self.spacecraft
+        payload = {
+            "key_version": CONFIGURATION_KEY_VERSION,
+            "mission_duration_us": (self.mission_end_utc - self.mission_start_utc) // timedelta(microseconds=1),
+            "spacecraft": {
+                "power_source": sc.power_source.value,
+                "communication_mode": sc.communication_mode.value,
+                "max_continuous_darkness_s": number(sc.max_continuous_darkness_s),
+                "max_communication_blackout_s": number(sc.max_communication_blackout_s),
+                "solar_power_min_disk_fraction": number(sc.solar_power_min_disk_fraction),
+            },
+            "requirements": {
+                name: number(getattr(self.requirements, name))
+                for name in MissionRequirements.model_fields
+                if name != "unknown_data_policy"
+            },
+        }
+        text = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        return "sha256:" + hashlib.sha256(text.encode("ascii")).hexdigest()

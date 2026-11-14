@@ -9,14 +9,21 @@ Design rules enforced here, not just documented:
   UNKNOWN, and every UNKNOWN before any FAIL.
 * Unavailable values are explicit (``Metric.status``), never zero. When data is partly
   unknown, a metric may be BOUNDED: the true value lies in [lower, upper].
+* Phase 5 score contract (docs §5e): ``ScoreBreakdown.status`` separates an exact score
+  (KNOWN), an uncertain one (BOUNDED: ``score`` null, interval in ``score_bounds``), and the two
+  unscored cases (eligibility UNKNOWN; no scorable component). A lower bound is never written
+  into ``score``, and UNKNOWN eligibility never carries a score. Rankings never mix data bases
+  (real terrain-aware / real geometric-only / synthetic).
 """
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
-from typing import Self
+from fractions import Fraction as Rational
+from typing import Annotated, Final, Self
 
-from pydantic import Field, model_validator
+from pydantic import Field, StringConstraints, model_validator
 
 from .conventions import (
     SCHEMA_VERSION,
@@ -34,17 +41,21 @@ from .conventions import (
 from .enums import (
     AngleType,
     CalculationBasis,
+    ComparabilityPolicy,
     Comparison,
     Condition,
     ConditionState,
     ConstraintId,
     ConstraintStatus,
+    DataBasis,
     Eligibility,
     ExplanationCategory,
     MetricStatus,
     RiskLevel,
     SamplingPolicy,
     ScoreComponent,
+    ScoreComponentStatus,
+    ScoreStatus,
     Severity,
     Unit,
     UnknownDataPolicy,
@@ -233,20 +244,229 @@ class RiskIndicator(ContractModel):
     message: NonEmptyStr
 
 
+# --- Phase 5 score contract (C0; docs §5e) ------------------------------------------------------
+
+# Scores are reported rounded to 6 decimals (exact: nearest; bounds: outward), so a reported score
+# may differ from the exact weighted sum by up to 1e-6.
+_SCORE_ROUNDING_TOL: Final = 1e-6
+# Allowance for floating-point noise between a producer's and this validator's sums.
+_FLOAT_NOISE_TOL: Final = 1e-9
+_WEIGHT_TOL: Final = 1e-12
+
+# "sha256:" + 64 lowercase hex digits; produced by ``MissionScenario.configuration_key``.
+ConfigurationKey = Annotated[str, StringConstraints(pattern=r"^sha256:[0-9a-f]{64}$")]
+
+
+def _interval(metric: Metric) -> tuple[float, float]:
+    """``(lower, upper)`` of a KNOWN (``lower == upper``) or BOUNDED metric."""
+    if metric.status is MetricStatus.KNOWN:
+        assert metric.value is not None
+        return metric.value, metric.value
+    if metric.status is MetricStatus.BOUNDED:
+        assert metric.lower is not None and metric.upper is not None
+        return metric.lower, metric.upper
+    raise ValueError(f"expected a known or bounded metric, got {metric.status.value!r}")
+
+
+def _check_score_fields(status: ScoreStatus, score: float | None, bounds: Metric | None) -> None:
+    """Shared by ScoreBreakdown and RankedScenario: ``score`` holds exact scores only."""
+    if bounds is not None:
+        if bounds.unit is not Unit.PERCENT:
+            raise ValueError("score_bounds must use unit 'percent'")
+        lo, hi = _interval(bounds)
+        if lo < 0.0 or hi > 100.0:
+            raise ValueError("score_bounds must lie within [0, 100]")
+    if status is ScoreStatus.KNOWN:
+        if score is None or bounds is None or bounds.status is not MetricStatus.KNOWN or bounds.value != score:
+            raise ValueError("a known score needs score and a known score_bounds with the same value")
+    elif status is ScoreStatus.BOUNDED:
+        if score is not None:
+            raise ValueError("a bounded score must leave score null: a lower bound is not an exact score")
+        if bounds is None or bounds.status is not MetricStatus.BOUNDED:
+            raise ValueError("a bounded score needs bounded score_bounds")
+    elif score is not None or bounds is not None:
+        raise ValueError(f"a {status.value!r} score must leave score and score_bounds null")
+
+
+def _score_lower_bound(status: ScoreStatus | None, score: float | None, bounds: Metric | None) -> float | None:
+    if status is ScoreStatus.KNOWN:
+        return score
+    if status is ScoreStatus.BOUNDED:
+        assert bounds is not None and bounds.lower is not None
+        return bounds.lower
+    return None
+
+
 class ScoreComponentResult(ContractModel):
+    """One weighted component of the desirability score.
+
+    The first five fields are the Phase 1 contract. Phase 5 (C0) adds ``status``,
+    ``declared_weight`` and ``normalized``; with ``status`` unset the old meaning is unchanged.
+    With ``status`` set: only an ACTIVE component has a weight above 0 and a normalized value;
+    ``normalized`` is the component value in [0, 1] as a KNOWN or BOUNDED metric (BOUNDED only
+    when lower < upper); ``normalized_value`` and ``contribution`` are filled only when it is
+    KNOWN, so a bound is never shown as an exact value.
+    """
+
     component: ScoreComponent
-    weight: Fraction  # normalised so weights sum to 1
-    normalized_value: Fraction | None  # None = could not be scored
-    contribution: NonNegativeFloat | None  # weight * normalized_value * 100
+    weight: Fraction  # effective (normalised) weight; ACTIVE weights sum to 1, others are 0
+    normalized_value: Fraction | None  # exact value only; None = not scored or only bounded
+    contribution: NonNegativeFloat | None  # weight * normalized_value * 100 (exact values only)
     note: str | None = None
+    # --- Phase 5 (C0, additive) ---
+    status: ScoreComponentStatus | None = None  # None = legacy result without Phase 5 metadata
+    declared_weight: NonNegativeFloat | None = None  # the preference weight as the user gave it
+    normalized: Metric | None = None  # value in [0, 1] (unit fraction), KNOWN or BOUNDED
+
+    @model_validator(mode="after")
+    def _consistent(self) -> Self:
+        if self.status is None:
+            if self.declared_weight is not None or self.normalized is not None:
+                raise ValueError("declared_weight and normalized require status")
+            return self
+        if self.declared_weight is None:
+            raise ValueError("declared_weight is required when status is set")
+        if self.status is ScoreComponentStatus.ACTIVE:
+            if not (self.weight > 0.0 and self.declared_weight > 0.0):
+                raise ValueError("an active component needs weight > 0 and declared_weight > 0")
+        else:
+            if self.status is ScoreComponentStatus.ZERO_WEIGHT and self.declared_weight != 0.0:
+                raise ValueError("a zero_weight component must have declared_weight 0")
+            if self.weight != 0.0 or self.normalized is not None:
+                raise ValueError(f"a {self.status.value!r} component must have weight 0 and no normalized value")
+        n = self.normalized
+        if n is None:
+            if self.normalized_value is not None or self.contribution is not None:
+                raise ValueError("normalized_value and contribution require a normalized value")
+            return self
+        if n.unit is not Unit.FRACTION:
+            raise ValueError("normalized must use unit 'fraction'")
+        lo, hi = _interval(n)
+        if lo < 0.0 or hi > 1.0:
+            raise ValueError("normalized must lie within [0, 1]")
+        if n.status is MetricStatus.KNOWN:
+            if self.normalized_value != n.value:
+                raise ValueError("normalized_value must equal normalized.value for a known component")
+            expected = self.weight * lo * 100.0
+            if self.contribution is None or abs(self.contribution - expected) > _FLOAT_NOISE_TOL:
+                raise ValueError("contribution must equal weight * normalized_value * 100")
+        else:
+            if not lo < hi:
+                raise ValueError("a bounded component needs lower < upper (equal bounds are known)")
+            if self.normalized_value is not None or self.contribution is not None:
+                raise ValueError("a bounded component must leave normalized_value and contribution null")
+        return self
 
 
 class ScoreBreakdown(ContractModel):
+    """Desirability score of one scenario (docs §5e).
+
+    Phase 1 fields keep their meaning. With Phase 5 metadata (``status`` set):
+
+    * KNOWN: exact ``score``; ``score_bounds`` is the same value as a KNOWN metric.
+    * BOUNDED: ``score`` is null; ``score_bounds`` holds [lower, upper], rounded outward.
+    * ELIGIBILITY_UNKNOWN / NO_SCORABLE_COMPONENTS: ``score`` and ``score_bounds`` are null.
+      Never shown as 0.
+    * ``components`` lists every ``ScoreComponent`` once, in enum order; ACTIVE weights equal
+      ``declared_weight / sum(declared_weight over ACTIVE)``, so they depend on configuration only.
+    * ``configuration_key`` identifies the spacecraft, requirements and mission duration.
+    """
+
     method_version: NonEmptyStr
-    score: Percent | None  # 0..100 desirability; None = not scored
+    score: Percent | None  # exact 0..100 desirability; None = not scored or only bounded
     rank_eligible: StrictBool  # True iff eligibility is PASS
     components: list[ScoreComponentResult] = Field(default_factory=list)
     note: str | None = None
+    # --- Phase 5 (C0, additive) ---
+    status: ScoreStatus | None = None  # None = legacy breakdown without Phase 5 metadata
+    score_bounds: Metric | None = None  # unit percent; KNOWN (= score) or BOUNDED
+    configuration_key: ConfigurationKey | None = None  # MissionScenario.configuration_key()
+
+    @model_validator(mode="after")
+    def _consistent(self) -> Self:
+        status = self.status
+        if status is None:
+            if self.score_bounds is not None or self.configuration_key is not None:
+                raise ValueError("score_bounds and configuration_key require status")
+            return self
+        if self.configuration_key is None:
+            raise ValueError("configuration_key is required when status is set")
+        _check_score_fields(status, self.score, self.score_bounds)
+        if [c.component for c in self.components] != list(ScoreComponent):
+            raise ValueError("components must list every score component once, in ScoreComponent order")
+        if any(c.status is None for c in self.components):
+            raise ValueError("every component needs a status when the score has one")
+        active = [c for c in self.components if c.status is ScoreComponentStatus.ACTIVE]
+        if active:
+            declared = [c.declared_weight for c in active]
+            assert all(d is not None for d in declared)
+            top = max(d for d in declared if d is not None)
+            total = math.fsum(d / top for d in declared if d is not None)
+            for c in active:
+                assert c.declared_weight is not None
+                if abs(c.weight - (c.declared_weight / top) / total) > _WEIGHT_TOL:
+                    raise ValueError("active weights must equal declared_weight / sum of active declared weights")
+        if status is ScoreStatus.ELIGIBILITY_UNKNOWN and self.rank_eligible:
+            raise ValueError("a score withheld for unknown eligibility cannot be rank-eligible")
+        if status is ScoreStatus.NO_SCORABLE_COMPONENTS and active:
+            raise ValueError("no_scorable_components requires that no component is active")
+        if status in (ScoreStatus.ELIGIBILITY_UNKNOWN, ScoreStatus.NO_SCORABLE_COMPONENTS):
+            if any(c.normalized is not None for c in self.components):
+                raise ValueError(f"a {status.value!r} score must not carry normalized component values")
+            return self
+        if not active:
+            raise ValueError(f"a {status.value!r} score needs at least one active component")
+        values = [c.normalized for c in active]
+        if any(v is None for v in values):
+            raise ValueError("every active component of a scored result needs a normalized value")
+        spans = [_interval(v) for v in values if v is not None]
+        low = 100.0 * math.fsum(c.weight * s[0] for c, s in zip(active, spans, strict=True))
+        high = 100.0 * math.fsum(c.weight * s[1] for c, s in zip(active, spans, strict=True))
+        all_known = all(v is not None and v.status is MetricStatus.KNOWN for v in values)
+        if status is ScoreStatus.KNOWN:
+            assert self.score is not None
+            if not all_known:
+                raise ValueError("a known score needs every active component known")
+            if abs(self.score - low) > _SCORE_ROUNDING_TOL + _FLOAT_NOISE_TOL:
+                raise ValueError("score must equal 100 * sum(weight * normalized value), rounded to 6 decimals")
+        else:
+            assert self.score_bounds is not None
+            if all_known:
+                raise ValueError("a bounded score needs at least one bounded component")
+            lower, upper = _interval(self.score_bounds)
+            slack = _SCORE_ROUNDING_TOL + _FLOAT_NOISE_TOL
+            if not (low - slack <= lower <= low + _FLOAT_NOISE_TOL):
+                raise ValueError("score_bounds.lower must be the components' lower sum, rounded down")
+            if not (min(high, 100.0) - _FLOAT_NOISE_TOL <= upper <= high + slack):
+                raise ValueError("score_bounds.upper must be the components' upper sum, rounded up")
+        return self
+
+    @property
+    def lower_bound(self) -> float | None:
+        """Exact score (KNOWN) or guaranteed lower bound (BOUNDED); None when not scored.
+
+        For ordering under the documented ranking policy (D8) only, never for display as a score.
+        """
+        return _score_lower_bound(self.status, self.score, self.score_bounds)
+
+    def weights_signature(self) -> tuple[tuple[ScoreComponent, Rational], ...] | None:
+        """Exact effective weights as rationals (``declared / sum over ACTIVE``); None if legacy.
+
+        Rational arithmetic makes the comparison exact and scale-invariant (weights 1:1 and 2:2
+        agree), with no floating-point tolerance. Components that are not ACTIVE weigh 0.
+        """
+        if self.status is None:
+            return None
+        weights = {
+            c.component: Rational(c.declared_weight)
+            for c in self.components
+            if c.status is ScoreComponentStatus.ACTIVE and c.declared_weight is not None
+        }
+        total = sum(weights.values(), Rational(0))
+        return tuple(
+            (c.component, weights[c.component] / total if c.component in weights else Rational(0))
+            for c in self.components
+        )
 
 
 class Explanation(ContractModel):
@@ -276,6 +496,15 @@ class DataQualitySummary(ContractModel):
     earth_coverage_percent: Percent
     assumptions: list[NonEmptyStr] = Field(default_factory=list)  # e.g. sampling rule used
     warnings: list[NonEmptyStr] = Field(default_factory=list)  # data issues found in range
+
+    @property
+    def data_basis(self) -> DataBasis:
+        """SYNTHETIC if the provenance says so; else REAL_GEOMETRIC_ONLY or REAL_TERRAIN_AWARE."""
+        if self.provenance.is_synthetic:
+            return DataBasis.SYNTHETIC
+        if self.calculation_basis is CalculationBasis.GEOMETRIC_ONLY:
+            return DataBasis.REAL_GEOMETRIC_ONLY
+        return DataBasis.REAL_TERRAIN_AWARE
 
 
 class ConditionSummary(ContractModel):
@@ -418,6 +647,14 @@ class ViabilityAssessment(ContractModel):
             )
         if self.score.rank_eligible != (self.eligibility is Eligibility.PASS):
             raise ValueError("score.rank_eligible must be True exactly when eligibility is PASS")
+        # D4: UNKNOWN eligibility is never scored (score=None), whatever the producer.
+        if self.eligibility is Eligibility.UNKNOWN:
+            if self.score.score is not None or self.score.score_bounds is not None:
+                raise ValueError("an assessment with unknown eligibility must not carry a score (score=None)")
+            if self.score.status is not None and self.score.status is not ScoreStatus.ELIGIBILITY_UNKNOWN:
+                raise ValueError("unknown eligibility requires score.status 'eligibility_unknown'")
+        elif self.score.status is ScoreStatus.ELIGIBILITY_UNKNOWN:
+            raise ValueError("score.status 'eligibility_unknown' requires eligibility UNKNOWN")
         for w in self.windows:
             if w.start_utc < self.evaluated_start_utc or w.end_utc > self.evaluated_end_utc:
                 raise ValueError("all windows must lie within the evaluated range")
@@ -427,23 +664,77 @@ class ViabilityAssessment(ContractModel):
     def evaluated_duration_s(self) -> float:
         return (self.evaluated_end_utc - self.evaluated_start_utc).total_seconds()
 
+    @property
+    def data_basis(self) -> DataBasis:
+        return self.data_quality.data_basis
+
+    def comparability_key(self, policy: ComparabilityPolicy = ComparabilityPolicy.STRICT) -> tuple[object, ...]:
+        """Assessments may share one ranking only if their keys are equal (D6, D7; docs §5e).
+
+        Always: data basis, scoring ``method_version`` and exact effective weights. STRICT also
+        adds ``configuration_key`` (spacecraft limits and type, panel threshold, every hard
+        requirement, mission duration). Raises ``ValueError`` for a legacy score without Phase 5
+        metadata, which cannot be ranked.
+        """
+        s = self.score
+        if s.status is None or s.configuration_key is None:
+            raise ValueError(f"{self.scenario_id}: score has no Phase 5 metadata (status, configuration_key)")
+        key: tuple[object, ...] = (self.data_basis, s.method_version, s.weights_signature())
+        if policy is ComparabilityPolicy.STRICT:
+            key += (s.configuration_key,)
+        return key
+
 
 _TIER = {Eligibility.PASS: 0, Eligibility.UNKNOWN: 1, Eligibility.FAIL: 2}
 
 
 class RankedScenario(ContractModel):
+    """One ranking entry. Phase 5 (C0) adds ``score_status``, ``score_bounds`` and ``data_basis``
+    (all set together); ``score`` then holds exact scores only, as in ``ScoreBreakdown``."""
+
     rank: int | None = Field(default=None, ge=1, strict=True)  # None unless PASS
     scenario_id: Identifier
     eligibility: Eligibility
     score: Percent | None
     overall_risk: RiskLevel
+    # --- Phase 5 (C0, additive) ---
+    score_status: ScoreStatus | None = None
+    score_bounds: Metric | None = None
+    data_basis: DataBasis | None = None
+
+    @model_validator(mode="after")
+    def _consistent(self) -> Self:
+        if self.score_status is None:
+            if self.score_bounds is not None or self.data_basis is not None:
+                raise ValueError("score_bounds and data_basis require score_status")
+            return self
+        if self.data_basis is None:
+            raise ValueError("data_basis is required when score_status is set")
+        _check_score_fields(self.score_status, self.score, self.score_bounds)
+        if (self.score_status is ScoreStatus.ELIGIBILITY_UNKNOWN) != (self.eligibility is Eligibility.UNKNOWN):
+            raise ValueError("score_status 'eligibility_unknown' is used exactly when eligibility is UNKNOWN")
+        return self
+
+    @property
+    def lower_bound(self) -> float | None:
+        """Exact score or guaranteed lower bound, for ordering (D8); None when not scored."""
+        return _score_lower_bound(self.score_status, self.score, self.score_bounds)
 
 
 class RankingResult(ContractModel):
-    """Ordered comparison output (Phase 5) for Members 4 and 5."""
+    """Ordered comparison output (Phase 5) for Members 4 and 5.
+
+    Phase 5 (C0) adds ``data_basis`` and ``policy`` (set together). Then every entry carries Phase 5
+    score metadata and that same data basis, so real and synthetic scenarios never share a ranking,
+    and PASS entries follow the first two D8 keys: score lower bound descending (unscored last),
+    then exact before bounded. The remaining D8 tie-breakers are not visible in the entries.
+    """
 
     method_version: NonEmptyStr
     entries: list[RankedScenario]
+    # --- Phase 5 (C0, additive) ---
+    data_basis: DataBasis | None = None
+    policy: ComparabilityPolicy | None = None
 
     @model_validator(mode="after")
     def _eligibility_dominates_score(self) -> Self:
@@ -461,4 +752,32 @@ class RankingResult(ContractModel):
                 expected_rank += 1
             elif e.rank is not None:
                 raise ValueError("only PASS scenarios may be ranked")
+        return self
+
+    @model_validator(mode="after")
+    def _phase5_consistent(self) -> Self:
+        if (self.data_basis is None) != (self.policy is None):
+            raise ValueError("data_basis and policy must be set together")
+        if self.data_basis is None:
+            if any(e.data_basis is not None for e in self.entries):
+                raise ValueError("entries with a data_basis need a ranking with data_basis and policy")
+            return self
+        for e in self.entries:
+            if e.score_status is None or e.data_basis is not self.data_basis:
+                raise ValueError(
+                    "every entry needs score metadata and the ranking's data_basis: "
+                    "scenarios with different data bases are never ranked together"
+                )
+        keys = [
+            (0, -lb, 0 if e.score_status is ScoreStatus.KNOWN else 1)
+            if (lb := e.lower_bound) is not None
+            else (1, 0.0, 0)
+            for e in self.entries
+            if e.eligibility is Eligibility.PASS
+        ]
+        if keys != sorted(keys):
+            raise ValueError(
+                "PASS entries must be ordered by score lower bound (descending, unscored last), "
+                "exact scores before bounded ones at an equal bound"
+            )
         return self

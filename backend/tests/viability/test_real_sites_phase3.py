@@ -34,6 +34,8 @@ from app.viability.enums import (
 from app.viability.mission import MissionRequirements, MissionScenario, SpacecraftConfiguration
 from app.viability.windows import PreparedSeries
 
+from .helpers import raw_longest_outages
+
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
 T0 = datetime(2027, 1, 1, tzinfo=UTC)
@@ -169,26 +171,32 @@ def test_real_scenarios_include_both_outcomes() -> None:
 
 # --- two-year limits at, below and above the measured extremes ---------------------------------
 
-# (longest power-dark at >= 0.25, longest Earth blackout) in hours, docs section 5b.
-OUTAGES_H = {
-    "connecting-ridge": (492, 352),
-    "malapert-massif": (266, 17),
-    "peak-near-shackleton": (2802, 347),
-    "shackleton-floor": (N_HOURS, N_HOURS),
-}
+
+# Measured extremes are re-derived from the raw columns (helpers.raw_longest_outages), never pinned per site.
+def outages_h(raw: dict[str, Any], site: str) -> tuple[int, int]:
+    runs = raw_longest_outages(raw[site], power_min_fraction=0.25)
+    return runs["power_dark"][0], runs["earth_blackout"][0]
 
 
 @pytest.mark.parametrize("site", SITES)
-def test_two_year_outage_limits_exactly_at_and_below(site: str, prepared: dict[str, PreparedSeries]) -> None:
-    p, (dark, blackout) = prepared[site], OUTAGES_H[site]
-    at_limit = assess_constraints(mission(p, T0, COVERAGE_END, dark_h=dark, blackout_h=blackout, threshold=0.25), p)
+def test_two_year_outage_limits_exactly_at_and_below(
+    site: str, raw: dict[str, dict[str, Any]], prepared: dict[str, PreparedSeries]
+) -> None:
+    p, (dark, blackout) = prepared[site], outages_h(raw, site)
+    # A limit must be > 0 h: where Earth is never blacked out (Malapert, generator 1.2) the blackout limit
+    # is a fixed 100 h that can never fail, and only the darkness constraint is probed at its extreme.
+    has_blackout = blackout > 0
+    at_limit = assess_constraints(
+        mission(p, T0, COVERAGE_END, dark_h=dark, blackout_h=blackout if has_blackout else 100, threshold=0.25), p
+    )
     assert at_limit.eligibility is Eligibility.PASS
     below = assess_constraints(
-        mission(p, T0, COVERAGE_END, dark_h=dark - 1, blackout_h=blackout - 1, threshold=0.25), p
+        mission(p, T0, COVERAGE_END, dark_h=dark - 1, blackout_h=blackout - 1 if has_blackout else 100, threshold=0.25),
+        p,
     )
     assert [c.constraint_id for c in below.with_status(FAIL)] == [
         C.MAX_CONTINUOUS_DARKNESS,
-        C.MAX_COMMUNICATION_BLACKOUT,
+        *([C.MAX_COMMUNICATION_BLACKOUT] if has_blackout else []),
     ]
     [w] = below.constraint(C.MAX_CONTINUOUS_DARKNESS).evidence_windows
     assert w.kind is WindowKind.POWER_DARK and w.duration_s == dark * H

@@ -244,3 +244,44 @@ def hourly(sun: Sequence[SunCode], earth: Sequence[str] | None = None, **kw: Any
     n = len(sun)
     kw.setdefault("coverage_h", (0.0, float(n)))
     return make_series([float(h) for h in range(n)], sun, earth, **kw)
+
+
+# --- independent run-length derivation from raw precomputed site files ------------------------
+
+
+def longest_true_run(flags: Sequence[bool]) -> tuple[int, int]:
+    """(length, start index) of the first longest run of True; (0, -1) if none. Pure Python on purpose."""
+    best, best_start, run, start = 0, -1, 0, 0
+    for i, f in enumerate(flags):
+        if f:
+            if run == 0:
+                start = i
+            run += 1
+            if run > best:
+                best, best_start = run, start
+        else:
+            run = 0
+    return best, best_start
+
+
+def raw_longest_outages(timeline: dict[str, Any], power_min_fraction: float = 0.25) -> dict[str, tuple[int, int]]:
+    """Longest outage runs in hours (sample-and-hold, 1 h samples; the final instantaneous sample holds 0 s).
+
+    Derived only from the raw columns, with no engine code, so tests need no pinned per-site numbers that
+    would go stale whenever Member 1 regenerates the terrain. Requires fully known columns and 1 h steps.
+    """
+    tl = timeline  # the "timeline" object of a precomputed site file
+    t0, t1 = (datetime.fromisoformat(t) for t in tl["time_utc"][:2])
+    assert t1 - t0 == timedelta(hours=1), "hourly samples required"
+    n = len(tl["time_utc"]) - 1
+    sun, frac, earth = tl["sun_visible"][:n], tl["sun_visible_fraction"][:n], tl["earth_visible"][:n]
+    assert None not in sun and None not in frac and None not in earth, "unknown samples: runs would be ambiguous"
+    return {
+        "no_direct_sunlight": longest_true_run([not s for s in sun]),
+        "power_dark": longest_true_run([(not s) or f < power_min_fraction for s, f in zip(sun, frac, strict=True)]),
+        "earth_blackout": longest_true_run([not e for e in earth]),
+        # simultaneous = power-eligible sunlight (fraction >= threshold) AND Earth visible
+        "simultaneous": longest_true_run(
+            [bool(s) and f >= power_min_fraction and bool(e) for s, f, e in zip(sun, frac, earth, strict=True)]
+        ),
+    }

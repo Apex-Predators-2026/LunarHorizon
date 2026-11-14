@@ -1,12 +1,13 @@
 # Viability Engine: Architecture & Data Contracts
 
 Owner: Member 2 (Mission Viability, Risk Assessment & Ranking)
-Status: **Phases 2–4 implemented** (sunlight / Earth-visibility analysis, §5b; constraint
-verdicts PASS / FAIL / UNKNOWN and eligibility, §5c; operational margins and rule-based risk
-indicators, §5d). **Phases 5–6 not started**, so there is still no score, explanation text or
-full `evaluate_scenario`.
-Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.4.0-phase4"`.
-Synchronized with `main` as of 2026-11-13: Member 1 site-file format **1.1** (§3a) and Member 5's
+Status: **Phases 2–5 implemented and integrated** (sunlight / Earth-visibility analysis, §5b;
+constraint verdicts PASS / FAIL / UNKNOWN and eligibility, §5c; operational margins and rule-based
+risk indicators, §5d; explainable desirability score and eligibility-aware ranking, §5e–§5f).
+`evaluate_scenario` now returns a complete `ViabilityAssessment`. Explanation text is **Phase 6 and
+not started**: `explanations` is an empty list, which means "not generated", not "nothing to explain".
+Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.5.0-phase5"`.
+Synchronized with `origin/main` as of 2026-11-14 (whole-Moon terrain, site-file generator **1.2**, §3a) and Member 5's
 shared `ViabilityResult` with `eligibility` / nullable `score` / `Violation.is_unknown` (§5a).
 The input contract (§3) is a **proposal for Member 1 to review** before it counts as final.
 
@@ -35,14 +36,15 @@ Members 3/4/5 ──────────────────────
 | `outputs.py` | Assessment/ranking contract + invariant validators, `derive_eligibility` | 1 ✅ |
 | `fixtures/` | Synthetic datasets (JSON) + deterministic builders | 1 ✅ |
 | `adapters/site_file.py` | Andrew's precomputed site files → `ScientificTimeSeries` (§3a) | 1 ✅ |
-| `compat/rescue.py` | Member 5's `evaluate_timeline(Scenario, Timeline) -> ViabilityResult` on top of this engine (§5a) | interface ✅, Phase 2 metrics and Phase 3 verdicts verified; Phase 4 margins and risks available; needs Phases 5–6 to run |
+| `compat/rescue.py` | Member 5's `evaluate_timeline(Scenario, Timeline) -> ViabilityResult` on top of this engine (§5a) | ✅ runs end to end on the real engine (explanations empty until Phase 6); Phase 2 metrics and Phase 3 verdicts verified against the placeholder |
 | `windows.py` | Sampling semantics, sample supports, three-valued condition runs, visibility windows (§5b) | 2 ✅ |
 | `metrics.py` | Durations, percentages, longest outages, bounds, time-weighted means, data quality (§5b) | 2 ✅ |
 | `analysis.py` | `analyze_environment` / `analyze_scenario`: the Phase 2 entry points → `EnvironmentAnalysis` | 2 ✅ |
 | `constraints.py` | PASS / FAIL / UNKNOWN / NOT_APPLICABLE per requirement, eligibility; `assess_constraints` (§5c) | 3 ✅ |
 | `margins.py` | Signed operational margins per hard constraint, bounds, classification (§5d) | 4 ✅ |
 | `risk.py` | Rule-based risk indicators and `overall_risk`, consuming the margins (§5d) | 4 ✅ |
-| `scoring.py` | Desirability score, ranking | 5 (stub) |
+| `scoring.py` | Desirability score (5A); re-exports `rank_assessments` from `ranking.py` | 5 ✅ |
+| `ranking.py` | Eligibility-aware, comparability-checked ranking (5B) | 5 ✅ |
 | `explain.py` | Explanations; `STANDARD_LIMITATIONS` (defined now) | 6 (stub) |
 | `engine.py` | `evaluate_scenario(scenario, series)` pipeline | 5–6 (stub; Phases 2–4 callable directly) |
 
@@ -155,7 +157,7 @@ series = load_site_file("data/sites/peak-near-shackleton.json")   # -> Scientifi
 | `meta.terrain[]` | `provenance.terrain_source`; `calculation_basis = terrain_aware` | an empty list is rejected |
 | `meta.step` | `sampling.nominal_interval_s`; `max_gap_s = 1.5 × step` | `1h`/`30m`/`10 min`/`1d`; samples closer than the step are rejected |
 | `meta.generated_utc` (format 1.1) | `provenance.generated_at_utc` | parsed as UTC; `null` only if absent |
-| `meta.generator_version` (1.1) | `provenance.generator`; `fraction_decimals` | documented rounding: `1.0` → 3, `1.1` → 6 decimals; unknown version → not declared (strict rule 6) |
+| `meta.generator_version` (1.1), `meta.fraction_decimals` / `meta.angle_decimals` (1.2) | `provenance.generator`; `fraction_decimals`; angle precision noted in `provenance.notes` | explicit `meta.fraction_decimals` (1.2+) wins; otherwise the documented rounding `1.0` → 3, `1.1` → 6; unknown version and no explicit field → not declared (strict rule 6) |
 | `meta.frame` (1.1) | `provenance.coordinate_frame` | recorded verbatim as Member 1's statement; notes say "not independently verified" |
 | `horizon.azimuth_deg`, `elevation_deg` | `horizon_profile` | step → `horizon_azimuth_step_deg` (0.5°); `distance_m` is not carried |
 | `timeline.time_utc` (`…T00:00Z`) | `samples[i].time_utc` | must be UTC; other offsets or naive times are rejected |
@@ -176,20 +178,23 @@ metadata, fewer than 2 samples, and states that contradict the angles all raise
 `SiteFileError` with the field and index. Unknown extra columns are listed in
 `provenance.notes`, not silently dropped.
 
-**Results on the committed files (format 1.1, generated 2026-11-14):** all four validate;
-no unknown values (curated sites are fully known). Sun counts use the authoritative flag.
+**Results on the committed files (generator 1.2, whole-Moon terrain, 2026-11-14):** the four original sites
+validate (as do all 24 published files); no unknown values at these sites. Sun counts use the authoritative
+flag. These counts changed from generator 1.1 because the terrain pipeline changed (finer horizon tiers):
+Malapert's direct sunlight fell from 82.6 % to 77.1 %, which matches Andrew's own `summary.sunlit_pct`.
 
 | Site | lon (file → contract) | Sun visible / partial / not visible | Earth visible |
 |---|---|---|---|
-| connecting-ridge | 209.94767 → −150.05233 | 9041 / 1449 / 7055 | 49.6% |
-| malapert-massif | 357.6326 → −2.3674 | 13366 / 1126 / 3053 | 99.9% |
-| peak-near-shackleton | 126.27302 (unchanged) | 4336 / 2219 / 10990 | 50.4% |
+| connecting-ridge | 209.94767 → −150.05233 | 9017 / 1468 / 7060 | 49.5% |
+| malapert-massif | 357.6326 → −2.3674 | 12019 / 1505 / 4021 | 100.0% |
+| peak-near-shackleton | 126.27302 (unchanged) | 4303 / 2210 / 11032 | 50.3% |
 | shackleton-floor (control) | 129.78 (unchanged) | 0 / 0 / 17545 | 0% |
 
 **Precision (resolved in format 1.1):** format 1.0 rounded fractions to 3 decimals, which hid
 disk slivers below 0.0005 (4–16 h per site). Format 1.1 writes 6 decimals plus the
-authoritative `sun_visible`, and the two now agree everywhere except **one hour**:
-Peak Near Shackleton, 2027‑08‑13T21:00Z. There `sun_visible = true` and the fraction is 0.0, so
+authoritative `sun_visible`. On generator 1.1 the two agreed everywhere except **one hour** (Peak Near
+Shackleton, 2027‑08‑13T21:00Z); **generator 1.2 has no such hour**, and the tests now discover sliver hours
+from the data instead of pinning them. For that 1.1 hour: There `sun_visible = true` and the fraction is 0.0, so
 the visible part is below 5×10⁻⁷. It is isolated (dark on both sides), and the written angles
 put the disk's top within ~0.0006° of the terrain. It becomes `partial` with the
 written 0.0 kept: direct sunlight yes, full no, power-eligible at threshold 0 yes and at 0.25 no.
@@ -207,7 +212,7 @@ format 1.0, direct sunlight rose by 0.02–0.07 pp and full sunlight fell by 0.0
 | `LandingSite` | `id`, `name`, `lat`, `lon`, `surface_height_m?` | Same field names as the shared `Site` |
 | `SpacecraftConfiguration` | `power_source` (solar/radioisotope/battery_only/hybrid/other), `communication_mode` (direct_to_earth/relay/direct_and_relay/none), `max_continuous_darkness_s`, `max_communication_blackout_s`, `solar_power_min_disk_fraction` | No such limit → constraint `not_applicable`; no threshold → "power-lit" = direct sunlight (any visible disk) |
 | `MissionRequirements` (hard) | `min_sunlight_percent` (share of *time* with direct sunlight), `min_earth_visibility_percent`, `min_simultaneous_percent`, `min_mean_solar_disk_fraction` (time-average of the visible disk fraction), `min_initial_sunlight_s`, `min_initial_earth_visibility_s`, `min_sun_clearance_deg`, `min_earth_clearance_deg`, `unknown_data_policy` | Not required |
-| `RankingPreferences` (soft) | Non-negative relative weights for sunlight, Earth visibility, simultaneity, darkness/blackout/clearance margins | At least one weight > 0 |
+| `RankingPreferences` (soft) | Non-negative relative weights for sunlight, Earth visibility, simultaneity, darkness/blackout/clearance margins. Defaults: 1, 1, 0, 1, 1, **0** (clearance changed from 0.5 in C0: not supported yet, §5e) | At least one weight > 0 |
 
 **Power-lit / power-dark.** When `solar_power_min_disk_fraction` (rescue's `panel_threshold`,
 e.g. 0.25) is set, a sample is power-lit iff some solar disk is visible and `visible_fraction ≥`
@@ -237,7 +242,7 @@ reported as a failure (§5c). **There is no optimistic option.**
 | `windows[]` | `kind` (see §5b table), start/end/`duration_s`, `clipped_at_start/end` |
 | `margins[]` | Signed headroom (+ = safe), `reference`, `related_constraint` |
 | `risks[]`, `overall_risk` | Rule-triggered indicators with the explicit `rule` text |
-| `score` | `score` 0–100 or null, `rank_eligible`, per-component breakdown |
+| `score` | `score` 0–100 (exact only) or null, `rank_eligible`, per-component breakdown; Phase 5 adds `status`, `score_bounds`, `configuration_key` (§5e) |
 | `explanations[]` | `category`, `severity`, `message` |
 | `data_quality` | Provenance (incl. `is_synthetic`), basis, criteria, sampling policy, evaluated duration, sample count, largest gap, uncovered time and gap count, Sun/Earth unknown time and coverage %, `assumptions[]`, `warnings[]` |
 | `limitations[]` | Always includes `explain.STANDARD_LIMITATIONS` |
@@ -267,9 +272,10 @@ Timeline ─timeline_to_series──► ScientificTimeSeries ┴► evaluate_sce
 ViabilityResult ◄────────────── assessment_to_result ◄──────────────────────────────┘
 ```
 
-**Status: interface only.** `evaluate_scenario` raises `NotImplementedError` until Phases 5–6,
-so the layer does not yet work end-to-end. Phase 2 metrics and Phase 3 verdicts are already
-verified against the placeholder (coordination item 6 below). Rescue still imports its placeholder; nothing in
+**Status: works end to end (Phase 5 integration).** `evaluate_scenario` returns a full assessment and the
+compat layer's default engine is the real one. Phase 2 metrics and Phase 3 verdicts are verified against the
+placeholder (coordination item 6 below); Arush's side-by-side test (`tests/test_engine_side_by_side.py`) is no
+longer skipped and passes. Rescue still imports its placeholder; nothing in
 `app/rescue/` was changed. To switch later, Member 5 changes one import in
 `app/rescue/viability/__init__.py` to `from app.viability.compat.rescue import evaluate_timeline`
 (keeping `CHECKS` / `CHECK_BY_CONSTRAINT`). `evaluate_timeline_detailed` returns the
@@ -450,23 +456,27 @@ samples with unknown states, threshold set but fractions missing). Provenance pa
 unchanged, **including the adapter's note that the lunar body-fixed frame is not verified**.
 No probability or confidence score is produced.
 
-### Real NASA-derived sites (format 1.1 files; full coverage 2027-01-01 → 2029-01-01, threshold 0.25)
+### Real NASA-derived sites (generator 1.2 files; full coverage 2027-01-01 → 2029-01-01, threshold 0.25)
+
+Values below are a snapshot of the committed files (2026-11-14) and change whenever Member 1 regenerates
+them; the regression tests re-derive every outage from the raw columns instead of pinning these numbers.
 
 | Site | Direct sun | Full | Partial | Power-lit (≥0.25) | Mean disk fraction | Earth visible | Simultaneous |
 |---|---|---|---|---|---|---|---|
-| connecting-ridge | 59.793 % | 51.533 % | 8.259 % | 57.433 % | 0.5569 | 49.555 % | 31.954 % |
-| malapert-massif | 82.598 % | 76.180 % | 6.418 % | 81.002 % | 0.7963 | 99.886 % | 80.888 % |
-| peak-near-shackleton | 37.358 % | 24.715 % | 12.642 % | 33.607 % | 0.3074 | 50.433 % | 18.924 % |
+| connecting-ridge | 59.764 % | 51.396 % | 8.368 % | 57.370 % | 0.5563 | 49.550 % | 31.948 % |
+| malapert-massif | 77.080 % | 68.502 % | 8.578 % | 74.858 % | 0.7311 | 100.000 % | 74.858 % |
+| peak-near-shackleton | 37.118 % | 24.527 % | 12.591 % | 33.407 % | 0.3052 | 50.256 % | 18.719 % |
 | shackleton-floor | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 | Site | Longest without direct sun | Longest power-dark (≥0.25) | Longest Earth blackout | Longest simultaneous |
 |---|---|---|---|---|
-| connecting-ridge | 293 h from 2027-04-20T08Z | 492 h from 2028-03-31T13Z | 352 h from 2027-01-23T20Z | 272 h |
-| malapert-massif | 265 h from 2027-05-03T04Z | 266 h from 2027-05-03T04Z | 17 h from 2028-12-10T17Z | 2107 h |
-| peak-near-shackleton | 2116 h (88 d) from 2028-02-23T06Z | 2802 h (117 d) from 2027-03-05T22Z | 347 h from 2027-01-23T20Z | 272 h |
+| connecting-ridge | 293 h from 2027-04-20T08Z | 492 h from 2028-03-31T13Z | 352 h from 2027-01-23T20Z | 298 h |
+| malapert-massif | 361 h from 2027-04-29T04Z | 365 h from 2027-04-29T01Z | 0 h (Earth always visible) | 2107 h |
+| peak-near-shackleton | 2116 h (88 d) from 2028-02-23T06Z | 2802 h (117 d) from 2027-03-05T22Z | 348 h from 2027-01-23T19Z | 272 h |
 | shackleton-floor | 17,544 h (entire range) | 17,544 h | 17,544 h | 0 |
 
-Every metric is `known` (no unknown data). Durations equal the independently counted samples
+Terrain-resolution changes in generator 1.2 moved Malapert most (sunlight −5.5 pp, its longest outages from
+265 h to 361 h); the other sites moved by ≤ 0.3 pp. Every metric is `known` (no unknown data). Durations equal the independently counted samples
 × 1 h, using `sun_visible` for direct sunlight (tested). Windows equal Member 1's `intervals()`
 on `sun_visible` / `earth_visible`. Against Andrew's `summary`, `sunlit_pct`, `earth_visible_pct`
 and `mean_sun_fraction_pct` all agree within ±0.05 pp, i.e. display rounding plus ≤ 0.006 pp
@@ -499,7 +509,7 @@ evaluate_constraints(scenario, env)            # just the list
 `(scenario, metrics, series)`: per-condition unknown time, evidence windows and an identity
 check need it. Nobody called the stub. The analysis must match the scenario's site, mission
 window **and** `solar_power_min_disk_fraction` (`ValueError` otherwise), because darkness and
-initial-sunlight verdicts depend on the threshold. `evaluate_scenario` stays a stub (Phases 5–6; Phase 4 is §5d).
+initial-sunlight verdicts depend on the threshold. `evaluate_scenario` assembles the phases (Phase 5, §5f).
 A 14-day evaluation on a prepared real series takes ≈ 1.6 ms.
 
 ### Constraints
@@ -878,8 +888,277 @@ Fixes applied in the integration:
 - The `margins=None` default.
 - Landing relevance.
 
-`evaluate_scenario` still raises `NotImplementedError` until Phases 5–6 assemble the
-`ViabilityAssessment` (margins → `margins[]`, indicators → `risks[]`, `overall_risk`).
+`evaluate_scenario` (Phase 5 integration, §5f) assembles the `ViabilityAssessment`: margins → `margins[]`,
+indicators → `risks[]`, `overall_risk`, and the score.
+
+## 5e. Phase 5: scoring and ranking contract (C0)
+
+C0 fixes the shared contract before the scoring (5A) and ranking (5B) algorithms are written in
+parallel. Every new field is **optional with a default of `null`**, so existing constructors and JSON
+stay valid. A missing score is never read as 0. Scoring and ranking never change eligibility: it is
+still derived from the constraints only (§5, §5c).
+
+### Contract fields
+
+| Model | New fields (C0) | Meaning |
+|---|---|---|
+| `ScoreBreakdown` | `status: ScoreStatus`, `score_bounds: Metric` (unit percent), `configuration_key` | the four score states below; exact or bounded score; configuration identity |
+| `ScoreComponentResult` | `status: ScoreComponentStatus`, `declared_weight`, `normalized: Metric` (unit fraction) | why the component is (not) scored; the user's weight; its value in [0, 1], KNOWN or BOUNDED |
+| `RankedScenario` | `score_status`, `score_bounds`, `data_basis` | same score semantics as `ScoreBreakdown` |
+| `RankingResult` | `data_basis: DataBasis`, `policy: ComparabilityPolicy` | the single data basis and the policy of this ranking |
+| `DataQualitySummary` / `ViabilityAssessment` | `data_basis` (property) | derived, not stored (D6) |
+| `ViabilityAssessment` | `comparability_key(policy)` | entries may share a ranking only if their keys are equal (D7) |
+| `MissionScenario` | `score_component_status(c)`, `effective_score_weights()`, `configuration_key()` | configuration-only scoring metadata (D5, D7) |
+
+New enums: `ScoreStatus`, `ScoreComponentStatus`, `DataBasis`, `ComparabilityPolicy`. A legacy
+`ScoreBreakdown` (no `status`) keeps its Phase 1 meaning and can't be ranked by the Phase 5 rules.
+
+### Score states (enforced)
+
+| `status` | `score` | `score_bounds` | When |
+|---|---|---|---|
+| `known` | exact value, rounded to 6 decimals | KNOWN, same value | every ACTIVE component is KNOWN |
+| `bounded` | **null** | BOUNDED `[lower, upper]`, rounded **outward** to 6 decimals | some ACTIVE component is only bounded |
+| `eligibility_unknown` | null | null | eligibility is UNKNOWN (D4) |
+| `no_scorable_components` | null | null | eligibility is PASS or FAIL and no component is ACTIVE (D5) |
+
+A conservative lower bound is **never** written into `score`. Validators check: KNOWN score = 100·Σ
+ŵ·v within 1e-6; BOUNDED bounds = 100·Σ ŵ·v_lo and 100·Σ ŵ·v_hi, rounded outward; ACTIVE weights =
+declared / Σ declared over ACTIVE; components listed once each, in `ScoreComponent` order.
+
+### D1. Solar component
+
+`SUNLIGHT` v = `mean_solar_disk_fraction`, the time-mean visible fraction of the solar disk, in
+[0, 1]. **It is an illumination proxy, not solar electrical energy:** it ignores array orientation and
+incidence angle, efficiency, temperature, dust and the power system, and it does not apply the panel
+threshold (`solar_power_min_disk_fraction`, which enters only through `SIMULTANEOUS` and
+`DARKNESS_MARGIN`). `EARTH_VISIBILITY` v = `earth_visible_percent / 100`; `SIMULTANEOUS` v =
+`simultaneous_percent / 100`. Metric KNOWN → exact; BOUNDED → its bounds; UNAVAILABLE → [0, 1].
+
+### D2. Outage margins
+
+For `DARKNESS_MARGIN` / `BLACKOUT_MARGIN`, with limit `t` (seconds) and Phase 4A margin interval
+`[m_lo, m_hi]` (`m = t − D`, `D` = longest outage within the mission):
+
+```
+g(m) = min(1, max(0, m / t)) = clamp(1 − D/t, 0, 1)      # share of the limit left unused
+normalized = [g(m_lo), g(m_hi)]                           # g is monotone non-decreasing
+```
+
+- **Missing requirement** (limit unset, margin NOT_APPLICABLE): the component is `not_configured`
+  and excluded (D5). No reference value is invented.
+- **Zero threshold:** impossible; both limits are `PositiveDurationS` (rescue: `gt=0`). Scoring
+  raises `ValueError` for `t ≤ 0` or a non-finite `t`. Minimum-requirement margins are not score
+  components, so a zero minimum never enters the score.
+- **Negative margin:** clamps to 0 at that bound. A FAIL keeps a descriptive score, but the clamp
+  hides how far the limit was missed (rescue reads that from `relative_shortfall`).
+- **Missing data:** a bounded margin is an interval. An UNAVAILABLE metric gives `m ∈ [t − |R|, t]`,
+  i.e. v ∈ `[max(0, 1 − |R|/t), 1]`.
+- **Outage already in progress at landing:** the margin is mission-scoped and used as is. Landing
+  in darkness is a risk indicator (§5d), not a score input.
+
+### D3. Uncertainty
+
+A component is KNOWN when its normalized lower and upper values are exactly equal (after the
+clamp), otherwise BOUNDED (`lower < upper`). With `ŵ` the effective weights (D5):
+`S_lo = 100·fsum(ŵ·v_lo)`, `S_hi = 100·fsum(ŵ·v_hi)` in enum order. All ACTIVE components KNOWN →
+`known`; otherwise `bounded` (table above). The true score lies in `[S_lo, S_hi]` for every value
+consistent with the evidence. The bounds are valid but not necessarily tight: they treat components
+as independent and ignore relations such as simultaneous ≤ min(power-lit, Earth visible).
+`normalized_value` and `contribution` are filled only for KNOWN components. Missing measurements
+never remove a component; they widen the bounds.
+
+### D4. Score by eligibility
+
+- **UNKNOWN** → `score = null`, `score_bounds = null`, `status = eligibility_unknown`,
+  `rank_eligible = false`. Components keep their weights, with no normalized values. Enforced on
+  `ViabilityAssessment` for every producer, including legacy breakdowns.
+- **FAIL** → may carry a descriptive score (`known` or `bounded`), never rank-eligible, never ranked.
+- **PASS** → scored. A PASS with a `bounded` score keeps `score = null` and its interval; a PASS
+  with `no_scorable_components` has no number at all. Neither is given an artificial value. Their
+  place in a ranking follows D8.
+- Scoring reads eligibility only to withhold the score for UNKNOWN. It never changes PASS / FAIL /
+  UNKNOWN (§5c), and `rank_eligible == (eligibility == pass)` is still enforced.
+
+### D5. Weights from configuration only
+
+Component status, checked in this order: `unsupported` (CLEARANCE_MARGIN: clearance is not evaluable,
+§5c, and mean clearance is never a stand-in) → `not_configured` (DARKNESS / BLACKOUT without their
+limit) → `zero_weight` → `active`. Effective weights `ŵ_c = w_c / Σ_active w` (computed after
+scaling by the largest active weight, so huge weights cannot overflow), 0 for the others; all zero
+when nothing is active (`no_scorable_components`). The status and weights depend only on the
+preferences, spacecraft limits and engine version, **never on measurements**, so every scenario with
+the same configuration has the same weights. The user's weights are kept as given
+(`declared_weight`); a positive clearance weight is accepted but stays `unsupported`.
+Defaults: sunlight 1, Earth 1, simultaneous 0, darkness 1, blackout 1, clearance **0** (was 0.5).
+With both outage limits set (every rescue scenario), the four active components weigh ¼ each.
+
+### D6. Data basis (never mixed)
+
+`data_basis` = `synthetic` if `provenance.is_synthetic`; otherwise `real_geometric_only` if
+`calculation_basis = geometric_only`; otherwise `real_terrain_aware`. A ranking has exactly one data
+basis (`RankingResult.data_basis`, enforced on every entry). No policy can put synthetic and real
+scenarios, or real terrain-aware and real geometric-only scenarios, into one ranking, **including in
+rescue's simulation mode**. Synthetic scores are computed the same way and their note starts with
+`[SYNTHETIC DATA]`.
+
+### D7. Comparability
+
+`ViabilityAssessment.comparability_key(policy)` = (data basis, `method_version`, exact effective
+weights as rationals from `ScoreBreakdown.weights_signature()`), plus `configuration_key` under
+`strict`. Rationals make the comparison exact and scale-invariant (1:1 equals 2:2).
+
+| Policy | Must match | Use |
+|---|---|---|
+| `strict` (**default**) | data basis, method, effective weights, `configuration_key` | ordinary ranking |
+| `same_method_and_weights` (explicit opt-in) | data basis, method, effective weights | ranking scenarios with different requirements or durations; scores then do not express the same requirement set, and `RankingResult.policy` records the choice |
+
+`configuration_key` = `"sha256:"` + SHA-256 of canonical JSON (sorted keys, no whitespace, numbers
+as floats, `-0.0` → `0.0`) of: key version; mission duration in integer microseconds; the
+spacecraft's power source, communication mode, both outage limits and panel threshold; and every
+`MissionRequirements` field except the inert `unknown_data_policy`. It ignores scenario id, name,
+site, start time, spacecraft name and preferences. Assessments with different keys can still be
+shown side by side, grouped by key, but their scores are not ranked against each other.
+
+### D8. Ranking order and missing scores
+
+Tiers stay PASS, then UNKNOWN, then FAIL (§5); only PASS entries get ranks 1..n. Within each tier,
+sort ascending by these keys (the last key is unique, so the order is total and independent of the
+input order):
+
+| Tier | Keys, in order |
+|---|---|
+| PASS | 1. scored before unscored (`no_scorable_components` last); 2. **score lower bound descending** (exact score for `known`, `score_bounds.lower` for `bounded`); 3. `known` before `bounded`; 4. `overall_risk`: low < moderate < high < unknown; 5. min(`sun_coverage_percent`, `earth_coverage_percent`) descending; 6. `scenario_id` ascending (code-point order) |
+| UNKNOWN | 1. number of UNKNOWN constraints ascending; 2. min coverage descending; 3. `scenario_id` ascending |
+| FAIL | 1. number of FAIL constraints ascending; 2. number of UNKNOWN constraints ascending; 3. scored before unscored, then score lower bound descending; 4. `overall_risk` as above; 5. `scenario_id` ascending |
+
+- Ordering a bounded score by its lower bound is a documented **conservative ordering policy**: the
+  entry still shows `score = null` and its `score_bounds`, so the bound is never presented as the score.
+- Scores are compared exactly on the stored, rounded values, never with a tolerance (approximate
+  equality is not transitive).
+- **Risk is a tie-breaker only** and never changes a score. UNKNOWN sorts after HIGH because its worst
+  case is HIGH, so on a tie the evidence-backed result goes first.
+- `RankingResult` enforces PASS keys 1–3 from its own entries. Keys 4–6 need the assessments and are
+  tested in 5B.
+
+### Phase 5 limitations
+
+The score is a relative desirability index for illumination and line-of-sight geometry under the
+stated preferences. It is not a probability, a power or energy estimate, a radio-link estimate or a
+landing-safety rating, and it never replaces the hard-constraint verdicts.
+
+## 5f. Phase 5 integration: scoring, ranking and `evaluate_scenario`
+
+`evaluate_scenario(scenario, series)` is pure and deterministic and runs, in this order:
+`analyze_scenario` (Phase 2) → `build_constraint_assessment` (Phase 3) → `margins_from_assessment`
+(4A) → `assess_risks` and `overall_risk` (4B) → `score_scenario` (5A, given the Phase 3 eligibility
+and the data basis). The result is one `ViabilityAssessment`. **Ranking is a separate, explicit
+step**: `rank_assessments(list_of_assessments)` (5B, also importable from `scoring`). Scoring and
+ranking only read earlier results. They never change eligibility, a metric, a margin or a risk
+level (tested by evaluating one scenario under different preferences: everything but the score is
+identical, and by snapshotting assessments around a ranking).
+
+### Scoring formulas and normalization
+
+Score = `100 · Σ ŵ_c · v_c` over the ACTIVE components, each `v_c ∈ [0, 1]`:
+
+| Component | Normalized value `v` |
+|---|---|
+| `sunlight` | `mean_solar_disk_fraction` (an illumination proxy, **not** energy) |
+| `earth_visibility` | `earth_visible_percent / 100` |
+| `simultaneous` | `simultaneous_percent / 100` (default weight 0) |
+| `darkness_margin` | `clamp(margin / max_continuous_darkness_s, 0, 1)` |
+| `blackout_margin` | `clamp(margin / max_communication_blackout_s, 0, 1)` |
+| `clearance_margin` | unsupported; never part of a score |
+
+Percent metrics are time-weighted over the whole mission, so a missing hour is never counted as 0 and
+nothing is counted twice: each fact enters through exactly one component.
+
+### Effective scoring weights
+
+`ŵ_c = w_c / Σ_active w`, from the scenario configuration only (D5): a component is ACTIVE unless it
+is unsupported, has no configured outage limit, or has weight 0. Missing data never removes a
+component or changes a weight; it widens the interval. With both outage limits set and the default
+preferences, the four active components weigh ¼ each. Different weights give different scores, so
+rankings require identical effective weights (rationals, scale-invariant).
+
+### Score uncertainty: exact versus bounded
+
+- **Exact** (`status = known`): `score` is a number rounded to 6 decimals, and `score_bounds` is KNOWN with the
+  same value (a `value`, no interval).
+- **Bounded** (`status = bounded`): `score` is **null**; `score_bounds` is `[lower, upper]`, rounded **outward**
+  (lower down, upper up) to the 6-decimal grid. The true score is inside for every value consistent with the
+  evidence; the bounds are valid but not necessarily tight.
+- **Unavailable**: `eligibility_unknown` (score withheld, D4) or `no_scorable_components`: no number at all.
+
+A lower bound is never written into `score` and must never be displayed as "the score".
+
+### Configuration fingerprints
+
+`configuration_key` (`sha256:` of canonical JSON, D7) identifies what a score was measured against:
+mission duration, power source, communication mode, both outage limits, panel threshold and every hard
+requirement. It ignores id, name, site, start time and preferences. Under the default `strict` policy
+only equal fingerprints are ranked together; different fingerprints raise
+`RankingComparabilityError` (use `partition_comparable` to group them). `same_method_and_weights` is an
+explicit opt-in that drops the fingerprint and duration check (data basis, method and weights must still match).
+
+### Eligibility-aware ranking and deterministic tie-breakers
+
+Tiers are PASS, then UNKNOWN, then FAIL; only PASS entries get ranks, so a failing scenario can never
+outrank a passing one, whatever its score. Within PASS the keys are (D8): scored before unscored; score
+**lower bound** descending; `known` before `bounded`; risk (low < moderate < high < unknown); minimum of sun and
+Earth coverage descending; `scenario_id`. All keys compare stored values exactly and the last key is
+unique, so the order is total and independent of the input order (tested with shuffled inputs).
+Risk therefore only breaks ties and never changes a score; a higher score beats a lower risk level.
+
+### Conservative ordering of bounded scores
+
+A bounded score is ordered by its **lower bound**. This is a **conservative ordering policy**, not an
+estimate: it says "even in the worst case consistent with the evidence this scenario scores at least this
+much", which avoids ranking a scenario first because of an optimistic unknown. It is **not** a point
+estimate, midpoint or expected value; the entry keeps `score = null`, `score_status = bounded` and its full
+`score_bounds`. An exact score equal to a bounded lower bound ranks ahead of it (key 3). The ordering can
+place a bounded `[90.8, 100]` scenario below an exact 94.2 and above an exact 72.5; consumers must show
+the interval, not a number.
+
+### Data quality and synthetic-data separation
+
+`data_basis` (real terrain-aware, real geometric-only, synthetic) is derived from the series provenance
+and calculation basis, never chosen by the caller. Rankings never mix bases, under any policy, including
+rescue's simulation mode. Synthetic scores are computed the same way but their note starts with
+`[SYNTHETIC DATA]`. A mission outside the real coverage is UNKNOWN (never scored); rescue reports
+`no-real-data` unless simulation is explicitly switched on, and then labels the result
+`synthetic-placeholder`.
+
+### Scientific limitations
+
+- The score is a relative index of illumination and line of sight under the stated preferences; it is not
+  power, energy, link quality, landing safety or probability. The Sun term uses the disk fraction, so
+  geometry such as sun angle or array orientation is ignored.
+- Real results inherit the terrain and horizon pipeline. Generator 1.2's finer terrain tiers changed Malapert's
+  sunlight from 82.6 % to 77.1 %: scores and ranks on real sites **shift whenever Member 1 regenerates the
+  data**, and any stored score must carry the data version (`provenance.generator`, `dataset_id`).
+- The bounds treat components as independent, so they can be wider than necessary.
+- Normalizing margins by the outage limit means a 10 h margin is worth more against a 24 h limit than a 400 h
+  one. Weights are user preferences, not physics.
+- Eligibility uses the hard constraints only; a high score does not make an ineligible scenario acceptable.
+- Clearance (terrain-skyline margin) is not scored yet (§5c, item 10).
+
+### How consumers should interpret and display results
+
+1. Show eligibility first (PASS / FAIL / UNKNOWN); show a rank only when there is one.
+2. Show `score` only when `score_status = known`. For `bounded` show the interval (for example "between
+   90.8 and 100") and say the order uses the lower bound; never print the lower bound alone as the score.
+3. For `eligibility_unknown` and `no_scorable_components` show "not scored" with the reason.
+4. Always show `data_basis`; label synthetic results as simulation. Never put results with different data
+   bases or configuration fingerprints into one table without grouping them.
+5. Show risk separately from the score. `explanations` is empty until Phase 6; do not render an empty
+   explanation as "no concerns".
+
+Code: `evaluate_scenario` in `engine.py`, scoring in `scoring.py`, ranking in `ranking.py`; tests in
+`test_phase5_integration.py` (whole pipeline on the four real sites, synthetic exact, bounded and unavailable cases,
+data-basis separation, tie-breaking, mutation, rounding) next to `test_scoring_phase5.py`, `test_ranking_phase5.py`
+and `test_real_sites_phase5_scoring.py`.
 
 ## 6. Assumptions and limitations
 
@@ -976,8 +1255,8 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 | 2 ✅ | Windows, durations, percentages, longest outages, bounded metrics, coverage gaps (§5b) |
 | 3 ✅ | Constraint evaluation with unknown-data policy; coverage-aware bounds; eligibility (§5c) |
 | 4 ✅ | Operational margins with bounds and classes; rule-based risk indicators (§5d); clearance margins pending item 10 |
-| 5 | Normalised, explainable score; ranking |
-| 6 | Assembled `ViabilityAssessment`; explanation text |
+| 5 ✅ | Normalised, explainable score (5A); eligibility-aware ranking (5B); integrated into `evaluate_scenario` (§5e, §5f) |
+| 6 | Explanation text (`explanations` is empty until then); the assembled `ViabilityAssessment` itself exists since Phase 5 |
 | 7 | Real-data tests with Member 1 output; validation with Member 6; FastAPI endpoint wiring |
 
 ## 10. Remaining integration decisions
@@ -990,7 +1269,12 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 
 **Open, with Member 1 (Andrew):**
 1. **Lunar body-fixed frame: stated by Member 1, not independently verified here.** Andrew documents (docs/data-sources.md, `meta.frame`) that sites, Horizons and LOLA are all Moon **Mean-Earth/polar-axis (ME)**. His engine refuses any Horizons response whose `Center pole/equ` header is not `MEAN_ME`. The LOLA side rests on product documentation (MOON_ME, DE421), and he notes a metre-level DE421 vs DE441 residual. That is a code-level check on the ephemeris side, which the viability engine has not repeated. We record the statement in `provenance.coordinate_frame`, label it "not independently verified", and make no stronger claim. Member 6 may want an independent check (e.g. one Horizons header plus the DEM product metadata).
-2. ~~Precision~~ **done in format 1.1** (6 decimals + `sun_visible`); one residual sub-precision sliver hour is handled (§3a).
+2. ~~Precision~~ **done in format 1.1** (6 decimals + `sun_visible`); sub-precision sliver hours are handled (§3a).
+   **Done in generator 1.2 (origin/main `2e33678`):** every 1.2 file carries `meta.fraction_decimals` (6) and
+   `meta.angle_decimals` (3). The adapter prefers `meta.fraction_decimals` (strict integer 0–17, else
+   `SiteFileError`), falls back to the version table for older files (1.0 → 3, 1.1 → 6), and records
+   `angle_decimals` in `provenance.notes` (the input contract has no angle-precision field, so no shared
+   contract was changed). The engine never invents this metadata.
 3. ~~Angular radius / generation metadata~~ **done in format 1.1** (`sun_angular_radius_deg`, `generated_utc`, `generator_version`); all carried by the adapter.
 4. ~~Nullable shared `TimelineStep`~~ **done** (Andrew: `null` = unknown for custom sites; the adapter maps it to `unknown`). Curated sites contain no nulls.
 5. Is one observer height enough, or are separate solar-array and antenna heights needed?
@@ -1029,5 +1313,5 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
     minimums at scenario construction.
 
 **With Members 3/4/5:** the field names above; whether `windows[]` should be paginated or
-down-sampled for long missions (a full 2-year analysis yields 300–600 windows per site); and whether failed scenarios should be scored, so rescue can
-show the closest misses (currently allowed but unranked).
+down-sampled for long missions (a full 2-year analysis yields 300–600 windows per site). *Resolved in C0:* failed
+scenarios may carry a descriptive score but are never ranked; UNKNOWN eligibility is never scored (§5e, D4).
