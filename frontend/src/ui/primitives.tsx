@@ -2,9 +2,9 @@
 // Presentation only: no data fetching, no scientific logic. See docs/design-system.md.
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
+import { buttonClass, cx, type ButtonVariant } from './classes'
 import { AlertIcon, CheckIcon, CrossIcon, InfoIcon, UnknownIcon } from './icons'
 
-const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(' ')
 
 // ---------------------------------------------------------------- panels
 
@@ -68,12 +68,12 @@ export function Value({ value, unit, digits = 1, className, unavailableReason = 
 
 export type Status = 'ok' | 'warn' | 'crit' | 'unknown' | 'info'
 
-const STATUS_STYLE: Record<Status, { text: string; border: string; Icon: typeof CheckIcon }> = {
-  ok: { text: 'text-ok', border: 'border-ok/40', Icon: CheckIcon },
-  warn: { text: 'text-warn', border: 'border-warn/40', Icon: AlertIcon },
-  crit: { text: 'text-crit', border: 'border-crit/40', Icon: CrossIcon },
-  unknown: { text: 'text-unknown', border: 'border-line-strong', Icon: UnknownIcon },
-  info: { text: 'text-accent', border: 'border-accent/40', Icon: InfoIcon },
+const STATUS_STYLE: Record<Status, { text: string; border: string; bar: string; Icon: typeof CheckIcon }> = {
+  ok: { text: 'text-ok', border: 'border-ok/40', bar: 'border-l-ok', Icon: CheckIcon },
+  warn: { text: 'text-warn', border: 'border-warn/40', bar: 'border-l-warn', Icon: AlertIcon },
+  crit: { text: 'text-crit', border: 'border-crit/40', bar: 'border-l-crit', Icon: CrossIcon },
+  unknown: { text: 'text-unknown', border: 'border-line-strong', bar: 'border-l-unknown', Icon: UnknownIcon },
+  info: { text: 'text-accent', border: 'border-accent/40', bar: 'border-l-accent', Icon: InfoIcon },
 }
 
 /** Labelled metric: small label on top, value below, optional status and note. */
@@ -138,8 +138,7 @@ export function Callout({ status = 'info', title, children, className }: {
   const s = STATUS_STYLE[status]
   return (
     <div role={status === 'crit' || status === 'warn' ? 'alert' : undefined}
-      className={cx('flex gap-2 rounded-panel border border-l-2 bg-inset px-3 py-2 text-body text-ink-2', s.border, className)}
-      style={{ borderLeftColor: 'currentColor' }}>
+      className={cx('flex gap-2 rounded-panel border border-l-2 bg-inset px-3 py-2 text-body text-ink-2', s.border, s.bar, className)}>
       <s.Icon size={14} className={cx('mt-0.5 shrink-0', s.text)} />
       <div className="min-w-0">
         {title && <div className={cx('font-medium', s.text)}>{title}</div>}
@@ -151,33 +150,10 @@ export function Callout({ status = 'info', title, children, className }: {
 
 // ---------------------------------------------------------------- controls
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
-
-const BUTTON: Record<ButtonVariant, string> = {
-  primary: 'border-accent bg-accent text-canvas hover:bg-accent-strong hover:border-accent-strong',
-  secondary: 'border-line-strong bg-raised text-ink-2 hover:border-ink-4 hover:text-ink',
-  ghost: 'border-transparent bg-transparent text-ink-2 hover:bg-raised hover:text-ink',
-  danger: 'border-line-strong bg-raised text-ink-2 hover:border-crit hover:text-crit',
-}
-
-/** Class string for button-like elements (links, labels) that cannot use <Button>. */
-export const buttonClass = (variant: ButtonVariant = 'secondary', size: 'sm' | 'md' = 'sm') =>
-  cx(
-    'inline-flex items-center justify-center gap-1.5 rounded-control border font-medium transition-colors',
-    'disabled:cursor-not-allowed disabled:opacity-40',
-    size === 'sm' ? 'h-7 px-2.5 text-label' : 'h-8 px-3 text-body',
-    BUTTON[variant],
-  )
-
 export function Button({ variant = 'secondary', size = 'sm', className, type = 'button', ...rest }:
   ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: 'sm' | 'md' }) {
   return <button type={type} className={cx(buttonClass(variant, size), className)} {...rest} />
 }
-
-/** Shared class for text inputs, number inputs, date inputs and selects. */
-export const inputClass =
-  'h-8 w-full rounded-control border border-line-strong bg-inset px-2 text-body text-ink nums ' +
-  'placeholder:text-ink-4 hover:border-ink-4 focus:border-accent focus:outline-none disabled:opacity-50'
 
 /** Label + control + optional hint, stacked. */
 export function Field({ label, hint, children, className }: { label: ReactNode; hint?: ReactNode; children: ReactNode; className?: string }) {
