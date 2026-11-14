@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import type { Horizon, TimelineStep } from '../types'
 import { skyRange, skyXY, sunUp } from './timeline'
 
@@ -39,12 +39,16 @@ export function SkyPlot({
   steps,
   current,
   windowLabel,
+  suppressTip = false,
 }: {
   horizon: Horizon | null
   steps: TimelineStep[]
   current: TimelineStep | null
   windowLabel: string
+  suppressTip?: boolean // hide the hover note (e.g. while the panel is being dragged)
 }) {
+  const [tip, setTip] = useState<{ x: number; y: number } | null>(null) // cursor position
+  const [focused, setFocused] = useState(false)
   const [topEl, bottomEl] = useMemo(() => skyRange(horizon?.elevation_deg, steps), [horizon, steps])
   const pt: Pt = useMemo(
     () => (az, el) => skyXY(az, el, R, topEl, bottomEl).map((v) => C + v) as [number, number],
@@ -64,7 +68,15 @@ export function SkyPlot({
   for (let el = Math.ceil(bottomEl / ringStep) * ringStep; el < topEl; el += ringStep) if (el > bottomEl) rings.push(el)
 
   return (
-    <figure className="group relative m-0 flex justify-center rounded-2xl outline-offset-4" tabIndex={0} aria-label="Mini map: sky from the lander. Hover or focus for details.">
+    <figure
+      className="relative m-0 flex justify-center rounded-2xl outline-offset-4"
+      tabIndex={0}
+      aria-label="Mini map: sky from the lander. Hover or focus for details."
+      onPointerMove={(e) => setTip({ x: e.clientX, y: e.clientY })}
+      onPointerLeave={() => setTip(null)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+    >
       <svg width={SIZE} height={SIZE} role="img" aria-label="Sky plot: terrain horizon with Sun and Earth paths">
         <circle cx={C} cy={C} r={R} fill="#05080f" stroke={COLORS.grid} />
         {/* neutral outline, so the yellow Sun path (which often hugs the skyline) stays distinct */}
@@ -117,7 +129,14 @@ export function SkyPlot({
       </svg>
       <figcaption
         role="tooltip"
-        className="pointer-events-none absolute right-full top-0 z-10 mr-3 w-60 rounded-xl bg-calcite-ink/95 px-3 py-2 text-[11px] leading-snug text-opal-50 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 group-focus:opacity-100"
+        className={`pointer-events-none fixed z-50 w-60 rounded-xl bg-calcite-ink/95 px-3 py-2 text-[11px] leading-snug text-opal-50 transition-opacity duration-150 ${
+          !suppressTip && (tip || focused) ? 'opacity-100' : 'opacity-0'
+        }`}
+        style={
+          tip
+            ? { left: Math.min(tip.x + 14, window.innerWidth - 252), top: Math.min(tip.y + 18, window.innerHeight - 90) }
+            : { right: 'calc(var(--lp-side-w, 320px) + 4vw + 12px)', top: 110 }
+        }
       >
         Sky from the lander · grey = terrain · <span style={{ color: COLORS.sun }}>Sun</span> /{' '}
         <span style={{ color: COLORS.earth }}>Earth</span> paths {windowLabel} (dashed = blocked) · centre {topEl}°, rim{' '}
