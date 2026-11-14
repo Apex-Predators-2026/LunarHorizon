@@ -482,3 +482,30 @@
   to { opacity: 0; transform: translateX(-50%) scale(0.9) translateY(4px); }
 }
 .md-menu-out { animation: md-menu-out var(--md-dur-short3) var(--md-ease-emph-accel) both; }
+
+/* The bottom panel's slide away / back is a spatial cue the user asked for, so it keeps a gentle
+   transition even when the OS reports "reduce motion" (e.g. Windows animations switched off). */
+@media (prefers-reduced-motion: reduce) {
+  .md-slide {
+    transition-duration: 300ms !important;
+  }
+}
+
+/* Drop pin armed: the cursor is a location pin (tip = hot spot). */
+.pin-cursor,
+.pin-cursor canvas {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 24 24'%3E%3Cpath d='M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' fill='%23ff634a' stroke='white' stroke-width='1.2'/%3E%3C/svg%3E") 16 30, crosshair !important;
+}
+
+/* M3 snackbar motion: enters sliding down-in with a fade, leaves with a quick fade. */
+@keyframes md-snack-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes md-snack-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.md-snack-in { animation: md-snack-in var(--md-dur-medium2) var(--md-ease-emph-decel) both; }
+.md-snack-out { animation: md-snack-out var(--md-dur-short3) var(--md-ease-standard-accel) both; }
+.md-snack-close::before { background: currentColor; }
