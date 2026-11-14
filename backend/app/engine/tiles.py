@@ -30,11 +30,14 @@ FACE_EDGE_M = np.pi / 2 * MOON_RADIUS_M  # arc length of a face edge
 MAX_ZOOM = 13  # ~5 m vertex spacing, matches the 5 m polar DEMs
 
 
-def tile_uv(z: int, x: int, y: int, n: int = N):
-    """Face coordinates u, v in [-1, 1] of the tile's vertex grid, shape (n, n), indexed [j, i]."""
+def tile_uv(z: int, x: int, y: int, n: int = N, pad: int = 0):
+    """Face coordinates u, v of the tile's vertex grid, shape (n + 2 pad)^2, indexed [j, i].
+    `pad` adds that many rings of vertices outside the tile (the neighbours' first rows), so a
+    client can compute normals at the tile's edges that match the neighbouring tile exactly."""
     size = 2.0 / 2**z
-    u = -1 + size * (x + np.linspace(0, 1, n))
-    v = -1 + size * (y + np.linspace(0, 1, n))
+    k = np.arange(-pad, n + pad) / (n - 1)
+    u = -1 + size * (x + k)
+    v = -1 + size * (y + k)
     return np.meshgrid(u, v)  # U[j, i] = u_i, V[j, i] = v_j
 
 
@@ -54,8 +57,8 @@ def vec_to_latlon(p):
     return lat, lon
 
 
-def tile_latlon(face: int, z: int, x: int, y: int, n: int = N):
-    U, V = tile_uv(z, x, y, n)
+def tile_latlon(face: int, z: int, x: int, y: int, n: int = N, pad: int = 0):
+    U, V = tile_uv(z, x, y, n, pad)
     return vec_to_latlon(uv_to_vec(face, U, V))
 
 
@@ -95,12 +98,15 @@ def validate_tile(face: int, z: int, x: int, y: int) -> None:
         raise ValueError(f"No such tile: face {face}, level {z}, x {x}, y {y}")
 
 
-def tile_heights(face: int, z: int, x: int, y: int, n: int = N) -> np.ndarray:
-    """Heights (m, relative to the 1737.4 km sphere) of the tile's n x n vertices, float32,
-    row-major [j, i]. Missing data (should be rare) is filled with the tile's mean, or 0."""
+def tile_heights(face: int, z: int, x: int, y: int, n: int = N, pad: int = 0) -> np.ndarray:
+    """Heights (m, relative to the 1737.4 km sphere) of the tile's vertices, float32, row-major
+    [j, i]: n x n, or (n + 2 pad)^2 with `pad` rings of the neighbours' vertices around it (the
+    inner n x n are identical either way). Missing data (should be rare) is filled with the
+    tile's mean, or 0."""
     validate_tile(face, z, x, y)
-    lat, lon = tile_latlon(face, z, x, y, n)
-    h = sample_latlon(lat.ravel(), lon.ravel(), vertex_spacing_m(z, n)).reshape(n, n)
+    lat, lon = tile_latlon(face, z, x, y, n, pad)
+    m = n + 2 * pad
+    h = sample_latlon(lat.ravel(), lon.ravel(), vertex_spacing_m(z, n)).reshape(m, m)
     if np.isnan(h).any():
         h = np.where(np.isnan(h), np.nanmean(h) if not np.isnan(h).all() else 0.0, h)
     return h.astype(np.float32)

@@ -137,10 +137,11 @@ Nothing is recalculated in the browser except placing objects at the given azimu
 |---|---|---|
 | No atmosphere: geometric line of sight, no refraction | None; the Moon has no atmosphere | Exact |
 | Frame: everything in Mean-Earth (ME) | Checked: Horizons header and LOLA docs | Guarded in code |
+| Earth's libration (its wobble in the lunar sky) | Included: Horizons gives the apparent direction from the site in the Moon-fixed frame, so the Moon's physical and optical libration move Earth about ±7–8° around its mean position each month (in our data its elevation swings 13.5° at Connecting Ridge, −7.4° to +6.1°, and 15.2° at Apollo 11). This is why Earth rises and sets at the south pole | Exact (part of the ephemeris) |
 | Terrain: LOLA via Moon Trek at 5 m (to 5 km), 30 m (to 45 km), 200 m resampled (to ~294 km) | Small features below the resolution are smoothed | Coarser tiers matter most at grazing angles |
 | Terrain beyond ~294 km ignored | The Moon's curvature drops it ≥ 25 km below the eye line | Negligible |
 | Horizon every 0.5° of azimuth, linear between | Narrow notches or peaks can be missed | ≤ 0.25° in azimuth |
-| Straight lines on the map instead of great circles | Measured in check 2 | ≤ 0.005° |
+| Horizon rays along great circles (since 1.2; earlier versions used straight lines on the polar map) | The old method agrees to 0.001–0.046° at 12 polar sites (check 2) | Exact geometry |
 | One sensor height, 2 m above ground | Real panels and antennas sit higher or lower | Use the same height everywhere until a mission config needs more |
 | Solar disk vs a flat skyline across its 0.53° width | Disk fraction slightly off when the skyline is steep under the Sun | Small; only affects partial-Sun hours |
 | Earth = its centre point (visible if the centre clears the terrain) | Earth is ~1.9° wide; partly visible Earth counts as blocked or visible by its centre | Margin column lets users add their own buffer |
@@ -148,6 +149,7 @@ Nothing is recalculated in the browser except placing objects at the given azimu
 | Hourly samples | Rise/set times known to ±30 min | Fine for planning; finer steps on request |
 | Data covers 2027-01-01 to 2029-01-01 | Dates outside this range have no real data | Other dates need a re-run of `precompute.py` |
 | Unknown terrain (custom sites only) is `null`, never guessed | Some hours can be "unknown" | Curated sites: 0% unknown |
+| 3D view: terrain casts shadows only within ~6 km of the lander (one shadow map; none in the Low graphics setting) | Farther terrain is shaded by its slope but casts no shadows, so distant ground can look lit when it is in shadow | Display only: the numbers, the lander's lighting and the skyline use the engine's full 300 km horizon |
 | Sunlight % at one point | Sharp edges make single points sensitive to tens of metres | See check 3: quote to about ±10 points |
 
 ## Suggested follow-ups (for the validation member)
