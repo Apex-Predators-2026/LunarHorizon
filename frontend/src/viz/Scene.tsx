@@ -29,6 +29,7 @@ import { MiniMapPanel } from './MiniMapPanel'
 import { MissionPanel } from './MissionPlayback'
 import { useMissionPlayback } from './useMissionPlayback'
 import { SnackbarHost } from './Snackbar'
+import { TooltipHost } from './TooltipHost'
 import { showSnackbar } from './snackbarStore'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
@@ -79,6 +80,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   // The side panels cover the right of the view: shift the picture so the Moon/lander sits in the
   // middle of the free area to their left (half the panels' width, re-measured on resize).
   const sideRef = useRef<HTMLDivElement>(null)
+  const [cameraReset, setCameraReset] = useState(0)
   const readoutRef = useRef<HTMLDivElement>(null)
   const scaleBarRef = useRef<HTMLDivElement>(null)
   const scaleLabelRef = useRef<HTMLDivElement>(null)
@@ -275,6 +277,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           siteId={siteId}
           maxTerrainHeight={maxTerrainHeight}
           moonCentre={frame?.moonCentre ?? null}
+          resetKey={cameraReset}
         />
         <ScreenLabels
           moonCentre={frame?.moonCentre ?? null}
@@ -322,7 +325,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           ref={siteLabelRefs.get(x.id)}
           type="button"
           onClick={() => setSite(x.id)}
-          title={`${x.name}${x.approximate ? ' (approximate coordinates)' : ''}: click to select`}
+          data-tip={`${x.name}${x.approximate ? ' (approximate coordinates)' : ''}: click to select`}
           className="absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 px-1.5 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800"
           style={{ borderColor: KIND_COLOR[x.kind ?? 'custom'] ?? KIND_COLOR.custom }}
         >
@@ -348,6 +351,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         style={{ fontFamily: 'var(--font-inter)' }}
       >
         <SnackbarHost />
+        <TooltipHost />
         <div
           className="pointer-events-none absolute bottom-2 right-[4vw] flex flex-col items-end gap-1 text-[10px] tabular-nums text-white"
           style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
@@ -387,6 +391,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
               timeUtc={timeUtc}
               view={view}
               onView={setView}
+              onGoToView={() => setCameraReset((n) => n + 1)}
               graphics={graphicsQuality}
               onGraphics={setGraphicsQuality}
               farShadows={farShadows && gfx.shadows}
@@ -424,7 +429,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
               type="button"
               onClick={() => setBarHidden(false)}
               aria-label="Show timeline panel"
-              title="Show timeline"
+              data-tip="Show timeline"
               className="md-pop pointer-events-auto absolute bottom-1 left-1/2 flex h-9 w-12 items-center justify-center text-white transition-opacity hover:opacity-70"
             >
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
