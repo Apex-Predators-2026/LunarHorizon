@@ -85,7 +85,7 @@ class Robustness(BaseModel):
     checked_points: int
     passing_points: int
     pass_rate: float
-    worst_score: float
+    worst_score: float | None = Field(description="Lowest score among the checks; None if none was scored")
     verdict: Literal["robust", "sensitive", "fragile"]
     note: str
 
@@ -96,7 +96,7 @@ class Alternative(BaseModel):
     is_catalog_site: bool
     scenario: Scenario
     viability: ViabilityResult
-    rank_score: float
+    rank_score: float | None = Field(description="Score + adjustments; None for an unscored result (ranked after scored ones)")
     date_shift_hours: float = Field(description="Relative to the delayed (changed) landing time")
     distance_km: float = Field(description="Distance from the original landing site")
     improvements: list[MetricDelta] = Field(description="Compared with the changed (broken) plan")
@@ -175,7 +175,7 @@ class SensitivityPoint(BaseModel):
     lat: float
     lon: float
     passes: bool
-    score: float
+    score: float | None
     failing_constraints: list[str]
 
 
@@ -186,8 +186,8 @@ class SensitivityResponse(BaseModel):
     position_pass_rate: float | None = Field(description="None if no landing-position errors could be checked")
     safe_date_window_hours: tuple[float, float] | None = Field(
         description="Contiguous range of tested date offsets around 0 that all pass; None if the base fails")
-    score_min: float
-    score_max: float
+    score_min: float | None
+    score_max: float | None
     most_sensitive_constraint: str | None
     skipped_points: int = Field(0, description="Points left out because they only had synthetic data")
     verdict: Literal["robust", "sensitive", "fragile", "fails", "unknown"]
