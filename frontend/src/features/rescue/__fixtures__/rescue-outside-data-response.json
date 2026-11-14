@@ -1,6 +1,6 @@
 {
  "status": "no_viable_alternative",
- "summary": "The changed plan can't be checked: real data for Peak Near Shackleton covers 2027-01-01 to 2029-01-01, but this mission runs 2028-12-30 to 2029-01-06, so it can't be fully checked. None of the 33 options searched could be checked either (missing data). Try other dates, or turn on simulation mode for a synthetic estimate.",
+ "summary": "The changed plan can't be checked: real data for Peak Near Shackleton covers 2027-01-01 to 2029-01-01, but this mission runs 2028-12-30 to 2029-01-06, so it can't be fully checked. None of the 88 options searched could be checked either (missing data). Try other dates, or turn on simulation mode for a synthetic estimate.",
  "original": {
   "scenario": {
    "site": {
@@ -23,10 +23,10 @@
   },
   "passes": false,
   "eligibility": "fail",
-  "score": 44.93,
+  "score": 39.193804,
   "metrics": {
-   "sunlight_fraction": 0.8885904821428573,
-   "equivalent_sun_hours": 149.28320100000002,
+   "sunlight_fraction": 0.8877521726190476,
+   "equivalent_sun_hours": 149.14236499999998,
    "longest_dark_gap_hours": 16.0,
    "earth_visibility_fraction": 0.0,
    "longest_comms_gap_hours": 168.0,
@@ -34,9 +34,9 @@
    "initial_comms_hours": 0.0,
    "hours_to_first_sunset": 10.0,
    "hours_to_first_earthset": null,
-   "mean_sun_clearance_deg": 0.9706645569620254,
+   "mean_sun_clearance_deg": 0.948796178343949,
    "mean_earth_clearance_deg": null,
-   "mean_solar_elevation_deg": 0.5615416666666666
+   "mean_solar_elevation_deg": 0.5615416666666667
   },
   "violations": [
    {
@@ -46,7 +46,7 @@
     "unit": "fraction",
     "shortfall": 0.4,
     "relative_shortfall": 1.0,
-    "message": "Earth visibility is 0%, below the 40% requirement.",
+    "message": "Minimum Earth line-of-sight time: share of mission time with Earth line of sight is 0 %; required >= 40 %. Requirement violated.",
     "is_unknown": false
    },
    {
@@ -56,7 +56,7 @@
     "unit": "h",
     "shortfall": 72.0,
     "relative_shortfall": 0.75,
-    "message": "Longest comms blackout is 168 h, above the 96 h requirement.",
+    "message": "Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 168 h; required <= 96 h. Requirement violated.",
     "is_unknown": false
    },
    {
@@ -66,7 +66,7 @@
     "unit": "h",
     "shortfall": 14.0,
     "relative_shortfall": 0.5833333333333334,
-    "message": "Sunlight right after landing is 10 h, below the 24 h requirement.",
+    "message": "Minimum continuous power-lit time after landing: continuous power-lit time from mission start is 10 h; required >= 24 h. Requirement violated.",
     "is_unknown": false
    },
    {
@@ -76,11 +76,11 @@
     "unit": "h",
     "shortfall": 12.0,
     "relative_shortfall": 1.0,
-    "message": "Earth contact right after landing is 0 h, below the 12 h requirement.",
+    "message": "Minimum continuous Earth line of sight after landing: continuous Earth line-of-sight time from mission start is 0 h; required >= 12 h. Requirement violated.",
     "is_unknown": false
    }
   ],
-  "source": "placeholder-v1",
+  "source": "viability-engine/0.6.0-phase6",
   "data_source": "precomputed:peak-near-shackleton.json"
  },
  "changed": {
@@ -124,10 +124,10 @@
    {
     "constraint": "data_coverage",
     "required": 168.0,
-    "actual": 49.0,
+    "actual": 48.0,
     "unit": "h",
-    "shortfall": 119.0,
-    "relative_shortfall": 0.7083333333333334,
+    "shortfall": 120.0,
+    "relative_shortfall": 0.7142857142857143,
     "message": "UNKNOWN: real data for Peak Near Shackleton covers 2027-01-01 to 2029-01-01, but this mission runs 2028-12-30 to 2029-01-06, so it can't be fully checked. Turn on simulation mode to use synthetic placeholder data instead (not real).",
     "is_unknown": true
    }
@@ -139,11 +139,11 @@
  "near_misses": [],
  "loosening": [],
  "stats": {
-  "candidates_evaluated": 33,
-  "locations_considered": 3,
+  "candidates_evaluated": 88,
+  "locations_considered": 8,
   "passing": 0,
-  "synthetic_candidates_excluded": 231,
-  "undecided": 33,
+  "synthetic_candidates_excluded": 176,
+  "undecided": 88,
   "date_range_start": "2028-12-30T00:00:00Z",
   "date_range_end": "2029-01-04T00:00:00Z"
  },
@@ -154,7 +154,7 @@
   "Only landing times inside the search window and the listed candidate locations are considered.",
   "Ranking = viability score + horizon-clearance bonus − date-shift penalty − distance penalty − fragility penalty (all configurable in SearchOptions).",
   "Requirement relaxations are exact for the evaluated metrics but are not engineering approvals.",
-  "231 candidates were left out because there is no real data for them (custom nearby points, approximate sites). Simulation mode (include_synthetic=true) would use synthetic placeholder data for them.",
-  "33 candidates are UNKNOWN because their mission runs outside the real data's time range. They are not counted as failures."
+  "176 candidates were left out because there is no real data for them (custom nearby points, approximate sites). Simulation mode (include_synthetic=true) would use synthetic placeholder data for them.",
+  "88 candidates are UNKNOWN because their mission runs outside the real data's time range. They are not counted as failures."
  ]
 }
