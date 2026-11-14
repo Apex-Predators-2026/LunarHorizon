@@ -1,5 +1,6 @@
 // Science vs engineering: the landing that best satisfies both teams, or what each side
 // would have to give up when nothing satisfies both.
+import { LoadingIndicator } from '../../ui/LoadingIndicator'
 import { MangoRange } from '../../ui/MangoRange'
 import { SelectField, TextField } from '../../ui/MdFields'
 import { useEffect, useState } from 'react'
@@ -82,7 +83,7 @@ export function CompromisePanel() {
         <button type="button" disabled={loading || !s.original} onClick={() => void s.findCompromise()}
           data-tip="Find the landing that best balances what science and engineering each want."
           className="md-btn bg-sky-600 text-white hover:bg-sky-500 disabled:opacity-50">
-          {loading ? 'Searching…' : 'Find best compromise'}
+          {loading ? <><LoadingIndicator size={20} contained={false} color="#ffffff" label="Searching" /><span className="ml-2">Searching…</span></> : 'Find best compromise'}
         </button>
       </div>
 

@@ -5,6 +5,7 @@ import { useAppStore } from '../store'
 import type { VerifyResult } from '../types'
 import { fetchVerify } from './api'
 import { showSnackbar } from './snackbarStore'
+import { useUiPrefs } from './uiPrefs'
 import type { ViewMode } from './CameraRig'
 import { InteractiveGrainGradient } from '../ui/InteractiveGrainGradient'
 import { KIND_COLOR } from './globe/overlays'
@@ -56,6 +57,9 @@ const ICON = {
   speed: 'M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z',
   check: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
   flag: 'M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z',
+  more: 'M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
+  hideUi: 'M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z',
+  dark: 'M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z',
 }
 
 function Icon({ d, size = 24 }: { d: string; size?: number }) {
@@ -310,6 +314,9 @@ export function MapTools({
 }) {
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const dark = useUiPrefs((u) => u.dark)
+  const setDark = useUiPrefs((u) => u.setDark)
+  const hideUi = useUiPrefs((u) => u.hideUi)
   const [menuH, setMenuH] = useState(0)
   const topDown = useCameraTilt((s) => s.topDown)
   const playing = useAppStore((s) => s.playing)
@@ -434,28 +441,30 @@ export function MapTools({
           onClick={runVerify}
         />
         <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="graphics" label="Graphics quality" tip="Graphics quality: High is full detail and shadows; Low is lighter for Chromebooks and older laptops" icon={ICON.speed}>
-          {(close) =>
-            (Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
-              <button
-                key={q}
-                type="button"
-                role="menuitemradio"
-                aria-checked={graphics === q}
-                data-tip={GRAPHICS[q].hint}
-                onClick={() => {
-                  if (q !== graphics) showSnackbar(`Graphics set to ${GRAPHICS[q].label}`, 'success')
-                  onGraphics(q)
-                  close()
-                }}
-                className={`flex h-12 w-full items-center gap-3 px-4 text-left text-sm transition-colors ${graphics === q ? 'bg-coral/15 font-semibold' : ''}`}
-              >
-                <span className="flex h-6 w-6 items-center justify-center text-coral">{graphics === q && <Icon d={ICON.check} size={20} />}</span>
-                {GRAPHICS[q].label}
-                {q === 'high' ? ' (default)' : ' (Chromebook)'}
-              </button>
-            )).concat(
-              <div key="divider" className="my-1 h-px bg-opal-300" aria-hidden />,
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="more" label="More" tip="More: graphics quality, dark mode, and hide the whole interface" icon={ICON.more}>
+          {(close) => (
+            <>
+              <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Graphics quality</p>
+              {(Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={graphics === q}
+                  data-tip={GRAPHICS[q].hint}
+                  onClick={() => {
+                    if (q !== graphics) showSnackbar(`Graphics set to ${GRAPHICS[q].label}`, 'success')
+                    onGraphics(q)
+                    close()
+                  }}
+                  className={`flex h-12 w-full items-center gap-3 px-4 text-left text-sm transition-colors ${graphics === q ? 'bg-coral/15 font-semibold' : ''}`}
+                >
+                  <span className="flex h-6 w-6 items-center justify-center text-coral">{graphics === q && <Icon d={ICON.check} size={20} />}</span>
+                  {GRAPHICS[q].label}
+                  {q === 'high' ? ' (default)' : ' (Chromebook)'}
+                </button>
+              ))}
+              <div className="my-1 h-px bg-opal-300" aria-hidden />
               <button
                 key="far-shadows"
                 type="button"
@@ -480,9 +489,43 @@ export function MapTools({
                     <Icon d={ICON.check} size={16} />
                   </span>
                 </span>
-              </button>,
-            )
-          }
+              </button>
+              <div className="my-1 h-px bg-opal-300" aria-hidden />
+              <button
+                type="button"
+                role="switch"
+                aria-checked={dark}
+                data-tip="Dark mode: dark panels instead of light ones"
+                data-no-ripple
+                onClick={() => {
+                  setDark(!dark)
+                  showSnackbar(`Dark mode ${dark ? 'off' : 'on'}`)
+                }}
+                className="md-row flex h-14 w-full items-center justify-between gap-6 px-4 text-left text-sm"
+              >
+                Dark mode
+                <span className="md-switch" aria-hidden>
+                  <span className="md-switch-handle">
+                    <Icon d={ICON.check} size={16} />
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-tip="Hide all UI: everything fades away so only the Moon is left. Press Esc to bring it back."
+                onClick={() => {
+                  close()
+                  hideUi()
+                }}
+                className="flex h-12 w-full items-center gap-3 px-4 text-left text-sm"
+              >
+                <span className="flex h-6 w-6 items-center justify-center"><Icon d={ICON.hideUi} size={20} /></span>
+                Hide all UI
+                <span className="ml-auto text-xs text-slate-400">Esc to show</span>
+              </button>
+            </>
+          )}
         </ToolMenu>
       </div>
 
