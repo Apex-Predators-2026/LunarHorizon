@@ -1,5 +1,6 @@
 // "The plan changed, what now?" Delay / requirement inputs, then ranked, explained
 // alternatives, relax-a-requirement suggestions and the closest failing options.
+import { TextField } from '../../ui/MdFields'
 import type { ChangeEvent, FormEvent } from 'react'
 
 import { AlternativeCard } from './AlternativeCard'
@@ -20,7 +21,6 @@ const STATUS_TITLE: Record<RescueStatus, string> = {
   no_viable_alternative: 'No alternative passes',
 }
 
-const inputCls = 'rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-100'
 const num = (e: ChangeEvent<HTMLInputElement>) => (e.target.value === '' ? undefined : Number(e.target.value))
 
 export function RescuePanel() {
@@ -36,45 +36,50 @@ export function RescuePanel() {
 
   return (
     <section aria-label="Mission rescue" className="space-y-3">
-      <form onSubmit={submit} className="grid grid-cols-2 gap-2 text-xs">
-        <label className="flex flex-col gap-1 text-slate-400">
-          Launch delay (days)
-          <input type="number" min={0} step={1} value={s.change.launch_delay_days ?? 0}
-            onChange={(e) => s.setChange({ launch_delay_days: num(e) ?? 0 })} className={inputCls} />
-        </label>
-        <label className="flex flex-col gap-1 text-slate-400">
-          New mission length (days)
-          <input type="number" min={1} step={1} placeholder="unchanged" value={s.change.new_duration_days ?? ''}
-            onChange={(e) => s.setChange({ new_duration_days: num(e) ?? null })} className={inputCls} />
-        </label>
-        <label className="flex flex-col gap-1 text-slate-400">
-          New battery limit (h)
-          <input type="number" min={1} placeholder="unchanged" value={overrides.battery_hours ?? ''}
-            onChange={(e) => s.setChange({ requirement_overrides: { ...overrides, battery_hours: num(e) } })}
-            className={inputCls} />
-        </label>
-        <label className="flex flex-col gap-1 text-slate-400">
-          New max comms blackout (h)
-          <input type="number" min={1} placeholder="unchanged" value={overrides.max_comms_gap_hours ?? ''}
-            onChange={(e) => s.setChange({ requirement_overrides: { ...overrides, max_comms_gap_hours: num(e) } })}
-            className={inputCls} />
-        </label>
-        <label className="flex flex-col gap-1 text-slate-400">
-          Search up to (days after new date)
-          <input type="number" min={0} max={365} value={s.search.date_window_days ?? 30}
-            onChange={(e) => s.setSearch({ date_window_days: num(e) ?? 30 })} className={inputCls} />
-        </label>
-        <label className="flex flex-col gap-1 text-slate-400">
-          Reason (optional)
-          <input type="text" placeholder="e.g. launch slipped" value={s.change.reason ?? ''}
-            onChange={(e) => s.setChange({ reason: e.target.value || null })} className={inputCls} />
-        </label>
-        <label className="col-span-2 flex items-center gap-2 text-slate-400">
+      <form onSubmit={submit} className="grid grid-cols-1 gap-2 text-xs">
+        <TextField
+          label="Launch delay (days)"
+          tip="How many days the launch has slipped. Alternatives are searched from the new landing date."
+          type="number" min={0} step={1} value={s.change.launch_delay_days ?? 0}
+          onChange={(e) => s.setChange({ launch_delay_days: num(e) ?? 0 })}
+        />
+        <TextField
+          label="New mission length (days)"
+          tip="Change how long the mission lasts. Leave empty to keep the original length."
+          type="number" min={1} step={1} placeholder="unchanged" value={s.change.new_duration_days ?? ''}
+          onChange={(e) => s.setChange({ new_duration_days: num(e) ?? null })}
+        />
+        <TextField
+          label="New battery limit (h)"
+          tip="A new longest dark period the battery can survive. Leave empty to keep the plan's value."
+          type="number" min={1} placeholder="unchanged" value={overrides.battery_hours ?? ''}
+          onChange={(e) => s.setChange({ requirement_overrides: { ...overrides, battery_hours: num(e) } })}
+        />
+        <TextField
+          label="New max comms blackout (h)"
+          tip="A new longest allowed stretch without Earth contact. Leave empty to keep the plan's value."
+          type="number" min={1} placeholder="unchanged" value={overrides.max_comms_gap_hours ?? ''}
+          onChange={(e) => s.setChange({ requirement_overrides: { ...overrides, max_comms_gap_hours: num(e) } })}
+        />
+        <TextField
+          label="Search up to (days after new date)"
+          tip="How far past the new landing date to look for alternative landing times."
+          type="number" min={0} max={365} value={s.search.date_window_days ?? 30}
+          onChange={(e) => s.setSearch({ date_window_days: num(e) ?? 30 })}
+        />
+        <TextField
+          label="Reason (optional)"
+          tip="A note on why the plan changed. It is only a label and does not change the results."
+          type="text" placeholder="e.g. launch slipped" value={s.change.reason ?? ''}
+          onChange={(e) => s.setChange({ reason: e.target.value || null })}
+        />
+        <label className="col-span-2 flex items-center gap-2 text-slate-400" data-tip="Fills gaps with made-up placeholder data where no real data exists. Results are not real.">
           <input type="checkbox" checked={s.search.include_synthetic === true}
             onChange={(e) => s.setSearch({ include_synthetic: e.target.checked ? true : null })} />
           Simulation mode: use synthetic placeholder data where there is no real data (not real results)
         </label>
         <button type="submit" disabled={loading || !s.original}
+          data-tip="Search for other landing sites and dates that still meet the requirements."
           className="col-span-2 rounded bg-sky-600 py-1.5 font-medium text-white hover:bg-sky-500 disabled:opacity-50">
           {loading ? 'Searching…' : 'Find alternatives'}
         </button>
