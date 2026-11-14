@@ -46,6 +46,8 @@ unchanged.
 [+22.335294, +22.335294] excludes 0 (`selected_higher`): it holds everywhere within the recorded bounds. It is a
 difference in a relative desirability index, not a probability of mission success.
 
+**Precision.** Scores are stored to 6 decimals: 91.113497 and 68.778203, so the gap is exactly 22.335294 points (22.34 rounded). Before storage the component sums are 91.1134972 and 68.7782025 (gap 22.3352946). The evidence interval is computed exactly on the stored values and rounded outward, which is why its lower end prints as 22.335293999999998 in the JSON and a component difference of exactly 14.0 (17.5 vs 3.5 points) prints as [13.999999, 14.0]. The table below rounds to 2 decimals.
+
 **Which measurements explain the difference** (score points, weight 0.25 each):
 
 | Component | Measurement | Malapert | Connecting Ridge | Points to Malapert |
