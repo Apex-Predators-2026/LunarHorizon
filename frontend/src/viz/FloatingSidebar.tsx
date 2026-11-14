@@ -104,7 +104,7 @@ export function FloatingSidebar({ children }: { children: ReactNode }) {
         type="button"
         aria-expanded={open}
         aria-label={open ? 'Sidebar: drag to move, click to minimize' : 'Sidebar: drag to move, click to expand'}
-        title={open ? 'Drag to move · click to minimize' : 'Drag to move · click to expand'}
+        data-tip={open ? 'Drag to move · click to minimize' : 'Drag to move · click to expand'}
         {...handlers}
         onClick={onClick}
         className="flex h-6 w-full shrink-0 cursor-grab touch-none select-none items-center justify-center bg-coral transition-colors hover:bg-[#ee5740] active:cursor-grabbing"
