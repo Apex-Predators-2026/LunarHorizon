@@ -96,7 +96,15 @@ def _convert(d: dict[str, Any]) -> ScientificTimeSeries:
 
 
 def test_all_real_site_files_present() -> None:
-    assert {p.stem for p in SITES_DIR.glob("*.json")} == set(REAL_SITES)
+    # The four sites Member 2 validated against are always present; Member 1's catalog may hold more
+    # (generator 1.2 publishes 24), and those convert too (see test_every_published_site_file_converts).
+    assert set(REAL_SITES) <= {p.stem for p in SITES_DIR.glob("*.json")}
+
+
+def test_every_published_site_file_converts() -> None:
+    for path in sorted(SITES_DIR.glob("*.json")):
+        s = load_site_file(path)
+        assert s.provenance.is_synthetic is False and s.fraction_decimals == 6, path.stem
 
 
 @pytest.mark.parametrize("site", REAL_SITES)
@@ -166,11 +174,11 @@ def test_real_site_matches_andrews_own_summary(site: str) -> None:
     # His sunlit_pct is computed from the same flag, so only its 0.1 % display rounding differs.
     assert sunlit == pytest.approx(summary["sunlit_pct"], abs=0.05)
     # Slivers below the 6-decimal rounding (sun_visible true, fraction written as 0.0) are kept as
-    # partial with the written 0.0. Measured on the committed files: one hour, at PNS only.
+    # partial with the written 0.0. Their number depends on the terrain generation (1.1: one hour at PNS,
+    # 1.2: none), so it is discovered, not pinned.
     slivers = [
         i for i, (f, v) in enumerate(zip(tl["sun_visible_fraction"], tl["sun_visible"], strict=True)) if v and f == 0.0
     ]
-    assert len(slivers) == (1 if site == "peak-near-shackleton" else 0)
     for i in slivers:
         assert s.samples[i].sun.state is P and s.samples[i].sun.visible_fraction == 0.0
 
