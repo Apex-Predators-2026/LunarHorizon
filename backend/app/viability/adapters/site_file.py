@@ -68,7 +68,9 @@ REQUIRED_COLUMNS: Final = (
 )
 OPTIONAL_COLUMNS: Final = ("sun_visible", "sun_angular_radius_deg", "earth_angular_radius_deg")
 # Rounding of sun_visible_fraction per documented generator version (docs/interfaces.md, Member 1).
-FRACTION_DECIMALS_BY_GENERATOR_VERSION: Final = {"1.0": 3, "1.1": 6}
+# 1.2 (whole-Moon pipeline) leaves the rounding unchanged: pipeline.py still writes _r(sun_fraction, 6), and every
+# committed 1.2 file has <= 6 decimals. Files do not yet carry an explicit meta.fraction_decimals (see docs).
+FRACTION_DECIMALS_BY_GENERATOR_VERSION: Final = {"1.0": 3, "1.1": 6, "1.2": 6}
 _ABSENT: Final = object()  # column not present in the file (distinct from a JSON null)
 
 _STEP_RE: Final = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(m|min|h|d)\s*$")
