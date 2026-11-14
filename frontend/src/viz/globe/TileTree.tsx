@@ -3,7 +3,7 @@
 // (see SiteFrame) and refined until each vertex step covers < lodThresholdPx (default 4) px on screen.
 // Works with frameloop="demand": tile selection only runs when the camera moved or a tile arrived,
 // and the shadow map is only redrawn when the set of drawn tiles changes.
-// It also keeps the camera above the ground: after the orbit controls move it, a camera that would
+// It also keeps the camera above the ground: after the camera controls move it, a camera that would
 // be closer than cameraClearanceM to the loaded terrain below it is lifted straight up.
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
@@ -253,7 +253,7 @@ export function TileTree({
   const tileHeights: TileHeights = (f, z, x, y) => nodes.current.get(keyOf(f, z, x, y))?.heights ?? undefined
 
   useFrame((state) => {
-    // Runs after drei's OrbitControls (priority -1) has moved the camera, before this frame renders.
+    // Runs after GlobeControls (zoom easing at priority -1) has moved the camera, before this frame renders.
     const c = state.camera.position
     const lifted = liftAboveGround([c.x, c.y, c.z], frame, tileHeights, cameraClearanceM)
     if (lifted) {

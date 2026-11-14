@@ -5,7 +5,7 @@ import type { TimelineStep } from '../types'
 import { azElToVector } from './geometry'
 import type { Vec3 } from './globe/cubeSphere'
 
-// The bits of drei's OrbitControls (registered with makeDefault) that we use.
+// The bits of the scene's controls (GlobeControls, registered as the default controls) that we use.
 type Controls = {
   target: Vector3
   update: () => void

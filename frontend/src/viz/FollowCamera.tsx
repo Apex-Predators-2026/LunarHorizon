@@ -7,7 +7,7 @@ import type { Group } from 'three'
  * are effectively at infinity: the distant-horizon curtain and the Sun/Earth discs. Anchoring them
  * to the lander instead makes them look like a giant floating bowl once you zoom out.
  *
- * Runs after drei's OrbitControls (which updates the camera at priority -1), so it never lags.
+ * Runs after GlobeControls' zoom easing (priority -1), so it never lags.
  */
 export function FollowCamera({ children }: { children: ReactNode }) {
   const ref = useRef<Group>(null)
