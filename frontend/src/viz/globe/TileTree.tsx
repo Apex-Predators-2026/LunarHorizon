@@ -12,7 +12,7 @@ import { API_URL } from '../api'
 import { PERF_ENABLED, recordCameraClearance, recordTileBuild, recordTileLevels } from '../perf'
 import { MAX_ZOOM, MOON_RADIUS_M, SiteFrame, TILE_N, tileVertexUV, uvToVec, vertexSpacingM, type Vec3 } from './cubeSphere'
 import { groundHeightAt, liftAboveGround, type TileHeights } from './terrainHeight'
-import { buildTileMesh } from './tileGeometry'
+import { buildTileMesh, innerHeights, tileTopology } from './tileGeometry'
 
 const MAX_IN_FLIGHT = 6
 const UPDATE_EVERY_MS = 60 // at most this often while the camera moves
@@ -49,6 +49,17 @@ const projView = new THREE.Matrix4()
 const sphere = new THREE.Sphere()
 const lastView = new THREE.Matrix4() // camera at the last selection
 const lastProj = new THREE.Matrix4()
+
+// Every tile has the same triangles, so all tiles share one index buffer (uploaded to the GPU once).
+let sharedIndex: THREE.BufferAttribute | null = null
+const tileIndex = () => (sharedIndex ??= new THREE.BufferAttribute(tileTopology(TILE_N).indices, 1))
+const PAD = 1 // tiles come with a ring of their neighbours' vertices, for seamless normals
+
+/** Free a tile's GPU buffers, but not the shared index (other tiles still draw with it). */
+function disposeTile(mesh: THREE.Mesh) {
+  mesh.geometry.setIndex(null)
+  mesh.geometry.dispose()
+}
 
 /** Rough bounding sphere of a tile before its heights are known (on the reference sphere). */
 function approxBounds(frame: SiteFrame, f: number, z: number, x: number, y: number): [Vec3, number] {
@@ -94,7 +105,7 @@ export function TileTree({
     dirty.current = true
     invalidate()
     return () => {
-      for (const n of map.values()) n.mesh?.geometry.dispose()
+      for (const n of map.values()) if (n.mesh) disposeTile(n.mesh)
       map.clear()
       queue.current = []
     }
@@ -120,23 +131,19 @@ export function TileTree({
   const load = (n: TileNode) => {
     n.state = 'loading'
     inFlight.current++
-    fetch(`${API_URL}/api/terrain/tile/${n.face}/${n.z}/${n.x}/${n.y}`)
+    fetch(`${API_URL}/api/terrain/tile/${n.face}/${n.z}/${n.x}/${n.y}?pad=${PAD}`)
       .then(async (res) => {
         if (!res.ok) throw new Error(`tile ${n.key}: HTTP ${res.status}`)
         n.leaf = res.headers.get('X-Tile-Leaf') === '1' || n.z >= MAX_ZOOM
         const heights = new Float32Array(await res.arrayBuffer())
         if (!nodes.current.has(n.key)) return // site changed meanwhile
         const t0 = performance.now()
-        const m = buildTileMesh(n.face, n.z, n.x, n.y, heights, frame)
+        const m = buildTileMesh(n.face, n.z, n.x, n.y, heights, frame, TILE_N, PAD)
         const geom = new THREE.BufferGeometry()
         geom.setAttribute('position', new THREE.BufferAttribute(m.positions, 3))
-        // Normals from the surface triangles only: the vertical skirt walls would tilt the edge
-        // normals sideways and light up every tile border as a bright line.
-        geom.setIndex(new THREE.BufferAttribute(m.indices.subarray(0, m.surfaceIndexCount), 1))
-        geom.computeVertexNormals()
-        const nrm = geom.getAttribute('normal') as THREE.BufferAttribute
-        m.borderOf.forEach((g, s) => nrm.setXYZ(m.skirtStart + s, nrm.getX(g), nrm.getY(g), nrm.getZ(g)))
-        geom.setIndex(new THREE.BufferAttribute(m.indices, 1))
+        geom.setAttribute('normal', new THREE.BufferAttribute(m.normals, 3))
+        geom.setIndex(tileIndex())
+        geom.boundingSphere = new THREE.Sphere(new THREE.Vector3(), m.radius) // known: skip three's pass
         recordTileBuild(performance.now() - t0)
         const mesh = new THREE.Mesh(geom, material)
         mesh.position.set(...m.centre)
@@ -148,7 +155,7 @@ export function TileTree({
         n.centre = m.centre
         n.radius = m.radius
         n.mesh = mesh
-        n.heights = heights
+        n.heights = innerHeights(heights, TILE_N, PAD)
         n.state = 'ready'
       })
       .catch(() => {
@@ -279,7 +286,7 @@ export function TileTree({
         .sort((a, b) => a.lastUsed - b.lastUsed)
         .slice(0, ready.length - maxCachedMeshes)
         .forEach((n) => {
-          n.mesh!.geometry.dispose()
+          disposeTile(n.mesh!)
           n.mesh = null
           n.heights = null
           n.state = 'idle'

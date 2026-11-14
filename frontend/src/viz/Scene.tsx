@@ -169,10 +169,9 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const blockerRefs = useMemo(() => [createRef<HTMLDivElement>(), createRef<HTMLDivElement>()], [])
 
   // Drop a pin: a click on the terrain becomes a custom site analysed by the engine.
-  const onPick = useCallback(
-    (p: [number, number, number]) => {
-      if (!frame) return
-      const [lat, lon] = vecToLatLon(frame.toMoon(p))
+  // Analyse a spot (a click on the terrain, or typed coordinates) as a custom site and select it.
+  const analyseSpot = useCallback(
+    (lat: number, lon: number) => {
       setPin({ phase: 'working', lat, lon })
       createCustomSite(lat, lon)
         .then((created) => {
@@ -184,7 +183,13 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         })
         .catch((e: unknown) => setPin({ phase: 'error', message: e instanceof Error ? e.message : String(e) }))
     },
-    [frame, setSite],
+    [setSite],
+  )
+  const onPick = useCallback(
+    (p: [number, number, number]) => {
+      if (frame) analyseSpot(...vecToLatLon(frame.toMoon(p)))
+    },
+    [frame, analyseSpot],
   )
 
   return (
@@ -258,6 +263,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
               ref: siteLabelRefs.get(x.id)!,
               position: layers.sites && frame ? surfacePoint(frame, x.lat, x.lon, x.ground_height_m, 3000) : null,
               onSurface: true,
+              declutter: true, // the polar sites crowd together when seen from orbit
             })),
             ...blockerRefs.map((ref, k) => ({
               ref,
@@ -333,6 +339,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             onLayers={setLayers}
             pin={pin}
             onArmPin={(armed) => setPin(armed ? { phase: 'armed' } : { phase: 'idle' })}
+            onCoordinates={analyseSpot}
             siteId={siteId}
             timeUtc={timeUtc}
             view={view}

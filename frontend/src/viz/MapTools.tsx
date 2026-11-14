@@ -1,11 +1,12 @@
 // Floating toolbar over the 3D view (M3 "floating toolbar"): camera menu, layers menu (switches),
-// drop pin, verify with JPL, and play / pause. Messages, the legend and the JPL result open above it.
+// drop pin (click the terrain or type coordinates), verify with JPL, and play / pause. Messages, the legend and the JPL result open above it.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useAppStore } from '../store'
 import type { VerifyResult } from '../types'
 import { fetchVerify } from './api'
 import type { ViewMode } from './CameraRig'
 import { KIND_COLOR } from './globe/overlays'
+import { parseCoordinates } from './coordinates'
 import { GRAPHICS, type GraphicsQuality } from './graphics'
 
 export interface Layers {
@@ -155,11 +156,48 @@ function ToolMenu({
   )
 }
 
+/** Shown while "Drop pin" is armed: analyse exact coordinates instead of clicking. */
+function CoordinateForm({ onSubmit }: { onSubmit: (lat: number, lon: number) => void }) {
+  const [lat, setLat] = useState('')
+  const [lon, setLon] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const field = 'w-24 rounded-lg border border-opal-300 bg-white px-1.5 py-0.5 text-xs text-slate-300'
+  return (
+    <form
+      className="md-reveal lp-light pointer-events-auto flex flex-wrap items-center gap-1.5 rounded-xl bg-opal-50 px-2 py-1.5 text-xs text-slate-300 shadow-lg shadow-black/30"
+      onSubmit={(e) => {
+        e.preventDefault()
+        const r = parseCoordinates(lat, lon)
+        if (typeof r === 'string') setError(r)
+        else {
+          setError(null)
+          onSubmit(...r)
+        }
+      }}
+    >
+      <span>Click the terrain, or enter coordinates:</span>
+      <label className="flex items-center gap-1">
+        Lat
+        <input className={field} inputMode="decimal" placeholder="-89.45" value={lat} onChange={(e) => setLat(e.target.value)} aria-label="Latitude (degrees, negative = south)" />
+      </label>
+      <label className="flex items-center gap-1">
+        Lon
+        <input className={field} inputMode="decimal" placeholder="222.69" value={lon} onChange={(e) => setLon(e.target.value)} aria-label="Longitude (degrees east)" />
+      </label>
+      <button type="submit" className="rounded-lg border border-opal-300 bg-white px-2 py-0.5 transition-colors hover:bg-calcite-peach/40">
+        Analyse
+      </button>
+      {error && <span className="w-full text-red-300">{error}</span>}
+    </form>
+  )
+}
+
 export function MapTools({
   layers,
   onLayers,
   pin,
   onArmPin,
+  onCoordinates,
   siteId,
   timeUtc,
   view,
@@ -171,6 +209,7 @@ export function MapTools({
   onLayers: (l: Layers) => void
   pin: PinState
   onArmPin: (armed: boolean) => void
+  onCoordinates: (lat: number, lon: number) => void
   siteId: string | null
   timeUtc: string
   view: ViewMode
@@ -287,7 +326,7 @@ export function MapTools({
         </ToolMenu>
       </div>
 
-      {armed && <p className="md-reveal pointer-events-auto rounded-full bg-calcite-ink/90 px-3 py-1 text-xs text-opal-50">Click the terrain…</p>}
+      {armed && <CoordinateForm onSubmit={onCoordinates} />}
       {pin.phase === 'working' && (
         <p className="md-reveal pointer-events-auto rounded bg-slate-950/85 px-2 py-1 text-xs text-slate-200">
           Analysing {fmtLat(pin.lat)}, {pin.lon.toFixed(3)}°E… downloading terrain can take up to a minute in a new area.
