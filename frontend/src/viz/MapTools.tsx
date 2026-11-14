@@ -13,6 +13,7 @@ export interface Layers {
   sites: boolean
   psr: boolean
   blockers: boolean
+  imagery: boolean // LRO WAC photo mosaic on the terrain (off by default: its shadows are not "now")
 }
 
 export type PinState =
@@ -33,6 +34,11 @@ const LAYER_ROWS: { key: keyof Layers; label: string; hint: string }[] = [
   { key: 'sites', label: 'Sites', hint: 'Landing sites on the Moon' },
   { key: 'psr', label: 'PSRs & ice', hint: 'Permanently shadowed regions and surface-ice detections (Moon Trek)' },
   { key: 'blockers', label: 'Blockers', hint: 'Lines from the lander to the terrain that blocks the Sun (red) or Earth (blue)' },
+  {
+    key: 'imagery',
+    label: 'LRO imagery',
+    hint: 'LRO Wide Angle Camera photo mosaic (Moon Trek, ~100 m/px) on the terrain. Its shadows are from when the photos were taken, not from the time shown.',
+  },
 ]
 
 // Material icons (24 dp).
@@ -204,6 +210,9 @@ export function MapTools({
   onView,
   graphics,
   onGraphics,
+  farShadows,
+  farShadowsAvailable,
+  onFarShadows,
 }: {
   layers: Layers
   onLayers: (l: Layers) => void
@@ -216,6 +225,9 @@ export function MapTools({
   onView: (v: ViewMode) => void
   graphics: GraphicsQuality
   onGraphics: (q: GraphicsQuality) => void
+  farShadows: boolean
+  farShadowsAvailable: boolean // not in the Low preset (no shadows at all there)
+  onFarShadows: (on: boolean) => void
 }) {
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
   const playing = useAppStore((s) => s.playing)
@@ -321,7 +333,31 @@ export function MapTools({
                 {GRAPHICS[q].label}
                 {q === 'high' ? ' (default)' : ' (Chromebook)'}
               </button>
-            ))
+            )).concat(
+              <div key="divider" className="my-1 h-px bg-opal-300" aria-hidden />,
+              <button
+                key="far-shadows"
+                type="button"
+                role="switch"
+                aria-checked={farShadows}
+                disabled={!farShadowsAvailable}
+                title={
+                  farShadowsAvailable
+                    ? 'Shadows from all terrain on screen, not just ~6 km around the lander (cascaded shadow maps; more GPU work while the camera moves)'
+                    : 'Not available in the Low graphics setting (no shadows)'
+                }
+                data-no-ripple
+                onClick={() => onFarShadows(!farShadows)}
+                className="md-row flex h-14 w-full items-center justify-between gap-6 px-4 text-left text-sm disabled:opacity-40"
+              >
+                Far shadows
+                <span className="md-switch" aria-hidden>
+                  <span className="md-switch-handle">
+                    <Icon d={ICON.check} size={16} />
+                  </span>
+                </span>
+              </button>,
+            )
           }
         </ToolMenu>
       </div>
