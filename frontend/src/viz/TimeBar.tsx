@@ -70,7 +70,26 @@ function usePlayback(hoursPerSec: number, dataStop: number) {
 }
 
 /** Sunlight / Earth-visibility strip for the current window. Click or drag to move the time. */
-function Strip({ steps, win, now, onSeek }: { steps: TimelineStep[]; win: [number, number]; now: number; onSeek: (ms: number) => void }) {
+/** A mission being played back: its window and the moments a requirement breaks (see viz/mission.ts). */
+export interface StripMission {
+  start: number
+  end: number
+  failures: number[] // epoch ms
+}
+
+function Strip({
+  steps,
+  win,
+  now,
+  onSeek,
+  mission,
+}: {
+  steps: TimelineStep[]
+  win: [number, number]
+  now: number
+  onSeek: (ms: number) => void
+  mission?: StripMission | null
+}) {
   const [boxRef, width] = useWidth<HTMLDivElement>()
   const dragging = useRef(false)
   const w = Math.max(50, width - GUTTER - 4)
@@ -164,6 +183,27 @@ function Strip({ steps, win, now, onSeek }: { steps: TimelineStep[]; win: [numbe
             <title>Longest blackout in this window: {fmtDur(blackout.hours)}</title>
           </rect>
         )}
+        {mission && mission.end > win[0] && mission.start < win[1] && (
+          <g pointerEvents="none">
+            <rect
+              x={x(Math.max(mission.start, win[0]))}
+              y={-2}
+              width={Math.max(1, x(Math.min(mission.end, win[1])) - x(Math.max(mission.start, win[0])))}
+              height={earthTop + EARTH_H + 4}
+              fill="#ff634a"
+              fillOpacity={0.1}
+              stroke="#ff634a"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              rx={3}
+            />
+            {mission.failures
+              .filter((t) => t >= win[0] && t <= win[1])
+              .map((t) => (
+                <path key={t} d={`M${x(t) - 5},-2 L${x(t) + 5},-2 L${x(t)},6 Z`} fill="#ef4444" />
+              ))}
+          </g>
+        )}
         {now >= win[0] && now <= win[1] && (
           <line x1={x(now)} x2={x(now)} y1={-2} y2={earthTop + EARTH_H + 2} stroke="#ff634a" strokeWidth={2} />
         )}
@@ -173,6 +213,10 @@ function Strip({ steps, win, now, onSeek }: { steps: TimelineStep[]; win: [numbe
         <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: COLORS.earth }} />Earth in view</span>
         <span><span className="mr-1 inline-block h-2 w-3 border align-middle" style={{ borderColor: COLORS.gap }} />
           Longest gap in window{dark ? ` · dark ${fmtDur(dark.hours)}` : ''}{blackout ? ` · blackout ${fmtDur(blackout.hours)}` : ''}</span>
+        {mission && (
+          <span><span className="mr-1 inline-block h-2 w-3 border border-dashed align-middle" style={{ borderColor: '#ff634a' }} />
+            Mission{mission.failures.length ? <> · <span className="text-red-400">▼</span> requirement broken</> : ''}</span>
+        )}
       </div>
     </div>
   )
@@ -188,6 +232,7 @@ export function TimeBar({
   loading,
   views,
   onHide,
+  mission,
 }: {
   site: SiteInfo
   steps: TimelineStep[]
@@ -197,6 +242,7 @@ export function TimeBar({
   loading: boolean
   onHide?: () => void // slides the panel off screen
   views?: ReactNode // camera view buttons, shown under the slider
+  mission?: StripMission | null // mission playback: window band and failure markers on the strip
 }) {
   const timeUtc = useAppStore((s) => s.timeUtc)
   const setTime = useAppStore((s) => s.setTime)
@@ -252,7 +298,7 @@ export function TimeBar({
         {loading && <span className="text-slate-500">loading…</span>}
       </div>
 
-      {steps.length ? <Strip steps={steps} win={win} now={now} onSeek={seek} /> : <div style={{ height: STRIP_H + 14 }} />}
+      {steps.length ? <Strip steps={steps} win={win} now={now} onSeek={seek} mission={mission} /> : <div style={{ height: STRIP_H + 14 }} />}
 
       <div className="mt-1 flex items-center gap-2">
         <span className="shrink-0 text-[10px] tabular-nums text-slate-500">{site.data_start_utc.slice(0, 10)}</span>
