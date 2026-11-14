@@ -91,7 +91,7 @@ Interactive docs with every field: http://localhost:8000/docs. The frontend dev 
 | `GET /api/sites/{id}/verify?time=` | `VerifyResult`: that hour's stored Sun/Earth positions vs a **live** JPL Horizons query and a local DE421 calculation |
 | `GET /api/validation` | The engine validation report (`data/validation/engine_validation.json`, see `docs/validation-engine.md`) |
 | `GET /api/terrain/info` | Whole-Moon tiling description (faces, tile size, sources) |
-| `GET /api/imagery/tile/{face}/{z}/{x}/{y}` | Optional imagery layer: LRO WAC mosaic (Moon Trek) over one tile, 256 × 256 grayscale PNG, row 0 = the tile's top (largest v). Levels 0–7 only |
+| `GET /api/imagery/tile/{face}/{z}/{x}/{y}` | Zoomed-out imagery (the 3D view fades to it): LRO WAC mosaic (Moon Trek) over one tile, 256 × 256 grayscale PNG, row 0 = the tile's top (largest v). Levels 0–7 only |
 | `GET /api/terrain/tile/{face}/{z}/{x}/{y}[?pad=1]` | Binary float32 heights (65 × 65) of one cube-sphere tile; header `X-Tile-Leaf: 1` = no finer data. `pad=1` returns 67 × 67: the same tile plus a ring of its neighbours' vertices, so normals on shared edges match (the 3D view uses this) |
 | `GET /api/psr` | `PsrData`: 164 south-polar PSRs (centre, area, approximate outline) and 1,119 surface-ice detections, with heights |
 
@@ -195,8 +195,12 @@ What rescue relies on:
 7. Each sample of evenly spaced data covers one time step (`[t, t + step)`). With
    `panel_threshold = 0`, the Sun still has to be at least partly visible to count as lit.
 
-Until Brandon's checker exists, `backend/app/rescue/viability/placeholder.py` implements
-this contract. To swap it, change one import in `backend/app/rescue/viability/__init__.py`.
+Rescue (and the comparison service, which imports the same name) uses the canonical engine
+through `app.viability.compat.rescue.evaluate_timeline`, set in
+`backend/app/rescue/viability/__init__.py`. The earlier placeholder (`placeholder.py`) is kept for
+reference and its own tests; its `CHECKS` table still words rescue's loosening suggestions.
+In rescue responses, `Alternative.rank_score`, `Robustness.worst_score`, `SensitivityPoint.score`
+and `SensitivityResponse.score_min/score_max` are `null` when the engine gave no score.
 
 ### Timelines from the data engine
 

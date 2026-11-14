@@ -13,10 +13,18 @@ import { PERF_ENABLED, recordCameraClearance, recordTileBuild, recordTileLevels 
 import { MAX_ZOOM, MOON_RADIUS_M, SiteFrame, TILE_N, tileVertexUV, uvToVec, vertexSpacingM, type Vec3 } from './cubeSphere'
 import { groundHeightAt, liftAboveGround, type TileHeights } from './terrainHeight'
 import { buildTileMesh, innerHeights, tilePadding, tileTopology } from './tileGeometry'
-import { TileImagery } from './tileImagery'
+import { basePack } from './basePack'
+import { advanceLoad, initialLoad, useTerrainLoad } from './terrainLoad'
+import { imageryMix, imageryWanted, TileImagery } from './tileImagery'
+import { useCoverage } from './coverage'
 import { MAX_TILE_ATTEMPTS, retryDelayMs, TILE_TIMEOUT_MS } from './tileRetry'
 
+/** Request start times for the loading bar (tile loads start from the frame loop, not during render). */
+const clockMs = () => performance.now()
+
 const MAX_IN_FLIGHT = 6
+// Start downloading the ready-made coarse globe with the page, before the first tile is wanted.
+if (typeof window !== 'undefined') void basePack()
 const UPDATE_EVERY_MS = 60 // at most this often while the camera moves
 
 type State = 'idle' | 'loading' | 'ready' | 'error'
@@ -88,7 +96,6 @@ export function TileTree({
   cameraClearanceM = 3,
   lodThresholdPx = 4,
   maxCachedMeshes = 500,
-  imagery = false,
 }: {
   frame: SiteFrame
   material: THREE.Material
@@ -97,7 +104,6 @@ export function TileTree({
   cameraClearanceM?: number // the camera never gets closer than this to the ground below it (m)
   lodThresholdPx?: number // refine while a vertex step spans more than this on screen (graphics preset)
   maxCachedMeshes?: number // tile meshes kept in memory (graphics preset)
-  imagery?: boolean // drape the LRO WAC mosaic over the terrain (see tileImagery.ts)
 }) {
   const group = useRef<THREE.Group>(null)
   const nodes = useRef(new Map<string, TileNode>())
@@ -106,8 +112,19 @@ export function TileTree({
   const lastUpdate = useRef(0)
   const dirty = useRef(true) // a tile arrived (or the site changed) since the last selection
   const warned = useRef(false) // a tile failure has been reported (once per site)
-  const requests = useRef(new Set<AbortController>()) // in flight, cancelled when the site changes
+  const requests = useRef(new Map<AbortController, number>()) // in flight (-> start time), cancelled when the site changes
   const retryTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  // Loading indicators (terrainLoad.ts): finished loads, tiles on screen, oldest request in flight.
+  const finished = useRef(0) // tile loads finished for this site
+  const drawnCount = useRef(0)
+  const publish = () => {
+    const pending = inFlight.current + queue.current.filter((q) => q.state === 'idle').length
+    const s = useTerrainLoad.getState()
+    let waitingSince: number | null = null
+    for (const t of requests.current.values()) waitingSince = Math.min(waitingSince ?? t, t)
+    const next = advanceLoad(s, { drawn: drawnCount.current, pending, finished: finished.current, waitingSince }, performance.now())
+    if (next !== s) useTerrainLoad.setState(next, true)
+  }
   const lastSize = useRef('')
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
@@ -120,11 +137,14 @@ export function TileTree({
     const map = nodes.current
     dirty.current = true
     warned.current = false
+    drawnCount.current = 0
+    finished.current = 0
+    useTerrainLoad.setState(initialLoad, true) // a new site: "Loading the Moon" until its first tiles draw
     invalidate()
     const pending = requests.current
     const timers = retryTimers.current
     return () => {
-      for (const c of pending) c.abort() // don't keep the connections busy with the old site's tiles
+      for (const c of pending.keys()) c.abort() // don't keep the connections busy with the old site's tiles
       pending.clear()
       for (const t of timers) clearTimeout(t)
       timers.clear()
@@ -134,9 +154,8 @@ export function TileTree({
     }
   }, [frame, invalidate])
 
-  // Imagery layer on/off (and a fresh one per site): reapply materials on the next frame.
+  // LRO imagery when zoomed out (tileImagery.ts), a fresh one per site and terrain material.
   useEffect(() => {
-    if (!imagery) return
     const reselect = () => {
       dirty.current = true
       invalidate()
@@ -153,7 +172,7 @@ export function TileTree({
       imageryRef.current = null
       reselect()
     }
-  }, [imagery, material, frame, get, invalidate])
+  }, [material, frame, get, invalidate])
 
   // A different detail level: reselect on the next frame.
   useEffect(() => {
@@ -176,13 +195,22 @@ export function TileTree({
     n.state = 'loading'
     inFlight.current++
     const ctl = new AbortController()
-    requests.current.add(ctl)
+    requests.current.set(ctl, clockMs())
     const timeout = setTimeout(() => ctl.abort(new Error(`tile ${n.key}: no answer in ${TILE_TIMEOUT_MS / 1000} s`)), TILE_TIMEOUT_MS)
-    fetch(`${API_URL}/api/terrain/tile/${n.face}/${n.z}/${n.x}/${n.y}?pad=${PAD}`, { signal: ctl.signal })
-      .then(async (res) => {
+    basePack()
+      .then(async (pack): Promise<Float32Array> => {
+        // The coarsest levels ship with the page (globe/basePack.ts): no request at all.
+        const local = pack?.get(n.key)
+        if (local) {
+          n.leaf = local.leaf || n.z >= MAX_ZOOM
+          return local.heights
+        }
+        const res = await fetch(`${API_URL}/api/terrain/tile/${n.face}/${n.z}/${n.x}/${n.y}?pad=${PAD}`, { signal: ctl.signal })
         if (!res.ok) throw new Error(`tile ${n.key}: HTTP ${res.status}`)
         n.leaf = res.headers.get('X-Tile-Leaf') === '1' || n.z >= MAX_ZOOM
-        const heights = new Float32Array(await res.arrayBuffer())
+        return new Float32Array(await res.arrayBuffer())
+      })
+      .then((heights) => {
         // A backend from before padding ignores ?pad=1 and sends the plain tile: draw that too
         // (its edges get one-sided normals) rather than no terrain at all.
         const pad = tilePadding(heights.length)
@@ -236,7 +264,9 @@ export function TileTree({
         clearTimeout(timeout)
         requests.current.delete(ctl)
         inFlight.current--
+        finished.current++
         pump() // keep the connections busy between selections
+        publish()
         dirty.current = true // reselect on the next frame
         invalidate()
       })
@@ -260,8 +290,15 @@ export function TileTree({
       c.set(...lifted)
       state.camera.updateMatrixWorld()
     }
+    // Photo mosaic by altitude: updated every frame, so the fade follows the zoom smoothly.
+    const cm = frame.toMoon([c.x, c.y, c.z])
+    const altitude = Math.hypot(cm[0], cm[1], cm[2]) - MOON_RADIUS_M
+    const mix = imageryMix(altitude)
+    if (imageryRef.current?.tick(performance.now(), mix)) invalidate() // a tile is fading in
+    const mixPct = Math.round(mix * 100)
+    if (useCoverage.getState().mixPct !== mixPct) useCoverage.setState({ mixPct }) // the coverage badge
     if (PERF_ENABLED) {
-      const m = frame.toMoon([c.x, c.y, c.z])
+      const m = cm
       const h = groundHeightAt(m, tileHeights)
       recordCameraClearance(h === null ? null : Math.hypot(m[0], m[1], m[2]) - MOON_RADIUS_M - h)
     }
@@ -360,11 +397,18 @@ export function TileTree({
       }
     }
     if (changed) state.gl.shadowMap.needsUpdate = true
-    imageryRef.current?.apply(
-      draw.map((n) => ({ key: n.key, face: n.face, z: n.z, x: n.x, y: n.y, mesh: n.mesh! })),
-      material,
-      now,
-    ) // terrain under the lander may have changed detail
+    // Imagery only when zoomed out far enough for it to show (no requests close up).
+    if (imageryWanted(altitude))
+      imageryRef.current?.apply(
+        draw.map((n) => ({ key: n.key, face: n.face, z: n.z, x: n.x, y: n.y, mesh: n.mesh! })),
+        material,
+        now,
+      )
+    else
+      imageryRef.current?.release(
+        draw.map((n) => n.mesh!),
+        material,
+      )
 
     // Forget meshes not used for a while once the cache is large.
     const ready = [...nodes.current.values()].filter((n) => n.mesh)
@@ -386,6 +430,8 @@ export function TileTree({
       for (const n of draw) levels[n.z] = (levels[n.z] ?? 0) + 1
       recordTileLevels(levels)
     }
+    drawnCount.current = draw.length
+    publish()
     onStats?.({
       visible: draw.length,
       loading: inFlight.current,

@@ -20,10 +20,14 @@ cd backend
 .venv\Scripts\python.exe scripts\prefetch_tiles.py --imagery
 ```
 - Terrain for the whole globe (coarse), the south-polar region, and the surroundings of all 24 sites down to
-  5 m; the PSR / ice overlay; with `--imagery`, the optional LRO imagery layer.
+  5 m; the PSR / ice overlay; with `--imagery`, the LRO photo mosaic the 3D view fades to when zoomed out.
 - Safe to re-run: it reuses what's cached, lists tiles that failed (Moon Trek is sometimes busy), and a second
   run fills them in.
 - To skip this on another machine, copy the whole `data/cache/` folder across (about 5 GB: 3.2 GB terrain, 1.8 GB imagery).
+- The whole-Moon first view doesn't need the cache: its coarsest terrain and LRO imagery (levels 0-2, 126 tiles
+  each) ship with the frontend as `frontend/public/terrain/base.bin` (1.1 MB) and
+  `frontend/public/imagery/base.bin` (1.7 MB). Rebuild them only if the terrain or imagery sources or the tiling
+  change: `.venv\Scripts\python.exe scripts\build_base_pack.py` (`--only terrain` or `--only imagery` for one).
 
 ## 3. Run
 Two terminals:
@@ -39,7 +43,7 @@ Open http://localhost:5173 (Vite forwards `/api` to the backend on port 8000).
 ## After pulling changes
 - **Restart the backend** unless it runs with `--reload`: uvicorn without it keeps serving the old code.
   The frontend still draws terrain from an older backend, but newer features (e.g. seamless tile lighting,
-  the imagery layer) need the matching backend.
+  the zoomed-out imagery) need the matching backend.
 - If someone regenerated the site files (`scripts/precompute.py`), just pull: they are in git.
 - Re-run step 2 only if new sites or areas were added.
 
@@ -50,4 +54,4 @@ on demand for the same range.
 
 ## Weak hardware
 Use the Graphics menu in the map toolbar: **Low (Chromebook)** skips shadows, the rover model and most terrain
-detail. "Far shadows" and "LRO imagery" are optional extras for capable machines.
+detail. "Far shadows" is an optional extra for capable machines.
