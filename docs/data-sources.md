@@ -89,6 +89,20 @@ Levels 0–2 (128 px) ship with the frontend (`frontend/public/imagery/base.bin`
 - Query: `.../MapServer/0/query?where=FID >= a AND FID < b&outFields=*&f=geojson`. The layers cap a query at 1,000
   records and reject pagination parameters, so fetch in FID ranges.
 
+## The sky in the 3D view: stars and Earth's face (display only)
+- **Stars:** the Hipparcos catalogue (ESA), via the CDS VizieR service (table `I/239/hip_main`): all 8,785
+  stars to magnitude 6.5 (the naked-eye limit) with their positions, brightness and B-V colour.
+  `backend/scripts/build_star_catalog.py` writes `frontend/public/sky/stars.bin` (141 kB, committed).
+- **Earth:** NASA Goddard / Visible Earth "Blue Marble: Land Surface, Shallow Water, and Shaded Topography"
+  (public domain; the Wikimedia Commons copy "Whole world - land and oceans", 1280 x 640),
+  `frontend/public/sky/earth.jpg`. Lit by the Sun's direction, so Earth's phase as seen from the site is right.
+- **Where they go** (`frontend/src/viz/sky/celestial.ts`): the IAU WGCCRE 2009 rotation model of the Moon,
+  Astronomical Almanac low-precision Sun and Moon formulas, and Greenwich sidereal time. Checked against the
+  engine's JPL Horizons directions at Apollo 11, Connecting Ridge and Chang'e 4 (2026-2029): Sun within
+  0.04-0.10°, Earth within 0.06-0.29° (`celestial.test.ts`). The Sun's and Earth's positions drawn in 3D are
+  still the Horizons ones; these formulas only place the stars and turn Earth's globe. Nothing is calculated
+  from the sky; Earth's continents and clouds are not the real weather.
+
 ## LROC Quickmap
 - Web app (React + OpenLayers + Cesium). **No documented public API.** Its layers come from undocumented tile
   servers (`lroc-tiles.actgate.com/tiles`, terrain `dem-tiles.b-cdn.net/lunar/qts_demstack/`), so don't build on them.
