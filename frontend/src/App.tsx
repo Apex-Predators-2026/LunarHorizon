@@ -8,6 +8,8 @@ import { GlassDefs } from './ui/GlassSurface'
 import { GradientPreview } from './ui/GradientPreview'
 import { installMangoTexture } from './ui/mangoShader'
 import { initMaterialMotion } from './viz/materialMotion'
+import { UiHiddenNotice } from './viz/UiHiddenNotice'
+import { useUiPrefs } from './viz/uiPrefs'
 import { Scene } from './viz/Scene'
 
 const VIEWS = [
@@ -73,6 +75,11 @@ export default function App() {
   const compare = view === 'compare'
   useEffect(() => initMaterialMotion(), [])
   useEffect(() => installMangoTexture(), [])
+  const dark = useUiPrefs((u) => u.dark)
+  const uiHidden = useUiPrefs((u) => u.uiHidden)
+  useEffect(() => {
+    document.documentElement.classList.toggle('lp-dark', dark)
+  }, [dark])
 
   if (window.location.hash === '#mango') return <GradientPreview />
   if (window.location.hash === '#glass') return (
@@ -83,10 +90,11 @@ export default function App() {
   )
 
   return (
-    <div className="relative h-full overflow-hidden bg-black">
+    <div className="relative h-full overflow-hidden bg-black" data-ui-hidden={uiHidden && !compare}>
+      <UiHiddenNotice />
       {/* The header is rendered once for both pages (floating over the 3D view, or above the comparison). */}
       <GlassDefs />
-      <header className={`md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${compare ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
+      <header className={`ui-chrome md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${compare ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
         <TopNav view={view} onView={setView} />
       </header>
       <PlanDialogHost />
