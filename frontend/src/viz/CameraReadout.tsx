@@ -26,11 +26,15 @@ export function CameraReadout({
   target,
   scaleBar,
   scaleLabel,
+  compassRing,
+  compassNorth,
 }: {
   frame: SiteFrame | null
   target: RefObject<HTMLElement | null>
   scaleBar: RefObject<HTMLElement | null> // its width is set to the on-screen length of the scale
   scaleLabel: RefObject<HTMLElement | null> // e.g. "5 km"
+  compassRing: RefObject<SVGGElement | null> // turned so its N points at lunar north
+  compassNorth: RefObject<SVGTextElement | null> // the "N", counter-turned so it stays upright
 }) {
   const controls = useThree((s) => s.controls) as { target?: { distanceTo: (v: unknown) => number } } | null
   useFrame(({ camera, size }) => {
@@ -41,6 +45,22 @@ export function CameraReadout({
     const [lat, lon] = vecToLatLon(m)
     const text = `${fmtLatLon(lat, lon)}   Camera alt ${fmtDistance(Math.max(0, r - MOON_RADIUS_M))}`
     if (el.textContent !== text) el.textContent = text
+
+    // Compass: heading = compass direction the camera faces (0 = north, 90 = east). The scene is in the site
+    // frame, where north is -z and east is +x. Looking steeply down, the screen-up direction is used instead.
+    const ring = compassRing.current
+    const n = compassNorth.current
+    if (ring && n) {
+      // Facing direction plus screen-up direction, both flattened to the ground: when looking along the
+      // ground the first dominates, when looking down the second does, with no switch (so no jitter).
+      const d = camera.getWorldDirection(camera.position.clone())
+      const u = camera.up.clone().applyQuaternion(camera.quaternion)
+      const hx = d.x + u.x
+      const hz = d.z + u.z
+      const az = (Math.atan2(hx, -hz) * 180) / Math.PI
+      ring.setAttribute('transform', `rotate(${(-az).toFixed(1)} 28 28)`)
+      n.setAttribute('transform', `rotate(${az.toFixed(1)} 28 11)`)
+    }
 
     // Scale: how many metres one screen pixel covers at the distance of what you are looking at.
     const bar = scaleBar.current

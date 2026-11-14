@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react'
+import { InteractiveGrainGradient } from '../ui/InteractiveGrainGradient'
 import { useDraggable } from './useDraggable'
 
 const MARGIN = 8
@@ -107,9 +108,10 @@ export function FloatingSidebar({ children }: { children: ReactNode }) {
         data-tip={open ? 'Drag to move · click to minimize' : 'Drag to move · click to expand'}
         {...handlers}
         onClick={onClick}
-        className="flex h-6 w-full shrink-0 cursor-grab touch-none select-none items-center justify-center bg-coral transition-colors hover:bg-[#ee5740] active:cursor-grabbing"
+        className="flex h-6 w-full shrink-0 cursor-grab touch-none select-none items-center justify-center bg-coral transition-[filter] hover:brightness-95 active:cursor-grabbing"
       >
-        <span aria-hidden className="h-1 w-10 rounded-full bg-white/70" />
+        <InteractiveGrainGradient fill strength={1.6} patternScale={0.45} />
+        <span aria-hidden className="relative h-1 w-10 rounded-full bg-white/70" />
       </button>
       <div
         className={`min-h-0 overflow-y-auto overflow-x-hidden transition-[max-height,opacity] ${
