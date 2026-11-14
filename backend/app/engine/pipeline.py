@@ -25,6 +25,9 @@ OBSERVER_HEIGHT_M = 2.0
 #        site.kind / site.approximate, x_m / y_m null away from the south pole,
 #        meta.ephemeris says which ephemeris was used (Horizons, or local Skyfield for custom sites)
 GENERATOR_VERSION = "1.2"
+# Decimal places written per column type; stored in meta so readers don't infer them from the version.
+FRACTION_DECIMALS = 6  # sun_visible_fraction
+ANGLE_DECIMALS = 3  # azimuth / elevation / horizon / margin columns
 EPHEMERIS_TEXT = {
     "horizons": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
     "local": "Skyfield + JPL DE421 in MOON_ME_DE421 (validated against Horizons to 0.00001 deg)",
@@ -96,6 +99,8 @@ def analyze_site(site: dict, log=print, ephemeris: str = "horizons") -> dict:
         "meta": {
             "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "generator_version": GENERATOR_VERSION,
+            "fraction_decimals": FRACTION_DECIMALS,  # sun_visible_fraction precision (read this, not the version)
+            "angle_decimals": ANGLE_DECIMALS,  # azimuth/elevation/horizon/margin precision
             "frame": f"Moon {MOON_FRAME} (Mean-Earth/polar axis): Horizons site and LOLA terrain",
             "start_utc": START,
             "stop_utc": STOP,
@@ -111,21 +116,21 @@ def analyze_site(site: dict, log=print, ephemeris: str = "horizons") -> dict:
         "summary": summary,
         "horizon": {
             "azimuth_deg": _r(mask.azimuth_deg, 2),
-            "elevation_deg": _r(mask.elevation_deg, 3),  # null = unknown (terrain data missing)
+            "elevation_deg": _r(mask.elevation_deg, ANGLE_DECIMALS),  # null = unknown (terrain data missing)
             "distance_m": _r(mask.distance_m, 0),
         },
         "timeline": {
             "time_utc": [str(t) + "Z" for t in tl.times.astype("datetime64[m]")],
-            "sun_azimuth_deg": _r(tl.sun_az),
-            "sun_elevation_deg": _r(tl.sun_el),
+            "sun_azimuth_deg": _r(tl.sun_az, ANGLE_DECIMALS),
+            "sun_elevation_deg": _r(tl.sun_el, ANGLE_DECIMALS),
             "sun_angular_radius_deg": _r(tl.sun_radius, 5),
-            "sun_horizon_deg": _r(tl.sun_horizon),
-            "sun_visible_fraction": _r(tl.sun_fraction, 6),
+            "sun_horizon_deg": _r(tl.sun_horizon, ANGLE_DECIMALS),
+            "sun_visible_fraction": _r(tl.sun_fraction, FRACTION_DECIMALS),
             "sun_visible": _b(tl.sunlit, sun_known),  # authoritative "any of the disk above terrain"
-            "earth_azimuth_deg": _r(tl.earth_az),
-            "earth_elevation_deg": _r(tl.earth_el),
-            "earth_horizon_deg": _r(tl.earth_horizon),
-            "earth_margin_deg": _r(tl.earth_margin),
+            "earth_azimuth_deg": _r(tl.earth_az, ANGLE_DECIMALS),
+            "earth_elevation_deg": _r(tl.earth_el, ANGLE_DECIMALS),
+            "earth_horizon_deg": _r(tl.earth_horizon, ANGLE_DECIMALS),
+            "earth_margin_deg": _r(tl.earth_margin, ANGLE_DECIMALS),
             "earth_visible": _b(tl.earth_visible, earth_known),
         },
     }

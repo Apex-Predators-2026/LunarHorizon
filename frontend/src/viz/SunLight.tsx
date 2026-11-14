@@ -1,5 +1,5 @@
-import { useFrame } from '@react-three/fiber'
-import { useRef } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import { useLayoutEffect, useRef } from 'react'
 import type { DirectionalLight } from 'three'
 import type { TimelineStep } from '../types'
 import { azElToVector } from './geometry'
@@ -24,6 +24,18 @@ export function SunLight({ status, shadowHalfWidth }: { status: TimelineStep; sh
   const { sun } = status
   const pos = azElToVector(sun.azimuth_deg, sun.elevation_deg, 20000)
   const atLander = sun.visible_fraction ?? 0 // unknown -> no direct light at the lander
+  const get = useThree((s) => s.get)
+
+  // The shadow map (4096^2, every tile near the lander) only changes when the Sun moves or the
+  // terrain detail changes (TileTree flags that), not when the camera moves: don't redraw it per frame.
+  useLayoutEffect(() => {
+    const { gl } = get()
+    gl.shadowMap.autoUpdate = false
+    gl.shadowMap.needsUpdate = true
+    return () => {
+      gl.shadowMap.autoUpdate = true
+    }
+  }, [get, sun.azimuth_deg, sun.elevation_deg, shadowHalfWidth])
 
   useFrame(({ camera }) => {
     if (!ref.current) return

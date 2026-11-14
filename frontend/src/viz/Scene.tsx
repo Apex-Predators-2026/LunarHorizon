@@ -22,6 +22,8 @@ import { TimeBar } from './TimeBar'
 import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor } from './timeline'
 import { FloatingSidebar } from './FloatingSidebar'
 import { MiniMapPanel } from './MiniMapPanel'
+import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
+import { PerfOverlay, PerfProbe } from './PerfProbe'
 import { SiteSelect, TopInfo, useViewerSetup, ViewButtons } from './ViewerHud'
 
 const SHADOW_HALF_WIDTH_M = 6000 // shadow map covers ~12 km around the lander
@@ -154,7 +156,10 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
 
   return (
     <div className="absolute inset-0 overflow-hidden">
+      {/* Renders only when something changes (camera, time, tiles arriving): an idle view costs
+          nothing. Components that animate on their own must call invalidate(). */}
       <Canvas
+        frameloop={PERF_RENDER_ALWAYS ? 'always' : 'demand'}
         shadows
         gl={{ logarithmicDepthBuffer: true, antialias: true }}
         camera={{ position: [2600, 1400, 3400], fov: 50, near: 0.5, far: 1e9 }}
@@ -218,7 +223,9 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             })),
           ]}
         />
+        {PERF_ENABLED && <PerfProbe />}
       </Canvas>
+      {PERF_ENABLED && <PerfOverlay />}
 
       {/* Labels pinned to 3D points by <ScreenLabels> */}
       <div ref={sunLabel} className={`${labelClass} bg-black/60`}>
