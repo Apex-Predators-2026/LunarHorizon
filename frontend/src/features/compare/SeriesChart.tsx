@@ -51,10 +51,10 @@ function ChartInner({ entries, view, align, originMs, value, unit, yLabel, forma
             <ReferenceLine key={r.label} y={r.y} stroke={r.color ?? '#64748b'} strokeDasharray="4 4"
               label={{ value: r.label, position: 'insideTopRight', fill: STATE.muted, fontSize: 10 }} />
           ))}
-          {cursor !== null && <ReferenceLine x={cursor} stroke="#e2e8f0" strokeWidth={1.5} />}
+          {cursor !== null && <ReferenceLine x={cursor} stroke="#d9472f" strokeWidth={1.5} />}
           <Tooltip
             isAnimationActive={false}
-            cursor={{ stroke: '#94a3b8', strokeDasharray: '2 3' }}
+            cursor={{ stroke: '#6b7076', strokeDasharray: '2 3' }}
             content={({ active, payload, label }) =>
               active && payload?.length ? (
                 <TooltipBox
