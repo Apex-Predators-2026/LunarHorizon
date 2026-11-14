@@ -14,10 +14,10 @@ from __future__ import annotations
 from datetime import timedelta
 
 from ..models import Scenario
-from .engine import (Candidate, Evaluator, candidate_sites, candidate_times, classify, diverse_top, is_real,
+from .engine import (Candidate, Evaluator, candidate_sites, candidate_times, classify, diverse_top, is_real, snap_to_grid,
                      SIMULATION_HINT, resolve_simulation, search_grid, site_group)
 from .catalog import is_catalog
-from .explain import fmt_score, fmt_time, headline_for, metric_deltas, reasons_for, why_fails
+from .explain import describe_violation, fmt_score, fmt_time, headline_for, metric_deltas, reasons_for, why_fails
 from .loosen import loosening_suggestions
 from .schemas import Alternative, NearMiss, RescueRequest, RescueResponse, SearchStats
 from .sensitivity import quick_robustness
@@ -41,7 +41,7 @@ def changed_scenario(req: RescueRequest) -> Scenario:
     o, ch = req.original, req.change
     return Scenario(
         site=o.site,
-        landing_utc=o.landing_utc + timedelta(days=ch.launch_delay_days),
+        landing_utc=snap_to_grid(o.landing_utc + timedelta(days=ch.launch_delay_days)),
         duration_days=ch.new_duration_days or o.duration_days,
         requirements=ch.requirement_overrides.apply(o.requirements),
     )
@@ -101,7 +101,7 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
     scored = []
     for c in shortlist:
         rob = quick_robustness(c.scenario, ev, sim) if opts.robustness_check else None
-        penalty = ROBUSTNESS_PENALTY * (1 - rob.pass_rate) if rob else 0.0
+        penalty = ROBUSTNESS_PENALTY * (1 - rob.pass_rate) if rob and rob.pass_rate is not None else 0.0
         rs = _rank_score(c, opts)
         scored.append((_rank_key(c, opts, penalty), None if rs is None else rs - penalty, c, rob))
     scored.sort(key=lambda x: x[0], reverse=True)
@@ -135,7 +135,7 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
             summary += f" Better option available: {alternatives[0].headline}"
     elif alternatives:
         status = "rescued"
-        broken = "; ".join(v.message.rstrip(".") for v in changed.violations)
+        broken = "; ".join(describe_violation(v).rstrip(".") for v in changed.violations)
         verb = "can't be checked (missing data)" if changed.verdict == "unknown" else "fails"
         summary = f"The changed plan {verb}: {broken}. Best rescue: {alternatives[0].headline}"
     elif changed.verdict == "unknown" and not passing and not failing:

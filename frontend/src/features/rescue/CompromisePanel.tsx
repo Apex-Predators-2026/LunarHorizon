@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 
 import { fetchRescueCatalog } from './api'
 import { fmtUtc } from './format'
+import { DataNote } from './RescuePanel'
 import type { Scenario } from '../../types'
 import type { CompromiseOption, CompromiseResponse, RescueCatalog } from './types'
 import { useRescueStore } from './useRescueStore'
@@ -87,8 +88,8 @@ export function CompromisePanel() {
         </button>
       </div>
 
-      {s.error && s.compromiseStatus === 'error' && (
-        <p role="alert" className="rounded border border-red-900 bg-red-950/50 p-2 text-xs text-red-300">{s.error}</p>
+      {s.compromiseError && (
+        <p role="alert" className="rounded border border-red-900 bg-red-950/50 p-2 text-xs text-red-300">{s.compromiseError}</p>
       )}
 
       {res && <CompromiseResults res={res} onSelect={s.select} />}
@@ -96,8 +97,13 @@ export function CompromisePanel() {
   )
 }
 
+const sameOption = (a: CompromiseOption | null, b: CompromiseOption) =>
+  a !== null && a.scenario.site.id === b.scenario.site.id && a.scenario.landing_utc === b.scenario.landing_utc
+
 /** Pure display of a CompromiseResponse (no store access). */
 export function CompromiseResults({ res, onSelect }: { res: CompromiseResponse; onSelect: (s: Scenario) => void }) {
+  // The best-for-engineering and best-for-science rows are already shown first; don't repeat them.
+  const isShownAbove = (o: CompromiseOption) => sameOption(res.best_for_engineering, o) || sameOption(res.best_for_science, o)
   return (
     <div className="space-y-3 text-xs">
       <div role="status" className={`rounded-md border p-3 ${res.status === 'both_met'
@@ -117,6 +123,8 @@ export function CompromiseResults({ res, onSelect }: { res: CompromiseResponse; 
           </button>
         )}
       </div>
+
+      <DataNote assumptions={res.assumptions} />
 
       <table className="w-full">
         <caption className="pb-1 text-left text-[11px] text-slate-500">
@@ -139,7 +147,7 @@ export function CompromiseResults({ res, onSelect }: { res: CompromiseResponse; 
             <OptionRow o={res.best_for_science} label="Best for science"
               onSelect={() => onSelect(res.best_for_science!.scenario)} />
           )}
-          {res.pareto_front.map((o) => (
+          {res.pareto_front.filter((o) => !isShownAbove(o)).map((o) => (
             <OptionRow key={`${o.scenario.site.id}@${o.scenario.landing_utc}`} o={o}
               onSelect={() => onSelect(o.scenario)} />
           ))}
