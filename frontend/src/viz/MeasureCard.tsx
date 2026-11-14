@@ -221,6 +221,7 @@ export function MeasureCard({
             <div className="flex flex-wrap items-center gap-1">
               <button
                 type="button"
+                data-no-sfx
                 className={pillBtn}
                 onClick={onStartAtLander}
                 data-tip="Anchor or prepend the active Lander position as Waypoint A"
@@ -229,6 +230,7 @@ export function MeasureCard({
               </button>
               <button
                 type="button"
+                data-no-sfx
                 className={pillBtn}
                 disabled={waypoints.length === 0}
                 onClick={onUndo}
@@ -238,6 +240,7 @@ export function MeasureCard({
               </button>
               <button
                 type="button"
+                data-no-sfx
                 className={pillBtn}
                 disabled={waypoints.length === 0}
                 onClick={onClear}
@@ -634,6 +637,7 @@ export function MeasureCard({
                       </button>
                       <button
                         type="button"
+                        data-no-sfx
                         onClick={(e) => {
                           e.stopPropagation()
                           onDeleteWaypoint(wp.id)
