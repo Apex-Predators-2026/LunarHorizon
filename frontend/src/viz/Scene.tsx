@@ -229,8 +229,37 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     [frame, analyseSpot],
   )
 
+  // The clickable site labels sit on top of the canvas: a wheel (or trackpad pinch) over one still
+  // zooms the 3D view, as if the label weren't there. Native and non-passive, so a pinch over a label
+  // doesn't zoom the page instead.
+  const sceneRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const root = sceneRef.current
+    if (!root) return
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('[data-site-label]')) return
+      e.preventDefault()
+      root.querySelector('canvas')?.dispatchEvent(
+        new WheelEvent('wheel', {
+          deltaX: e.deltaX,
+          deltaY: e.deltaY,
+          deltaZ: e.deltaZ,
+          deltaMode: e.deltaMode,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    }
+    root.addEventListener('wheel', onWheel, { passive: false })
+    return () => root.removeEventListener('wheel', onWheel)
+  }, [])
+
   return (
-    <div className={`absolute inset-0 overflow-hidden ${pin.phase === 'armed' ? 'pin-cursor' : ''}`}>
+    <div ref={sceneRef} className={`absolute inset-0 overflow-hidden ${pin.phase === 'armed' ? 'pin-cursor' : ''}`}>
       {/* Renders only when something changes (camera, time, tiles arriving): an idle view costs
           nothing. Components that animate on their own must call invalidate(). */}
       {/* A new graphics preset gets a fresh canvas: anti-aliasing is fixed when the WebGL context is made. */}
@@ -345,6 +374,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           key={x.id}
           ref={siteLabelRefs.get(x.id)}
           type="button"
+          data-site-label
           onClick={() => setSite(x.id)}
           data-tip={`${x.name}${x.approximate ? ' (approximate coordinates)' : ''}: click to select`}
           className="absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 px-1.5 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800"
