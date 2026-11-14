@@ -72,7 +72,8 @@ def raw_site(site: str, *, start: datetime = REGRESSION_START, end: datetime = R
 
 def raw_timeline(site: str, *, start: datetime = REGRESSION_START, end: datetime = REGRESSION_END) -> dict[str, Any]:
     """Shorthand for ``raw_site(site, start=start, end=end)["timeline"]``."""
-    return raw_site(site, start=start, end=end)["timeline"]
+    timeline: dict[str, Any] = raw_site(site, start=start, end=end)["timeline"]
+    return timeline
 
 
 DATA_START, DATA_END = timeline_bounds(_REFERENCE_SITE)
