@@ -156,7 +156,8 @@ export function lookAt(camera: CameraLike, target: THREE.Vector3) {
 }
 
 /** The object CameraRig and the camera readout talk to (like drei's OrbitControls). */
-export class GlobeNavigation extends THREE.EventDispatcher<{ change: object }> {
+// Events: 'start' when the user begins a gesture (CameraRig cancels a view flight), 'change' on every move.
+export class GlobeNavigation extends THREE.EventDispatcher<{ change: object; start: object }> {
   readonly target = new THREE.Vector3() // the point the camera looks at (on the surface when possible)
   readonly centre = new THREE.Vector3() // the Moon's centre in the site frame
   private readonly camera: THREE.Camera

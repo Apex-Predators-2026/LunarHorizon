@@ -267,7 +267,7 @@ export function TimeBar({
           type="button"
           onClick={onHide}
           aria-label="Hide timeline panel"
-          title="Hide"
+          data-tip="Hide"
           className="absolute right-2.5 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-calcite-peach/40 hover:text-slate-100"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -276,12 +276,12 @@ export function TimeBar({
         </button>
       )}
       <div className="mb-1.5 flex flex-wrap items-center gap-1.5 pr-7">
-        <button type="button" className={btn} onClick={() => step(-windowDays * 24)} title="Previous window">⏮</button>
+        <button type="button" className={btn} onClick={() => step(-windowDays * 24)} data-tip="Previous window">⏮</button>
         <button type="button" className={btn} onClick={() => step(-24)}>−1 d</button>
         <button type="button" className={btn} onClick={() => step(-1)}>−1 h</button>
         <button type="button" className={btn} onClick={() => step(1)}>+1 h</button>
         <button type="button" className={btn} onClick={() => step(24)}>+1 d</button>
-        <button type="button" className={btn} onClick={() => step(windowDays * 24)} title="Next window">⏭</button>
+        <button type="button" className={btn} onClick={() => step(windowDays * 24)} data-tip="Next window">⏭</button>
         <label className="ml-2 flex items-center gap-1 text-slate-400">
           Speed
           <select className={select} value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
