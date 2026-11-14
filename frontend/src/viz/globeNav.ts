@@ -151,6 +151,24 @@ export function setLookOffset(camera: CameraLike, pivot: THREE.Vector3, offset: 
   camera.updateMatrixWorld()
 }
 
+/**
+ * Which way the view faces at `pivot`, as a compass heading (radians, clockwise from north): the
+ * camera's forward and screen-up directions flattened onto the ground there, so it is defined from a
+ * view along the ground to one straight down (then it's the direction at the top of the screen).
+ * `axis` = the Moon's spin axis (towards the north pole) in the scene frame. Null at a pole.
+ */
+export function viewHeading(camera: CameraLike, pivot: THREE.Vector3, centre: THREE.Vector3, axis: THREE.Vector3): number | null {
+  const up = pivot.clone().sub(centre).normalize()
+  const north = axis.clone().addScaledVector(up, -axis.dot(up))
+  if (north.lengthSq() < 1e-12) return null
+  north.normalize()
+  const east = new THREE.Vector3().crossVectors(north, up)
+  const h = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).add(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion))
+  h.addScaledVector(up, -h.dot(up))
+  if (h.lengthSq() < 1e-12) return null
+  return Math.atan2(h.dot(east), h.dot(north))
+}
+
 export const MAX_TILT = (85 * Math.PI) / 180
 
 /**
