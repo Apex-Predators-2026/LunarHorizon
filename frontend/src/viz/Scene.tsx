@@ -1,4 +1,4 @@
-import { OrbitControls, Stars } from '@react-three/drei'
+import { Stars } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { createRef, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import * as THREE from 'three'
@@ -7,7 +7,8 @@ import type { SiteInfo } from '../types'
 import { createCustomSite, fetchHorizon, fetchPsr, fetchSites, fetchStatus, fetchTimeline, useAsync } from './api'
 import { CameraRig, type ViewMode } from './CameraRig'
 import { FollowCamera } from './FollowCamera'
-import { SiteFrame, vecToLatLon } from './globe/cubeSphere'
+import { MOON_RADIUS_M, SiteFrame, vecToLatLon } from './globe/cubeSphere'
+import { GlobeControls } from './GlobeControls'
 import { currentBlockers, fmtDistance, KIND_COLOR, surfacePoint } from './globe/overlays'
 import { BlockerLines, PsrLayer, SitePins } from './globe/SurfaceOverlays'
 import { TileTree, type TileStats } from './globe/TileTree'
@@ -17,14 +18,19 @@ import { BEACON_HEIGHT, BEACON_HIDE_WITHIN_M, Lander } from './Lander'
 import { skyPositions } from './geometry'
 import { ScreenLabels } from './ScreenLabels'
 import { SkyBodies } from './SkyBodies'
+import { SkyTrails } from './SkyTrails'
 import { SunLight } from './SunLight'
 import { TimeBar } from './TimeBar'
+import { CameraReadout } from './CameraReadout'
 import { ViewCentre } from './ViewCentre'
 import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor } from './timeline'
 import { FloatingSidebar } from './FloatingSidebar'
 import { GRAPHICS, useGraphicsQuality, useStoredFlag } from './graphics'
 import { MiniMapPanel } from './MiniMapPanel'
+import { MissionPanel } from './MissionPlayback'
+import { useMissionPlayback } from './useMissionPlayback'
 import { SnackbarHost } from './Snackbar'
+import { TooltipHost } from './TooltipHost'
 import { showSnackbar } from './snackbarStore'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
@@ -50,7 +56,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const [view, setView] = useState<ViewMode>('overview')
   const [windowDays, setWindowDays] = useState(14)
   const [terrainStats, setTerrainStats] = useState<TileStats | null>(null)
-  const [layers, setLayers] = useState<Layers>({ sites: true, psr: true, blockers: true, imagery: false })
+  const [layers, setLayers] = useState<Layers>({ sites: true, psr: true, blockers: true, imagery: false, paths: true })
   const [pin, setPin] = useState<PinState>({ phase: 'idle' })
   const [createdSites, setCreatedSites] = useState<SiteInfo[]>([]) // pins dropped this session
   const setSite = useAppStore((s) => s.setSite)
@@ -75,6 +81,10 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   // The side panels cover the right of the view: shift the picture so the Moon/lander sits in the
   // middle of the free area to their left (half the panels' width, re-measured on resize).
   const sideRef = useRef<HTMLDivElement>(null)
+  const [cameraReset, setCameraReset] = useState(0)
+  const readoutRef = useRef<HTMLDivElement>(null)
+  const scaleBarRef = useRef<HTMLDivElement>(null)
+  const scaleLabelRef = useRef<HTMLDivElement>(null)
   const [viewShiftPx, setViewShiftPx] = useState(0)
   useEffect(() => {
     const side = sideRef.current
@@ -120,7 +130,9 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   // Re-render the HUD only when the stats actually change.
   const onStats = useCallback((s: TileStats) => {
     setTerrainStats((prev) =>
-      prev && prev.visible === s.visible && prev.loading === s.loading && prev.deepest === s.deepest ? prev : s,
+      prev && prev.visible === s.visible && prev.loading === s.loading && prev.deepest === s.deepest && prev.retrying === s.retrying
+        ? prev
+        : s,
     )
   }, [])
 
@@ -149,6 +161,8 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const loading = sites.loading || horizon.loading || timeline.loading
 
   useViewerSetup(sites.data)
+  // Plays the sidebar's plan (landing to end) in the 3D view, pausing where it fails.
+  const mission = useMissionPlayback(sites.data)
   const barRef = useRef<HTMLDivElement>(null)
   const [barHidden, setBarHidden] = useState(false)
   const [barH, setBarH] = useState(0)
@@ -216,6 +230,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
       >
         <color attach="background" args={['#000000']} />
         <ViewCentre shiftLeftPx={viewShiftPx} />
+        <CameraReadout frame={frame} target={readoutRef} scaleBar={scaleBarRef} scaleLabel={scaleLabelRef} />
         {/* Display aid, not real light: a dim overhead fill so terrain in shadow still shows its
             shape. Sunlight (intensity 3 x visible fraction near the lander) stays >10x brighter. */}
         <ambientLight intensity={0.03} />
@@ -252,18 +267,24 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           <Stars radius={SKY_DISTANCE_M * 0.5} depth={SKY_DISTANCE_M * 0.2} count={gfx.stars} factor={SKY_DISTANCE_M / 100} fade />
           {horizon.data && eyeView && <HorizonCurtain horizon={horizon.data} radius={CURTAIN_RADIUS_M} />}
           {s && <SkyBodies status={s} distance={SKY_DISTANCE_M} />}
+          {layers.paths && timeline.data && <SkyTrails steps={timeline.data} radius={SKY_DISTANCE_M * 0.98} />}
         </FollowCamera>
         <Lander status={s} observerHeight={eye} showBeacon={view === 'overview'} detailed={gfx.detailedModels} />
 
-        {/* Pan along the ground (like a map), not in the screen plane, which would drag the view down
-            into the terrain. TileTree also keeps the camera itself above the ground. */}
-        <OrbitControls minDistance={5} maxDistance={MAX_CAMERA_DISTANCE_M} screenSpacePanning={false} makeDefault />
+        {/* Google-Earth-style: drag spins the Moon under the cursor, right-drag turns / tilts, wheel
+            zooms towards the cursor. TileTree also keeps the camera itself above the ground. */}
+        <GlobeControls
+          moonCentre={frame?.moonCentre ?? null}
+          groundRadius={MOON_RADIUS_M + (site?.ground_height_m ?? 0)}
+          maxDistance={MAX_CAMERA_DISTANCE_M}
+        />
         <CameraRig
           view={view}
           status={s}
           siteId={siteId}
           maxTerrainHeight={maxTerrainHeight}
           moonCentre={frame?.moonCentre ?? null}
+          resetKey={cameraReset}
         />
         <ScreenLabels
           moonCentre={frame?.moonCentre ?? null}
@@ -311,7 +332,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           ref={siteLabelRefs.get(x.id)}
           type="button"
           onClick={() => setSite(x.id)}
-          title={`${x.name}${x.approximate ? ' (approximate coordinates)' : ''}: click to select`}
+          data-tip={`${x.name}${x.approximate ? ' (approximate coordinates)' : ''}: click to select`}
           className="absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 px-1.5 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800"
           style={{ borderColor: KIND_COLOR[x.kind ?? 'custom'] ?? KIND_COLOR.custom }}
         >
@@ -337,11 +358,23 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         style={{ fontFamily: 'var(--font-inter)' }}
       >
         <SnackbarHost />
+        <TooltipHost />
+        <div
+          className="pointer-events-none absolute bottom-2 right-[4vw] flex flex-col items-end gap-1 text-[10px] tabular-nums text-white"
+          style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
+        >
+          {/* Scale bar: its width is the on-screen length of the distance in its label. */}
+          <div aria-label="Map scale" className="flex flex-col items-end">
+            <div ref={scaleLabelRef} />
+            <div ref={scaleBarRef} className="h-1.5 border-x-2 border-b-2 border-white" style={{ width: 60 }} />
+          </div>
+          <div ref={readoutRef} aria-label="Camera position" className="whitespace-nowrap" />
+        </div>
         <div className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(60px,6.2vw,92px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))]">
           <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
           <ColorKey layers={layers} />
         </div>
-        <div ref={sideRef} className="absolute bottom-4 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-3">
+        <div ref={sideRef} className="absolute bottom-16 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4">
           {site && <MiniMapPanel horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />}
           <FloatingSidebar>
             <div className="space-y-4">
@@ -352,6 +385,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         </div>
         {/* Bottom stack: map tools (pin / layers / JPL check) sit just above the timeline panel. */}
         <div className="absolute bottom-0 left-3 right-3 flex flex-col md:left-[3.6vw] md:right-[calc(4vw+var(--lp-side-w)+16px)]">
+          <MissionPanel mission={mission} />
           {/* Lifted above the "show timeline" arrow while the panel is hidden. */}
           <div className={`md-slide transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>
             <MapTools
@@ -364,11 +398,13 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
               timeUtc={timeUtc}
               view={view}
               onView={setView}
+              onGoToView={() => setCameraReset((n) => n + 1)}
               graphics={graphicsQuality}
               onGraphics={setGraphicsQuality}
               farShadows={farShadows && gfx.shadows}
               farShadowsAvailable={gfx.shadows}
               onFarShadows={setFarShadows}
+              mission={{ available: mission.available, active: !!mission.run, reason: mission.reason, start: mission.start, stop: mission.stop }}
             />
           </div>
           {site && win && (
@@ -387,6 +423,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
                 windowDays={windowDays}
                 onWindowDays={setWindowDays}
                 loading={timeline.loading}
+                mission={mission.strip}
                 onHide={() => {
                   setBarH(barRef.current?.offsetHeight ?? 0)
                   setBarHidden(true)
@@ -399,7 +436,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
               type="button"
               onClick={() => setBarHidden(false)}
               aria-label="Show timeline panel"
-              title="Show timeline"
+              data-tip="Show timeline"
               className="md-pop pointer-events-auto absolute bottom-1 left-1/2 flex h-9 w-12 items-center justify-center text-white transition-opacity hover:opacity-70"
             >
               <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

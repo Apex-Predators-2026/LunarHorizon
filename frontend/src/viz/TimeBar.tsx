@@ -70,7 +70,26 @@ function usePlayback(hoursPerSec: number, dataStop: number) {
 }
 
 /** Sunlight / Earth-visibility strip for the current window. Click or drag to move the time. */
-function Strip({ steps, win, now, onSeek }: { steps: TimelineStep[]; win: [number, number]; now: number; onSeek: (ms: number) => void }) {
+/** A mission being played back: its window and the moments a requirement breaks (see viz/mission.ts). */
+export interface StripMission {
+  start: number
+  end: number
+  failures: number[] // epoch ms
+}
+
+function Strip({
+  steps,
+  win,
+  now,
+  onSeek,
+  mission,
+}: {
+  steps: TimelineStep[]
+  win: [number, number]
+  now: number
+  onSeek: (ms: number) => void
+  mission?: StripMission | null
+}) {
   const [boxRef, width] = useWidth<HTMLDivElement>()
   const dragging = useRef(false)
   const w = Math.max(50, width - GUTTER - 4)
@@ -164,6 +183,27 @@ function Strip({ steps, win, now, onSeek }: { steps: TimelineStep[]; win: [numbe
             <title>Longest blackout in this window: {fmtDur(blackout.hours)}</title>
           </rect>
         )}
+        {mission && mission.end > win[0] && mission.start < win[1] && (
+          <g pointerEvents="none">
+            <rect
+              x={x(Math.max(mission.start, win[0]))}
+              y={-2}
+              width={Math.max(1, x(Math.min(mission.end, win[1])) - x(Math.max(mission.start, win[0])))}
+              height={earthTop + EARTH_H + 4}
+              fill="#ff634a"
+              fillOpacity={0.1}
+              stroke="#ff634a"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              rx={3}
+            />
+            {mission.failures
+              .filter((t) => t >= win[0] && t <= win[1])
+              .map((t) => (
+                <path key={t} d={`M${x(t) - 5},-2 L${x(t) + 5},-2 L${x(t)},6 Z`} fill="#ef4444" />
+              ))}
+          </g>
+        )}
         {now >= win[0] && now <= win[1] && (
           <line x1={x(now)} x2={x(now)} y1={-2} y2={earthTop + EARTH_H + 2} stroke="#ff634a" strokeWidth={2} />
         )}
@@ -173,6 +213,10 @@ function Strip({ steps, win, now, onSeek }: { steps: TimelineStep[]; win: [numbe
         <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: COLORS.earth }} />Earth in view</span>
         <span><span className="mr-1 inline-block h-2 w-3 border align-middle" style={{ borderColor: COLORS.gap }} />
           Longest gap in window{dark ? ` · dark ${fmtDur(dark.hours)}` : ''}{blackout ? ` · blackout ${fmtDur(blackout.hours)}` : ''}</span>
+        {mission && (
+          <span><span className="mr-1 inline-block h-2 w-3 border border-dashed align-middle" style={{ borderColor: '#ff634a' }} />
+            Mission{mission.failures.length ? <> · <span className="text-red-400">▼</span> requirement broken</> : ''}</span>
+        )}
       </div>
     </div>
   )
@@ -188,6 +232,7 @@ export function TimeBar({
   loading,
   views,
   onHide,
+  mission,
 }: {
   site: SiteInfo
   steps: TimelineStep[]
@@ -197,6 +242,7 @@ export function TimeBar({
   loading: boolean
   onHide?: () => void // slides the panel off screen
   views?: ReactNode // camera view buttons, shown under the slider
+  mission?: StripMission | null // mission playback: window band and failure markers on the strip
 }) {
   const timeUtc = useAppStore((s) => s.timeUtc)
   const setTime = useAppStore((s) => s.setTime)
@@ -211,38 +257,38 @@ export function TimeBar({
   const step = (hours: number) => seek(now + hours * HOUR_MS)
   const totalHours = Math.round((stop - start) / HOUR_MS)
 
-  const btn = 'rounded-lg border border-opal-300 bg-white px-2 py-0.5 transition-colors hover:bg-calcite-peach/40 disabled:opacity-40'
-  const select = 'rounded-lg border border-opal-300 bg-white px-1 py-0.5'
+  const btn = 'md-compact border border-opal-300 bg-white transition-colors hover:bg-calcite-peach/40 disabled:opacity-40'
+  const select = 'h-10 rounded-full border border-opal-300 bg-white px-3'
 
   return (
-    <div className="lp-light pointer-events-auto relative max-h-[48vh] overflow-y-auto rounded-t-[20px] bg-opal-50 px-4 pb-2 pt-3 text-xs shadow-lg shadow-black/30">
+    <div className="lp-light pointer-events-auto relative max-h-[48vh] overflow-y-auto rounded-t-[24px] bg-opal-50 px-4 pb-3 pt-4 text-xs shadow-lg shadow-black/30">
       {onHide && (
         <button
           type="button"
           onClick={onHide}
           aria-label="Hide timeline panel"
-          title="Hide"
-          className="absolute right-2.5 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-calcite-peach/40 hover:text-slate-100"
+          data-tip="Hide"
+          className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-calcite-peach/40 hover:text-slate-100"
         >
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M2 4l4 4 4-4" />
           </svg>
         </button>
       )}
-      <div className="mb-1.5 flex flex-wrap items-center gap-1.5 pr-7">
-        <button type="button" className={btn} onClick={() => step(-windowDays * 24)} title="Previous window">⏮</button>
+      <div className="mb-2 flex flex-wrap items-center gap-2 pr-10">
+        <button type="button" className={btn} onClick={() => step(-windowDays * 24)} data-tip="Previous window">⏮</button>
         <button type="button" className={btn} onClick={() => step(-24)}>−1 d</button>
         <button type="button" className={btn} onClick={() => step(-1)}>−1 h</button>
         <button type="button" className={btn} onClick={() => step(1)}>+1 h</button>
         <button type="button" className={btn} onClick={() => step(24)}>+1 d</button>
-        <button type="button" className={btn} onClick={() => step(windowDays * 24)} title="Next window">⏭</button>
-        <label className="ml-2 flex items-center gap-1 text-slate-400">
+        <button type="button" className={btn} onClick={() => step(windowDays * 24)} data-tip="Next window">⏭</button>
+        <label className="ml-2 flex items-center gap-2 text-slate-400">
           Speed
           <select className={select} value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
             {SPEEDS.map((s) => <option key={s.label} value={s.hoursPerSec}>{s.label}</option>)}
           </select>
         </label>
-        <label className="flex items-center gap-1 text-slate-400">
+        <label className="flex items-center gap-2 text-slate-400">
           Window
           <select className={select} value={windowDays} onChange={(e) => onWindowDays(Number(e.target.value))}>
             {WINDOW_DAYS.map((d) => <option key={d} value={d}>{d} days</option>)}
@@ -252,7 +298,7 @@ export function TimeBar({
         {loading && <span className="text-slate-500">loading…</span>}
       </div>
 
-      {steps.length ? <Strip steps={steps} win={win} now={now} onSeek={seek} /> : <div style={{ height: STRIP_H + 14 }} />}
+      {steps.length ? <Strip steps={steps} win={win} now={now} onSeek={seek} mission={mission} /> : <div style={{ height: STRIP_H + 14 }} />}
 
       <div className="mt-1 flex items-center gap-2">
         <span className="shrink-0 text-[10px] tabular-nums text-slate-500">{site.data_start_utc.slice(0, 10)}</span>
@@ -270,11 +316,11 @@ export function TimeBar({
         <span className="shrink-0 text-[10px] tabular-nums text-slate-500">{site.data_stop_utc.slice(0, 10)}</span>
       </div>
 
-      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         {views}
         <span className="min-w-0 flex-1 text-right text-[10px] leading-tight text-slate-500">
           {site.lat.toFixed(4)}°, {site.lon.toFixed(4)}°E · ground {Math.round(site.ground_height_m)} m · terrain: Moon Trek LOLA ·
-          ephemeris: {site.kind === 'custom' ? 'JPL DE421 (local, checked against Horizons)' : 'JPL Horizons'} · drag to orbit, scroll to zoom
+          ephemeris: {site.kind === 'custom' ? 'JPL DE421 (local, checked against Horizons)' : 'JPL Horizons'} · drag to spin the Moon, right-drag to turn, scroll to zoom
         </span>
       </div>
     </div>
