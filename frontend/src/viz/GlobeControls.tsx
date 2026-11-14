@@ -8,7 +8,8 @@
 //   * The higher up, the less the view may tilt (straight down from far away), so zooming out or
 //     dragging from orbit keeps the Moon centred instead of low on the screen (as in Google Earth).
 //   * Top-down toggle (map toolbar button or the U key, cameraTilt.ts): swing to look straight down
-//     at the middle of the view, at the same distance, and back to the tilt it had.
+//     at the middle of the view, at the same distance, turning north-up, and back to the tilt it had
+//     (camera to the south, looking north). At eye level the exact view is kept and restored instead.
 //   * Fly-to (a click on the minimap, cameraTilt.ts): spin the Moon until that point is in the middle.
 // Registered as the scene's default controls, with the `target` + `update()` that CameraRig's
 // view presets and the camera readout use. Geometry: globeNav.ts (unit-tested).
@@ -34,6 +35,7 @@ import {
   tiltAt,
   tiltTo,
   TOP_DOWN_TILT,
+  viewHeading,
   viewPivot,
   zoomAbout,
 } from './globeNav'
@@ -59,10 +61,12 @@ type Mode =
 
 export function GlobeControls({
   moonCentre,
+  moonAxis,
   groundRadius,
   maxDistance,
 }: {
   moonCentre: Vec3 | null
+  moonAxis: Vec3 | null // towards the Moon's north pole (scene frame): the top-down toggle turns the view north-up
   groundRadius: number // the Moon's radius at the site (m): the grab sphere when no terrain is hit
   maxDistance: number // furthest the camera may get from the Moon's surface (m)
 }) {
@@ -72,15 +76,25 @@ export function GlobeControls({
   const nav = useRef<GlobeNavigation | null>(null)
   const zoom = useRef<{ focus: THREE.Vector3; remaining: number } | null>(null)
   const spin = useRef<{ axis: THREE.Vector3; rate: number; last: number; maxStep: number } | null>(null) // rad/ms
-  // The top-down toggle's swing: tilt about the pivot and look offset (eye level), from -> to.
   // A fly-to: the whole spin about the Moon's centre, how much of it is done, when it started and how long.
   const fly = useRef<{ total: THREE.Quaternion; applied: THREE.Quaternion; start: number; ms: number } | null>(null)
-  const swing = useRef<{ pivot: THREE.Vector3; from: number; to: number; offFrom: number; offTo: number; start: number; down: boolean } | null>(null)
-  const limits = useRef({ groundRadius, maxDistance })
+  // The top-down toggle's swing about the pivot: tilt, look offset (eye level) and heading turn, from -> to.
+  const swing = useRef<{
+    pivot: THREE.Vector3
+    from: number
+    to: number
+    offFrom: number
+    offTo: number
+    turn: number // total turn about the vertical (radians): to face north
+    turned: number
+    start: number
+    down: boolean
+  } | null>(null)
+  const limits = useRef({ groundRadius, maxDistance, moonAxis })
 
   useEffect(() => {
-    limits.current = { groundRadius, maxDistance }
-  }, [groundRadius, maxDistance])
+    limits.current = { groundRadius, maxDistance, moonAxis }
+  }, [groundRadius, maxDistance, moonAxis])
 
   useEffect(() => {
     if (nav.current && moonCentre) {
@@ -153,7 +167,14 @@ export function GlobeControls({
     // Top-down toggle. The button shows whether the view is top-down now, whatever made it so.
     // What to swing back to: the tilt and look offset before going top-down, and (to restore that view
     // exactly) the pivot and where the camera ended up, in case it hasn't moved since.
-    let before: { tilt: number; offset: number; pivot: THREE.Vector3; arrived: THREE.Vector3 | null } | null = null
+    // At eye level (the Sun / Earth views) the way you face is the point (the Sun, Earth), so that view is
+    // kept and restored exactly; otherwise top-down is north-up and tilting runs north-south.
+    let before: { tilt: number; offset: number; pivot: THREE.Vector3; arrived: THREE.Vector3 | null; eyeLevel: boolean } | null = null
+    /** The turn about the vertical through `pivot` that makes the view face north (0 if unknown). */
+    const turnToNorth = (pivot: THREE.Vector3) => {
+      const axis = limits.current.moonAxis
+      return axis ? (viewHeading(camera, pivot, n.centre, new THREE.Vector3(...axis)) ?? 0) : 0
+    }
     const publishTilt = () => {
       const topDown = nadirAngle(camera, n.centre) < TOP_DOWN_WITHIN_RAD
       if (useCameraTilt.getState().topDown !== topDown) useCameraTilt.setState({ topDown })
@@ -178,23 +199,31 @@ export function GlobeControls({
       if (nadirAngle(camera, n.centre) < TOP_DOWN_WITHIN_RAD) {
         // Back to the tilt it had: exactly the old view if the camera hasn't moved since, else that
         // tilt over what's in the middle of the view now.
-        const unmoved = before?.arrived && before.arrived.distanceTo(camera.position) < 0.5
+        const unmoved = !!before?.arrived && before.arrived.distanceTo(camera.position) < 0.5
+        const exact = unmoved && before!.eyeLevel
         const pivot = unmoved ? before!.pivot : viewCentrePoint()
         const offFrom = lookOffset(camera, pivot)
         const from = tiltAt(camera, pivot, n.centre)
-        swing.current = { pivot, from, to: before?.tilt ?? DEFAULT_TILT, offFrom, offTo: unmoved ? before!.offset : 0, start, down: false }
+        const to = before?.tilt ?? DEFAULT_TILT
+        const turn = exact ? 0 : turnToNorth(pivot)
+        swing.current = { pivot, from, to, offFrom, offTo: exact ? before!.offset : 0, turn, turned: 0, start, down: false }
       } else {
+        const eyeLevel = altitude() < EYE_LEVEL_M
         const pivot = swingPivot()
         const from = tiltAt(camera, pivot, n.centre)
         const offFrom = lookOffset(camera, pivot)
-        before = { tilt: from, offset: offFrom, pivot, arrived: null }
-        swing.current = { pivot, from, to: TOP_DOWN_TILT, offFrom, offTo: 0, start, down: true }
+        before = { tilt: from, offset: offFrom, pivot, arrived: null, eyeLevel }
+        const turn = eyeLevel ? 0 : turnToNorth(pivot)
+        swing.current = { pivot, from, to: TOP_DOWN_TILT, offFrom, offTo: 0, turn, turned: 0, start, down: true }
       }
       invalidate()
     }
     swingStep.current = (e: number) => {
       const sw = swing.current
       if (!sw) return
+      const dTurn = sw.turn * e - sw.turned // turn to face north as it swings
+      if (dTurn) orbitAbout(camera, sw.pivot, n.centre, dTurn, 0)
+      sw.turned += dTurn
       tiltTo(camera, sw.pivot, n.centre, sw.from + (sw.to - sw.from) * e)
       setLookOffset(camera, sw.pivot, sw.offFrom + (sw.offTo - sw.offFrom) * e) // at eye level: from the horizon to the spot
       n.target.copy(sw.pivot)
