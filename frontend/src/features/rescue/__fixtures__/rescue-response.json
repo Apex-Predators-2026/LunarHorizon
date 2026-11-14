@@ -1,6 +1,6 @@
 {
  "status": "rescued",
- "summary": "The changed plan fails: Earth visibility is 0%, below the 40% requirement; Longest comms blackout is 168 h, above the 96 h requirement; Earth contact right after landing is 0 h, below the 12 h requirement. Best rescue: Land at Peak Near Shackleton on 2027-11-08 12:00 UTC (14.5 days later than the delayed date) — passes all requirements, score 90 (delayed plan: 50).",
+ "summary": "The changed plan fails: Minimum Earth line-of-sight time: share of mission time with Earth line of sight is 0 %; required >= 40 %. Requirement violated; Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 168 h; required <= 96 h. Requirement violated; Minimum continuous Earth line of sight after landing: continuous Earth line-of-sight time from mission start is 0 h; required >= 12 h. Requirement violated. Best rescue: Land at Peak Near Shackleton on 2027-11-08 12:00 UTC (14.5 days later than the delayed date) — passes all requirements, score 100 (delayed plan: 42).",
  "original": {
   "scenario": {
    "site": {
@@ -23,10 +23,10 @@
   },
   "passes": true,
   "eligibility": "pass",
-  "score": 86.58,
+  "score": 92.782369,
   "metrics": {
-   "sunlight_fraction": 0.7719940476190476,
-   "equivalent_sun_hours": 129.695,
+   "sunlight_fraction": 0.771294755952381,
+   "equivalent_sun_hours": 129.577519,
    "longest_dark_gap_hours": 3.0,
    "earth_visibility_fraction": 1.0,
    "longest_comms_gap_hours": 0.0,
@@ -34,12 +34,12 @@
    "initial_comms_hours": 168.0,
    "hours_to_first_sunset": 98.0,
    "hours_to_first_earthset": null,
-   "mean_sun_clearance_deg": 0.6030654761904761,
-   "mean_earth_clearance_deg": 4.939720238095238,
+   "mean_sun_clearance_deg": 0.5973630952380953,
+   "mean_earth_clearance_deg": 4.903130952380953,
    "mean_solar_elevation_deg": 0.6376547619047619
   },
   "violations": [],
-  "source": "placeholder-v1",
+  "source": "viability-engine/0.6.0-phase6",
   "data_source": "precomputed:peak-near-shackleton.json"
  },
  "changed": {
@@ -64,20 +64,20 @@
   },
   "passes": false,
   "eligibility": "fail",
-  "score": 50.45,
+  "score": 41.962284,
   "metrics": {
-   "sunlight_fraction": 0.8991190476190477,
-   "equivalent_sun_hours": 151.05200000000002,
-   "longest_dark_gap_hours": 10.0,
+   "sunlight_fraction": 0.8984913452380953,
+   "equivalent_sun_hours": 150.946546,
+   "longest_dark_gap_hours": 11.0,
    "earth_visibility_fraction": 0.0,
    "longest_comms_gap_hours": 168.0,
    "initial_sun_hours": 146.0,
    "initial_comms_hours": 0.0,
    "hours_to_first_sunset": 146.0,
    "hours_to_first_earthset": null,
-   "mean_sun_clearance_deg": 1.4263214285714285,
+   "mean_sun_clearance_deg": 1.412232142857143,
    "mean_earth_clearance_deg": null,
-   "mean_solar_elevation_deg": 1.7965476190476193
+   "mean_solar_elevation_deg": 1.796547619047619
   },
   "violations": [
    {
@@ -87,7 +87,7 @@
     "unit": "fraction",
     "shortfall": 0.4,
     "relative_shortfall": 1.0,
-    "message": "Earth visibility is 0%, below the 40% requirement.",
+    "message": "Minimum Earth line-of-sight time: share of mission time with Earth line of sight is 0 %; required >= 40 %. Requirement violated.",
     "is_unknown": false
    },
    {
@@ -97,7 +97,7 @@
     "unit": "h",
     "shortfall": 72.0,
     "relative_shortfall": 0.75,
-    "message": "Longest comms blackout is 168 h, above the 96 h requirement.",
+    "message": "Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 168 h; required <= 96 h. Requirement violated.",
     "is_unknown": false
    },
    {
@@ -107,11 +107,11 @@
     "unit": "h",
     "shortfall": 12.0,
     "relative_shortfall": 1.0,
-    "message": "Earth contact right after landing is 0 h, below the 12 h requirement.",
+    "message": "Minimum continuous Earth line of sight after landing: continuous Earth line-of-sight time from mission start is 0 h; required >= 12 h. Requirement violated.",
     "is_unknown": false
    }
   ],
-  "source": "placeholder-v1",
+  "source": "viability-engine/0.6.0-phase6",
   "data_source": "precomputed:peak-near-shackleton.json"
  },
  "alternatives": [
@@ -160,7 +160,7 @@
     },
     "passes": true,
     "eligibility": "pass",
-    "score": 90.18,
+    "score": 100.0,
     "metrics": {
      "sunlight_fraction": 1.0,
      "equivalent_sun_hours": 168.0,
@@ -171,15 +171,15 @@
      "initial_comms_hours": 168.0,
      "hours_to_first_sunset": null,
      "hours_to_first_earthset": null,
-     "mean_sun_clearance_deg": 1.170892857142857,
-     "mean_earth_clearance_deg": 5.316690476190476,
-     "mean_solar_elevation_deg": 1.3020416666666665
+     "mean_sun_clearance_deg": 1.1569880952380953,
+     "mean_earth_clearance_deg": 5.281136904761905,
+     "mean_solar_elevation_deg": 1.3020416666666668
     },
     "violations": [],
-    "source": "placeholder-v1",
+    "source": "viability-engine/0.6.0-phase6",
     "data_source": "precomputed:peak-near-shackleton.json"
    },
-   "rank_score": 85.02,
+   "rank_score": 94.83,
    "date_shift_hours": 348.0,
    "distance_km": 0.0,
    "improvements": [
@@ -187,18 +187,18 @@
      "metric": "sunlight_fraction",
      "label": "Average sunlight",
      "unit": "fraction",
-     "before": 0.8991190476190477,
+     "before": 0.8984913452380953,
      "after": 1.0,
-     "delta": 0.1008809523809523,
+     "delta": 0.10150865476190474,
      "better": true
     },
     {
      "metric": "longest_dark_gap_hours",
      "label": "Longest power gap",
      "unit": "h",
-     "before": 10.0,
+     "before": 11.0,
      "after": 0.0,
-     "delta": -10.0,
+     "delta": -11.0,
      "better": true
     },
     {
@@ -241,9 +241,9 @@
      "metric": "score",
      "label": "Viability score",
      "unit": "points",
-     "before": 50.45,
-     "after": 90.18,
-     "delta": 39.730000000000004,
+     "before": 41.962284,
+     "after": 100.0,
+     "delta": 58.037716,
      "better": true
     }
    ],
@@ -251,13 +251,13 @@
     "checked_points": 4,
     "passing_points": 4,
     "pass_rate": 1.0,
-    "worst_score": 90.18,
+    "worst_score": 100.0,
     "verdict": "robust",
     "note": "Still passes with a ±1 day slip. (Landing-position error not checked: no real data around the site.)"
    },
-   "headline": "Land at Peak Near Shackleton on 2027-11-08 12:00 UTC (14.5 days later than the delayed date) — passes all requirements, score 90 (delayed plan: 50).",
+   "headline": "Land at Peak Near Shackleton on 2027-11-08 12:00 UTC (14.5 days later than the delayed date) — passes all requirements, score 100 (delayed plan: 42).",
    "reasons": [
-    "Fixes: earth visibility, longest comms blackout, earth contact right after landing.",
+    "Fixes: minimum earth line-of-sight time: share of mission time with earth line of sight, maximum direct-to-earth line-of-sight blackout: longest earth line-of-sight blackout, minimum continuous earth line of sight after landing: continuous earth line-of-sight time from mission start.",
     "Longest comms blackout: 168 h → 0 h (−168 h)",
     "Earth contact after landing: 0 h → 168 h (+168 h)",
     "Earth visibility: 0% → 100% (+100 pts)",
@@ -309,7 +309,7 @@
     },
     "passes": true,
     "eligibility": "pass",
-    "score": 90.18,
+    "score": 100.0,
     "metrics": {
      "sunlight_fraction": 1.0,
      "equivalent_sun_hours": 168.0,
@@ -320,15 +320,15 @@
      "initial_comms_hours": 168.0,
      "hours_to_first_sunset": null,
      "hours_to_first_earthset": null,
-     "mean_sun_clearance_deg": 2.144994047619048,
-     "mean_earth_clearance_deg": 1.2660416666666667,
-     "mean_solar_elevation_deg": -1.9168452380952379
+     "mean_sun_clearance_deg": 1.7704583333333332,
+     "mean_earth_clearance_deg": 1.5536904761904762,
+     "mean_solar_elevation_deg": -1.916845238095238
     },
     "violations": [],
-    "source": "placeholder-v1",
+    "source": "viability-engine/0.6.0-phase6",
     "data_source": "precomputed:malapert-massif.json"
    },
-   "rank_score": 84.74,
+   "rank_score": 94.52,
    "date_shift_hours": 0.0,
    "distance_km": 142.919,
    "improvements": [
@@ -336,18 +336,18 @@
      "metric": "sunlight_fraction",
      "label": "Average sunlight",
      "unit": "fraction",
-     "before": 0.8991190476190477,
+     "before": 0.8984913452380953,
      "after": 1.0,
-     "delta": 0.1008809523809523,
+     "delta": 0.10150865476190474,
      "better": true
     },
     {
      "metric": "longest_dark_gap_hours",
      "label": "Longest power gap",
      "unit": "h",
-     "before": 10.0,
+     "before": 11.0,
      "after": 0.0,
-     "delta": -10.0,
+     "delta": -11.0,
      "better": true
     },
     {
@@ -390,9 +390,9 @@
      "metric": "score",
      "label": "Viability score",
      "unit": "points",
-     "before": 50.45,
-     "after": 90.18,
-     "delta": 39.730000000000004,
+     "before": 41.962284,
+     "after": 100.0,
+     "delta": 58.037716,
      "better": true
     }
    ],
@@ -400,13 +400,13 @@
     "checked_points": 4,
     "passing_points": 4,
     "pass_rate": 1.0,
-    "worst_score": 90.18,
+    "worst_score": 100.0,
     "verdict": "robust",
     "note": "Still passes with a ±1 day slip. (Landing-position error not checked: no real data around the site.)"
    },
-   "headline": "Land at Malapert Massif on 2027-10-25 00:00 UTC (142.9 km from the original site) — passes all requirements, score 90 (delayed plan: 50).",
+   "headline": "Land at Malapert Massif on 2027-10-25 00:00 UTC (142.9 km from the original site) — passes all requirements, score 100 (delayed plan: 42).",
    "reasons": [
-    "Fixes: earth visibility, longest comms blackout, earth contact right after landing.",
+    "Fixes: minimum earth line-of-sight time: share of mission time with earth line of sight, maximum direct-to-earth line-of-sight blackout: longest earth line-of-sight blackout, minimum continuous earth line of sight after landing: continuous earth line-of-sight time from mission start.",
     "Longest comms blackout: 168 h → 0 h (−168 h)",
     "Earth contact after landing: 0 h → 168 h (+168 h)",
     "Earth visibility: 0% → 100% (+100 pts)",
@@ -458,19 +458,19 @@
     },
     "passes": false,
     "eligibility": "fail",
-    "score": 70.39,
+    "score": 61.351354,
     "metrics": {
-     "sunlight_fraction": 0.5688988095238094,
-     "equivalent_sun_hours": 95.57499999999999,
+     "sunlight_fraction": 0.5686374821428571,
+     "equivalent_sun_hours": 95.531097,
      "longest_dark_gap_hours": 52.0,
-     "earth_visibility_fraction": 0.9583333333333334,
+     "earth_visibility_fraction": 0.9583333333333333,
      "longest_comms_gap_hours": 7.0,
      "initial_sun_hours": 72.0,
      "initial_comms_hours": 161.0,
      "hours_to_first_sunset": 72.0,
      "hours_to_first_earthset": 161.0,
-     "mean_sun_clearance_deg": 0.8029322033898305,
-     "mean_earth_clearance_deg": 3.81364596273292,
+     "mean_sun_clearance_deg": 0.799,
+     "mean_earth_clearance_deg": 3.8131552795031056,
      "mean_solar_elevation_deg": 1.2457916666666666
     },
     "violations": [
@@ -481,18 +481,18 @@
       "unit": "h",
       "shortfall": 2.0,
       "relative_shortfall": 0.04,
-      "message": "Longest power gap (battery limit) is 52 h, above the 50 h requirement.",
+      "message": "Maximum continuous power-darkness: longest continuous power-dark period is 52 h; required <= 50 h. Requirement violated.",
       "is_unknown": false
      }
     ],
-    "source": "placeholder-v1",
+    "source": "viability-engine/0.6.0-phase6",
     "data_source": "precomputed:connecting-ridge.json"
    },
    "closeness": 0.04,
    "date_shift_hours": 444.0,
    "distance_km": 31.546,
    "why_it_fails": [
-    "Longest power gap (battery limit) is 52 h, above the 50 h requirement."
+    "Maximum continuous power-darkness: longest continuous power-dark period is 52 h; required <= 50 h. Requirement violated."
    ]
   },
   {
@@ -538,52 +538,52 @@
     },
     "passes": false,
     "eligibility": "fail",
-    "score": 59.65,
+    "score": 37.947687,
     "metrics": {
-     "sunlight_fraction": 0.6775892857142857,
-     "equivalent_sun_hours": 113.835,
+     "sunlight_fraction": 0.6769550952380953,
+     "equivalent_sun_hours": 113.72845600000001,
      "longest_dark_gap_hours": 27.0,
-     "earth_visibility_fraction": 0.39880952380952384,
-     "longest_comms_gap_hours": 101.0,
+     "earth_visibility_fraction": 0.38095238095238093,
+     "longest_comms_gap_hours": 104.0,
      "initial_sun_hours": 27.0,
-     "initial_comms_hours": 67.0,
+     "initial_comms_hours": 64.0,
      "hours_to_first_sunset": 27.0,
-     "hours_to_first_earthset": 67.0,
-     "mean_sun_clearance_deg": 0.5603832335329343,
-     "mean_earth_clearance_deg": 1.9896567164179102,
+     "hours_to_first_earthset": 64.0,
+     "mean_sun_clearance_deg": 0.5487664670658683,
+     "mean_earth_clearance_deg": 2.025640625,
      "mean_solar_elevation_deg": 0.5808571428571428
     },
     "violations": [
      {
       "constraint": "min_earth_visibility_fraction",
       "required": 0.4,
-      "actual": 0.39880952380952384,
+      "actual": 0.38095238095238093,
       "unit": "fraction",
-      "shortfall": 0.0011904761904761862,
-      "relative_shortfall": 0.0029761904761904656,
-      "message": "Earth visibility is 40%, below the 40% requirement.",
+      "shortfall": 0.01904761904761909,
+      "relative_shortfall": 0.04761904761904773,
+      "message": "Minimum Earth line-of-sight time: share of mission time with Earth line of sight is 38.0952 %; required >= 40 %. Requirement violated.",
       "is_unknown": false
      },
      {
       "constraint": "max_comms_gap_hours",
       "required": 96.0,
-      "actual": 101.0,
+      "actual": 104.0,
       "unit": "h",
-      "shortfall": 5.0,
-      "relative_shortfall": 0.052083333333333336,
-      "message": "Longest comms blackout is 101 h, above the 96 h requirement.",
+      "shortfall": 8.0,
+      "relative_shortfall": 0.08333333333333333,
+      "message": "Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 104 h; required <= 96 h. Requirement violated.",
       "is_unknown": false
      }
     ],
-    "source": "placeholder-v1",
+    "source": "viability-engine/0.6.0-phase6",
     "data_source": "precomputed:peak-near-shackleton.json"
    },
-   "closeness": 0.0551,
+   "closeness": 0.131,
    "date_shift_hours": 540.0,
    "distance_km": 0.0,
    "why_it_fails": [
-    "Longest comms blackout is 101 h, above the 96 h requirement.",
-    "Earth visibility is 40%, below the 40% requirement."
+    "Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 104 h; required <= 96 h. Requirement violated.",
+    "Minimum Earth line-of-sight time: share of mission time with Earth line of sight is 38.0952 %; required >= 40 %. Requirement violated."
    ]
   }
  ],
@@ -636,51 +636,8 @@
      "min_initial_comms_hours": 12.0
     }
    },
-   "unlocks_score": 50.45,
+   "unlocks_score": 41.962284,
    "message": "Lower the Earth visibility requirement from 40% to 0% (-100%) and raise the longest comms blackout requirement from 96 h to 168 h (+75%) and lower the Earth contact right after landing requirement from 12 h to 0 h (-100%) → your delayed plan passes as-is."
-  },
-  {
-   "changes": [
-    {
-     "constraint": "min_earth_visibility_fraction",
-     "label": "Earth visibility",
-     "unit": "fraction",
-     "current": 0.4,
-     "suggested": 0.39,
-     "change_percent": -2.5
-    },
-    {
-     "constraint": "max_comms_gap_hours",
-     "label": "longest comms blackout",
-     "unit": "h",
-     "current": 96.0,
-     "suggested": 101.0,
-     "change_percent": 5.2
-    }
-   ],
-   "total_relative_change": 0.077,
-   "keeps_original_plan": false,
-   "unlocks": {
-    "site": {
-     "id": "peak-near-shackleton",
-     "name": "Peak Near Shackleton",
-     "lat": -89.01701,
-     "lon": 126.27302
-    },
-    "landing_utc": "2027-11-16T12:00:00Z",
-    "duration_days": 7.0,
-    "requirements": {
-     "min_sunlight_fraction": 0.5,
-     "battery_hours": 50.0,
-     "panel_threshold": 0.25,
-     "min_earth_visibility_fraction": 0.4,
-     "max_comms_gap_hours": 96.0,
-     "min_initial_sun_hours": 24.0,
-     "min_initial_comms_hours": 12.0
-    }
-   },
-   "unlocks_score": 59.65,
-   "message": "Lower the Earth visibility requirement from 40% to 39% (-2%) and raise the longest comms blackout requirement from 96 h to 101 h (+5%) → Peak Near Shackleton on 2027-11-16 12:00 UTC passes."
   },
   {
    "changes": [
@@ -714,8 +671,51 @@
      "min_initial_comms_hours": 12.0
     }
    },
-   "unlocks_score": 70.39,
+   "unlocks_score": 61.351354,
    "message": "Raise the longest power gap (battery limit) requirement from 50 h to 52 h (+4%) → Connecting Ridge on 2027-11-12 12:00 UTC passes."
+  },
+  {
+   "changes": [
+    {
+     "constraint": "min_earth_visibility_fraction",
+     "label": "Earth visibility",
+     "unit": "fraction",
+     "current": 0.4,
+     "suggested": 0.38,
+     "change_percent": -5.0
+    },
+    {
+     "constraint": "max_comms_gap_hours",
+     "label": "longest comms blackout",
+     "unit": "h",
+     "current": 96.0,
+     "suggested": 104.0,
+     "change_percent": 8.3
+    }
+   ],
+   "total_relative_change": 0.133,
+   "keeps_original_plan": false,
+   "unlocks": {
+    "site": {
+     "id": "peak-near-shackleton",
+     "name": "Peak Near Shackleton",
+     "lat": -89.01701,
+     "lon": 126.27302
+    },
+    "landing_utc": "2027-11-16T12:00:00Z",
+    "duration_days": 7.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "unlocks_score": 37.947687,
+   "message": "Lower the Earth visibility requirement from 40% to 38% (-5%) and raise the longest comms blackout requirement from 96 h to 104 h (+8%) → Peak Near Shackleton on 2027-11-16 12:00 UTC passes."
   },
   {
    "changes": [
@@ -757,26 +757,26 @@
      "min_initial_comms_hours": 12.0
     }
    },
-   "unlocks_score": 65.0,
+   "unlocks_score": 54.654925,
    "message": "Lower the average sunlight requirement from 50% to 49% (-2%) and raise the longest power gap (battery limit) requirement from 50 h to 64 h (+28%) → Connecting Ridge on 2027-11-13 00:00 UTC passes."
   }
  ],
  "stats": {
-  "candidates_evaluated": 183,
-  "locations_considered": 3,
-  "passing": 94,
-  "synthetic_candidates_excluded": 1281,
+  "candidates_evaluated": 488,
+  "locations_considered": 8,
+  "passing": 112,
+  "synthetic_candidates_excluded": 976,
   "undecided": 0,
   "date_range_start": "2027-10-25T00:00:00Z",
   "date_range_end": "2027-11-24T00:00:00Z"
  },
- "data_source": "precomputed:connecting-ridge.json, precomputed:malapert-massif.json, precomputed:peak-near-shackleton.json",
+ "data_source": "precomputed:connecting-ridge.json, precomputed:de-gerlache-rim.json, precomputed:faustini-rim-a.json, precomputed:haworth-rim.json, precomputed:malapert-massif.json, precomputed:mons-mouton.json, precomputed:nobile-rim-1.json, precomputed:peak-near-shackleton.json",
  "assumptions": [
   "Real data: Sun/Earth positions from JPL Horizons and terrain horizons from Moon Trek LOLA, precomputed by the data engine (data/sites/).",
   "Viability numbers come from the team's viability evaluator; rescue only searches and ranks.",
   "Only landing times inside the search window and the listed candidate locations are considered.",
   "Ranking = viability score + horizon-clearance bonus − date-shift penalty − distance penalty − fragility penalty (all configurable in SearchOptions).",
   "Requirement relaxations are exact for the evaluated metrics but are not engineering approvals.",
-  "1281 candidates were left out because only synthetic placeholder data exists for them (custom nearby points, approximate sites, or dates outside the precomputed range). Set include_synthetic=true to include them."
+  "976 candidates were left out because there is no real data for them (custom nearby points, approximate sites). Simulation mode (include_synthetic=true) would use synthetic placeholder data for them."
  ]
 }

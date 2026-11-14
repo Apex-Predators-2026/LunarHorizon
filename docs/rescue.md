@@ -18,7 +18,7 @@ sites and dates. It also answers two follow-up questions: *how fragile is this p
 | `backend/app/rescue/router.py` | FastAPI endpoints under `/api/rescue` (registered in `app/main.py`) |
 | `backend/app/rescue/schemas.py` | Rescue request/response models |
 | `backend/app/models.py` | Team's shared models; rescue added `Scenario`, `MissionRequirements`, `ViabilityResult`… |
-| `backend/app/rescue/viability/` | **Placeholder** viability checker until Brandon's is ready |
+| `backend/app/rescue/viability/` | Viability entry point: the canonical engine (`app.viability.compat.rescue`); the old placeholder stays for reference and its loosening table |
 | `backend/app/rescue/timeline/synthetic.py` | **Placeholder** Sun/Earth/terrain data for points with no real data |
 | `backend/app/rescue/timeline/precomputed.py` | Reads the data engine's real `data/sites/<id>.json` files (JPL Horizons + Moon Trek LOLA) |
 | `backend/app/rescue/catalog.py` | Candidate sites (the engine's curated list + approximate extras) and PSR science targets |
@@ -134,9 +134,10 @@ traverse distance and a minimum science score, plus the engineering requirements
 
 ## Integration checklist (things other members need to do)
 
-- [ ] **Brandon:** implement `evaluate_timeline(scenario, timeline) -> ViabilityResult` with
-      the contract in `docs/interfaces.md`, then change the import in
-      `backend/app/rescue/viability/__init__.py`. Rescue needs no other changes.
+- [x] **Brandon:** canonical viability engine finished (phase 6). Rescue switched to it after the
+      side-by-side test (`tests/test_engine_side_by_side.py`) showed identical verdicts, metrics and
+      violations on real data. Only the score formula differs; the ranking weights still fit
+      (same 0–100 scale; the top 5 of a real rescue are the same sites and dates).
 - [x] **Andrew:** precomputed `data/sites/<id>.json` for the curated sites. Rescue reads them
       directly and takes its site list from `app/engine/sites.py`, so new curated sites are
       picked up automatically once precomputed.
@@ -177,7 +178,9 @@ changing a response model, regenerate them by calling the endpoints, e.g. from t
 - The extra regions in `backend/app/rescue/catalog.py` (marked "approx.") have approximate
   coordinates.
 - Landing-position sensitivity is not checked for real sites yet (no real data around them).
-- The viability checker is still the placeholder until Brandon's is ready.
+- Ranking order: real-data options first, then scored passes, then passes the engine couldn't score
+  (shown without a rank score, never ranked as 0). A mission must end by the last real-data sample
+  (2029-01-01T00:00Z); one ending even an hour later is unknown.
 - The search is a grid search: it only finds options at the tested times and points. A finer
   `date_step_hours` or more `nearby_radii_km` finds more, but takes longer.
 - Ranking weights are judgement calls, not NASA criteria. They're exposed so the team can tune them.

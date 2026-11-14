@@ -76,13 +76,17 @@ def imagery_tile(face: int, z: int, x: int, y: int, px: int = TEXTURE_PX) -> np.
 
 
 def png_gray(img: np.ndarray) -> bytes:
-    """Minimal 8-bit grayscale PNG encoder (no imaging library needed)."""
+    """Minimal 8-bit grayscale PNG encoder (no imaging library needed). Rows use the PNG "Sub"
+    filter (each byte minus its left neighbour): photos of the Moon compress much better that way."""
     h, w = img.shape
 
     def chunk(kind: bytes, data: bytes) -> bytes:
         return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
 
-    rows = b"".join(b"\x00" + img[r].tobytes() for r in range(h))  # filter type 0 per row
+    img = np.ascontiguousarray(img, dtype=np.uint8)
+    sub = img.copy()
+    sub[:, 1:] = img[:, 1:] - img[:, :-1]  # uint8 arithmetic wraps mod 256, as PNG expects
+    rows = np.concatenate([np.ones((h, 1), np.uint8), sub], axis=1).tobytes()  # filter type 1 per row
     return (
         b"\x89PNG\r\n\x1a\n"
         + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 0, 0, 0, 0))
