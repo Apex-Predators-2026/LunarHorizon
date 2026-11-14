@@ -93,6 +93,7 @@ export function TileTree({
   material,
   onStats,
   onPick,
+  tileHeightsRef,
   cameraClearanceM = 3,
   lodThresholdPx = 4,
   maxCachedMeshes = 500,
@@ -101,6 +102,7 @@ export function TileTree({
   material: THREE.Material
   onStats?: (s: TileStats) => void
   onPick?: (point: Vec3) => void // a click on the terrain (not an orbit drag), in the site frame
+  tileHeightsRef?: { current: TileHeights | null } // exposes loaded LOLA DEM tile heights for surface profile sampling
   cameraClearanceM?: number // the camera never gets closer than this to the ground below it (m)
   lodThresholdPx?: number // refine while a vertex step spans more than this on screen (graphics preset)
   maxCachedMeshes?: number // tile meshes kept in memory (graphics preset)
@@ -281,6 +283,9 @@ export function TileTree({
   }
 
   const tileHeights: TileHeights = (f, z, x, y) => nodes.current.get(keyOf(f, z, x, y))?.heights ?? undefined
+  useEffect(() => {
+    if (tileHeightsRef) tileHeightsRef.current = tileHeights
+  })
 
   useFrame((state) => {
     // Runs after GlobeControls (zoom easing at priority -1) has moved the camera, before this frame renders.
