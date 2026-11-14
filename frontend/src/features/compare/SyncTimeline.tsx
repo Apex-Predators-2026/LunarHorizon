@@ -230,7 +230,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
           {ticks.map((t) => (
             <g key={t}>
               <line x1={x(t)} x2={x(t)} y1={AXIS_H - 6} y2={height} stroke={STATE.grid} strokeWidth={1} />
-              <text x={x(t)} y={AXIS_H - 10} textAnchor="middle" fontSize={10} fill={STATE.axis}>{fmtAxis(t, align, originMs, span)}</text>
+              <text x={x(t)} y={AXIS_H - 10} textAnchor={x(t) > GUTTER + w - 24 ? 'end' : x(t) < GUTTER + 24 ? 'start' : 'middle'} fontSize={10} fill={STATE.axis}>{fmtAxis(t, align, originMs, span)}</text>
             </g>
           ))}
           <g clipPath="url(#tl-plot)">

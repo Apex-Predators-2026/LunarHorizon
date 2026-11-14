@@ -7,8 +7,9 @@ import { useCompareStore } from './useCompareStore'
 const d2 = (v: number) => `${v.toFixed(2)}°`
 const az = (v: number) => `${v.toFixed(1)}°`
 
-export function ConditionsPanel({ entries, align, originMs }: { entries: Entry[]; align: Align; originMs: number }) {
+export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entries: Entry[]; align: Align; originMs: number; onOpen3D?: () => void }) {
   const cursor = useCompareStore((s) => s.cursor)
+  const setActive = useCompareStore((s) => s.setActive)
   if (cursor === null) {
     return <p className="text-xs text-slate-400">Click anywhere on the timeline or a chart to see the conditions at that moment in every scenario.</p>
   }
@@ -25,7 +26,14 @@ export function ConditionsPanel({ entries, align, originMs }: { entries: Entry[]
             <div key={e.scenario.id} className="rounded-lg border border-[#1c2a48] bg-[#08111f] p-2.5 text-xs">
               <div className="mb-1.5 flex items-center gap-2">
                 <ScenarioChip s={e.scenario} size="sm" />
-                <span className="truncate text-slate-200">{e.scenario.site.name}</span>
+                <span className="min-w-0 flex-1 truncate text-slate-200">{e.scenario.site.name}</span>
+                {onOpen3D && c && e.result?.data_kind === 'real' && (
+                  <button type="button" className="text-[11px] text-cyan-400 hover:underline"
+                    title="Open the 3D terrain view at this site and moment"
+                    onClick={() => { setActive(e.scenario.id); onOpen3D() }}>
+                    View in 3D ↗
+                  </button>
+                )}
               </div>
               {!c ? (
                 <p className="text-slate-500">{e.result ? 'Outside this mission’s time span.' : 'No data.'}</p>

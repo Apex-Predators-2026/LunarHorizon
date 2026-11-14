@@ -2,7 +2,7 @@
 import { Fragment, useState } from 'react'
 
 import { METRICS, bestIds, deltaVsBaseline, fmtDeltaValue, fmtMetric, type Entry, type MetricDef } from './analysis'
-import { Explain, ProvenanceTag, ScenarioChip } from './ui'
+import { DataKindBadge, Explain, ProvenanceTag, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
 
 const GROUPS: { id: MetricDef['group']; title: string; note?: string }[] = [
@@ -30,6 +30,8 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                 <th key={e.scenario.id} scope="col" className="pb-2 pl-3 text-left text-xs font-medium text-slate-300">
                   <span className="flex items-center gap-1.5"><ScenarioChip s={e.scenario} size="sm" />
                     <span className="truncate">{e.scenario.site.name}</span></span>
+                  {e.result?.data_kind === 'demonstration' && <span className="mt-0.5 block"><DataKindBadge kind="demonstration" /></span>}
+                  {e.state?.state === 'done' && !e.result && <span className="mt-0.5 block"><DataKindBadge kind="unavailable" /></span>}
                 </th>
               ))}
             </tr>

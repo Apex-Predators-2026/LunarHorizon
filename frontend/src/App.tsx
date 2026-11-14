@@ -28,7 +28,7 @@ export default function App() {
       </header>
       {view === 'compare' ? (
         <main className="min-h-0 flex-1 overflow-y-auto">
-          <ComparisonDashboard />
+          <ComparisonDashboard onOpen3D={() => setView('planner')} />
         </main>
       ) : (
         <main className="flex min-h-0 flex-1">

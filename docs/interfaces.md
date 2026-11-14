@@ -223,3 +223,13 @@ validation controls such as `shackleton-floor`) plus a few approximate extra reg
 `loosening[].unlocks` is a full `Scenario`, so it can go straight into the comparison view
 next to `changed.scenario`. `<RescueResults>` and `<CompromiseResults>` in
 `frontend/src/features/rescue` are prop-only display components you can reuse.
+
+---
+
+## Multi-scenario comparison (Member 4)
+
+`POST /api/compare` evaluates 1–6 `{ key, scenario: Scenario, spacecraft }` items with the data
+engine's timelines and the team viability entry point, and returns windows, statistics, events and
+a decimated timeline per scenario. Scenarios without real data return `status: "unavailable"` unless
+`allow_demo_data` is set. Frontend integration: `sendToComparison(scenarios)` from
+`frontend/src/features/compare`. Details: `docs/comparison.md`.

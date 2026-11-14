@@ -1,5 +1,5 @@
 // Small presentational pieces shared by the comparison panels.
-import type { ReactNode } from 'react'
+import { Component, type ReactNode } from 'react'
 
 import type { Provenance } from './analysis'
 import { seriesColor, seriesDash } from './palette'
@@ -24,7 +24,7 @@ export function Section({ id, title, kicker, actions, children, className = '' }
         </div>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </header>
-      {children}
+      <PanelBoundary name={title}>{children}</PanelBoundary>
     </section>
   )
 }
@@ -124,4 +124,23 @@ export function TooltipBox({ title, rows }: { title: string; rows: { s: Comparis
       ))}
     </div>
   )
+}
+
+/** Keeps one failing panel (e.g. unexpected data) from unmounting the whole application. */
+export class PanelBoundary extends Component<{ name: string; children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null }
+  static getDerivedStateFromError(error: Error) {
+    return { error }
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <p role="alert" className="rounded-lg border border-red-900 bg-red-950/30 p-3 text-xs text-red-200">
+          The {this.props.name} panel could not be drawn ({this.state.error.message}). Other panels are unaffected.
+          <button type="button" className="ml-2 text-cyan-300 underline" onClick={() => this.setState({ error: null })}>Retry</button>
+        </p>
+      )
+    }
+    return this.props.children
+  }
 }
