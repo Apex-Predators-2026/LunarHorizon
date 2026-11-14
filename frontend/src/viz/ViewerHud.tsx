@@ -2,6 +2,8 @@ import { useEffect } from 'react'
 import { useAppStore } from '../store'
 import type { SiteInfo, SiteStatus, TimelineStep } from '../types'
 import type { ViewMode } from './CameraRig'
+import { vertexSpacingM } from './globe/cubeSphere'
+import type { TileStats } from './globe/TileTree'
 import { fmtDeg, fmtPct, sunUp } from './timeline'
 
 const toInput = (iso: string) => iso.slice(0, 16) // "2027-01-01T00:00"
@@ -18,10 +20,21 @@ function hoursUntil(fromIso: string, toIso: string | null) {
  * Overlay for the 3D view: pick a site, time and camera view; read the conditions.
  * Playback lives in <TimeBar>; the main mission panel is Nimansh's.
  */
-const VIEWS: { id: ViewMode; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'sun', label: 'Look at Sun' },
-  { id: 'earth', label: 'Look at Earth' },
+const SITE_GROUPS: [string, string][] = [
+  ['artemis', 'Artemis III candidates (south pole)'],
+  ['clps', 'Commercial landers (CLPS)'],
+  ['international', 'Other countries'],
+  ['apollo', 'Apollo'],
+  ['custom', 'Your pins'],
+  ['control', 'Validation control'],
+]
+
+const VIEWS: { id: ViewMode; label: string; title: string }[] = [
+  { id: 'globe', label: 'Globe', title: 'The whole Moon' },
+  { id: 'region', label: 'Region', title: 'A few hundred km around the site' },
+  { id: 'overview', label: 'Site', title: 'A few km around the lander' },
+  { id: 'sun', label: 'Sun', title: "Stand behind the lander and look at the Sun" },
+  { id: 'earth', label: 'Earth', title: 'Stand behind the lander and look at Earth' },
 ]
 
 export function ViewerHud({
@@ -32,6 +45,7 @@ export function ViewerHud({
   loading,
   view,
   onView,
+  terrainStats,
 }: {
   sites: SiteInfo[] | null
   current: TimelineStep | null // conditions at the selected time
@@ -40,6 +54,7 @@ export function ViewerHud({
   loading: boolean
   view: ViewMode
   onView: (v: ViewMode) => void
+  terrainStats?: TileStats | null
 }) {
   const playing = useAppStore((s) => s.playing)
   const { siteId, timeUtc, setSite, setTime } = useAppStore()
@@ -62,11 +77,19 @@ export function ViewerHud({
         <label className="block">
           <span className="text-slate-400">Site</span>
           <select className={input} value={siteId ?? ''} onChange={(e) => setSite(e.target.value)}>
-            {sites?.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
+            {SITE_GROUPS.map(([kind, label]) => {
+              const group = sites?.filter((s) => (s.kind ?? 'custom') === kind) ?? []
+              return group.length ? (
+                <optgroup key={kind} label={label}>
+                  {group.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.approximate ? ' (approx.)' : ''}
+                    </option>
+                  ))}
+                </optgroup>
+              ) : null
+            })}
           </select>
         </label>
         <label className="block">
@@ -86,6 +109,7 @@ export function ViewerHud({
             <button
               key={v.id}
               type="button"
+              title={v.title}
               onClick={() => onView(v.id)}
               aria-pressed={view === v.id}
               className={`flex-1 rounded border px-1.5 py-1 ${
@@ -96,6 +120,12 @@ export function ViewerHud({
             </button>
           ))}
         </div>
+        {terrainStats && (
+          <p className="text-[10px] text-slate-500" aria-live="polite">
+            Terrain: {terrainStats.visible} tiles · finest ~{Math.max(5, Math.round(vertexSpacingM(terrainStats.deepest)))} m
+            {terrainStats.loading > 0 ? ` · loading ${terrainStats.loading}…` : ''}
+          </p>
+        )}
 
         {error && <p className="text-red-400">{error}. Is the backend running on port 8000?</p>}
         {!error && loading && <p className="text-slate-400">Loading…</p>}

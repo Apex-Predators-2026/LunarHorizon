@@ -36,6 +36,50 @@ def xy_to_latlon(x, y):
     return np.degrees(lat), np.degrees(lon) % 360
 
 
+MOON_NPOLE_WKT = (
+    'PROJCS["Moon2000_npole",' + MOON_GEOG_WKT + ',PROJECTION["Stereographic_North_Pole"],'
+    'PARAMETER["false_easting",0.0],PARAMETER["false_northing",0.0],'
+    'PARAMETER["central_meridian",0.0],PARAMETER["standard_parallel_1",90.0],UNIT["Meter",1.0]]'
+)
+
+
+def latlon_to_xy_np(lat_deg, lon_deg):
+    """Lat/lon (deg) -> north polar stereographic x, y (m), Moon Trek's NP products.
+
+    rho = 2R tan(pi/4 - lat/2),  x = rho sin(lon),  y = -rho cos(lon)
+    """
+    lat = np.radians(lat_deg)
+    lon = np.radians(lon_deg)
+    rho = 2 * MOON_RADIUS_M * np.tan(np.pi / 4 - lat / 2)
+    return rho * np.sin(lon), -rho * np.cos(lon)
+
+
+def xy_to_latlon_np(x, y):
+    """North polar stereographic x, y (m) -> lat/lon (deg, lon in [0, 360))."""
+    rho = np.hypot(x, y)
+    lat = np.pi / 2 - 2 * np.arctan(rho / (2 * MOON_RADIUS_M))
+    lon = np.arctan2(x, -y)
+    return np.degrees(lat), np.degrees(lon) % 360
+
+
+def latlon_to_vec(lat_deg, lon_deg):
+    """Unit vector(s) in the Moon-fixed frame (x -> lon 0, y -> lon 90E, z -> north pole)."""
+    lat = np.radians(lat_deg)
+    lon = np.radians(lon_deg)
+    return np.stack([np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)], axis=-1)
+
+
+def destination(lat_deg, lon_deg, azimuth_deg, distance_m):
+    """Point reached by travelling `distance_m` along a great circle from (lat, lon) at a bearing
+    clockwise from north (Horizons' azimuth convention). Returns (lat, lon) in degrees."""
+    lat1, lon1 = np.radians(lat_deg), np.radians(lon_deg)
+    a = np.radians(azimuth_deg)
+    d = np.asarray(distance_m) / MOON_RADIUS_M
+    lat2 = np.arcsin(np.sin(lat1) * np.cos(d) + np.cos(lat1) * np.sin(d) * np.cos(a))
+    lon2 = lon1 + np.arctan2(np.sin(a) * np.sin(d) * np.cos(lat1), np.cos(d) - np.sin(lat1) * np.sin(lat2))
+    return np.degrees(lat2), np.degrees(lon2) % 360
+
+
 def scale_factor(lat_deg):
     """Map scale factor k (projected distance / true distance) at a latitude."""
     return 2 / (1 + np.sin(-np.radians(lat_deg)))

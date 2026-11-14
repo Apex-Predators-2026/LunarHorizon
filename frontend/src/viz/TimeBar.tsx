@@ -261,7 +261,7 @@ export function TimeBar({
         <span>{site.data_start_utc.slice(0, 10)}</span>
         <span>
           {site.lat.toFixed(4)}°, {site.lon.toFixed(4)}°E · ground {Math.round(site.ground_height_m)} m · terrain: Moon Trek LOLA ·
-          ephemeris: JPL Horizons · drag to orbit, scroll to zoom
+          ephemeris: {site.kind === 'custom' ? 'JPL DE421 (local, checked against Horizons)' : 'JPL Horizons'} · drag to orbit, scroll to zoom
         </span>
         <span>{site.data_stop_utc.slice(0, 10)}</span>
       </div>

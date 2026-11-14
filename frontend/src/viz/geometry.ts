@@ -25,42 +25,6 @@ export function skyPositions(
 }
 
 /**
- * Vertex positions and triangle indices for a height grid whose rows run north -> south and
- * columns west -> east (the /terrain endpoint's layout). Heights are made relative to `originHeight`.
- * Triangles are wound so normals point up (+y).
- */
-export function buildTerrainMesh(
-  heights: ArrayLike<number>,
-  size: number,
-  halfWidth: number,
-  originHeight: number,
-): { positions: Float32Array; indices: Uint32Array } {
-  const spacing = (2 * halfWidth) / (size - 1)
-  const positions = new Float32Array(size * size * 3)
-  for (let r = 0; r < size; r++) {
-    for (let c = 0; c < size; c++) {
-      const i = r * size + c
-      positions[3 * i] = -halfWidth + c * spacing // east
-      positions[3 * i + 1] = heights[i] - originHeight // up
-      positions[3 * i + 2] = -halfWidth + r * spacing // -north (row 0 is the north edge)
-    }
-  }
-  const indices = new Uint32Array((size - 1) * (size - 1) * 6)
-  let k = 0
-  for (let r = 0; r < size - 1; r++) {
-    for (let c = 0; c < size - 1; c++) {
-      const v00 = r * size + c
-      const v01 = v00 + 1
-      const v10 = v00 + size
-      const v11 = v10 + 1
-      indices.set([v00, v10, v01, v01, v10, v11], k)
-      k += 6
-    }
-  }
-  return { positions, indices }
-}
-
-/**
  * A closed band ("curtain") on a sphere of radius r around the eye: top edge follows the terrain
  * horizon, bottom edge sits at `bottomElDeg`. Sun/Earth placed further out are hidden by it exactly
  * when they are below the computed horizon.

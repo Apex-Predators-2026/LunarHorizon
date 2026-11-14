@@ -35,6 +35,8 @@ class SiteInfo(Site):
     """A Site plus what the data engine knows about it (returned by /api/sites)."""
 
     source: str = ""
+    kind: str = "custom"  # artemis | control | apollo | clps | international | custom
+    approximate: bool = False  # coordinates are a region estimate, not a published point
     ground_height_m: float  # relative to the 1737.4 km reference sphere
     observer_height_m: float
     summary: SiteSummaryStats
@@ -43,7 +45,7 @@ class SiteInfo(Site):
 
 
 class CustomSiteRequest(BaseModel):
-    lat: float = Field(ge=-90, le=-80, description="Must be within 10 deg of the south pole")
+    lat: float = Field(ge=-90, le=90, description="Anywhere on the Moon (degrees, negative = south)")
     lon: float = Field(ge=-360, le=360)
     name: str | None = None
 

@@ -97,6 +97,8 @@ def fetch_ephemeris(
         "CSV_FORMAT": "'YES'",
     }
     url = HORIZONS_API + "?" + urllib.parse.urlencode(params)
-    name = f"horizons_{body}_{lat:.5f}_{lon:.5f}_{start}_{stop}_{step}.txt"
+    # Times may include "HH:MM"; ':' and ' ' aren't allowed / awkward in Windows file names.
+    stamp = f"{start}_{stop}".replace(":", "").replace(" ", "T")
+    name = f"horizons_{body}_{lat:.5f}_{lon:.5f}_{stamp}_{step}.txt"
     path = fetch_cached(url, CACHE_DIR / name)
     return _parse(path.read_text(), body)

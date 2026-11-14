@@ -30,8 +30,9 @@ Produced by `backend/scripts/precompute.py` (`app/engine/pipeline.py`). Columnar
 
 ```jsonc
 {
-  "site": { "id", "name", "lat", "lon", "source", "x_m", "y_m", "ground_height_m", "observer_height_m" },
-  "meta": { "generated_utc", "generator_version", "frame", "start_utc", "stop_utc", "step", "ephemeris", "terrain": [...] },
+  "site": { "id", "name", "kind", "approximate", "lat", "lon", "source", "x_m", "y_m", "ground_height_m", "observer_height_m" },
+  "meta": { "generated_utc", "generator_version", "frame", "start_utc", "stop_utc", "step", "ephemeris", "terrain": [...],
+            "horizon_method" },
   "summary": { "sunlit_pct", "mean_sun_fraction_pct", "earth_visible_pct", "horizon_min_deg", "horizon_max_deg",
                "unknown_horizon_pct", "unknown_hours_pct" },
   "horizon": {                       // 720 directions, every 0.5 deg from north, clockwise
@@ -47,8 +48,14 @@ Produced by `backend/scripts/precompute.py` (`app/engine/pipeline.py`). Columnar
 ```
 
 Definitions:
-- Heights are metres relative to the 1737.4 km reference sphere. `x_m`, `y_m` are Moon Trek south polar stereographic metres.
-  Coordinates are in the Moon's Mean-Earth/polar-axis (ME) frame; see `docs/data-sources.md`.
+- Heights are metres relative to the 1737.4 km reference sphere. `x_m`, `y_m` are Moon Trek south polar stereographic
+  metres, and `null` for sites north of 60°S. Coordinates are in the Moon's Mean-Earth/polar-axis (ME) frame; see
+  `docs/data-sources.md`.
+- `kind`: `artemis` (landing candidates), `control` (validation), `apollo`, `clps`, `international` (past landings, for
+  reference) or `custom` (user pins). `approximate: true` = a region estimate, not a published landing point.
+  Curated lists: `backend/app/engine/sites.py` (`SITES` = candidates, `REFERENCE_SITES` = past landings).
+- `meta.ephemeris`: JPL Horizons (DE441) for curated sites; for custom sites, a local Skyfield + DE421 calculation in
+  the same frame, checked against Horizons to 0.00001°.
 - `observer_height_m`: sensor height above ground (2 m) used for the horizon. One height for now; separate
   solar-array and antenna heights only if a mission configuration needs them.
 - **Sunlit = `sun_visible`** (any of the solar disk above the terrain). Don't use `sun_visible_fraction > 0`:
@@ -61,7 +68,9 @@ Definitions:
   `null` too. Only custom sites can have them; curated sites are fully known (`unknown_*_pct` = 0).
   Summary percentages are over known hours.
 - `meta.generator_version`: `1.0` = first release; `1.1` = adds `sun_visible`, `sun_angular_radius_deg`,
-  6-decimal fractions, nulls, `generated_utc` / `generator_version` / `frame`.
+  6-decimal fractions, nulls, `generated_utc` / `generator_version` / `frame`; `1.2` = works anywhere on the Moon
+  (great-circle horizon over the whole-Moon elevation registry), adds `site.kind` / `site.approximate` /
+  `meta.horizon_method`, `x_m` / `y_m` nullable.
 
 ## Backend API
 Run from `backend/`: `.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000`.
@@ -69,13 +78,26 @@ Interactive docs with every field: http://localhost:8000/docs. The frontend dev 
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/sites` (`?include_custom=true`) | `SiteInfo[]`: curated sites with summary stats |
-| `POST /api/sites/custom` `{lat, lon, name?}` | `SiteInfo`: analyses any point at 80–90°S. First call ~15 s (downloads), then cached. Its `id` works with every endpoint below. |
+| `GET /api/sites` (`?include_custom=true`) | `SiteInfo[]`: curated sites (candidates + past landings) with summary stats |
+| `POST /api/sites/custom` `{lat, lon, name?}` | `SiteInfo`: analyses **any point on the Moon**. ~20–60 s in a new area (terrain downloads), then cached. Its `id` works with every endpoint below. |
 | `GET /api/sites/{id}` | `SiteInfo` |
 | `GET /api/sites/{id}/horizon` | `Horizon`: 720 directions |
 | `GET /api/sites/{id}/timeline?start=&end=&step_hours=` | `TimelineStep[]`; times ISO UTC, e.g. `2027-03-01T00:00Z`; data covers 2027-01-01 to 2029-01-01 |
 | `GET /api/sites/{id}/status?time=` | `SiteStatus`: conditions at that hour + next sunset/sunrise/Earthset/Earthrise (null if none before 2029) |
-| `GET /api/sites/{id}/terrain?size=256&half_width_m=5000` | `TerrainGrid`: heights in the site's local north/east frame for the 3D view |
+| `GET /api/sites/{id}/terrain?size=256&half_width_m=5000` | `TerrainGrid`: heights in the site's local north/east frame (superseded in the 3D view by the tiles below; kept for compatibility) |
+| `GET /api/sites/{id}/verify?time=` | `VerifyResult`: that hour's stored Sun/Earth positions vs a **live** JPL Horizons query and a local DE421 calculation |
+| `GET /api/validation` | The engine validation report (`data/validation/engine_validation.json`, see `docs/validation-engine.md`) |
+| `GET /api/terrain/info` | Whole-Moon tiling description (faces, tile size, sources) |
+| `GET /api/terrain/tile/{face}/{z}/{x}/{y}` | Binary float32 heights (65 × 65) of one cube-sphere tile; header `X-Tile-Leaf: 1` = no finer data |
+| `GET /api/psr` | `PsrData`: 164 south-polar PSRs (centre, area, approximate outline) and 1,119 surface-ice detections, with heights |
+
+### Whole-Moon terrain tiles
+Cube-sphere quadtree, defined identically in `backend/app/engine/tiles.py` and `frontend/src/viz/globe/cubeSphere.ts`
+(tested against each other):
+- 6 faces, poles at the centres of faces 4 (north) and 5 (south), equal-angle mapping
+  `p = centre + tan(u·π/4)·right + tan(v·π/4)·up`, normalised; `u, v ∈ [-1, 1]`.
+- Tile `(face, z, x, y)` covers `u ∈ [-1 + 2x/2^z, -1 + 2(x+1)/2^z]` (same for `v`, `y`); 65 × 65 vertices, `heights[j·65 + i]`.
+- Vertex spacing ≈ 42 km at z0, 167 m at z8, 5 m at z13. Max level: 13 near the poles (5 m data), 8 elsewhere (118 m).
 
 Types for all of these: `frontend/src/types.ts` (TypeScript) and `backend/app/models.py` (Pydantic).
 

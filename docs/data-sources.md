@@ -41,6 +41,34 @@ ArcGIS ImageServers, all in Moon2000 south polar stereographic (metres, central 
   `LRO_WAC_Mosaic_SPole60_100m_v02` (imagery for the 3D surface).
 - Moon Trek service config (all endpoints): `https://trek.nasa.gov/moon/jpl/config/config.json`
 
+## Moon Trek: whole-Moon elevation registry (`backend/app/engine/dem.py`)
+Since generator 1.2 the engine and the 3D terrain sample all of these through one registry, at any latitude/longitude:
+
+| Name | Service | Resolution | Coverage |
+|---|---|---|---|
+| sp5 / sp20 / sp30 / sp100 | south-pole products above | 5 / 20 / 30 / 100 m | to 87.5 / 85 / 75 / 45°S |
+| np5 / np30 / np100 | `LRO_LOLA_DEM_NPole875_5mp_v04`, `..NPole75_30mp_v04`, `..NPole45_100mp_v04` (north polar stereographic) | 5 / 30 / 100 m | from 87.5 / 75 / 45°N |
+| global | `LRO_LOLA_DEM_Global_256ppd_v06` (lon/lat, 1/256°) | ~118 m | whole Moon |
+
+- Poleward of 60° the polar products are used (the global grid is a last resort there); elsewhere the global one.
+- Each lookup uses the coarsest product (and power-of-two downsampling) that is still at least as fine as the
+  spacing asked for, so zoomed-out views don't download 5 m data.
+- Data is fetched with `exportImage` in blocks of up to 1024 × 1024 px and cached as `.npy` in `data/cache/dem/`
+  (git-ignored). `scripts/prefetch_tiles.py` warms the globe, the polar region and each curated site.
+- **Moon Trek quirks:**
+  - The global server answers HTTP 502 when one request spans more than ~32° (whatever the output size), so coarse
+    global blocks use fewer pixels.
+  - It occasionally returns 500/502 for a request that works moments later, so downloads retry 3 times.
+- **Not used:** Moon Trek's Cesium terrain (`marshub.s3.amazonaws.com/moon_v14/`): whole Moon only to level 9
+  (~165 m) and no extra detail below 80°S, coarser than the polar products.
+
+## Moon Trek: permanently shadowed regions and surface ice (`backend/app/engine/psr.py`)
+- `PSR_SP/MapServer/0`: 164 south-polar PSRs as **points** (centre, area 10–1,075 km², ID, LRO imaging notes),
+  80–90°S. Moon Trek has no PSR outlines, so the app draws a circle of the same area, labelled approximate.
+- `SP_IceLoc_280m/MapServer/0`: 1,119 surface water-ice detection points (280 m cells).
+- Query: `.../MapServer/0/query?where=FID >= a AND FID < b&outFields=*&f=geojson`. The layers cap a query at 1,000
+  records and reject pagination parameters, so fetch in FID ranges.
+
 ## LROC Quickmap
 - Web app (React + OpenLayers + Cesium). **No documented public API.** Its layers come from undocumented tile
   servers (`lroc-tiles.actgate.com/tiles`, terrain `dem-tiles.b-cdn.net/lunar/qts_demstack/`), so don't build on them.
@@ -67,8 +95,10 @@ https://www.asc-csa.gc.ca/eng/astronomy/moon-exploration/
 - Background only: Artemis, Gateway/Canadarm3, Canadian utility rover, LEAP program, infographics.
 - **No datasets or APIs.** Useful for the educational/explanation text and presentation context.
 
-## Validation-only references
-Used by `backend/scripts/validate_engine.py` (results: `docs/validation-engine.md`), not by the app.
+## Validation references (and the local ephemeris for custom sites)
+Used by `backend/scripts/validate_engine.py` (results: `docs/validation-engine.md`). Since generator 1.2 the same
+Skyfield setup (`backend/app/engine/ephem_local.py`) also computes Sun/Earth positions for **custom sites**, so a
+dropped pin doesn't need two Horizons round trips; it matches our Horizons data to 0.00001°.
 - **Independent ephemeris:** Skyfield + JPL DE421 (`https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp`) and the
   Moon ME frame kernels from NAIF (`fk/satellites/moon_080317.tf`, `pck/moon_pa_de421_1900-2050.bpc`,
   `pck/a_old_versions/pck00008.tpc` under `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/`).

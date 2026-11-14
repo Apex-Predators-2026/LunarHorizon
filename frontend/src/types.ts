@@ -24,13 +24,44 @@ export interface SiteSummaryStats {
 }
 
 // A Site plus what the data engine knows about it (returned by /api/sites).
+export type SiteKind = 'artemis' | 'control' | 'apollo' | 'clps' | 'international' | 'custom'
+
 export interface SiteInfo extends Site {
   source: string
+  kind?: SiteKind // older backends omit it
+  approximate?: boolean // coordinates are a region estimate, not a published point
   ground_height_m: number // relative to the 1737.4 km reference sphere
   observer_height_m: number
   summary: SiteSummaryStats
   data_start_utc: string
   data_stop_utc: string
+}
+
+// /api/psr: permanently shadowed regions (points with an area; outline = circle of the same area,
+// approximate) and surface-ice detections, with terrain heights. Positions are [lat, lon, height_m].
+export interface PsrData {
+  psrs: { id: string; lat: number; lon: number; area_km2: number; radius_m: number; note: string | null; outline: [number, number, number | null][] }[]
+  ice: [number, number, number | null][]
+  source: string
+  note: string
+}
+
+// /api/sites/{id}/verify: one hour checked live against JPL Horizons and a local ephemeris.
+export interface AzEl {
+  azimuth_deg: number
+  elevation_deg: number
+}
+export interface VerifyResult {
+  time_utc: string
+  bodies: Record<'sun' | 'earth', {
+    stored: AzEl
+    horizons: AzEl
+    skyfield: AzEl
+    stored_vs_horizons_deg: number
+    skyfield_vs_horizons_deg: number
+  }>
+  horizons_example_query: string
+  note: string
 }
 
 // null in the fields below means "unknown": terrain data is missing in that direction

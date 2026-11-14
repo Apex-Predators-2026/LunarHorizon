@@ -72,6 +72,35 @@ def test_ridge_blocks_only_its_direction():
     assert mask.distance_m[0] == pytest.approx(2000, abs=50)
 
 
+def test_latlon_horizon_on_a_bare_sphere_is_the_geometric_dip():
+    from app.engine.horizon import compute_horizon_latlon
+
+    flat = lambda lat, lon, spacing: np.zeros(np.shape(lat))  # noqa: E731
+    for lat, lon in ((0.67, 23.47), (-89.5, 210.0), (45.0, 300.0)):
+        m = compute_horizon_latlon(lat, lon, observer_height_m=2.0, az_step_deg=30, sampler=flat)
+        expected = -np.degrees(np.arccos(MOON_RADIUS_M / (MOON_RADIUS_M + 2.0)))
+        assert m.elevation_deg == pytest.approx(expected, abs=0.005)
+
+
+def test_latlon_horizon_sees_a_ridge_in_the_right_direction():
+    from app.engine.geo import destination
+    from app.engine.horizon import compute_horizon_latlon
+
+    # A thin (~30 m) 1000 m wall 2 km due east of an equatorial site (east = increasing longitude).
+    lat0, lon0 = 0.0, 20.0
+    wall_lat, wall_lon = destination(lat0, lon0, 90.0, 2000.0)
+
+    def ridge(lat, lon, spacing):
+        lat, lon = np.asarray(lat), np.asarray(lon)
+        near = (np.abs(lon - wall_lon) < 0.0005) & (np.abs(lat - lat0) < 1.0)
+        return np.where(near, 1000.0, 0.0)
+
+    m = compute_horizon_latlon(lat0, lon0, observer_height_m=0.0, az_step_deg=1, sampler=ridge)
+    assert m.at(90) == pytest.approx(np.degrees(np.arctan(1000 / 2000)), abs=0.5)  # ~26.6 deg east
+    assert m.at(270) < 0.1  # nothing to the west
+    assert m.distance_m[90] == pytest.approx(2000, abs=30)
+
+
 def test_missing_terrain_makes_only_that_direction_unknown():
     # Hole with no data in any tier, 3 km to the east of the site (local east = +x here).
     def z(x, y):
