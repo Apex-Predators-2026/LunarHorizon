@@ -171,6 +171,7 @@ def test_real_scenarios_include_both_outcomes() -> None:
 
 # --- two-year limits at, below and above the measured extremes ---------------------------------
 
+
 # Measured extremes are re-derived from the raw columns (helpers.raw_longest_outages), never pinned per site.
 def outages_h(raw: dict[str, Any], site: str) -> tuple[int, int]:
     runs = raw_longest_outages(raw[site], power_min_fraction=0.25)
@@ -190,9 +191,7 @@ def test_two_year_outage_limits_exactly_at_and_below(
     )
     assert at_limit.eligibility is Eligibility.PASS
     below = assess_constraints(
-        mission(
-            p, T0, COVERAGE_END, dark_h=dark - 1, blackout_h=blackout - 1 if has_blackout else 100, threshold=0.25
-        ),
+        mission(p, T0, COVERAGE_END, dark_h=dark - 1, blackout_h=blackout - 1 if has_blackout else 100, threshold=0.25),
         p,
     )
     assert [c.constraint_id for c in below.with_status(FAIL)] == [
