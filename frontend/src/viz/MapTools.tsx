@@ -107,15 +107,21 @@ function ToolButton({
 
 /** A toolbar button with a menu that pops out above it; closes on outside press or Escape. */
 function ToolMenu({
+  id,
+  openId,
+  setOpenId,
   label,
   icon,
   children,
 }: {
+  id: string
+  openId: string | null // the one menu that is open (menus are mutually exclusive)
+  setOpenId: (id: string | null) => void
   label: string
   icon: string
   children: (close: () => void) => ReactNode
 }) {
-  const [open, setOpen] = useState(false)
+  const open = openId === id
   const [closing, setClosing] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const close = () => setClosing(true)
@@ -123,16 +129,16 @@ function ToolMenu({
   useEffect(() => {
     if (!open) return
     const onDown = (e: PointerEvent) => {
-      if (root.current && !root.current.contains(e.target as Node)) setClosing(true)
+      if (root.current && !root.current.contains(e.target as Node)) setOpenId(null)
     }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setClosing(true)
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpenId(null)
     document.addEventListener('pointerdown', onDown)
     document.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('pointerdown', onDown)
       document.removeEventListener('keydown', onKey)
     }
-  }, [open])
+  }, [open, setOpenId])
 
   return (
     <div ref={root} className="relative">
@@ -141,7 +147,13 @@ function ToolMenu({
         icon={icon}
         haspopup
         open={open && !closing}
-        onClick={() => (open && !closing ? close() : (setOpen(true), setClosing(false)))}
+        onClick={() => {
+          if (open && !closing) close()
+          else {
+            setClosing(false)
+            setOpenId(id)
+          }
+        }}
       />
       {open && (
         <div
@@ -150,7 +162,7 @@ function ToolMenu({
           className={`absolute bottom-full left-1/2 mb-3 min-w-56 rounded-2xl bg-opal-50 py-2 shadow-xl shadow-black/40 ${closing ? 'md-menu-out' : 'md-menu'}`}
           onAnimationEnd={() => {
             if (closing) {
-              setOpen(false)
+              setOpenId(null)
               setClosing(false)
             }
           }}
@@ -230,6 +242,7 @@ export function MapTools({
   onFarShadows: (on: boolean) => void
 }) {
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
+  const [openMenu, setOpenMenu] = useState<string | null>(null)
   const playing = useAppStore((s) => s.playing)
   const setPlaying = useAppStore((s) => s.setPlaying)
 
@@ -255,7 +268,7 @@ export function MapTools({
           onClick={() => setPlaying(!playing)}
         />
         <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu label="Camera position" icon={ICON.camera}>
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} id="camera" label="Camera position" icon={ICON.camera}>
           {(close) =>
             VIEWS.map((v) => (
               <button
@@ -276,7 +289,7 @@ export function MapTools({
             ))
           }
         </ToolMenu>
-        <ToolMenu label="Map layers" icon={ICON.layers}>
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} id="layers" label="Map layers" icon={ICON.layers}>
           {() =>
             LAYER_ROWS.map((r) => (
               <button
@@ -314,7 +327,7 @@ export function MapTools({
           onClick={runVerify}
         />
         <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu label="Graphics quality" icon={ICON.speed}>
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} id="graphics" label="Graphics quality" icon={ICON.speed}>
           {(close) =>
             (Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
               <button
