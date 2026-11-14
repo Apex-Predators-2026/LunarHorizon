@@ -8,8 +8,8 @@ import { RescuePanel } from './RescuePanel'
 import { useRescueStore } from './useRescueStore'
 
 const TABS = [
-  { id: 'rescue', label: 'Mission rescue' },
-  { id: 'compromise', label: 'Science vs engineering' },
+  { id: 'rescue', label: 'Mission rescue', tip: 'When a plan slips or a requirement changes, search for alternative landing dates and sites that still work.' },
+  { id: 'compromise', label: 'Science vs engineering', tip: 'Find a landing site that balances what the science team wants against what is safe to land and operate.' },
 ] as const
 
 export function MissionRescue() {
@@ -41,6 +41,7 @@ export function MissionRescue() {
             key={t.id}
             type="button"
             role="tab"
+            data-tip={t.tip}
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={`-mb-px border-b-2 px-3 py-1.5 ${tab === t.id ? 'border-sky-500 text-slate-100' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
