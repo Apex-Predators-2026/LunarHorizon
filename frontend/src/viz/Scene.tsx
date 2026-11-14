@@ -11,7 +11,7 @@ import { SiteFrame, vecToLatLon } from './globe/cubeSphere'
 import { currentBlockers, fmtDistance, KIND_COLOR, surfacePoint } from './globe/overlays'
 import { BlockerLines, PsrLayer, SitePins } from './globe/SurfaceOverlays'
 import { TileTree, type TileStats } from './globe/TileTree'
-import { MapTools, type Layers, type PinState } from './MapTools'
+import { ColorKey, MapTools, type Layers, type PinState } from './MapTools'
 import { HorizonCurtain } from './HorizonCurtain'
 import { BEACON_HEIGHT, BEACON_HIDE_WITHIN_M, Lander } from './Lander'
 import { skyPositions } from './geometry'
@@ -27,6 +27,8 @@ import { GRAPHICS, useGraphicsQuality, useStoredFlag } from './graphics'
 import { MiniMapPanel } from './MiniMapPanel'
 import { MissionPanel } from './MissionPlayback'
 import { useMissionPlayback } from './useMissionPlayback'
+import { SnackbarHost } from './Snackbar'
+import { showSnackbar } from './snackbarStore'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
 import { SiteSelect, TopInfo, useViewerSetup } from './ViewerHud'
@@ -187,8 +189,13 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           setCreatedSites((list) => [...list.filter((x) => x.id !== created.id), created])
           setSite(created.id)
           setPin({ phase: 'idle' })
+          showSnackbar(`Pin placed: ${created.name}`, 'success')
         })
-        .catch((e: unknown) => setPin({ phase: 'error', message: e instanceof Error ? e.message : String(e) }))
+        .catch((e: unknown) => {
+          const message = e instanceof Error ? e.message : String(e)
+          setPin({ phase: 'error', message })
+          showSnackbar(`Couldn't place the pin: ${message}`, 'error')
+        })
     },
     [setSite],
   )
@@ -200,7 +207,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   )
 
   return (
-    <div className="absolute inset-0 overflow-hidden">
+    <div className={`absolute inset-0 overflow-hidden ${pin.phase === 'armed' ? 'pin-cursor' : ''}`}>
       {/* Renders only when something changes (camera, time, tiles arriving): an idle view costs
           nothing. Components that animate on their own must call invalidate(). */}
       {/* A new graphics preset gets a fresh canvas: anti-aliasing is fixed when the WebGL context is made. */}
@@ -335,8 +342,10 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         className="md-host pointer-events-none absolute inset-0 [--lp-side-w:clamp(280px,23.5vw,360px)]"
         style={{ fontFamily: 'var(--font-inter)' }}
       >
+        <SnackbarHost />
         <div className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(60px,6.2vw,92px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))]">
           <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
+          <ColorKey layers={layers} />
         </div>
         <div ref={sideRef} className="absolute bottom-4 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-3">
           {site && <MiniMapPanel horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />}
@@ -350,27 +359,30 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         {/* Bottom stack: map tools (pin / layers / JPL check) sit just above the timeline panel. */}
         <div className="absolute bottom-0 left-3 right-3 flex flex-col md:left-[3.6vw] md:right-[calc(4vw+var(--lp-side-w)+16px)]">
           <MissionPanel mission={mission} />
-          <MapTools
-            layers={layers}
-            onLayers={setLayers}
-            pin={pin}
-            onArmPin={(armed) => setPin(armed ? { phase: 'armed' } : { phase: 'idle' })}
-            onCoordinates={analyseSpot}
-            siteId={siteId}
-            timeUtc={timeUtc}
-            view={view}
-            onView={setView}
-            graphics={graphicsQuality}
-            onGraphics={setGraphicsQuality}
-            farShadows={farShadows && gfx.shadows}
-            farShadowsAvailable={gfx.shadows}
-            onFarShadows={setFarShadows}
-            mission={{ available: mission.available, active: !!mission.run, reason: mission.reason, start: mission.start, stop: mission.stop }}
-          />
+          {/* Lifted above the "show timeline" arrow while the panel is hidden. */}
+          <div className={`md-slide transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>
+            <MapTools
+              layers={layers}
+              onLayers={setLayers}
+              pin={pin}
+              onArmPin={(armed) => setPin(armed ? { phase: 'armed' } : { phase: 'idle' })}
+              onCoordinates={analyseSpot}
+              siteId={siteId}
+              timeUtc={timeUtc}
+              view={view}
+              onView={setView}
+              graphics={graphicsQuality}
+              onGraphics={setGraphicsQuality}
+              farShadows={farShadows && gfx.shadows}
+              farShadowsAvailable={gfx.shadows}
+              onFarShadows={setFarShadows}
+              mission={{ available: mission.available, active: !!mission.run, reason: mission.reason, start: mission.start, stop: mission.stop }}
+            />
+          </div>
           {site && win && (
             <div
               ref={barRef}
-              className={`relative transition-[transform,margin] ${
+              className={`md-slide relative transition-[transform,margin] ${
                 barHidden ? 'duration-[250ms] ease-[var(--md-ease-emph-accel)]' : 'duration-[400ms] ease-[var(--md-ease-emph-decel)]'
               }`}
               style={barHidden ? { transform: `translateY(${barH}px)`, marginBottom: -barH } : undefined}
