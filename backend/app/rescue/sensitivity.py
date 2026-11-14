@@ -12,6 +12,7 @@ from datetime import timedelta
 from ..models import Scenario
 from .catalog import custom_site
 from .engine import Evaluator, resolve_simulation
+from .explain import short_label
 from .geo import destination
 from .schemas import Robustness, SensitivityPoint, SensitivityRequest, SensitivityResponse
 
@@ -99,14 +100,14 @@ def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
 
     if not base.passes:
         verdict = "fails"
-        expl = f"The plan itself fails ({', '.join(v.constraint for v in base.violations)}). "
+        expl = f"The plan itself fails ({', '.join(short_label(v.constraint) for v in base.violations)}). "
         if overall is not None:
             expl += f"{overall:.0%} of nearby dates/positions pass."
     else:
         verdict = _verdict(1.0 if overall is None else overall)
         expl = f"{tested.capitalize()} still pass. Safe window: {window[0]:+.0f} h to {window[1]:+.0f} h."
         if most:
-            expl += f" The requirement that breaks first is '{most}'."
+            expl += f" The requirement that breaks first is '{short_label(most)}'."
     if skipped:
         expl += (f" {skipped} point(s) skipped: no real data there"
                  + (" (landing-position checks need terrain for points around the site)." if pos_rate is None else "."))
@@ -123,8 +124,11 @@ def quick_robustness(sc: Scenario, ev: Evaluator, include_synthetic: bool | None
                                      bearings=4, include_synthetic=include_synthetic), ev)
     n = len(res.points)
     passing = sum(p.passes for p in res.points)
-    r = passing / n if n else 1.0
+    r = passing / n if n else None  # nothing checked: no pass rate, and no claim of robustness
     bad = [p for p in res.points if not p.passes]
+    if r is None:
+        return Robustness(checked_points=0, passing_points=0, pass_rate=None, worst_score=res.base.score,
+                          verdict="unchecked", note="Robustness not checked: no real data around this date or site.")
     checked = "±1 day slip" + (" or a 1 km landing error" if res.position_pass_rate is not None else "")
     if not bad:
         note = f"Still passes with a {checked}."

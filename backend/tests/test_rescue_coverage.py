@@ -13,6 +13,7 @@ from app.models import Scenario, Site
 from app.rescue import Evaluator, compromise, rescue, sensitivity
 from app.rescue.catalog import custom_site, get_site
 from app.rescue.engine import NO_DATA_SOURCE, is_real
+from app.rescue.sensitivity import quick_robustness
 from app.rescue.schemas import (CompromiseRequest, PlanChange, RescueRequest, ScienceGoal, SearchOptions,
                                 SensitivityRequest)
 from app.rescue.timeline.precomputed import DEFAULT_DATA_DIR
@@ -123,3 +124,37 @@ def test_compromise_without_real_data_is_tradeoff_with_no_synthetic_options(ev):
                                      search=SearchOptions(date_window_days=5)), ev)
     assert "synthetic" not in c.data_source
     assert all(is_real(o.viability) for o in c.pareto_front)
+
+
+# --- landing times that are not on the whole hour ---
+
+@pytest.mark.parametrize("off", [timedelta(minutes=30), timedelta(seconds=20), timedelta(minutes=-20)])
+def test_off_grid_landing_time_gets_the_on_grid_verdict(ev, off):
+    t = DATA_START + timedelta(days=10)
+    on = ev.evaluate(plan(t))
+    assert on.verdict != "unknown" and on.score is not None
+    r = ev.evaluate(plan(t + off))
+    assert r.verdict == on.verdict and r.score == on.score and r.eligibility == on.eligibility
+    # the result shows the landing time that was actually evaluated: the nearest whole hour
+    # (half an hour rounds up)
+    expected = t + timedelta(hours=1) if off == timedelta(minutes=30) else t
+    assert r.scenario.landing_utc == expected
+
+
+def test_rescue_with_a_fractional_launch_delay_is_decided(ev):
+    t = DATA_START + timedelta(days=10)
+    srch = SearchOptions(robustness_check=False, date_window_days=3)
+    on = rescue(RescueRequest(original=plan(t), change=PlanChange(launch_delay_days=1), search=srch), ev)
+    assert on.changed.verdict != "unknown"
+    r = rescue(RescueRequest(original=plan(t), change=PlanChange(launch_delay_days=0.3), search=srch), ev)
+    assert r.changed.verdict != "unknown" and r.changed.score is not None
+    assert r.changed.scenario.landing_utc.minute == 0 and r.changed.scenario.landing_utc.second == 0
+    assert r.stats.undecided == 0
+
+
+def test_robustness_with_nothing_checked_claims_nothing(ev):
+    rob = quick_robustness(plan(DATA_END + timedelta(days=60)), ev)
+    assert rob.checked_points == 0
+    assert rob.pass_rate is None
+    assert rob.verdict == "unchecked"
+    assert rob.note == "Robustness not checked: no real data around this date or site."

@@ -1,3 +1,4 @@
+import type { Scenario } from '../../types'
 import type { AltKind, MetricDelta } from './types'
 
 export const fmtValue = (v: number | null, unit: string): string => {
@@ -38,4 +39,24 @@ export const KIND_LABEL: Record<AltKind, string> = {
   date_shift: 'New date',
   site_change: 'New site',
   site_and_date: 'New site + date',
+}
+
+const canonical = (v: unknown): string =>
+  Array.isArray(v) ? `[${v.map(canonical).join(',')}]`
+  : v && typeof v === 'object'
+    ? `{${Object.keys(v).sort().map((k) => `${JSON.stringify(k)}:${canonical((v as Record<string, unknown>)[k])}`).join(',')}}`
+    : JSON.stringify(v) ?? 'null'
+
+/**
+ * Name of the saved plan the rescue scenario was captured from, and whether that plan was edited since.
+ * An unknown source (no plan id, or the plan was deleted) gives no name and never a changed notice.
+ */
+export function planInfo(
+  original: Scenario | null,
+  planId: string | null,
+  plans: { id: string; name: string; scenario: Scenario }[],
+): { name: string | null; changed: boolean } {
+  const plan = original && planId ? plans.find((p) => p.id === planId) : undefined
+  if (!original || !plan) return { name: null, changed: false }
+  return { name: plan.name, changed: plan.scenario !== original && canonical(plan.scenario) !== canonical(original) }
 }

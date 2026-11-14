@@ -5,8 +5,9 @@ import { TextField } from '../../ui/MdFields'
 import type { ChangeEvent, FormEvent } from 'react'
 
 import { AlternativeCard } from './AlternativeCard'
-import { fmtShift, fmtUtc } from './format'
+import { fmtShift, fmtUtc, planInfo } from './format'
 import { SensitivityView } from './SensitivityView'
+import { usePlansStore } from '../plans/usePlansStore'
 import type { Scenario } from '../../types'
 import type { RescueResponse, RescueStatus, SensitivityResponse } from './types'
 import { useRescueStore } from './useRescueStore'
@@ -24,8 +25,34 @@ const STATUS_TITLE: Record<RescueStatus, string> = {
 
 const num = (e: ChangeEvent<HTMLInputElement>) => (e.target.value === '' ? undefined : Number(e.target.value))
 
+/** One quiet line saying which plan the rescue tools are working on. */
+export function RescuingLine({ scenario, name, changed }: { scenario: Scenario; name: string | null; changed: boolean }) {
+  return (
+    <p className="text-xs text-slate-400">
+      {`Rescuing: ${name ? `${name}, ` : ''}${scenario.site.name}, ${fmtUtc(scenario.landing_utc)}, ${scenario.duration_days} ${scenario.duration_days === 1 ? 'day' : 'days'}`}
+      {changed && <> This plan changed since; press Run to update.</>}
+    </p>
+  )
+}
+
+/** Where the numbers came from: NASA data credit, or the simulation warning. */
+export function DataNote({ assumptions }: { assumptions: string[] }) {
+  return (
+    <>
+      {assumptions[0]?.startsWith('SYNTHETIC') && (
+        <p className="rounded border border-amber-900 bg-amber-950/40 p-2 text-[11px] text-amber-200">{assumptions[0]}</p>
+      )}
+      {assumptions[0]?.startsWith('Real data') && (
+        <p className="text-[11px] text-sky-300/80">{assumptions[0]}</p>
+      )}
+    </>
+  )
+}
+
 export function RescuePanel() {
   const s = useRescueStore()
+  const plans = usePlansStore((p) => p.plans)
+  const { name: planName, changed: changedSince } = planInfo(s.original, s.originalPlanId, plans)
   const res = s.rescue
   const overrides = s.change.requirement_overrides ?? {}
   const loading = s.rescueStatus === 'loading'
@@ -37,6 +64,7 @@ export function RescuePanel() {
 
   return (
     <section aria-label="Mission rescue" className="space-y-3">
+      {s.original && <RescuingLine scenario={s.original} name={planName} changed={changedSince} />}
       <form onSubmit={submit} className="grid grid-cols-1 gap-2 text-xs">
         <TextField
           label="Launch delay (days)"
@@ -86,8 +114,8 @@ export function RescuePanel() {
         </button>
       </form>
 
-      {s.error && (
-        <p role="alert" className="rounded border border-red-900 bg-red-950/50 p-2 text-xs text-red-300">{s.error}</p>
+      {(s.rescueError ?? s.sensitivityError) && (
+        <p role="alert" className="rounded border border-red-900 bg-red-950/50 p-2 text-xs text-red-300">{s.rescueError ?? s.sensitivityError}</p>
       )}
 
       {res && (
@@ -124,18 +152,13 @@ export function RescueResults({ res, selected, sensitivity, sensitivityLoading, 
           Checked {res.stats.candidates_evaluated} site/date combinations at {res.stats.locations_considered} locations;{' '}
           {res.stats.passing} pass.
           {res.stats.synthetic_candidates_excluded > 0 && (
-            <> {res.stats.synthetic_candidates_excluded} synthetic-only candidates left out.</>
+            <> {`${res.stats.synthetic_candidates_excluded} more options skipped: no real data there (simulation mode can estimate them).`}</>
           )}
           {res.stats.undecided > 0 && <> {res.stats.undecided} could not be checked (missing data).</>}
         </p>
       </div>
 
-      {res.assumptions[0]?.startsWith('SYNTHETIC') && (
-        <p className="rounded border border-amber-900 bg-amber-950/40 p-2 text-[11px] text-amber-200">{res.assumptions[0]}</p>
-      )}
-      {res.assumptions[0]?.startsWith('Real data') && (
-        <p className="text-[11px] text-sky-300/80">{res.assumptions[0]}</p>
-      )}
+      <DataNote assumptions={res.assumptions} />
 
       {res.alternatives.length > 0 && (
         <div className="space-y-2">

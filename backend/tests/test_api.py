@@ -92,6 +92,18 @@ BASE = {
 }
 
 
+def test_rescue_sites_report_their_real_data_range():
+    """The UI shows each site's real-data period from the API, so it never goes stale."""
+    from tests.data_range import data_range
+    body = client.get("/api/rescue/sites").json()
+    pns = next(s for s in body["sites"] if s["id"] == "peak-near-shackleton")
+    start, end = data_range("peak-near-shackleton")
+    assert pns["has_real_data"] is True
+    assert pns["data_start_utc"] == start.strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert pns["data_end_utc"] == end.strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert "synthetic data only" not in body["note"]
+
+
 def test_health_and_sites():
     assert client.get("/api/health").json() == {"status": "ok"}
     assert isinstance(client.get("/api/sites").json(), list)

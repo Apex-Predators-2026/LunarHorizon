@@ -26,16 +26,22 @@ def _run(fn, req):
 
 @router.get("/sites", summary="Sites and science targets the rescue search uses")
 def get_sites() -> dict:
-    """Rescue's candidate landing sites (the data engine's curated list plus approximate extras) and
-    PSR science targets."""
+    """Rescue's candidate landing sites (the data engine's curated list plus approximate extras), each
+    with the period its real data covers, and PSR science targets."""
+    def entry(s) -> dict:
+        cov = _evaluator.coverage(s.to_site())
+        iso = lambda t: f"{str(t.astype('datetime64[s]'))}Z"  # noqa: E731
+        return {"id": s.id, "name": s.name, "lat": s.lat, "lon": s.lon, "description": s.description,
+                "source": s.source, "approximate": s.approximate, "has_real_data": cov is not None,
+                "data_start_utc": iso(cov[0]) if cov else None, "data_end_utc": iso(cov[1]) if cov else None}
+
     return {
-        "sites": [{"id": s.id, "name": s.name, "lat": s.lat, "lon": s.lon, "description": s.description,
-                   "source": s.source, "approximate": s.approximate,
-                   "has_real_data": _evaluator.has_real_data(s.to_site())} for s in SITES],
+        "sites": [entry(s) for s in SITES],
         "psrs": [{"id": p.id, "name": p.name, "lat": p.lat, "lon": p.lon, "radius_km": p.radius_km,
                   "ice_interest": p.ice_interest} for p in PSRS],
-        "note": ("Sites with has_real_data use the data engine's precomputed Horizons + LOLA timelines. "
-                 "'approximate' sites are placeholders with synthetic data only."),
+        "note": ("Sites with has_real_data use the data engine's precomputed Horizons + LOLA timelines for "
+                 "data_start_utc..data_end_utc; missions outside that period are reported as unknown. "
+                 "'approximate' sites sit at estimated coordinates inside their named region."),
     }
 
 
