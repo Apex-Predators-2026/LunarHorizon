@@ -145,7 +145,7 @@ export function DatePopup({
 
       <div className="px-3 pb-2 pt-3">
         {mode === 'input' ? (
-          <div className="px-3 pb-2 pt-2" style={{ ['--md-field-bg' as string]: '#f5f5f7' }}>
+          <div className="px-3 pb-2 pt-2" style={{ ['--md-field-bg' as string]: 'var(--color-opal-50)' }}>
             <TextField
               label="Date"
               placeholder="YYYY-MM-DD"
@@ -231,7 +231,7 @@ export function DatePopup({
           </>
         )}
 
-        <div className="mt-2 px-3" style={{ ['--md-field-bg' as string]: '#f5f5f7' }}>
+        <div className="mt-2 px-3" style={{ ['--md-field-bg' as string]: 'var(--color-opal-50)' }}>
           <TextField label="Time (UTC)" type="time" value={hhmm} onChange={(e) => setHhmm(e.target.value)} tip="Time of day in UTC" />
         </div>
       </div>

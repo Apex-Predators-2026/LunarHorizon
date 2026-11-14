@@ -131,7 +131,6 @@ export function MoonMiniMap({
           aria-label={`Minimap of the Moon, centred on ${view ? fmtLatLon(view.centre) : 'the site'}. Click to fly there.`}
           data-tip={hoveredSite ? `${hoveredSite.name}: click to go there` : 'Click anywhere on the Moon to fly there'}
           className="absolute inset-0 cursor-crosshair"
-          onPointerDown={(e) => e.stopPropagation()} // a click here is for the map, not for dragging the card
           onPointerMove={(e) => setHover(pointer(e))}
           onPointerLeave={() => setHover(null)}
           onClick={(e) => {

@@ -1,5 +1,6 @@
 // "The plan changed, what now?" Delay / requirement inputs, then ranked, explained
 // alternatives, relax-a-requirement suggestions and the closest failing options.
+import { LoadingIndicator } from '../../ui/LoadingIndicator'
 import { TextField } from '../../ui/MdFields'
 import type { ChangeEvent, FormEvent } from 'react'
 
@@ -81,7 +82,7 @@ export function RescuePanel() {
         <button type="submit" disabled={loading || !s.original}
           data-tip="Search for other landing sites and dates that still meet the requirements."
           className="md-btn bg-sky-600 text-white hover:bg-sky-500 disabled:opacity-50">
-          {loading ? 'Searching…' : 'Find alternatives'}
+          {loading ? <><LoadingIndicator size={20} contained={false} color="#ffffff" label="Searching" /><span className="ml-2">Searching…</span></> : 'Find alternatives'}
         </button>
       </form>
 
