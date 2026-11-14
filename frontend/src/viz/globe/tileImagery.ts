@@ -27,7 +27,7 @@ export const IMAGERY_PREFETCH_M = 0.6 * IMAGERY_FADE_START_M
 const STANDIN_ZOOM = 2
 const TILE_FADE_MS = 300 // a tile's first image fades in instead of popping
 const MAX_IN_FLIGHT = 4
-const MAX_TEXTURES = 200
+const MAX_TEXTURES = 300 // besides the stand-ins (levels 0-STANDIN_ZOOM), which are always kept
 // Mosaic bytes are display brightness (mean ~40/255 at the pole and on the maria). Read as
 // linear values and scaled so the average looks like the plain grey terrain.
 const GAIN = 2.2
@@ -102,6 +102,7 @@ export class TileImagery {
   private inFlight = 0
   private mix = 0 // the zoom-dependent mix of the current frame (from tick)
   private disposed = false
+  private standInsLoaded = false
 
   constructor(onChange: () => void, anisotropy: number) {
     this.onChange = onChange
@@ -110,6 +111,19 @@ export class TileImagery {
 
   /** Give every drawn tile its imagery material (the best image loaded so far), and ask for missing images. */
   apply(tiles: ImageryTile[], base: THREE.Material, now: number) {
+    // The first time imagery is wanted, load every stand-in (126 small images from the static pack):
+    // then any tile, wherever the view goes, has an image straight away (no plain patch fading in).
+    if (!this.standInsLoaded) {
+      this.standInsLoaded = true
+      for (let f = 0; f < 6; f++)
+        for (let z = 0; z <= STANDIN_ZOOM; z++)
+          for (let x = 0; x < 2 ** z; x++)
+            for (let y = 0; y < 2 ** z; y++) {
+              const k = texKeyOf(f, z, x, y)
+              if (!this.textures.has(k)) this.textures.set(k, { state: 'idle', texture: null, lastUsed: now, readyAt: 0 })
+              this.load(k, false)
+            }
+    }
     const wanted = new Set<string>()
     for (const t of tiles) {
       // The image this tile should show, then its ancestors' as stand-ins while it loads.
@@ -261,7 +275,7 @@ export class TileImagery {
   private evict(now: number) {
     if (this.textures.size <= MAX_TEXTURES) return
     const old = [...this.textures.entries()]
-      .filter(([, e]) => e.state !== 'loading' && now - e.lastUsed > 15_000)
+      .filter(([k, e]) => e.state !== 'loading' && now - e.lastUsed > 15_000 && Number(k.split('/')[1]) > STANDIN_ZOOM)
       .sort((a, b) => a[1].lastUsed - b[1].lastUsed)
       .slice(0, this.textures.size - MAX_TEXTURES)
     for (const [texKey, e] of old) {
