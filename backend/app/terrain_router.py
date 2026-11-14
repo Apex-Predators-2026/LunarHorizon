@@ -5,6 +5,8 @@ GET /api/terrain/tile/{face}/{z}/{x}/{y}  heights of one cube-sphere tile (binar
 GET /api/psr                              PSR points and surface-ice detections near the south pole
 """
 
+from functools import lru_cache
+
 from fastapi import APIRouter, HTTPException, Response
 
 from .engine import psr
@@ -27,6 +29,13 @@ def terrain_info() -> dict:
     }
 
 
+@lru_cache(maxsize=4096)  # ~70 MB of recently served tiles; failures are not cached
+def _tile_payload(face: int, z: int, x: int, y: int) -> tuple[bytes, float, float, bool]:
+    heights = tile_heights(face, z, x, y)
+    leaf = z >= max_zoom_for(face, z, x, y)
+    return heights.astype("<f4").tobytes(), float(heights.min()), float(heights.max()), leaf
+
+
 @router.get("/terrain/tile/{face}/{z}/{x}/{y}")
 def terrain_tile(face: int, z: int, x: int, y: int) -> Response:
     """Float32 little-endian heights, row-major [j, i], tile_size^2 values.
@@ -36,17 +45,16 @@ def terrain_tile(face: int, z: int, x: int, y: int) -> Response:
     except ValueError as e:
         raise HTTPException(404, str(e))
     try:
-        heights = tile_heights(face, z, x, y)
+        content, hmin, hmax, leaf = _tile_payload(face, z, x, y)
     except OSError as e:  # Moon Trek unreachable or refused the request
         raise HTTPException(502, f"Terrain source unavailable: {e}")
-    leaf = z >= max_zoom_for(face, z, x, y)
     return Response(
-        content=heights.astype("<f4").tobytes(),
+        content=content,
         media_type="application/octet-stream",
         headers={
             "X-Tile-Leaf": "1" if leaf else "0",
-            "X-Tile-Min": f"{float(heights.min()):.1f}",
-            "X-Tile-Max": f"{float(heights.max()):.1f}",
+            "X-Tile-Min": f"{hmin:.1f}",
+            "X-Tile-Max": f"{hmax:.1f}",
             "Cache-Control": "public, max-age=604800",
             "Access-Control-Expose-Headers": "X-Tile-Leaf, X-Tile-Min, X-Tile-Max",
         },
