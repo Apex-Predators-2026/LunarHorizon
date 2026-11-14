@@ -43,7 +43,7 @@ evaluator = Evaluator(evaluate=make_evaluate_fn())                   # plug into
 
 ```python
 from app.viability import rank_assessments, partition_comparable, ranking_explanations
-from app.viability.ranking_evidence import compare_scenarios, explain_adjacent
+from app.viability import compare_scenarios, explain_adjacent       # re-exported since the Part 2 integration
 
 for group in partition_comparable(assessments):     # never mix incompatible scenarios
     ranking = rank_assessments(group)              # RankingResult (PASS ranked 1..n, then UNKNOWN, then FAIL)
@@ -53,7 +53,8 @@ for group in partition_comparable(assessments):     # never mix incompatible sce
 ev = compare_scenarios(selected, competitor)       # any two scenarios, comparable or not
 ```
 
-`ranking_evidence` is not re-exported from `app.viability` yet (see §11). Import it from the submodule.
+Since the Part 2 final integration, `compare_scenarios`, `explain_adjacent`, `PairwiseEvidence`, `RankingCriterion`
+and `EVIDENCE_METHOD_VERSION` are re-exported from `app.viability` (the submodule import keeps working).
 
 ## 2. Units: canonical vs Rescue
 
@@ -146,7 +147,7 @@ synthetic placeholder timeline, simulation mode and custom sites without real da
 
 Every displayed or stored result should keep: `engine_version` (now `0.6.0-phase6`), `score.method_version`
 (`desirability-v1`), `explanations` method (`explanations-v1`, `explain.EXPLANATION_METHOD_VERSION`), evidence
-`method_version` (`ranking-evidence-v1`), and through Rescue `ViabilityResult.source`
+`method_version` (`ranking-evidence-v1`), sampling sensitivity `method_version` (`1.0.0-part2b`) when shown, and through Rescue `ViabilityResult.source`
 (`viability-engine/0.6.0-phase6`) and `data_source` (`precomputed:<file>` or `synthetic-placeholder`). Scores
 with different method versions are never comparable.
 
@@ -182,16 +183,18 @@ criterion and the difference status visible together. When the criterion is `exa
 difference. A component advantage is reported only when its own interval excludes 0.
 
 **Demonstrated on real data** (Rescue's production path, Rescue default requirements, 3-day missions at
-Connecting Ridge; generator-1.2 site files at this commit; regenerate with the command in §9):
+Connecting Ridge ending at the last sample of the committed files; generator-1.2 files covering 2026-01-01 to
+2031-01-01, regenerated 2026-11-14; regenerate with the command in §9):
 
 | Scenario | Eligibility | Score | Risk | Rank |
 |---|---|---|---|---|
-| landing 2028-12-29T00:00Z | PASS | exact 80.499086 | low | 1 |
-| landing 2028-12-29T01:00Z (last mission hour beyond the data) | PASS | bounded [79.044225, 80.499087] | moderate | 2 |
+| landing 2030-12-29T00:00Z | PASS | exact 87.219675 | low | 1 |
+| landing 2030-12-29T01:00Z (last mission hour beyond the data) | PASS | bounded [86.264814, 87.219676] | moderate | 2 |
 
-Deciding criterion `score_lower_bound` (80.499086 vs 79.044225). Difference (01:00 − 00:00) =
-**[−1.454861, +0.000001]**, which contains 0, so `not_established`. No single component's advantage is
-established. Explanation: *"…ranks above … under the conservative scoring policy (higher guaranteed lower
+Deciding criterion `score_lower_bound` (87.219675 vs 86.264814). Difference (00:00 − 01:00) =
+**[−0.000001, +0.954861]**, which contains 0, so `not_established`. No single component's advantage is
+established. (Before the regeneration the same pair sat at 2028-12-29 with 80.499086 vs [79.044225, 80.499087]; the
+examples now follow the files' last sample automatically.) Explanation: *"…ranks above … under the conservative scoring policy (higher guaranteed lower
 bound), but their score ranges overlap … The recorded evidence does not prove [it] has a higher desirability
 score."* Through Rescue the bounded scenario's `ViabilityResult.score` is `null`.
 
@@ -208,8 +211,8 @@ pinned.
 |---|---|---|
 | `pass_exact` | Malapert, 7 d from 2028-06-15: PASS, exact score | Rescue adapter |
 | `fail_confirmed` | Connecting Ridge, 7 d from 2027-03-01: proven FAIL | Rescue adapter |
-| `unknown_inadequate_data` | Malapert, 3 d from 2028-12-31T12:00Z (60 h past the data): UNKNOWN, not scored | engine (Rescue answers this case itself) |
-| `pass_bounded` | Connecting Ridge, 3 d from 2028-12-29T01:00Z: PASS, bounded score, Rescue `score = null` | Rescue adapter |
+| `unknown_inadequate_data` | Connecting Ridge, 3 d from 12 h before the last sample (60 h past the data; 2030-12-31T12:00Z): UNKNOWN, not scored | engine (Rescue answers this case itself) |
+| `pass_bounded` | Connecting Ridge, 3 d from 71 h before the last sample (2030-12-29T01:00Z): PASS, bounded [86.264814, 87.219676], Rescue `score = null` | Rescue adapter |
 | `score_unavailable` | `pass_exact` mission with only the unsupported clearance weight: PASS, `no_scorable_components` | engine |
 | `synthetic_input` | `intermittent_sunlight` fixture, labelled `[SYNTHETIC DATA]` | engine |
 | `comparable_pair` | the two Connecting Ridge scenarios of §8, ranked, with evidence | Rescue adapter |
@@ -256,9 +259,60 @@ tests and thresholds need review because the score formula differs.
 | Member 3 (UI) | §3, §4, §6, §8 of this page. `frontend/src/types.ts` already types `score: number \| null` and `eligibility`. |
 | Member 6 (Validation) | `backend/app/viability/ranking_evidence.py` (interval rounding, wording), `backend/tests/viability/test_ranking_evidence_part2.py` |
 
-## 11. Integration notes for the final session
+## 11. Integration status (Part 2 final integration, 2026-11-14)
 
-- Optional: re-export `compare_scenarios`, `explain_adjacent`, `PairwiseEvidence` and `RankingCriterion` from
-  `app/viability/__init__.py`. That file is outside this task's ownership, so it was not changed.
-- Optional: link this page from `docs/viability-engine.md` §5g / §9 (also outside this task's ownership).
-- No shared model (`app/models.py`, `frontend/src/types.ts`) and no engine, scoring or output file was changed.
+- Done: `compare_scenarios`, `explain_adjacent`, `PairwiseEvidence`, `RankingCriterion`, `EVIDENCE_METHOD_VERSION` and
+  the Part 2B entry points (`sampling_sensitivity_report`, `prepare_policy_series`, `SamplingSensitivityReport`,
+  `SensitivityVerdict`, `CoverageAdequacy`, `PolicySeriesPair`, `SENSITIVITY_METHOD_VERSION`) are re-exported from
+  `app.viability`. Additive only.
+- Done: linked from `docs/viability-engine.md` §5h.
+- `engine.evaluate_scenario` gained a keyword-only `policy=None` (default behaviour unchanged, tested); the Part 2B
+  report delegates to it.
+- No shared model (`app/models.py`, `frontend/src/types.ts`), no output field, no `ENGINE_VERSION` and no Rescue or
+  comparison file was changed. Production activation stays with Member 5 (§10).
+- Validation package and demonstration: `docs/member2-part2-validation.md`, `docs/member2-part2-demo.md`.
+
+## 12. Instructions for Member 5 (Arush, Rescue) and Member 4 (comparison)
+
+These are the rules for showing canonical results. They apply as soon as `app/rescue/viability/__init__.py` imports
+`evaluate_timeline` from `app.viability.compat.rescue` (still the placeholder on `origin/main` at the time of the
+Part 2 integration). Activating that switch is your release decision, separate from Member 2's completion.
+
+1. **Missing scores.** `score = None` (Rescue `ViabilityResult.score`, canonical `ScoreBreakdown.score`) means *no exact
+   number exists*. Never coerce it to 0 (`score_or_zero`, `score ?? 0`), never sort it as 0 and never print `0`.
+   Show `score_status`: "between L and U" for `bounded`, "not scored: eligibility unknown", "not scored: no active
+   score component". A real `0.0` with status `known` is a valid score.
+2. **UNKNOWN eligibility.** Read `eligibility` / `ViabilityResult.verdict`, not `passes`. UNKNOWN is a third tier
+   between PASS and FAIL: never show it as failed, never rank it among viable options, never score it. List its
+   undecided constraints (`is_unknown = True` violations, messages start with `UNKNOWN`) and say "cannot be decided:
+   missing data". Rescue's own coverage check (`source = "rescue-coverage-check"`) already does this for missions
+   outside real data.
+3. **Score intervals.** For `score_status = bounded` use the full interval from the canonical assessment
+   (`evaluate_timeline_detailed(...)[1].score.score_bounds`); `ViabilityResult` has no interval field. Order bounded
+   candidates by the guaranteed lower bound (what `rank_assessments` does) and never print the lower bound alone.
+   When two candidates' intervals overlap, `compare_scenarios(...).score_difference.status` is `not_established`:
+   say the order is a conservative policy, not a proven difference.
+4. **Synthetic versus real.** `data_basis = "synthetic"` (Rescue `data_source = "synthetic-placeholder"`, simulation
+   mode, fixtures) must be labelled on every view and kept in its own list/table/chart. Do not merge synthetic and
+   real candidates into one ranking (`rank_assessments` refuses; Rescue simulation mode currently mixes them, §10
+   item 2). Keep the `[SYNTHETIC DATA]` prefix of explanations.
+5. **Incompatible rankings.** Different data basis, scoring method, weights, requirements or mission duration make
+   scenarios incomparable. Call `partition_comparable(assessments)` and render one ranking per group; never compute a
+   score difference across groups (`compare_scenarios` returns `not_comparable` with `comparability_issues`).
+6. **Canonical explanations.** Display `assessment.explanations` (or `explain_assessment_details` for structured
+   fields) verbatim, with `explanations-v1`. Do not paraphrase numbers or add claims; for "why is A above B" use
+   `compare_scenarios(...).explanation` / `deciding_criterion`. Rescue's own explanation texts may keep describing
+   its search, but not re-word viability results.
+7. **Detailed assessment data.** Anything beyond pass/score/violations (bounds, data basis, coverage, risk
+   indicators, margins, windows, explanations, sampling sensitivity) comes from the `ViabilityAssessment`:
+   `evaluate_timeline_detailed` for Rescue and `compare/service.py`; an additive shared-contract field would need
+   Members 4 and 5 to agree first (viability-engine.md §10). Record `engine_version`, `score.method_version`,
+   `dataset_id` and, through Rescue, `ViabilityResult.source` / `data_source` with every stored result.
+8. **Sampling sensitivity (optional display).** If shown, put the canonical verdict first and
+   `sampling_sensitivity_report(...).summary` as a secondary "robustness to hourly sampling" note with its
+   limitations. A `changed` verdict marks a marginal decision; it never turns a canonical PASS into UNKNOWN.
+9. **Data range changed upstream.** Since commit 4ebc988 the site files cover 2026-01-01 to 2031-01-01. Eleven
+   teammate tests still assert the old 2029 end and fail on `origin/main`: `tests/test_compare.py`
+   (`test_out_of_range_is_unavailable_not_fabricated`, Member 4), `tests/test_rescue_coverage.py` (9 cases) and
+   `tests/test_rescue_real_data.py::test_provider_coverage_and_unaligned_times` (Member 5). Member 2's own tests now
+   read the bounds from the files (`tests/viability/real_data.py`); the same approach would fix these.

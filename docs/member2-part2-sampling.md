@@ -44,20 +44,21 @@ Only `SamplingPolicy` changes.
 ```python
 from app.viability.sampling_sensitivity import prepare_policy_series, sampling_sensitivity_report
 
-pair = prepare_policy_series(series)               # once per dataset: SH + NN prepared series (~90 ms, 2-year file)
-report = sampling_sensitivity_report(scenario, pair)   # ~8 ms for a 14-day mission (median, Windows laptop)
+pair = prepare_policy_series(series)               # once per dataset: SH + NN prepared series (~0.3 s, 5-year file)
+report = sampling_sensitivity_report(scenario, pair)   # ~7 ms for a 14-day mission (median; docs/member2-part2-validation.md)
 report.verdict, report.summary, report.statements
 report.baseline.assessment                         # == evaluate_scenario(scenario, series), exactly
 report.alternate.assessment                        # same pipeline under nearest-sample
 ```
 
-`evaluate_scenario_under_policy(scenario, series, policy)` composes the canonical stages in the same order as
-`engine.evaluate_scenario`: `analyze_scenario(policy=...)` → `build_constraint_assessment` →
+`evaluate_scenario_under_policy(scenario, series, policy)` is `engine.evaluate_scenario(scenario, series,
+policy=policy)` since the Part 2 final integration (one wiring, nothing mirrored). The stages are
+`analyze_scenario(policy=...)` → `build_constraint_assessment` →
 `margins_from_assessment` → `assess_risks` / `overall_risk` → `score_scenario` → `generate_explanations`.
 **No constraint, margin, risk, scoring or explanation algorithm is duplicated.** The only policy-dependent stage
 is Phase 2; everything downstream consumes its output unchanged. Tests assert that with the default policy the
 result is identical to `evaluate_scenario` (byte-identical JSON for all 11 synthetic fixtures; model equality for
-every representative real mission), which guards against the two wirings drifting apart. `compare_policy_assessments(baseline, alternate)` builds the
+every representative real mission). `compare_policy_assessments(baseline, alternate)` builds the
 report from two finished assessments.
 
 ### Report contents (`SamplingSensitivityReport`)
@@ -105,7 +106,7 @@ of data; it is listed but is not a coverage problem.
 
 The two policies can cover slightly different time: SH lets the last sample before a gap or the series end hold
 one nominal interval, NN half an interval on each side. With the real files (final sample *at* coverage end)
-both cover the full two years. When coverage does differ, a note says so, and an UNKNOWN it causes is reported
+both cover the whole file. When coverage does differ, a note says so, and an UNKNOWN it causes is reported
 as `inconclusive`, never as `changed`.
 
 ## 6. Supported conclusions
@@ -205,7 +206,8 @@ visibility, mean disk fraction), which move by up to 1 h / mission duration (≤
 | Peak Near Shackleton, 2027-04-01T00Z (117-day night) | unchanged, FAIL | power-dark 336 h both; blackout 42 vs 41.5 h |
 | Connecting Ridge, 2027-03-01T00Z | unchanged, FAIL | power-dark 63 vs 62.5 h; blackout 136 vs 135.5 h |
 | Shackleton Floor, 2027-06-01, 30 d | unchanged, FAIL | identical states; only the time-mean Sun elevation moves (< 0.01°) |
-| Malapert, 2028-12-25 → 2029-01-08 | **inconclusive** | 168 h past the dataset end, uncovered under both; darkness and blackout UNKNOWN for lack of data under both; not scored |
+| Connecting Ridge, 7 d before → 7 d after the last sample (2030-12-25 → 2031-01-08) | **inconclusive** | 168 h past the dataset end, uncovered under both; darkness and blackout UNKNOWN for lack of data under both; not scored |
+| Malapert, same dates | unchanged, FAIL | its final covered week is power-dark: a proven failure despite the missing week (missing data never hides a proven FAIL) |
 | Haworth Rim, 2027-10-03T00Z | unchanged, FAIL | blackout 193 vs 192.5 h; initial power-lit 15 vs 14.5 h |
 | De Gerlache Rim, 2028-01-20T00Z | unchanged, FAIL | blackout 240 vs 239.5 h |
 
@@ -224,26 +226,19 @@ threshold, which is below the time resolution of hourly samples. It is a reason 
 **marginal**, to look at the margin (which Phase 4 already classifies as NARROW below one sample spacing), or to
 request finer sampling. It is not a probability that the mission fails.
 
-## 10. Integration requirements for main
+## 10. Integration status (Part 2 final integration, 2026-11-14)
 
-**No shared-module change is required.** All work composes public, tested functions; `evaluate_scenario`, the
-default policy and every downstream rule are unchanged (tested). Files added (only these):
+Done on `main`:
 
-- `backend/app/viability/sampling_sensitivity.py`
-- `backend/tests/viability/test_sampling_sensitivity_part2.py`
-- `backend/tests/viability/test_real_sites_sampling_part2.py`
-- `docs/member2-part2-sampling.md`
+1. `engine.evaluate_scenario` has a keyword-only `policy: SamplingPolicy | None = None` (also accepts a
+   `PreparedSeries`); `None` keeps sample-and-hold exactly. `evaluate_scenario_under_policy` delegates to it.
+2. `sampling_sensitivity_report`, `prepare_policy_series`, `SamplingSensitivityReport`, `SensitivityVerdict`,
+   `CoverageAdequacy`, `PolicySeriesPair` and `SENSITIVITY_METHOD_VERSION` are re-exported from `app.viability`.
+3. Linked from `viability-engine.md` §5h.
+4. No API route or frontend change. If exposed, show the canonical verdict first and the sensitivity verdict as a
+   secondary "robustness to sampling" note, with the limitations of §7.
 
-Recommended at the final integration session (shared files outside this worktree's ownership):
-
-1. *Optional, smallest engine change:* add a keyword-only `policy: SamplingPolicy | None = None` to
-   `engine.evaluate_scenario` and pass it to `analyze_scenario`. `None` keeps today's behaviour exactly. Then
-   `evaluate_scenario_under_policy` can delegate to it instead of mirroring the six-stage wiring. Until then the
-   byte-identity test guards against drift.
-2. *Optional exports:* re-export `sampling_sensitivity_report`, `prepare_policy_series`,
-   `SamplingSensitivityReport`, `SensitivityVerdict` and `CoverageAdequacy` from `app/viability/__init__.py`.
-3. *Docs:* link this file from `viability-engine.md` §5b ("Sampling semantics") and §10 item 7.
-4. No API route or frontend change is part of this work. If exposed, show the canonical verdict first and the
-   sensitivity verdict as a secondary "robustness to sampling" note, with the limitations of §7.
-
-No file overlaps the parallel Part 2 decision-evidence worktree (`ranking_evidence.py` and its tests/docs).
+**Data regeneration.** Member 1 extended the site files to 2026-01-01 .. 2031-01-01 (commit 4ebc988). Every sample of
+2027-01-01 .. 2029-01-01 is byte-identical, so the §9 sweep and examples (that window) are unchanged; the real-data
+tests read the dataset bounds from the files (`tests/viability/real_data.py`) and the end-of-data example moved to
+the new end (above).
