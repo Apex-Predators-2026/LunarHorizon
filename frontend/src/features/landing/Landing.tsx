@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState } from 'react'
 
 import { GlassDefs, GlassSurface } from '../../ui/GlassSurface'
+import { InteractiveGrainGradient } from '../../ui/InteractiveGrainGradient'
 import { ExternalIcon } from '../../ui/icons'
 import { LiveNow } from './LiveNow'
 import { DATA_SOURCES, HERO, PICTURES, REPO_URL } from './content'
@@ -14,6 +15,15 @@ const toBeat = (id: string) => (e: React.MouseEvent) => {
   e.preventDefault()
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
   document.getElementById(id)?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' })
+}
+
+function OpenNavigatorButton({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button type="button" className="lnd-btn lnd-btn-filled" onClick={onOpen}>
+      <InteractiveGrainGradient className="lnd-btn-mesh" fill />
+      <span className="lnd-btn-label">Open the navigator</span>
+    </button>
+  )
 }
 
 function Nav({ onOpen }: { onOpen: () => void }) {
@@ -40,7 +50,7 @@ function Nav({ onOpen }: { onOpen: () => void }) {
           <a href="#preview" onClick={toBeat('preview')}>The app</a>
           <a href="#data" onClick={toBeat('data')}>NASA data</a>
         </nav>
-        <button type="button" className="lnd-btn lnd-btn-filled lnd-btn-sm" onClick={onOpen}>
+        <button type="button" className="lnd-btn lnd-btn-nav" onClick={onOpen}>
           Open the navigator
         </button>
       </GlassSurface>
@@ -105,15 +115,22 @@ function Data() {
 
 function Close({ onOpen }: { onOpen: () => void }) {
   return (
-    <footer className="lnd-close" aria-labelledby="close-h">
+    <section className="lnd-close" aria-labelledby="close-h">
       <div className="lnd-wrap">
         <div className="lnd-close-cta" data-reveal>
           <h2 id="close-h">Plan a landing that survives the night</h2>
-          <button type="button" className="lnd-btn lnd-btn-filled" onClick={onOpen}>
-            Open the navigator
-          </button>
+          <OpenNavigatorButton onOpen={onOpen} />
         </div>
-        <p className="lnd-close-name" aria-hidden="true">Site Navigator</p>
+      </div>
+    </section>
+  )
+}
+
+function Footer() {
+  return (
+    <footer className="lnd-footer">
+      <div className="lnd-wrap">
+        <p className="lnd-close-name">Site Navigator</p>
         <div className="lnd-close-meta">
           <span>Team Apex Predators · NASA Space Apps Challenge 2026</span>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
@@ -138,9 +155,7 @@ function Hero({ onOpen }: { onOpen: () => void }) {
           <h1 id="lnd-title">{HERO.headline}</h1>
           <p className="lnd-hero-lead">{HERO.lead}</p>
           <div className="lnd-hero-actions">
-            <button type="button" className="lnd-btn lnd-btn-filled" onClick={onOpen}>
-              Open the navigator
-            </button>
+            <OpenNavigatorButton onOpen={onOpen} />
             <a className="lnd-btn lnd-btn-glass" href="#preview" onClick={toBeat('preview')}>
               See the app
             </a>
@@ -177,8 +192,9 @@ export default function Landing({ onOpen }: { onOpen: () => void }) {
         </div>
         <Gallery />
         <Data />
+        <Close onOpen={onOpen} />
       </main>
-      <Close onOpen={onOpen} />
+      <Footer />
     </div>
   )
 }
