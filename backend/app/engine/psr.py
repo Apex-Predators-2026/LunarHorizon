@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 from functools import lru_cache
 
-from .net import CACHE_DIR
+from .net import CACHE_DIR, require_online
 
 TREK_MAP = "https://trek.nasa.gov/moon/trekarcgis/rest/services"
 CACHE = CACHE_DIR / "psr"
@@ -28,6 +28,7 @@ def _query(service: str) -> list[dict]:
     while True:
         params = {"where": f"FID >= {start} AND FID < {start + PAGE}", "outFields": "*", "f": "geojson"}
         url = f"{TREK_MAP}/{service}/MapServer/0/query?" + urllib.parse.urlencode(params)
+        require_online(url)
         with urllib.request.urlopen(url, timeout=120) as r:
             page = json.loads(r.read())["features"]
         if not page:
