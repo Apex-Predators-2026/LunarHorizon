@@ -20,6 +20,7 @@ import { SkyBodies } from './SkyBodies'
 import { SkyTrails } from './SkyTrails'
 import { SunLight } from './SunLight'
 import { TimeBar } from './TimeBar'
+import { CameraReadout } from './CameraReadout'
 import { ViewCentre } from './ViewCentre'
 import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor } from './timeline'
 import { FloatingSidebar } from './FloatingSidebar'
@@ -78,6 +79,9 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   // The side panels cover the right of the view: shift the picture so the Moon/lander sits in the
   // middle of the free area to their left (half the panels' width, re-measured on resize).
   const sideRef = useRef<HTMLDivElement>(null)
+  const readoutRef = useRef<HTMLDivElement>(null)
+  const scaleBarRef = useRef<HTMLDivElement>(null)
+  const scaleLabelRef = useRef<HTMLDivElement>(null)
   const [viewShiftPx, setViewShiftPx] = useState(0)
   useEffect(() => {
     const side = sideRef.current
@@ -221,6 +225,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
       >
         <color attach="background" args={['#000000']} />
         <ViewCentre shiftLeftPx={viewShiftPx} />
+        <CameraReadout frame={frame} target={readoutRef} scaleBar={scaleBarRef} scaleLabel={scaleLabelRef} />
         {/* Display aid, not real light: a dim overhead fill so terrain in shadow still shows its
             shape. Sunlight (intensity 3 x visible fraction near the lander) stays >10x brighter. */}
         <ambientLight intensity={0.03} />
@@ -343,11 +348,22 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         style={{ fontFamily: 'var(--font-inter)' }}
       >
         <SnackbarHost />
+        <div
+          className="pointer-events-none absolute bottom-2 right-[4vw] flex flex-col items-end gap-1 text-[10px] tabular-nums text-white"
+          style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
+        >
+          {/* Scale bar: its width is the on-screen length of the distance in its label. */}
+          <div aria-label="Map scale" className="flex flex-col items-end">
+            <div ref={scaleLabelRef} />
+            <div ref={scaleBarRef} className="h-1.5 border-x-2 border-b-2 border-white" style={{ width: 60 }} />
+          </div>
+          <div ref={readoutRef} aria-label="Camera position" className="whitespace-nowrap" />
+        </div>
         <div className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(60px,6.2vw,92px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))]">
           <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
           <ColorKey layers={layers} />
         </div>
-        <div ref={sideRef} className="absolute bottom-4 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-3">
+        <div ref={sideRef} className="absolute bottom-16 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-3">
           {site && <MiniMapPanel horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />}
           <FloatingSidebar>
             <div className="space-y-4">
