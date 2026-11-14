@@ -4,9 +4,13 @@ Mirrored in `frontend/src/types.ts` and `backend/app/models.py`. Change all thre
 
 ## Site
 ```json
-{ "id": "shackleton-peak", "name": "Peak Near Shackleton", "lat": 0.0, "lon": 0.0 }
+{ "id": "peak-near-shackleton", "name": "Peak Near Shackleton", "lat": -89.01701, "lon": 126.27302 }
 ```
-Coordinates: degrees, latitude negative = south, longitude east. Real values TBD from NASA's Artemis III candidate region list.
+Coordinates: degrees, latitude negative = south, longitude east. Curated sites and their sources: `backend/app/engine/sites.py`.
+`Site` stays minimal because every feature embeds it (e.g. rescue's `Scenario.site`).
+
+`SiteInfo` = `Site` + what the data engine knows (`source`, `ground_height_m`, `observer_height_m`, `summary`,
+`data_start_utc`, `data_stop_utc`). It is what `/api/sites` returns.
 
 ## Timeline step (one per time sample)
 ```json
@@ -45,6 +49,22 @@ Definitions:
 - `observer_height_m`: sensor height above ground (2 m) used for the horizon.
 - Sunlit = `sun_visible_fraction > 0`. Power estimates should use the fraction, not just on/off.
 - `earth_visible` = `earth_margin_deg > 0` (Earth's centre above the terrain).
+
+## Backend API
+Run from `backend/`: `.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8000`.
+Interactive docs with every field: http://localhost:8000/docs. The frontend dev server forwards `/api` to it.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /api/sites` (`?include_custom=true`) | `SiteInfo[]`: curated sites with summary stats |
+| `POST /api/sites/custom` `{lat, lon, name?}` | `SiteInfo`: analyses any point at 80–90°S. First call ~15 s (downloads), then cached. Its `id` works with every endpoint below. |
+| `GET /api/sites/{id}` | `SiteInfo` |
+| `GET /api/sites/{id}/horizon` | `Horizon`: 720 directions |
+| `GET /api/sites/{id}/timeline?start=&end=&step_hours=` | `TimelineStep[]`; times ISO UTC, e.g. `2027-03-01T00:00Z`; data covers 2027-01-01 to 2029-01-01 |
+| `GET /api/sites/{id}/status?time=` | `SiteStatus`: conditions at that hour + next sunset/sunrise/Earthset/Earthrise (null if none before 2029) |
+| `GET /api/sites/{id}/terrain?size=256&half_width_m=5000` | `TerrainGrid`: heights in the site's local north/east frame for the 3D view |
+
+Types for all of these: `frontend/src/types.ts` (TypeScript) and `backend/app/models.py` (Pydantic).
 
 To be agreed by the team.
 

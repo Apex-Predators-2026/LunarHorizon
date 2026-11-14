@@ -1,8 +1,78 @@
+"""API checks: data-engine endpoints (against data/sites, no network) and rescue endpoints."""
+
+import numpy as np
 from fastapi.testclient import TestClient
 
+from app.engine.visibility import next_edge
 from app.main import app
 
 client = TestClient(app)
+
+
+# ---------- data engine (Andrew) ----------
+
+def test_next_edge():
+    on = np.array([1, 1, 0, 0, 1, 1, 0], dtype=bool)
+    assert next_edge(on, 0, False) == 2  # sunlit now -> sets at 2
+    assert next_edge(on, 0, True) == 4  # next rise is after that
+    assert next_edge(on, 2, True) == 4  # dark now -> rises at 4
+    assert next_edge(on, 5, True) is None  # never rises again in the data
+
+
+def test_list_sites():
+    r = client.get("/api/sites")
+    assert r.status_code == 200
+    ids = {s["id"] for s in r.json()}
+    assert {"connecting-ridge", "peak-near-shackleton", "malapert-massif", "shackleton-floor"} <= ids
+    floor = next(s for s in r.json() if s["id"] == "shackleton-floor")
+    assert floor["summary"]["sunlit_pct"] == 0
+
+
+def test_unknown_site_404():
+    assert client.get("/api/sites/nope/horizon").status_code == 404
+
+
+def test_horizon():
+    h = client.get("/api/sites/connecting-ridge/horizon").json()
+    assert len(h["azimuth_deg"]) == len(h["elevation_deg"]) == len(h["distance_m"]) == 720
+
+
+def test_timeline_range_and_step():
+    r = client.get(
+        "/api/sites/connecting-ridge/timeline",
+        params={"start": "2027-03-01T00:00Z", "end": "2027-03-02T00:00Z", "step_hours": 6},
+    )
+    steps = r.json()
+    assert [s["time_utc"] for s in steps] == [
+        "2027-03-01T00:00Z", "2027-03-01T06:00Z", "2027-03-01T12:00Z", "2027-03-01T18:00Z",
+    ]
+    s = steps[0]
+    assert 0 <= s["sun"]["visible_fraction"] <= 1
+    assert s["earth"]["visible"] == (s["earth"]["margin_deg"] > 0)
+
+
+def test_bad_time_422():
+    assert client.get("/api/sites/connecting-ridge/timeline", params={"start": "yesterday"}).status_code == 422
+
+
+def test_status_events_are_consistent():
+    tl = client.get("/api/sites/connecting-ridge/timeline", params={"step_hours": 24}).json()
+    lit = next(s["time_utc"] for s in tl if s["sun"]["visible_fraction"] > 0)
+    st = client.get("/api/sites/connecting-ridge/status", params={"time": lit}).json()
+    assert st["sun"]["visible_fraction"] > 0
+    assert st["next_sunset_utc"] > lit
+    assert st["next_sunrise_utc"] > st["next_sunset_utc"]  # currently lit: it sets before it rises
+
+
+def test_status_out_of_range_422():
+    assert client.get("/api/sites/connecting-ridge/status", params={"time": "2040-01-01"}).status_code == 422
+
+
+def test_custom_site_rejects_non_polar():
+    assert client.post("/api/sites/custom", json={"lat": -50, "lon": 10}).status_code == 422
+
+
+# ---------- mission rescue (Member 5) ----------
 
 BASE = {
     "site": {"id": "peak-near-shackleton", "name": "Peak Near Shackleton", "lat": -89.01701, "lon": 126.27302},
@@ -13,7 +83,7 @@ BASE = {
 
 def test_health_and_sites():
     assert client.get("/api/health").json() == {"status": "ok"}
-    assert isinstance(client.get("/api/sites").json(), list)  # Andrew's curated list (may be empty)
+    assert isinstance(client.get("/api/sites").json(), list)
     body = client.get("/api/rescue/sites").json()
     assert any(s["id"] == "malapert-massif" for s in body["sites"])
     assert body["psrs"]

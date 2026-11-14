@@ -5,10 +5,11 @@ __pycache__/
 .venv/
 .env
 .DS_Store
+.pytest_cache/
 
 # Large / regenerable data
 data/raw/
 data/cache/
 *.tif
 *.img
-.pytest_cache/
+data/sites/custom/

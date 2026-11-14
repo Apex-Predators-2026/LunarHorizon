@@ -1,10 +1,41 @@
 // Mirrors docs/interfaces.md and backend/app/models.py. Keep all three in sync.
 
+// A location. Shared by every feature (e.g. inside a rescue Scenario), so keep it minimal.
 export interface Site {
   id: string
   name: string
   lat: number // degrees, negative = south
   lon: number // degrees east
+}
+
+// ---------------------------------------------------------------------------
+// Data engine (Andrew): site info, horizon, timelines, terrain.
+// ---------------------------------------------------------------------------
+
+export interface SiteSummaryStats {
+  sunlit_pct: number
+  mean_sun_fraction_pct: number
+  earth_visible_pct: number
+  horizon_min_deg: number
+  horizon_max_deg: number
+}
+
+// A Site plus what the data engine knows about it (returned by /api/sites).
+export interface SiteInfo extends Site {
+  source: string
+  ground_height_m: number // relative to the 1737.4 km reference sphere
+  observer_height_m: number
+  summary: SiteSummaryStats
+  data_start_utc: string
+  data_stop_utc: string
+}
+
+export interface Horizon {
+  azimuth_deg: number[] // clockwise from north, every 0.5 deg
+  elevation_deg: number[] // terrain horizon elevation per azimuth
+  distance_m: number[] // how far away the blocking terrain is
+  ground_height_m: number
+  observer_height_m: number
 }
 
 export interface BodyState {
@@ -26,6 +57,25 @@ export interface TimelineStep {
   time_utc: string
   sun: SunState
   earth: EarthState
+}
+
+export interface SiteStatus extends TimelineStep {
+  next_sunset_utc: string | null
+  next_sunrise_utc: string | null
+  next_earthset_utc: string | null
+  next_earthrise_utc: string | null
+}
+
+// Rows run north -> south, columns west -> east, centred on the site.
+// For 3D: x = east, z = -north, y = height.
+export interface TerrainGrid {
+  size: number
+  half_width_m: number
+  spacing_m: number
+  site_height_m: number
+  min_height_m: number
+  max_height_m: number
+  heights_m: number[] // row-major, size * size
 }
 
 // ---------------------------------------------------------------------------

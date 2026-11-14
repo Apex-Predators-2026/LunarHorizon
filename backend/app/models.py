@@ -1,12 +1,54 @@
-# Mirrors docs/interfaces.md and frontend/src/types.ts. Keep all three in sync.
-from pydantic import BaseModel
+# API models. Mirrors docs/interfaces.md and frontend/src/types.ts. Keep all three in sync.
+from datetime import datetime, timezone
+
+from pydantic import BaseModel, Field, field_validator
 
 
 class Site(BaseModel):
+    """A location. Shared by every feature (e.g. inside a rescue Scenario), so keep it minimal."""
+
     id: str
     name: str
     lat: float  # degrees, negative = south
     lon: float  # degrees east
+
+
+# ---------------------------------------------------------------------------
+# Data engine (Andrew): site info, horizon, timelines, terrain.
+# ---------------------------------------------------------------------------
+
+
+class SiteSummaryStats(BaseModel):
+    sunlit_pct: float
+    mean_sun_fraction_pct: float
+    earth_visible_pct: float
+    horizon_min_deg: float
+    horizon_max_deg: float
+
+
+class SiteInfo(Site):
+    """A Site plus what the data engine knows about it (returned by /api/sites)."""
+
+    source: str = ""
+    ground_height_m: float  # relative to the 1737.4 km reference sphere
+    observer_height_m: float
+    summary: SiteSummaryStats
+    data_start_utc: str
+    data_stop_utc: str
+
+
+class CustomSiteRequest(BaseModel):
+    lat: float = Field(ge=-90, le=-80, description="Must be within 10 deg of the south pole")
+    lon: float = Field(ge=-360, le=360)
+    name: str | None = None
+
+
+class Horizon(BaseModel):
+    azimuth_deg: list[float]  # clockwise from north
+    elevation_deg: list[float]  # terrain horizon elevation per azimuth
+    distance_m: list[float]  # how far away the blocking terrain is
+    ground_height_m: float
+    observer_height_m: float
 
 
 class BodyState(BaseModel):
@@ -30,14 +72,36 @@ class TimelineStep(BaseModel):
     earth: EarthState
 
 
+class SiteStatus(TimelineStep):
+    """Conditions at one moment plus upcoming events (null = not within the data range)."""
+
+    next_sunset_utc: str | None
+    next_sunrise_utc: str | None
+    next_earthset_utc: str | None
+    next_earthrise_utc: str | None
+
+
+class TerrainGrid(BaseModel):
+    """Height grid in the site's local frame: rows run north -> south, columns west -> east.
+
+    For 3D: x = east, z = -north, y = height. Then Sun/Earth azimuth (clockwise from north)
+    maps directly onto the scene.
+    """
+
+    size: int  # grid is size x size
+    half_width_m: float  # grid spans -half..+half metres east and north of the site
+    spacing_m: float
+    site_height_m: float
+    min_height_m: float
+    max_height_m: float
+    heights_m: list[float]  # row-major, size*size, relative to the reference sphere
+
+
 # ---------------------------------------------------------------------------
 # Mission scenario + viability result. Proposed by Member 5 (rescue) as the contract
 # between viability (Brandon), rescue, comparison and the UI; agree changes with them.
 # Rescue-only request/response models live in app/rescue/schemas.py.
 # ---------------------------------------------------------------------------
-from datetime import datetime, timezone  # noqa: E402
-
-from pydantic import Field, field_validator  # noqa: E402
 
 
 def to_utc(dt: datetime) -> datetime:

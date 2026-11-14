@@ -72,6 +72,14 @@ def intervals(times: np.ndarray, on: np.ndarray) -> list[tuple[np.datetime64, np
     return [(times[s], times[min(e, len(times) - 1)]) for s, e in zip(starts, ends)]
 
 
+def next_edge(on: np.ndarray, i: int, to_state: bool) -> int | None:
+    """Index of the first sample after i where `on` switches to `to_state` (e.g. to_state=False
+    gives the next sunset even if it is currently dark). None if it never happens in the data."""
+    on = np.asarray(on, dtype=bool)
+    j = np.flatnonzero((on[i + 1 :] == to_state) & (on[i:-1] != to_state))
+    return i + 1 + int(j[0]) if len(j) else None
+
+
 def next_transition_off(times: np.ndarray, on: np.ndarray, t: np.datetime64):
     """First time at/after t when `on` switches from True to False (e.g. next sunset/Earthset).
     Returns None if it is already off at t, or never switches off within the data."""
