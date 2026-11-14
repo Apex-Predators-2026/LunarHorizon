@@ -101,7 +101,7 @@ export interface LooseningSuggestion {
   total_relative_change: number
   keeps_original_plan: boolean
   unlocks: Scenario
-  unlocks_score: number
+  unlocks_score: number | null
   message: string
 }
 
@@ -110,6 +110,7 @@ export interface SearchStats {
   locations_considered: number
   passing: number
   synthetic_candidates_excluded: number
+  undecided: number // eligibility "unknown" (missing data)
   date_range_start: string
   date_range_end: string
 }

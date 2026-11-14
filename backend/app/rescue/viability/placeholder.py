@@ -49,7 +49,8 @@ def first_false_hours(mask: np.ndarray, step_hours: float) -> float | None:
 
 def compute_metrics(tl: Timeline, req: MissionRequirements) -> ViabilityMetrics:
     step = tl.step_hours
-    lit = tl.sun_visible_fraction >= req.panel_threshold
+    # Lit needs at least some Sun: with panel_threshold = 0, total darkness must not count as lit.
+    lit = (tl.sun_visible_fraction > 0) & (tl.sun_visible_fraction >= req.panel_threshold)
     earth = tl.earth_visible.astype(bool)
     sun_up = tl.sun_visible_fraction > 0
     sun_clear = (tl.sun_el - tl.sun_horizon)[sun_up]
@@ -127,6 +128,7 @@ def evaluate_timeline(scenario: Scenario, timeline: Timeline) -> ViabilityResult
     metrics = compute_metrics(timeline, req)
     violations = find_violations(metrics, req)
     return ViabilityResult(
-        scenario=scenario, passes=not violations, score=score(metrics, req), metrics=metrics,
+        scenario=scenario, passes=not violations, eligibility="fail" if violations else "pass",
+        score=score(metrics, req), metrics=metrics,
         violations=violations, source=SOURCE, data_source=timeline.source,
     )

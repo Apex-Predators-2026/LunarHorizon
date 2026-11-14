@@ -129,6 +129,7 @@ export interface Violation {
   shortfall: number // >= 0, in `unit`
   relative_shortfall: number // shortfall / required
   message: string
+  is_unknown: boolean // true = undecided because data is missing, not a real failure
 }
 
 export interface ViabilityMetrics {
@@ -146,12 +147,19 @@ export interface ViabilityMetrics {
   mean_solar_elevation_deg: number
 }
 
+export type Eligibility = 'pass' | 'fail' | 'unknown'
+
 export interface ViabilityResult {
   scenario: Scenario
-  passes: boolean
-  score: number // 0..100
+  passes: boolean // true only when eligibility is 'pass'
+  eligibility: Eligibility | null // null = evaluator didn't say; then use `passes`
+  score: number | null // 0..100, null = not scored
   metrics: ViabilityMetrics
   violations: Violation[]
   source: string // which viability implementation
   data_source: string // which timeline source (e.g. "synthetic-placeholder")
 }
+
+/** pass / fail / unknown, falling back to `passes` when the evaluator gave no eligibility. */
+export const verdictOf = (v: Pick<ViabilityResult, 'passes' | 'eligibility'>): Eligibility =>
+  v.eligibility ?? (v.passes ? 'pass' : 'fail')

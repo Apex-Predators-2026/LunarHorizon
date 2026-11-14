@@ -197,7 +197,7 @@ export function rankByViability(entries: Entry[]): { real: Ranked[]; demo: Ranke
     [...list]
       .sort((a, b) => {
         const va = a.result!.viability!, vb = b.result!.viability!
-        return Number(vb.passes) - Number(va.passes) || vb.score - va.score
+        return Number(vb.passes) - Number(va.passes) || (vb.score ?? 0) - (va.score ?? 0)
       })
       .map((entry, i) => ({ entry, rank: i + 1 }))
   const ok = okEntries(entries).filter((e) => e.result!.viability)
@@ -446,7 +446,7 @@ export function buildSummary(entries: Entry[]): Summary {
   const comms = pick(list, (e) => e.result!.earth!.visible_fraction, 'higher')!
   const dark = pick(list, (e) => e.result!.solar!.longest_dark_hours, 'lower')!
   const black = pick(list, (e) => e.result!.earth!.longest_blackout_hours, 'lower')!
-  const viab = pick(list, (e) => (e.result!.viability ? e.result!.viability.score + (e.result!.viability.passes ? 1000 : 0) : null), 'higher')
+  const viab = pick(list, (e) => (e.result!.viability ? (e.result!.viability.score ?? 0) + (e.result!.viability.passes ? 1000 : 0) : null), 'higher')
 
   const tied = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol
   const winners = (x: NonNullable<ReturnType<typeof pick>>, tol: number) => x.all.filter((y) => tied(y.v, x.best.v, tol)).map((y) => y.e)
@@ -464,7 +464,7 @@ export function buildSummary(entries: Entry[]): Summary {
   if (viab) {
     const v = viab.best.e.result!.viability!
     bests.push({ label: 'Best mission viability', ids: [viab.best.e.scenario.id],
-      detail: `score ${v.score.toFixed(1)}, ${v.passes ? 'passes all requirements' : `${v.violations.length} violation(s)`}` })
+      detail: `score ${v.score?.toFixed(1) ?? 'n/a'}, ${v.passes ? 'passes all requirements' : `${v.violations.length} violation(s)`}` })
   }
 
   const highlights: ScenarioHighlights[] = list.map((e) => {

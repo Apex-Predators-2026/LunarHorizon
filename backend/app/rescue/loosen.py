@@ -50,13 +50,21 @@ def suggestion_for(c: Candidate, keeps_original: bool) -> LooseningSuggestion:
                                unlocks=c.scenario, unlocks_score=c.result.score, message=f"{what} → {target}.")
 
 
+def fixable_by_relaxing(c: Candidate) -> bool:
+    r = c.result
+    return r.verdict == "fail" and bool(r.violations) and not any(v.is_unknown for v in r.violations)
+
+
 def loosening_suggestions(failing: list[Candidate], changed: Candidate | None, n: int = 3,
                           shift_weight_per_day: float = 0.01, distance_weight_per_km: float = 0.002
                           ) -> list[LooseningSuggestion]:
-    """Smallest relaxations first. Always includes the 'keep the delayed plan' option if it fails."""
+    """Smallest relaxations first. Always includes the 'keep the delayed plan' option if it fails.
+
+    Only real failures get advice: a result that is undecided, or that fails partly because data is
+    missing (violation.is_unknown), can't be fixed by relaxing a requirement, so it is skipped."""
     out: list[LooseningSuggestion] = []
     seen: set[tuple] = set()
-    if changed is not None and not changed.result.passes:
+    if changed is not None and fixable_by_relaxing(changed):
         out.append(suggestion_for(changed, keeps_original=True))
         seen.add((changed.group, frozenset(v.constraint for v in changed.result.violations)))
 
@@ -64,7 +72,7 @@ def loosening_suggestions(failing: list[Candidate], changed: Candidate | None, n
         rel = sum(min(v.relative_shortfall, 10.0) for v in c.result.violations)
         return rel + shift_weight_per_day * abs(c.date_shift_hours) / 24 + distance_weight_per_km * c.distance_km
 
-    for c in sorted((c for c in failing if c.result.violations), key=cost):
+    for c in sorted((c for c in failing if fixable_by_relaxing(c)), key=cost):
         k = (c.group, frozenset(v.constraint for v in c.result.violations))
         if k in seen:
             continue

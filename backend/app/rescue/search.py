@@ -17,7 +17,7 @@ from ..models import Scenario
 from .engine import (Candidate, Evaluator, candidate_sites, candidate_times, classify, diverse_top, is_real,
                      search_grid, site_group, use_real_only)
 from .catalog import is_catalog
-from .explain import fmt_time, headline_for, metric_deltas, reasons_for, why_fails
+from .explain import fmt_score, fmt_time, headline_for, metric_deltas, reasons_for, why_fails
 from .loosen import loosening_suggestions
 from .schemas import Alternative, NearMiss, RescueRequest, RescueResponse, SearchStats
 from .sensitivity import quick_robustness
@@ -55,7 +55,7 @@ def clearance_bonus(c: Candidate, per_deg: float) -> float:
 
 
 def _rank_score(c: Candidate, opts) -> float:
-    return (c.result.score
+    return (c.result.score_or_zero
             + clearance_bonus(c, opts.clearance_bonus_per_deg)
             - opts.date_penalty_per_day * abs(c.date_shift_hours) / 24
             - opts.distance_penalty_per_km * c.distance_km)
@@ -81,8 +81,9 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
     if real_only:  # dates beyond the data's range fall back to synthetic; drop those too
         excluded += sum(not is_real(c.result) for c in cands)
         cands = [c for c in cands if is_real(c.result)]
-    passing = [c for c in cands if c.result.passes]
-    failing = [c for c in cands if not c.result.passes]
+    passing = [c for c in cands if c.result.verdict == "pass"]
+    failing = [c for c in cands if c.result.verdict == "fail"]
+    undecided = [c for c in cands if c.result.verdict == "unknown"]  # missing data: not a real failure
     changed_cand = Candidate(changed_sc, changed, 0.0, 0.0, classify(0, 0), is_catalog(changed_sc.site),
                              site_group(changed_sc.site))
 
@@ -104,7 +105,8 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
             improvements=deltas, robustness=rob, headline=headline_for(c, changed), reasons=reasons_for(c, changed, deltas),
         ))
 
-    closeness = lambda c: sum(min(v.relative_shortfall, 10.0) for v in c.result.violations)  # noqa: E731
+    closeness = lambda c: sum(min(v.relative_shortfall, 10.0) for v in c.result.violations  # noqa: E731
+                              if not v.is_unknown)
     near = diverse_top(failing, lambda c: -closeness(c), 5, opts.min_separation_hours)
     near_misses = [NearMiss(kind=c.kind, scenario=c.scenario, viability=c.result, closeness=round(closeness(c), 4),
                             date_shift_hours=c.date_shift_hours, distance_km=round(c.distance_km, 3),
@@ -112,21 +114,25 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
 
     loosening = loosening_suggestions(failing, changed_cand)
 
+    unknown_note = (f" {len(undecided)} option(s) could not be checked because data is missing."
+                    if undecided else "")
     if changed.passes:
         status = "still_viable"
         summary = (f"The changed plan still works: {changed_sc.site.name} on {fmt_time(changed_sc.landing_utc)} "
-                   f"passes with score {changed.score:.0f}.")
-        if alternatives and alternatives[0].viability.score > changed.score + 5:
+                   f"passes with score {fmt_score(changed.score)}.")
+        if alternatives and alternatives[0].viability.score_or_zero > changed.score_or_zero + 5:
             summary += f" Better option available: {alternatives[0].headline}"
     elif alternatives:
         status = "rescued"
         broken = "; ".join(v.message.rstrip(".") for v in changed.violations)
-        summary = f"The changed plan fails: {broken}. Best rescue: {alternatives[0].headline}"
+        verb = "can't be checked (missing data)" if changed.verdict == "unknown" else "fails"
+        summary = f"The changed plan {verb}: {broken}. Best rescue: {alternatives[0].headline}"
     else:
         status = "no_viable_alternative"
         summary = (f"No candidate in the search passes all requirements ({len(cands)} checked"
                    + (f"; {excluded} synthetic-only candidates left out" if excluded else "") + "). "
-                   + (f"Smallest fix: {loosening[0].message}" if loosening else "Widen the search window or site list."))
+                   + (f"Smallest fix: {loosening[0].message}" if loosening else "Widen the search window or site list.")
+                   + unknown_note)
 
     data_sources = sorted({c.result.data_source for c in cands} | {original.data_source, changed.data_source})
     assumptions = list(ASSUMPTIONS)
@@ -144,7 +150,7 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
     return RescueResponse(
         status=status, summary=summary, original=original, changed=changed, alternatives=alternatives,
         near_misses=near_misses, loosening=loosening,
-        stats=SearchStats(candidates_evaluated=len(cands), locations_considered=len(sites), passing=len(passing),
+        stats=SearchStats(candidates_evaluated=len(cands), locations_considered=len(sites), passing=len(passing), undecided=len(undecided),
                           synthetic_candidates_excluded=excluded, date_range_start=times[0], date_range_end=times[-1]),
         data_source=", ".join(data_sources), assumptions=assumptions,
     )

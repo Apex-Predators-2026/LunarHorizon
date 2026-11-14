@@ -48,7 +48,7 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <Stat label="Sunlit" value={fmtMetric(r.solar.sunlit_fraction * 100, '%')} />
                 <Stat label="Earth in view" value={fmtMetric(r.earth.visible_fraction * 100, '%')} />
-                <Stat label="Viability" value={v.score.toFixed(0)} />
+                <Stat label="Viability" value={v.score?.toFixed(0) ?? '—'} />
                 <Stat label="Longest dark" value={fmtMetric(r.solar.longest_dark_hours, 'h')} warn={v.metrics.longest_dark_gap_hours > s.requirements.battery_hours} />
                 <Stat label="Longest blackout" value={fmtMetric(r.earth.longest_blackout_hours, 'h')} warn={r.earth.longest_blackout_hours > s.requirements.max_comms_gap_hours} />
                 <Stat label="Mean Sun el." value={fmtMetric(r.solar.mean_elevation_deg, 'deg')} />

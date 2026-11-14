@@ -129,6 +129,7 @@ calculation.
 {
   "scenario": "Scenario",
   "passes": false,
+  "eligibility": "fail",
   "score": 72.4,
   "metrics": {
     "sunlight_fraction": 0.93, "equivalent_sun_hours": 156,
@@ -139,7 +140,7 @@ calculation.
   },
   "violations": [
     { "constraint": "min_initial_comms_hours", "required": 12, "actual": 0, "unit": "h",
-      "shortfall": 12, "relative_shortfall": 1.0,
+      "shortfall": 12, "relative_shortfall": 1.0, "is_unknown": false,
       "message": "Earth contact right after landing is 0 h, below the 12 h requirement." }
   ],
   "source": "placeholder-v1",
@@ -153,7 +154,17 @@ What rescue relies on:
    where `timeline` covers exactly the mission (`backend/app/rescue/timeline/base.py`).
 2. `violations[].constraint` is the **name of the `requirements` field** that failed.
    Loosening suggestions depend on this.
-3. `passes == (len(violations) == 0)`, and `score` is 0–100 (higher is better).
+3. `passes == (len(violations) == 0)`. `passes` is true only when `eligibility` is `"pass"`.
+4. `eligibility` is `"pass"`, `"fail"` or `"unknown"`. `"unknown"` means the result could not be
+   decided because data is missing; it is not a failure. It may be `null` for evaluators that
+   don't report it, in which case read `passes` (Python: `result.verdict`, TypeScript: `verdictOf()`).
+5. `score` is 0–100 (higher is better), or `null` when the scenario was not scored. Don't show
+   `null` as 0.
+6. `violations[].is_unknown` is true for a check that couldn't be decided (missing data).
+   Rescue gives no "relax this requirement" advice for such results, and counts undecided
+   candidates separately (`stats.undecided`), never as alternatives or near misses.
+7. Each sample of evenly spaced data covers one time step (`[t, t + step)`). With
+   `panel_threshold = 0`, the Sun still has to be at least partly visible to count as lit.
 
 Until Brandon's checker exists, `backend/app/rescue/viability/placeholder.py` implements
 this contract. To swap it, change one import in `backend/app/rescue/viability/__init__.py`.
