@@ -1,45 +1,21 @@
-// Landing page tests: the page renders its content without a browser, the live-conditions wording is right,
-// and the scroll film's beats cover the whole film in order.
+// Landing page tests: the page renders its content without a browser and the live-conditions wording is right.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import { BEATS, DATA_SOURCES, HERO, NAV_BEATS, PICTURES } from './content'
+import { DATA_SOURCES, HERO, PICTURES } from './content'
 import Landing from './Landing'
 import { currentHourIso, describeEarth, describeSun, untilText } from './liveFormat'
-import { beatAt, beatJumpT, beatT } from './storyRender'
 
 describe('landing page', () => {
-  it('renders one h1, every beat, the app pictures and the NASA sources', () => {
+  it('renders one h1, the opening Moon picture, the app pictures and the NASA sources', () => {
     const html = renderToString(<Landing onOpen={() => {}} />)
     expect(html).toContain(HERO.headline)
     expect(html.match(/<h1/g)).toHaveLength(1)
-    for (const b of BEATS.slice(1)) expect(html).toContain(b.title)
+    expect(html).toContain('/landing/moon.jpg')
+    expect(html).toContain(HERO.lead)
     for (const p of PICTURES) expect(html).toContain(p.src)
     for (const s of DATA_SOURCES) expect(html).toContain(s.name)
     expect(html).toContain('Open the navigator')
-  })
-
-  it('links every beat to a picture and the header to real beats', () => {
-    const ids = new Set(PICTURES.map((p) => p.id))
-    for (const b of BEATS) expect(ids.has(b.picture)).toBe(true)
-    for (const id of NAV_BEATS) expect(BEATS.some((b) => b.id === id)).toBe(true)
-  })
-})
-
-describe('scroll film beats', () => {
-  it('cover the film from 0 to 1 without gaps, in order', () => {
-    expect(BEATS[0].start).toBe(0)
-    expect(BEATS[BEATS.length - 1].end).toBe(1)
-    BEATS.slice(1).forEach((b, i) => expect(b.start).toBe(BEATS[i].end))
-  })
-
-  it('finds the beat at a position and lands links inside their beat', () => {
-    BEATS.forEach((b, i) => {
-      expect(beatAt(beatJumpT(i))).toBe(i)
-      expect(beatT(b.end, b.id)).toBe(1)
-      expect(beatT(b.start, b.id)).toBe(0)
-    })
-    expect(beatAt(1)).toBe(BEATS.length - 1)
   })
 })
 
