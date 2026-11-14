@@ -1,0 +1,61 @@
+"""Whole-Moon terrain tiles and polar overlays for the 3D view.
+
+GET /api/terrain/info                     tiling description (shared with frontend/src/viz/globe/cubeSphere.ts)
+GET /api/terrain/tile/{face}/{z}/{x}/{y}  heights of one cube-sphere tile (binary float32, N x N)
+GET /api/psr                              PSR points and surface-ice detections near the south pole
+"""
+
+from fastapi import APIRouter, HTTPException, Response
+
+from .engine import psr
+from .engine.dem import SOURCES
+from .engine.tiles import FACES, MAX_ZOOM, N, max_zoom_for, tile_heights, validate_tile
+
+router = APIRouter(prefix="/api")
+
+
+@router.get("/terrain/info")
+def terrain_info() -> dict:
+    return {
+        "tile_size": N,
+        "max_zoom": MAX_ZOOM,
+        "faces": FACES,
+        "vertex_order": "heights[j * tile_size + i]; i along the face's right axis, j along its up axis",
+        "mapping": "equal-angle cube: p = centre + tan(u*pi/4)*right + tan(v*pi/4)*up, normalised",
+        "heights": "metres relative to the 1737.4 km reference sphere",
+        "sources": [{"name": s.name, "service": s.service, "resolution_m": round(s.native_m, 1)} for s in SOURCES.values()],
+    }
+
+
+@router.get("/terrain/tile/{face}/{z}/{x}/{y}")
+def terrain_tile(face: int, z: int, x: int, y: int) -> Response:
+    """Float32 little-endian heights, row-major [j, i], tile_size^2 values.
+    Header X-Tile-Leaf: 1 when there is no finer data below this tile."""
+    try:
+        validate_tile(face, z, x, y)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    try:
+        heights = tile_heights(face, z, x, y)
+    except OSError as e:  # Moon Trek unreachable or refused the request
+        raise HTTPException(502, f"Terrain source unavailable: {e}")
+    leaf = z >= max_zoom_for(face, z, x, y)
+    return Response(
+        content=heights.astype("<f4").tobytes(),
+        media_type="application/octet-stream",
+        headers={
+            "X-Tile-Leaf": "1" if leaf else "0",
+            "X-Tile-Min": f"{float(heights.min()):.1f}",
+            "X-Tile-Max": f"{float(heights.max()):.1f}",
+            "Cache-Control": "public, max-age=604800",
+            "Access-Control-Expose-Headers": "X-Tile-Leaf, X-Tile-Min, X-Tile-Max",
+        },
+    )
+
+
+@router.get("/psr")
+def psr_points() -> dict:
+    try:
+        return psr.load()
+    except OSError as e:
+        raise HTTPException(502, f"Moon Trek PSR layers unavailable: {e}")

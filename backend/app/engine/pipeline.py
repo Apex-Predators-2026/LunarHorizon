@@ -8,10 +8,11 @@ from datetime import datetime, timezone
 
 import numpy as np
 
+from .dem import SOURCES
+from .ephem_local import local_ephemeris
 from .ephemeris import MOON_FRAME, fetch_ephemeris
 from .geo import latlon_to_xy
-from .horizon import compute_horizon
-from .terrain import TIERS, load_terrain
+from .horizon import RINGS, compute_horizon_latlon
 from .visibility import build_timeline
 
 START, STOP, STEP = "2027-01-01", "2029-01-01", "1h"
@@ -20,7 +21,14 @@ OBSERVER_HEIGHT_M = 2.0
 #   1.0  first release
 #   1.1  sun_visible + sun_angular_radius_deg columns, 6-decimal sun_visible_fraction, nulls for
 #        unknown terrain, meta.generated_utc / generator_version / frame
-GENERATOR_VERSION = "1.1"
+#   1.2  works anywhere on the Moon: great-circle horizon over the whole-Moon DEM registry,
+#        site.kind / site.approximate, x_m / y_m null away from the south pole,
+#        meta.ephemeris says which ephemeris was used (Horizons, or local Skyfield for custom sites)
+GENERATOR_VERSION = "1.2"
+EPHEMERIS_TEXT = {
+    "horizons": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+    "local": "Skyfield + JPL DE421 in MOON_ME_DE421 (validated against Horizons to 0.00001 deg)",
+}
 
 
 def _r(a, nd=3):
@@ -39,21 +47,25 @@ def _pct(flags, known):
     return round(100 * float(np.count_nonzero(flags & known)) / n, 1) if n else None
 
 
-def analyze_site(site: dict, log=print) -> dict:
-    """site needs id, name, lat, lon (source optional)."""
+def analyze_site(site: dict, log=print, ephemeris: str = "horizons") -> dict:
+    """site needs id, name, lat, lon (source, kind, approximate optional).
+    ephemeris: "horizons" (curated sites) or "local" (custom sites: no network round trip)."""
     t0 = time.time()
-    x, y = (float(v) for v in latlon_to_xy(site["lat"], site["lon"]))
-    log(f"== {site['name']}  ({site['lat']}, {site['lon']})  x={x:.0f} y={y:.0f}")
+    lat, lon = site["lat"], site["lon"]
+    log(f"== {site['name']}  ({lat}, {lon})")
 
-    log("  terrain (Moon Trek)...")
-    terrain = load_terrain(x, y)
-    log("  horizon mask...")
-    mask = compute_horizon(terrain, x, y, observer_height_m=OBSERVER_HEIGHT_M)
+    log("  terrain + horizon (Moon Trek LOLA)...")
+    mask = compute_horizon_latlon(lat, lon, observer_height_m=OBSERVER_HEIGHT_M)
 
-    log("  ephemeris (Horizons)...")
-    sun = fetch_ephemeris("sun", site["lat"], site["lon"], START, STOP, STEP)
-    earth = fetch_ephemeris("earth", site["lat"], site["lon"], START, STOP, STEP)
+    log(f"  ephemeris ({ephemeris})...")
+    if ephemeris == "local":
+        sun = local_ephemeris("sun", lat, lon, START, STOP)
+        earth = local_ephemeris("earth", lat, lon, START, STOP)
+    else:
+        sun = fetch_ephemeris("sun", lat, lon, START, STOP, STEP)
+        earth = fetch_ephemeris("earth", lat, lon, START, STOP, STEP)
     tl = build_timeline(sun, earth, mask)
+    polar_xy = latlon_to_xy(lat, lon) if lat <= -60 else (None, None)
 
     sun_known, earth_known = tl.sun_known, tl.earth_known
     known_h = ~np.isnan(mask.elevation_deg)
@@ -72,9 +84,12 @@ def analyze_site(site: dict, log=print) -> dict:
     return {
         "site": {
             "source": "",
+            "kind": "custom",
+            "approximate": False,
             **site,
-            "x_m": round(x, 1),
-            "y_m": round(y, 1),
+            # South-polar stereographic metres (Moon Trek's polar maps); null away from the south pole.
+            "x_m": None if polar_xy[0] is None else round(float(polar_xy[0]), 1),
+            "y_m": None if polar_xy[1] is None else round(float(polar_xy[1]), 1),
             "ground_height_m": round(mask.ground_height_m, 1),
             "observer_height_m": OBSERVER_HEIGHT_M,
         },
@@ -85,8 +100,13 @@ def analyze_site(site: dict, log=print) -> dict:
             "start_utc": START,
             "stop_utc": STOP,
             "step": STEP,
-            "ephemeris": "JPL Horizons API, apparent az/el (quantities 4,13), CENTER=coord@301",
-            "terrain": [f"Moon Trek {t.service} ({t.res_m:g} m, +/-{t.half_width_m / 1000:g} km)" for t in TIERS],
+            "ephemeris": EPHEMERIS_TEXT[ephemeris],
+            "terrain": [f"Moon Trek {s.service} ({s.native_m:.0f} m)" for s in SOURCES.values()],
+            "horizon_method": (
+                "great circles every 0.5 deg of azimuth, sampled every "
+                + ", ".join(f"{step:g} m to {end / 1000:g} km" for _, end, step in RINGS)
+                + "; finest LOLA product available at each point"
+            ),
         },
         "summary": summary,
         "horizon": {

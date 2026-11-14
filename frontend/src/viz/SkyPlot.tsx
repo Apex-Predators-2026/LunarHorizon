@@ -6,7 +6,7 @@ const SIZE = 220
 const R = SIZE / 2 - 18
 const C = SIZE / 2
 
-const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', terrain: '#3a3f4b', grid: '#22304d', axis: '#7d8bab' }
+const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', terrain: '#3a3f4b', grid: '#22304d', axis: '#8a93a8' }
 
 type Pt = (az: number, el: number) => [number, number]
 
@@ -64,7 +64,7 @@ export function SkyPlot({
   for (let el = Math.ceil(bottomEl / ringStep) * ringStep; el < topEl; el += ringStep) if (el > bottomEl) rings.push(el)
 
   return (
-    <figure className="m-0">
+    <figure className="group relative m-0 flex justify-center rounded-2xl outline-offset-4" tabIndex={0} aria-label="Mini map: sky from the lander. Hover or focus for details.">
       <svg width={SIZE} height={SIZE} role="img" aria-label="Sky plot: terrain horizon with Sun and Earth paths">
         <circle cx={C} cy={C} r={R} fill="#05080f" stroke={COLORS.grid} />
         {/* neutral outline, so the yellow Sun path (which often hugs the skyline) stays distinct */}
@@ -83,7 +83,7 @@ export function SkyPlot({
         {[0, 90, 180, 270].map((az) => {
           const [x, y] = skyXY(az, bottomEl, R + 9, topEl, bottomEl)
           return (
-            <text key={az} x={C + x} y={C + y + 3} fontSize={10} textAnchor="middle" fill={COLORS.axis}>
+            <text key={az} x={C + x} y={C + y + 3} fontSize={10} textAnchor="middle" fill="#3c4044">
               {['N', 'E', 'S', 'W'][az / 90]}
             </text>
           )
@@ -115,7 +115,10 @@ export function SkyPlot({
           </>
         )}
       </svg>
-      <figcaption className="mt-1 text-[10px] leading-tight text-slate-400">
+      <figcaption
+        role="tooltip"
+        className="pointer-events-none absolute right-full top-0 z-10 mr-3 w-60 rounded-xl bg-calcite-ink/95 px-3 py-2 text-[11px] leading-snug text-opal-50 opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 group-focus:opacity-100"
+      >
         Sky from the lander · grey = terrain · <span style={{ color: COLORS.sun }}>Sun</span> /{' '}
         <span style={{ color: COLORS.earth }}>Earth</span> paths {windowLabel} (dashed = blocked) · centre {topEl}°, rim{' '}
         {bottomEl}°

@@ -57,13 +57,6 @@ _ENGINE_EXTRAS: dict[str, tuple[float, float, str]] = {
     "malapert-massif": (-1.6, 0.6, "Tall massif facing Earth: near-constant direct-to-Earth contact, but real lunar nights."),
 }
 
-ENGINE_CATALOG: list[CatalogSite] = [
-    CatalogSite(e["id"], e["name"], e["lat"], e["lon"],
-                _ENGINE_EXTRAS.get(e["id"], (0, 0, e["name"]))[2],
-                *_ENGINE_EXTRAS.get(e["id"], (-0.8, 0.8, ""))[:2], source=e.get("source", ""))
-    for e in ENGINE_SITES if e["id"] not in NOT_LANDING_SITES
-]
-
 EXTRA_SITES: list[CatalogSite] = [
     CatalogSite("de-gerlache-rim", "de Gerlache Rim (approx.)", -89.05, 280.00,
                 "Rim of de Gerlache crater, next to a large PSR.", -0.5, 0.9, approximate=True),
@@ -76,6 +69,24 @@ EXTRA_SITES: list[CatalogSite] = [
     CatalogSite("faustini-rim-a", "Faustini Rim A (approx.)", -86.95, 92.00,
                 "Rim of Faustini crater, beside a PSR with likely ice.", -0.5, 1.0, approximate=True),
 ]
+
+_EXTRA_BY_ID = {x.id: x for x in EXTRA_SITES}
+
+
+def _from_engine(e: dict) -> CatalogSite:
+    """Engine site -> rescue catalog entry. Sites the engine marks as approximate (its source starts
+    with "Approximate", e.g. points first estimated for this catalog) keep the "(approx.)" label."""
+    approx = e.get("source", "").startswith("Approximate")
+    mine = _EXTRA_BY_ID.get(e["id"])
+    base, rough, desc = _ENGINE_EXTRAS.get(e["id"], (
+        mine.horizon_base_deg if mine else -0.8, mine.horizon_roughness_deg if mine else 0.8,
+        mine.description if mine else e["name"]))
+    name = e["name"] if not approx or e["name"].endswith("(approx.)") else f"{e['name']} (approx.)"
+    return CatalogSite(e["id"], name, e["lat"], e["lon"], desc, base, rough, source=e.get("source", ""),
+                       approximate=approx)
+
+
+ENGINE_CATALOG: list[CatalogSite] = [_from_engine(e) for e in ENGINE_SITES if e["id"] not in NOT_LANDING_SITES]
 
 _engine_ids = {s.id for s in ENGINE_CATALOG}
 SITES: list[CatalogSite] = ENGINE_CATALOG + [s for s in EXTRA_SITES if s.id not in _engine_ids]

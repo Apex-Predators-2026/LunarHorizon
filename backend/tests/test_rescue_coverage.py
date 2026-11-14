@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.models import Scenario
+from app.models import Scenario, Site
 from app.rescue import Evaluator, compromise, rescue, sensitivity
 from app.rescue.catalog import custom_site, get_site
 from app.rescue.engine import NO_DATA_SOURCE, is_real
@@ -58,7 +58,10 @@ def test_missions_inside_real_data_are_unchanged(ev):
 
 
 def test_sites_without_real_data_are_unknown_by_default(ev):
-    assert_unknown_no_data(ev.evaluate(plan(datetime(2027, 6, 1, tzinfo=UTC), "de-gerlache-rim")), dates=False)
+    # A named site with no precomputed file, and a custom point: both have no real data.
+    unlisted = Site(id="unlisted-site", name="Unlisted site", lat=-88.0, lon=40.0)
+    assert_unknown_no_data(ev.evaluate(Scenario(site=unlisted, landing_utc=datetime(2027, 6, 1, tzinfo=UTC))),
+                           dates=False)
     custom = custom_site("near the peak", -89.02, 126.3)
     assert_unknown_no_data(ev.evaluate(Scenario(site=custom, landing_utc=datetime(2027, 6, 1, tzinfo=UTC))),
                            dates=False)

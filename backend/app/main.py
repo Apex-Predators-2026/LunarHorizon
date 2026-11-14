@@ -4,11 +4,14 @@ Run from backend/:  .venv\\Scripts\\python.exe -m uvicorn app.main:app --reload 
 Interactive docs:   http://localhost:8000/docs
 """
 
+import json
+
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import store
+from .engine.verify import verify
 from .engine.visibility import next_edge
 from .models import (
     CustomSiteRequest,
@@ -22,6 +25,7 @@ from .models import (
 )
 from .compare.router import router as compare_router
 from .rescue.router import router as rescue_router
+from .terrain_router import router as terrain_router
 
 app = FastAPI(title="Lunar Landing Site Navigator API")
 app.add_middleware(
@@ -32,6 +36,7 @@ app.add_middleware(
 )
 app.include_router(rescue_router)  # Member 5: /api/rescue/*
 app.include_router(compare_router)  # Member 4: /api/compare
+app.include_router(terrain_router)  # Andrew: /api/terrain/*, /api/psr
 
 
 # ---------- helpers ----------
@@ -62,6 +67,8 @@ def _site_model(d: store.SiteData) -> SiteInfo:
         lat=s["lat"],
         lon=s["lon"],
         source=s.get("source", ""),
+        kind=s.get("kind", "custom"),
+        approximate=bool(s.get("approximate", False)),
         ground_height_m=s["ground_height_m"],
         observer_height_m=s["observer_height_m"],
         summary=d.record["summary"],
@@ -174,6 +181,34 @@ def get_status(site_id: str, time: str = Query(..., description="ISO UTC time"))
         next_earthset_utc=when(d.earth_visible, False),
         next_earthrise_utc=when(d.earth_visible, True),
     )
+
+
+@app.get("/api/sites/{site_id}/verify")
+def verify_site(site_id: str, time: str = Query(..., description="ISO UTC time")) -> dict:
+    """Live check of the stored Sun/Earth positions at the hour nearest `time` against JPL Horizons
+    and an independent local ephemeris (Skyfield + DE421)."""
+    d = _get(site_id)
+    t = _parse_time(time, "time")
+    if t < d.times[0] or t > d.times[-1]:
+        raise HTTPException(422, f"time must be within {_iso(d.times[0])} .. {_iso(d.times[-1])}")
+    i = int(np.abs(d.times - t).argmin())
+    stored = {
+        b: {"azimuth_deg": float(d.cols[f"{b}_azimuth_deg"][i]), "elevation_deg": float(d.cols[f"{b}_elevation_deg"][i])}
+        for b in ("sun", "earth")
+    }
+    try:
+        return verify(d.site["lat"], d.site["lon"], d.times[i], stored)
+    except (OSError, RuntimeError) as e:
+        raise HTTPException(502, f"JPL Horizons check failed: {e}")
+
+
+@app.get("/api/validation")
+def validation_report() -> dict:
+    """Results of scripts/validate_engine.py (independent ephemeris, horizon geometry, LROC illumination)."""
+    path = store.DATA_DIR / "validation" / "engine_validation.json"
+    if not path.exists():
+        raise HTTPException(404, "No validation report yet: run backend/scripts/validate_engine.py")
+    return json.loads(path.read_text())
 
 
 @app.get("/api/sites/{site_id}/terrain")

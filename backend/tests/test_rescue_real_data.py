@@ -9,7 +9,7 @@ import pytest
 from app.engine.sites import SITES as ENGINE_SITES
 from app.models import Scenario
 from app.rescue import Evaluator, rescue, sensitivity
-from app.rescue.catalog import SITES_BY_ID, custom_site, get_site
+from app.rescue.catalog import NOT_LANDING_SITES, SITES_BY_ID, custom_site, get_site
 from app.rescue.engine import is_real
 from app.rescue.schemas import PlanChange, RescueRequest, SearchOptions, SensitivityRequest
 from app.rescue.timeline import PrecomputedTimelineProvider, SyntheticTimelineProvider
@@ -31,13 +31,23 @@ def plan() -> Scenario:
     return Scenario(site=get_site("peak-near-shackleton").to_site(), landing_utc=datetime(2027, 10, 15, tzinfo=timezone.utc))
 
 
+def test_approximate_engine_sites_stay_labelled_approximate():
+    """The data engine precomputes some sites at rescue's approximate coordinates; rescue must keep
+    saying they're approximate (and keep their descriptions) even though they now have real data."""
+    for e in ENGINE_SITES:
+        if e["source"].startswith("Approximate") and e["id"] not in NOT_LANDING_SITES:
+            s = SITES_BY_ID[e["id"]]
+            assert s.approximate and s.name.endswith("(approx.)") and s.description != e["name"], s
+
+
 def test_catalog_uses_engine_sites_and_skips_controls():
     for e in ENGINE_SITES:
         if e["id"] == "shackleton-floor":
             assert e["id"] not in SITES_BY_ID  # permanently dark validation control, not a landing site
         else:
             s = SITES_BY_ID[e["id"]]
-            assert (s.lat, s.lon) == (e["lat"], e["lon"]) and not s.approximate
+            assert (s.lat, s.lon) == (e["lat"], e["lon"])
+            assert s.approximate == e["source"].startswith("Approximate")
 
 
 @pytest.mark.parametrize("site_id", REAL_IDS)

@@ -7,10 +7,10 @@ from pathlib import Path
 
 import numpy as np
 
-from .engine.geo import latlon_to_xy, local_north_east, scale_factor
+from .engine.dem import sample_latlon
+from .engine.geo import destination
 from .engine.net import DATA_DIR
 from .engine.pipeline import analyze_site
-from .engine.terrain import load_terrain
 
 SITES_DIR = DATA_DIR / "sites"
 CUSTOM_DIR = SITES_DIR / "custom"
@@ -78,7 +78,8 @@ def custom_site_id(lat: float, lon: float) -> str:
 
 
 def create_custom_site(lat: float, lon: float, name: str | None) -> SiteData:
-    """Run the full pipeline for arbitrary coordinates (slow the first time: downloads)."""
+    """Run the full pipeline for any point on the Moon. Uses the local ephemeris (no Horizons
+    round trip); the first call for a new area may still download terrain blocks."""
     site_id = custom_site_id(lat, lon)
     with _custom_lock:
         existing = get_site(site_id)
@@ -88,10 +89,12 @@ def create_custom_site(lat: float, lon: float, name: str | None) -> SiteData:
             {
                 "id": site_id,
                 "name": name or f"Custom ({lat:.3f}, {lon % 360:.3f})",
+                "kind": "custom",
                 "lat": lat,
                 "lon": lon % 360,
                 "source": "User-entered coordinates",
-            }
+            },
+            ephemeris="local",
         )
         CUSTOM_DIR.mkdir(parents=True, exist_ok=True)
         (CUSTOM_DIR / f"{site_id}.json").write_text(json.dumps(record, separators=(",", ":")))
@@ -100,18 +103,14 @@ def create_custom_site(lat: float, lon: float, name: str | None) -> SiteData:
 
 @lru_cache(maxsize=16)
 def terrain_grid(site_id: str, size: int, half_width_m: float) -> dict:
-    """Height grid aligned with the site's local north/east axes."""
+    """Height grid aligned with the site's local north/east axes (any site on the Moon).
+    Superseded in the 3D view by the whole-Moon tiles (/api/terrain/tile); kept for compatibility."""
     s = get_site(site_id).site
-    x0, y0 = (float(v) for v in latlon_to_xy(s["lat"], s["lon"]))
-    terrain = load_terrain(x0, y0)
-    north, east = local_north_east(s["lon"])
-    k = float(scale_factor(s["lat"]))
-
     offsets = np.linspace(-half_width_m, half_width_m, size)
     E, N = np.meshgrid(offsets, offsets[::-1])  # rows north -> south, cols west -> east
-    px = x0 + k * (E * east[0] + N * north[0])
-    py = y0 + k * (E * east[1] + N * north[1])
-    z = terrain.sample(px, py)
+    # Each grid point = a great-circle step from the site (bearing clockwise from north).
+    lat, lon = destination(s["lat"], s["lon"], np.degrees(np.arctan2(E, N)), np.hypot(E, N))
+    z = sample_latlon(lat.ravel(), lon.ravel(), 2 * half_width_m / (size - 1)).reshape(size, size)
     if np.isnan(z).any():  # fill any gaps with the mean so the mesh stays continuous
         z = np.where(np.isnan(z), np.nanmean(z), z)
 

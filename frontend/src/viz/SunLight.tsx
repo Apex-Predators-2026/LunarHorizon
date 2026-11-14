@@ -1,23 +1,44 @@
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
+import type { DirectionalLight } from 'three'
 import type { TimelineStep } from '../types'
 import { azElToVector } from './geometry'
 
 const MAX_INTENSITY = 3
+// Camera distance from the site over which the light blends from "as seen at the lander" to
+// "the real Sun lighting the whole Moon".
+const NEAR_M = 20_000
+const FAR_M = 150_000
 
 /**
- * Sunlight from the computed azimuth/elevation. Intensity scales with the visible fraction of the
- * solar disk, which already accounts for distant terrain (up to 300 km) that this 10 km mesh can't
- * show. Local shadows come from the shadow map.
+ * Sunlight from the computed azimuth/elevation. The Sun is effectively at infinity, so the same
+ * direction lights the whole globe (and gives the right day/night line).
+ *
+ * Near the lander the intensity follows the engine's visible fraction of the solar disk. That
+ * already includes terrain up to ~300 km away, which the shadow map (a few km around the site)
+ * can't capture, so the lander is dark exactly when the numbers say it is. Zoomed out, the light
+ * blends to full sunlight, because the globe as a whole is lit regardless of the lander's horizon.
  */
 export function SunLight({ status, shadowHalfWidth }: { status: TimelineStep; shadowHalfWidth: number }) {
+  const ref = useRef<DirectionalLight>(null)
   const { sun } = status
   const pos = azElToVector(sun.azimuth_deg, sun.elevation_deg, 20000)
-  const intensity = MAX_INTENSITY * (sun.visible_fraction ?? 0) // unknown -> no direct light
+  const atLander = sun.visible_fraction ?? 0 // unknown -> no direct light at the lander
+
+  useFrame(({ camera }) => {
+    if (!ref.current) return
+    const d = camera.position.length()
+    const t = Math.min(1, Math.max(0, (d - NEAR_M) / (FAR_M - NEAR_M)))
+    const s = t * t * (3 - 2 * t) // smoothstep
+    ref.current.intensity = MAX_INTENSITY * (atLander + (1 - atLander) * s)
+  })
 
   return (
     <directionalLight
+      ref={ref}
       position={pos}
-      intensity={intensity}
-      castShadow={intensity > 0}
+      intensity={MAX_INTENSITY * atLander}
+      castShadow
       shadow-mapSize={[4096, 4096]}
       shadow-camera-left={-shadowHalfWidth}
       shadow-camera-right={shadowHalfWidth}

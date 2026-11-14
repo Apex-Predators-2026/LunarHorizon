@@ -1,9 +1,9 @@
 // Client + React hooks for the data-engine endpoints (backend/app/main.py, /api/sites/*).
 // Same base-URL convention as features/rescue/api.ts (VITE_API_URL, else the Vite proxy).
 import { useEffect, useState } from 'react'
-import type { Horizon, SiteInfo, SiteStatus, TerrainGrid, TimelineStep } from '../types'
+import type { Horizon, PsrData, SiteInfo, SiteStatus, TimelineStep, VerifyResult } from '../types'
 
-const API_URL: string = import.meta.env.VITE_API_URL ?? ''
+export const API_URL: string = import.meta.env.VITE_API_URL ?? ''
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { signal })
@@ -19,14 +19,33 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await res.json()) as T
 }
 
-export const fetchSites = (signal?: AbortSignal) => getJson<SiteInfo[]>('/api/sites', signal)
+// Includes custom (pin-dropped) sites so they can be selected after they're created.
+export const fetchSites = (signal?: AbortSignal) => getJson<SiteInfo[]>('/api/sites?include_custom=true', signal)
+export const fetchPsr = (signal?: AbortSignal) => getJson<PsrData>('/api/psr', signal)
+export const fetchVerify = (id: string, timeUtc: string, signal?: AbortSignal) =>
+  getJson<VerifyResult>(`/api/sites/${encodeURIComponent(id)}/verify?time=${encodeURIComponent(timeUtc)}`, signal)
+
+/** Analyse any point on the Moon (POST /api/sites/custom). Can take ~10-60 s in a new area. */
+export async function createCustomSite(lat: number, lon: number, name?: string): Promise<SiteInfo> {
+  const res = await fetch(`${API_URL}/api/sites/custom`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lat, lon, name }),
+  })
+  if (!res.ok) {
+    let detail = res.statusText
+    try {
+      const body = await res.json()
+      detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)
+    } catch {
+      // non-JSON error body
+    }
+    throw new Error(detail || `Request failed (${res.status})`)
+  }
+  return (await res.json()) as SiteInfo
+}
 export const fetchHorizon = (id: string, signal?: AbortSignal) =>
   getJson<Horizon>(`/api/sites/${encodeURIComponent(id)}/horizon`, signal)
-export const fetchTerrain = (id: string, halfWidthM = 5000, size = 256, signal?: AbortSignal) =>
-  getJson<TerrainGrid>(
-    `/api/sites/${encodeURIComponent(id)}/terrain?size=${size}&half_width_m=${halfWidthM}`,
-    signal,
-  )
 export const fetchTimeline = (id: string, startUtc: string, endUtc: string, stepHours = 1, signal?: AbortSignal) =>
   getJson<TimelineStep[]>(
     `/api/sites/${encodeURIComponent(id)}/timeline?start=${encodeURIComponent(startUtc)}&end=${encodeURIComponent(

@@ -6,18 +6,31 @@ team's validation work (Member 6); it covers the engine's science, not the viabi
 - **Reproduce:** `cd backend` then `.venv\Scripts\python.exe scripts\validate_engine.py` (a few minutes;
   downloads ~25 MB of JPL kernels and LROC data on first run, cached in `data/cache/` and `data/raw/`).
 - **Raw results:** `data/validation/engine_validation.json`.
-- **Data checked:** the curated site files `data/sites/*.json`, generator version 1.1.
+- **Data checked:** all 24 curated site files `data/sites/*.json` (9 Artemis candidates + control, 15 past
+  landings), generator version 1.2.
 
-## Summary
+## Summary (generator 1.2, all 24 sites)
 
 | Check | Reference | Result | Verdict |
 |---|---|---|---|
-| 1. Sun / Earth positions | Skyfield + JPL **DE421** + Moon ME frame (independent software and ephemeris) | Max difference **0.0007°** for Sun and Earth at all 4 sites, every 6 h over 2 years | ✅ Matches (difference = our 0.001° file rounding) |
-| 1b. Visible/blocked verdicts | Same positions, run through our horizon | **1 of 23,400** sampled verdicts differs | ✅ The one case clears the skyline by 0.00002° |
-| 2. Horizon geometry | Independent recomputation: great circles, PROJ, 3D vectors (same LOLA terrain) | Max difference **0.001°** (0.005° at Malapert), 36 directions per site | ✅ Matches |
-| 2b. Azimuth convention | Same, with our horizon mirrored east↔west | A mirror would be off by **1.3–6.5°** | ✅ Convention confirmed |
-| 3. Illumination, area average | LROC WAC time-weighted illumination map (observed, 2010–11) | Mean bias **−3.9** (Connecting Ridge) and **−0.5** (Peak Near Shackleton) percentage points over 121 points; correlation r ≈ 0.67 | ✅ No systematic bias |
-| 3b. Illumination, single site pixel | Same | Shackleton floor 0% vs 0% ✅; Peak Near Shackleton 12.2% vs 7.1% (neighbours 7.1–12.6%) ✅; Connecting Ridge 42.8% vs 8.7% (neighbours 7.9–30.1%) ⚠️ | ⚠️ Point values are not reliable on sharp light/dark edges |
+| 1. Sun / Earth positions | Skyfield + JPL **DE421** + Moon ME frame (independent software and ephemeris) | Max difference **0.00071°** for Sun and Earth at all 24 sites, every 6 h over 2 years | ✅ Matches (difference = our 0.001° file rounding) |
+| 1b. Visible/blocked verdicts | Same positions, run through our horizon | **0 of 140,400** sampled verdicts differ | ✅ |
+| 2. Horizon geometry | Independent geometry on the same elevation data: straight lines in the polar map plane + central-angle formula (the engine's original method) | Max difference **0.001–0.046°** over all 720 directions at the 12 south-polar sites | ✅ Matches (largest furthest from the pole, where the flat-map method's own approximation grows) |
+| 2b. Azimuth convention | Same, with our horizon mirrored east↔west | A mirror would be off by **1.5–30°** | ✅ Convention confirmed |
+| 3. Illumination, area average | LROC WAC time-weighted illumination map (observed, 2010–11) | Mean bias **−3.9** (Connecting Ridge), **−0.5** (Peak Near Shackleton), **+0.7** (de Gerlache Rim) points over 121 points; r = 0.66–0.88 | ✅ No systematic bias |
+| 3b. Illumination, single site pixel | Same | Shackleton floor 0% vs 0% ✅; de Gerlache Rim 12.3% vs 11.5% ✅; Peak Near Shackleton 12.2% vs 7.1% (neighbours 7.1–12.6%) ✅; Connecting Ridge 42.8% vs 8.7% (neighbours 7.9–30.1%) ⚠️ | ⚠️ Point values are not reliable on sharp light/dark edges |
+| 4. Physical sanity, past landings | Known geometry | All 6 Apollo sites, SLIM, Blue Ghost, Chang'e 3/5, Chandrayaan-3, IM-1: Earth in view 100% of the time; Chang'e 4 and 6 (far side): Earth **never** in view (33–52° below the horizon); Sun up 47–50% at low latitudes | ✅ |
+
+The geometry check needs the south-polar map projection, so it covers the 12 sites south of 60°S; the 12 others
+rely on the same great-circle code, plus unit tests at equatorial positions (bare sphere, ridge in a known direction).
+
+### What changed from generator 1.1
+The engine now samples a whole-Moon elevation registry with great circles (so it works anywhere). For the original
+sites the horizons moved by up to 0.2–0.4° (Connecting Ridge, Peak Near Shackleton), and at **Malapert** by up to
+1.6°: Malapert lies outside the 5 m product (87.5°S), and its near field now comes from the finer **20 m** product
+instead of the 30 m one. With 20 m detail, the flat summit top within ~100 m of a 2 m mast blocks a very low Sun,
+so Malapert's sunlight went from **82.6% to 77.1%** (Earth: 99.9% to 100%). The finer data is the better source.
+Other summaries changed by ≤ 0.3 points.
 
 **Bottom line:** the geometry and ephemeris are verified to about 0.001°, far below anything that changes a
 result. Sunlight percentages agree with orbital observations on average. Single-point values on a
@@ -47,26 +60,34 @@ in the reference and sits just below it in ours.
 
 This check also confirms our parsing, time handling (UTC), azimuth convention and frame choice end to end.
 
-## 2. Horizon geometry vs an independent recomputation
+## 2. Horizon geometry vs an independent method
 
-The engine traces each direction as a straight line on the polar map and uses a central-angle formula
-(`app/engine/horizon.py`). The check recomputes 36 directions per site (every 10°) with different maths
-for every step, on the same LOLA terrain:
-
-- **Path:** the true great circle (spherical destination formula, bearing clockwise from north, which is
-  Horizons' azimuth convention: "North(0) → East(90) → South(180) → West(270)").
-- **Map projection:** PROJ via rasterio, not our formulas.
-- **Elevation angle:** 3D Moon-fixed vectors, not the central-angle formula.
+Since generator 1.2 the engine walks true great circles from the site and computes elevation angles from 3D
+Moon-fixed vectors (`compute_horizon_latlon` in `app/engine/horizon.py`), so it works anywhere on the Moon. The
+check recomputes the horizon with the engine's **original** method: straight lines in the south-polar map plane
+and a central-angle formula (`compute_horizon`), fed the **same** elevation data at the same spacing
+(`_SameDataPlane` in the script). That isolates the geometry: the two share no geometric code. All 720 directions
+(every 0.5°) are compared. Bearings follow Horizons' azimuth convention ("North(0) → East(90) → South(180) →
+West(270)").
 
 | Site | Max difference | If east↔west were mirrored |
 |---|---|---|
-| Connecting Ridge | 0.001° | 6.46° |
-| Peak Near Shackleton | 0.001° | 1.32° |
-| Malapert Massif | 0.005° | 3.38° |
-| Shackleton floor | 0.001° | 2.00° |
+| Connecting Ridge | 0.006° | 6.49° |
+| Peak Near Shackleton | 0.002° | 1.66° |
+| Malapert Massif | 0.024° | 2.46° |
+| de Gerlache Rim | 0.010° | 11.06° |
+| Haworth Rim | 0.006° | 8.23° |
+| Nobile Rim 1 | 0.046° | 30.08° |
+| Mons Mouton | 0.014° | 7.92° |
+| Faustini Rim A | 0.005° | 14.95° |
+| Shackleton crater floor (control) | 0.001° | 2.12° |
+| IM-1 Odysseus (2024) | 0.006° | 8.91° |
+| IM-2 Athena (2025) | 0.007° | 4.04° |
+| Chandrayaan-3 (Shiv Shakti Point) | 0.030° | 1.51° |
 
-This also measures the straight-line-on-the-map approximation: at most 0.005° (largest at Malapert, the site
-furthest from the pole).
+The differences grow with distance from the pole (Nobile Rim 1, Chandrayaan-3), where the flat-map method's
+straight-line approximation is weakest; the great-circle method has no such approximation. Sites north of 60°S
+can't use the polar map plane, so this check doesn't apply to them.
 
 ## 3. Sunlight vs LROC orbital observations
 

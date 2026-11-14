@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppStore } from '../store'
 import type { SiteInfo, TimelineStep } from '../types'
 import { HOUR_MS, longestRun, parseUtc, roundHour, runs, sunUp, toIsoMinute } from './timeline'
 
-const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', dark: '#111a2e', gap: '#d03b3b', grid: '#22304d', axis: '#7d8bab' }
+const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', dark: '#111a2e', gap: '#d03b3b', grid: '#22304d', axis: '#5b6168' }
 const SPEEDS = [
   { label: '1 h/s', hoursPerSec: 1 },
   { label: '6 h/s', hoursPerSec: 6 },
@@ -165,7 +165,7 @@ function Strip({ steps, win, now, onSeek }: { steps: TimelineStep[]; win: [numbe
           </rect>
         )}
         {now >= win[0] && now <= win[1] && (
-          <line x1={x(now)} x2={x(now)} y1={-2} y2={earthTop + EARTH_H + 2} stroke="#f8fafc" strokeWidth={1.5} />
+          <line x1={x(now)} x2={x(now)} y1={-2} y2={earthTop + EARTH_H + 2} stroke="#ff634a" strokeWidth={2} />
         )}
       </svg>
       <div className="mt-0.5 flex flex-wrap gap-x-3 text-[10px] text-slate-400">
@@ -186,6 +186,7 @@ export function TimeBar({
   windowDays,
   onWindowDays,
   loading,
+  aside,
 }: {
   site: SiteInfo
   steps: TimelineStep[]
@@ -193,6 +194,7 @@ export function TimeBar({
   windowDays: number
   onWindowDays: (d: number) => void
   loading: boolean
+  aside?: ReactNode // site/time/view controls and conditions, shown beside the strip
 }) {
   const timeUtc = useAppStore((s) => s.timeUtc)
   const playing = useAppStore((s) => s.playing)
@@ -209,18 +211,18 @@ export function TimeBar({
   const step = (hours: number) => seek(now + hours * HOUR_MS)
   const totalHours = Math.round((stop - start) / HOUR_MS)
 
-  const btn = 'rounded border border-slate-700 px-2 py-0.5 hover:bg-slate-800 disabled:opacity-40'
-  const select = 'rounded border border-slate-700 bg-slate-900 px-1 py-0.5'
+  const btn = 'rounded-lg border border-opal-300 bg-white px-2 py-0.5 transition-colors hover:bg-calcite-peach/40 disabled:opacity-40'
+  const select = 'rounded-lg border border-opal-300 bg-white px-1 py-0.5'
 
   return (
-    <div className="pointer-events-auto absolute inset-x-0 bottom-0 border-t border-slate-800 bg-slate-950/90 px-3 pb-1.5 pt-2 text-xs text-slate-200 backdrop-blur">
+    <div className="lp-light pointer-events-auto max-h-[48vh] overflow-y-auto rounded-t-[20px] bg-opal-50 px-4 pb-2 pt-3 text-xs shadow-lg shadow-black/30">
       <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
         <button type="button" className={btn} onClick={() => step(-windowDays * 24)} title="Previous window">⏮</button>
         <button type="button" className={btn} onClick={() => step(-24)}>−1 d</button>
         <button type="button" className={btn} onClick={() => step(-1)}>−1 h</button>
         <button
           type="button"
-          className={`${btn} min-w-16 font-medium ${playing ? 'border-sky-500 bg-sky-500/20 text-sky-200' : ''}`}
+          className={`${btn} min-w-16 font-medium ${playing ? 'border-coral bg-coral/15 text-sky-300' : ''}`}
           onClick={() => setPlaying(!playing)}
           aria-pressed={playing}
         >
@@ -245,12 +247,15 @@ export function TimeBar({
         {loading && <span className="text-slate-500">loading…</span>}
       </div>
 
+      <div className="grid gap-x-5 gap-y-2 lg:grid-cols-[minmax(0,17rem)_minmax(0,1fr)]">
+        {aside && <div>{aside}</div>}
+        <div className={`min-w-0 ${aside ? '' : 'lg:col-span-2'}`}>
       {steps.length ? <Strip steps={steps} win={win} now={now} onSeek={seek} /> : <div style={{ height: STRIP_H + 14 }} />}
 
       <input
         type="range"
         aria-label="Time across the whole data range"
-        className="mt-1 w-full accent-sky-500"
+        className="mt-1 w-full accent-coral"
         min={0}
         max={totalHours}
         step={1}
@@ -261,9 +266,11 @@ export function TimeBar({
         <span>{site.data_start_utc.slice(0, 10)}</span>
         <span>
           {site.lat.toFixed(4)}°, {site.lon.toFixed(4)}°E · ground {Math.round(site.ground_height_m)} m · terrain: Moon Trek LOLA ·
-          ephemeris: JPL Horizons · drag to orbit, scroll to zoom
+          ephemeris: {site.kind === 'custom' ? 'JPL DE421 (local, checked against Horizons)' : 'JPL Horizons'} · drag to orbit, scroll to zoom
         </span>
         <span>{site.data_stop_utc.slice(0, 10)}</span>
+      </div>
+        </div>
       </div>
     </div>
   )

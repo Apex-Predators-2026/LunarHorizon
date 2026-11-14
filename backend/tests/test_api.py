@@ -77,8 +77,10 @@ def test_status_out_of_range_422():
     assert client.get("/api/sites/connecting-ridge/status", params={"time": "2040-01-01"}).status_code == 422
 
 
-def test_custom_site_rejects_non_polar():
-    assert client.post("/api/sites/custom", json={"lat": -50, "lon": 10}).status_code == 422
+def test_custom_site_validates_coordinates():
+    # Anywhere on the Moon is allowed now; only impossible coordinates are rejected (no network needed).
+    assert client.post("/api/sites/custom", json={"lat": -95, "lon": 10}).status_code == 422
+    assert client.post("/api/sites/custom", json={"lat": 10, "lon": 400}).status_code == 422
 
 
 # ---------- mission rescue (Member 5) ----------
@@ -138,3 +140,38 @@ def test_bad_input_is_422():
                        ).status_code == 422
     assert client.post("/api/rescue/compromise", json={"scenario": BASE, "science": {"target_psr_id": "nope"}}
                        ).status_code == 422
+
+
+# ---------- JPL verify / validation (network stubbed) ----------
+
+def test_verify_uses_the_stored_hour(monkeypatch):
+    import app.main as main
+
+    seen = {}
+
+    def fake_verify(lat, lon, when, stored):
+        seen.update(lat=lat, when=str(when), stored=stored)
+        return {"time_utc": str(when), "bodies": {}}
+
+    monkeypatch.setattr(main, "verify", fake_verify)
+    r = client.get("/api/sites/connecting-ridge/verify", params={"time": "2027-01-12T03:20Z"})
+    assert r.status_code == 200
+    assert seen["when"].startswith("2027-01-12T03:00") and seen["lat"] == -89.53432
+    assert set(seen["stored"]) == {"sun", "earth"} and "elevation_deg" in seen["stored"]["sun"]
+
+
+def test_verify_rejects_out_of_range_and_reports_outages(monkeypatch):
+    import app.main as main
+
+    assert client.get("/api/sites/connecting-ridge/verify", params={"time": "2040-01-01"}).status_code == 422
+
+    def down(*_):
+        raise OSError("Horizons unreachable")
+
+    monkeypatch.setattr(main, "verify", down)
+    assert client.get("/api/sites/connecting-ridge/verify", params={"time": "2027-01-12T03:00Z"}).status_code == 502
+
+
+def test_validation_report_is_served():
+    r = client.get("/api/validation")
+    assert r.status_code == 200 and "sites" in r.json()

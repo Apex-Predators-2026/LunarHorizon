@@ -12,13 +12,12 @@ Writes data/validation/engine_validation.json; results are written up in docs/va
    the sensor at the surface (0 m), since LROC sees the ground.
 3. Spatial pattern: model vs LROC over an 11x11 grid around each site (one point can sit on a
    sharp light/dark edge). Note: yearly totals cannot detect an east/west azimuth flip.
-4. Horizon geometry: the file's horizon vs an independent recomputation (great circles, PROJ,
-   3D vectors) direction by direction, which does detect an azimuth flip.
+4. Horizon geometry: the file's horizon (great circles, 3D vectors) vs an independent geometry (straight
+   lines in the polar map plane, central-angle formula) on the same data, which does detect an azimuth flip.
 """
 
 import json
 import sys
-import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -26,24 +25,18 @@ import rasterio
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.engine.ephem_local import setup as skyfield_setup  # noqa: E402
 from app.engine.ephemeris import fetch_ephemeris  # noqa: E402
 from app.engine.geo import latlon_to_xy  # noqa: E402
 from app.engine.horizon import compute_horizon  # noqa: E402
-from app.engine.net import CACHE_DIR, DATA_DIR, RAW_DIR, fetch_cached  # noqa: E402  (also enables truststore)
-from app.engine.sites import SITES  # noqa: E402
+from app.engine.net import DATA_DIR, RAW_DIR, fetch_cached  # noqa: E402  (also enables truststore)
+from app.engine.sites import ALL_SITES  # noqa: E402
 from app.engine.terrain import load_terrain  # noqa: E402
 from app.engine.visibility import build_timeline, disk_fraction_visible  # noqa: E402
 
 OUT = DATA_DIR / "validation" / "engine_validation.json"
 SAMPLE_EVERY_H = 6  # ephemeris comparison stride
 
-NAIF = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels"
-KERNELS = {  # NAIF moves superseded kernels to a_old_versions/; DE421 matches the moon_pa_de421 frame
-    "moon_080317.tf": f"{NAIF}/fk/satellites/moon_080317.tf",
-    "pck00008.tpc": f"{NAIF}/pck/a_old_versions/pck00008.tpc",
-    "moon_pa_de421_1900-2050.bpc": f"{NAIF}/pck/moon_pa_de421_1900-2050.bpc",
-    "de421.bsp": "https://ssd.jpl.nasa.gov/ftp/eph/planets/bsp/de421.bsp",
-}
 LROC_IMG = (
     "https://pds.lroc.im-ldi.com/data/LRO-L-LROC-5-RDR-V1.0/LROLRC_2001/DATA/BDR/WAC_POLE/"
     "WAC_POLE_ILL_TWI_SOUTH/WAC_POLE_ILL_TWI_SOUTH_100M.IMG"
@@ -78,23 +71,6 @@ def stats(x):
 
 
 # ---------------------------------------------------------------- 1. ephemeris cross-check
-
-def skyfield_setup():
-    from skyfield.api import Loader
-    from skyfield.planetarylib import PlanetaryConstants
-
-    kdir = CACHE_DIR / "kernels"
-    paths = {name: fetch_cached(url, kdir / name, timeout=900) for name, url in KERNELS.items()}
-    load = Loader(str(kdir))
-    eph = load(str(paths["de421.bsp"]))
-    pc = PlanetaryConstants()
-    pc.read_text(load(str(paths["moon_080317.tf"])))
-    pc.read_text(load(str(paths["pck00008.tpc"])))
-    pc.read_binary(load(str(paths["moon_pa_de421_1900-2050.bpc"])))
-    frame = pc.build_frame_named("MOON_ME_DE421")
-    ts = load.timescale(builtin=True)
-    return eph, pc, frame, ts
-
 
 def ephemeris_check(site, record, sky):
     eph, pc, frame, ts = sky
@@ -230,60 +206,58 @@ def spatial_check(site, lroc, sky):
 
 # ---------------------------------------------------------------- 4. independent horizon geometry
 
-CHECK_AZ_STEP = 10  # degrees between checked directions
+class _SameDataPlane:
+    """Terrain for the old flat-map horizon method (compute_horizon), fed the SAME elevation data as
+    the engine (dem.sample_latlon, same spacing per distance ring), so a comparison isolates the
+    geometry. Only meaningful in the south-polar stereographic plane."""
+
+    def __init__(self, x0: float, y0: float, lat0: float):
+        from types import SimpleNamespace
+
+        from app.engine.geo import scale_factor
+        from app.engine.horizon import RINGS
+
+        self.x0, self.y0, self.k = x0, y0, float(scale_factor(lat0))
+        self.rings = RINGS
+        self.tiers = [SimpleNamespace(res=step, spec=SimpleNamespace(half_width_m=end / 0.98 if i == len(RINGS) - 1 else end))
+                      for i, (_, end, step) in enumerate(RINGS)]
+
+    def sample(self, x, y):
+        from app.engine.dem import sample_latlon
+        from app.engine.geo import xy_to_latlon
+
+        x, y = np.asarray(x, dtype=float), np.asarray(y, dtype=float)
+        d = np.hypot(x - self.x0, y - self.y0) / self.k
+        spacing = np.full(x.shape, self.rings[-1][2])
+        for _, end, step in reversed(self.rings):
+            spacing[d <= end] = step
+        lat, lon = xy_to_latlon(x, y)
+        out = np.full(x.shape, np.nan)
+        for s in np.unique(spacing):
+            sel = spacing == s
+            out[sel] = sample_latlon(lat[sel], lon[sel], float(s))
+        return out
 
 
 def independent_horizon(site, record):
-    """Recompute the horizon with independent geometry and compare it to the site file.
-
-    Same LOLA terrain, but every geometric step is done differently from app/engine/horizon.py:
-      * points along each direction follow the true great circle (spherical destination formula
-        with a bearing clockwise from north, Horizons' azimuth convention) instead of a straight
-        line in the map plane;
-      * lat/lon -> map metres via PROJ (rasterio) instead of our projection formulas;
-      * elevation angle from 3D Moon-fixed vectors instead of the central-angle formula.
-    Also compares against the file's horizon mirrored east<->west, to show the check would catch
-    a flipped azimuth convention (which yearly illumination totals cannot).
+    """Compare the file's horizon (engine: great circles + 3D vectors, app/engine/horizon.py
+    compute_horizon_latlon) with an independent geometry on the same elevation data: straight
+    lines in the south-polar map plane + the central-angle formula (the engine's original method,
+    compute_horizon). Also compares against the file's horizon mirrored east<->west, to show the
+    check would catch a flipped azimuth convention (which yearly illumination totals cannot).
     """
-    from rasterio.warp import transform
-
-    from app.engine.geo import MOON_GEOG_WKT, MOON_RADIUS_M, MOON_SPOLE_WKT
-    from app.engine.horizon import sample_distances
-
-    lat1, lon1 = np.radians(site["lat"]), np.radians(site["lon"])
-    xs, ys = transform(MOON_GEOG_WKT, MOON_SPOLE_WKT, [site["lon"]], [site["lat"]])
-    terrain = load_terrain(xs[0], ys[0])
-    h0 = float(terrain.sample(np.array(xs), np.array(ys))[0])
-    eye = MOON_RADIUS_M + h0 + record["site"]["observer_height_m"]
-
-    def unit(lat, lon):
-        return np.stack([np.cos(lat) * np.cos(lon), np.cos(lat) * np.sin(lon), np.sin(lat)], axis=-1)
-
-    o = eye * unit(lat1, lon1)
-    up = unit(lat1, lon1)
-    d = sample_distances(terrain)
-    delta = d / MOON_RADIUS_M
-
+    if site["lat"] > -60:
+        return {"applicable": False, "note": "flat-map method needs the south-polar projection"}
+    x, y = (float(v) for v in latlon_to_xy(site["lat"], site["lon"]))
+    plane = compute_horizon(_SameDataPlane(x, y, site["lat"]), x, y, observer_height_m=record["site"]["observer_height_m"])
     file_az = np.array(record["horizon"]["azimuth_deg"], dtype=float)
     file_el = np.array([np.nan if v is None else v for v in record["horizon"]["elevation_deg"]], dtype=float)
-    ours, mirrored, ind = [], [], []
-    for a_deg in range(0, 360, CHECK_AZ_STEP):
-        a = np.radians(a_deg)
-        lat2 = np.arcsin(np.sin(lat1) * np.cos(delta) + np.cos(lat1) * np.sin(delta) * np.cos(a))
-        lon2 = lon1 + np.arctan2(np.sin(a) * np.sin(delta) * np.cos(lat1), np.cos(delta) - np.sin(lat1) * np.sin(lat2))
-        px, py = transform(MOON_GEOG_WKT, MOON_SPOLE_WKT, np.degrees(lon2).tolist(), np.degrees(lat2).tolist())
-        h = terrain.sample(np.array(px), np.array(py))
-        p = (MOON_RADIUS_M + h)[:, None] * unit(lat2, lon2)
-        v = p - o
-        el = np.degrees(np.arcsin((v @ up) / np.linalg.norm(v, axis=1)))
-        ind.append(np.nan if np.isnan(el).any() else float(el.max()))
-        ours.append(horizon_at(file_az, file_el, a_deg))
-        mirrored.append(horizon_at(file_az, file_el, (360 - a_deg) % 360))
-
-    ind, ours, mirrored = (np.array(v, dtype=float) for v in (ind, ours, mirrored))
+    ind = plane.elevation_deg
+    mirrored = horizon_at(file_az, file_el, (360 - plane.azimuth_deg) % 360)
     return {
-        "directions": len(ind),
-        "file_vs_independent_deg": stats(ours - ind),
+        "applicable": True,
+        "directions": int(len(ind)),
+        "file_vs_independent_deg": stats(file_el - ind),
         "mirrored_vs_independent_deg": stats(mirrored - ind),
         "horizon_range_deg": [round(float(np.nanmin(ind)), 2), round(float(np.nanmax(ind)), 2)],
     }
@@ -304,7 +278,7 @@ def main():
         "ephemeris_sample_every_hours": SAMPLE_EVERY_H,
     }, "sites": {}}
 
-    for site in SITES:
+    for site in ALL_SITES:
         record = json.loads((DATA_DIR / "sites" / f"{site['id']}.json").read_text())
         print(f"\n== {site['name']}")
         eph = ephemeris_check(site, record, sky)
@@ -328,10 +302,13 @@ def main():
         else:
             print(f"  LROC: {ill['note']}")
         geom = independent_horizon(site, record)
-        print(f"  horizon vs independent geometry ({geom['directions']} directions): "
-              f"max diff {geom['file_vs_independent_deg']['max']:.3f} deg (rms {geom['file_vs_independent_deg']['rms']:.3f}); "
-              f"if E/W were mirrored: max {geom['mirrored_vs_independent_deg']['max']:.2f} deg "
-              f"(rms {geom['mirrored_vs_independent_deg']['rms']:.2f})")
+        if geom["applicable"]:
+            print(f"  horizon vs independent geometry ({geom['directions']} directions): "
+                  f"max diff {geom['file_vs_independent_deg']['max']:.3f} deg (rms {geom['file_vs_independent_deg']['rms']:.3f}); "
+                  f"if E/W were mirrored: max {geom['mirrored_vs_independent_deg']['max']:.2f} deg "
+                  f"(rms {geom['mirrored_vs_independent_deg']['rms']:.2f})")
+        else:
+            print(f"  horizon geometry check: {geom['note']}")
         report["sites"][site["id"]] = {"ephemeris": eph, "illumination": ill, "spatial": spatial, "horizon_geometry": geom}
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

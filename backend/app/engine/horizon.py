@@ -44,6 +44,58 @@ def sample_distances(terrain: Terrain, start_m: float = 10.0) -> np.ndarray:
     return np.concatenate(parts)
 
 
+# (start, end, step) of the distance rings for compute_horizon_latlon, in metres. The step also
+# sets which DEM resolution is used (see dem.sample_latlon), like the old near/mid/far tiers.
+RINGS = ((10.0, 5_000.0, 5.0), (5_000.0, 45_000.0, 30.0), (45_000.0, 294_000.0, 200.0))
+
+
+def compute_horizon_latlon(
+    lat: float,
+    lon: float,
+    observer_height_m: float = 2.0,
+    az_step_deg: float = 0.5,
+    rings=RINGS,
+    sampler=None,
+) -> HorizonMask:
+    """Horizon anywhere on the Moon: walk true great circles from the site in each direction
+    and take the highest elevation angle of the terrain, computed from 3D Moon-fixed vectors.
+
+    Same geometry as the independent check in scripts/validate_engine.py (which matched the
+    polar-map version to <= 0.005 deg), sampling the whole-Moon DEM registry (app/engine/dem.py).
+    A direction is unknown (NaN) if any point along it has no terrain data.
+    """
+    from .dem import sample_latlon
+    from .geo import destination, latlon_to_vec
+
+    sampler = sampler or sample_latlon
+    ground = float(sampler(np.array([lat]), np.array([lon]), rings[0][2])[0])
+    if np.isnan(ground):
+        raise ValueError("No terrain data at the site")
+    up = latlon_to_vec(lat, lon)
+    eye = (MOON_RADIUS_M + ground + observer_height_m) * up
+    az = np.arange(0, 360, az_step_deg)
+
+    best = np.full(az.size, -np.inf)
+    dist = np.zeros(az.size)
+    unknown = np.zeros(az.size, dtype=bool)
+    for d0, d1, step in rings:
+        d = np.arange(d0, d1, step)
+        lat2, lon2 = destination(lat, lon, az[:, None], d[None, :])
+        h = sampler(lat2.ravel(), lon2.ravel(), step).reshape(lat2.shape)
+        v = (MOON_RADIUS_M + h)[..., None] * latlon_to_vec(lat2, lon2) - eye
+        el = np.degrees(np.arcsin(np.clip((v @ up) / np.linalg.norm(v, axis=-1), -1, 1)))
+        unknown |= np.isnan(el).any(axis=1)
+        filled = np.where(np.isnan(el), -np.inf, el)
+        i = np.argmax(filled, axis=1)
+        e = filled[np.arange(az.size), i]
+        better = e > best
+        best[better] = e[better]
+        dist[better] = d[i][better]
+    best[unknown] = np.nan
+    dist[unknown] = np.nan
+    return HorizonMask(az, best, dist, ground, observer_height_m)
+
+
 def compute_horizon(
     terrain: Terrain,
     x0: float,
