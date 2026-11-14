@@ -1,14 +1,15 @@
 # Viability Engine: Architecture & Data Contracts
 
 Owner: Member 2 (Mission Viability, Risk Assessment & Ranking)
-Status: **Phases 2–5 implemented and integrated** (sunlight / Earth-visibility analysis, §5b;
+Status: **Phases 2–6 implemented and integrated** (sunlight / Earth-visibility analysis, §5b;
 constraint verdicts PASS / FAIL / UNKNOWN and eligibility, §5c; operational margins and rule-based
-risk indicators, §5d; explainable desirability score and eligibility-aware ranking, §5e–§5f).
-`evaluate_scenario` now returns a complete `ViabilityAssessment`. Explanation text is **Phase 6 and
-not started**: `explanations` is an empty list, which means "not generated", not "nothing to explain".
-Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.5.0-phase5"`.
-Synchronized with `origin/main` as of 2026-11-14 (whole-Moon terrain, site-file generator **1.2**, §3a) and Member 5's
-shared `ViabilityResult` with `eligibility` / nullable `score` / `Violation.is_unknown` (§5a).
+risk indicators, §5d; explainable desirability score and eligibility-aware ranking, §5e–§5f;
+evidence-based explanations and Rescue compatibility validation, §5g).
+`evaluate_scenario` returns a complete `ViabilityAssessment`, and since Phase 6 its `explanations` list is
+always filled (§5g). Rescue still runs on its placeholder: switching is Member 5's decision (§5g, Rescue findings).
+Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.6.0-phase6"`.
+Synchronized with `origin/main` as of 2026-11-14 (`b244b68`: whole-Moon terrain, site-file generator **1.2**, §3a) and
+Member 5's shared `ViabilityResult` with `eligibility` / nullable `score` / `Violation.is_unknown` (§5a).
 The input contract (§3) is a **proposal for Member 1 to review** before it counts as final.
 
 Code: `backend/app/viability/`  ·  Tests: `backend/tests/viability/`
@@ -36,7 +37,7 @@ Members 3/4/5 ──────────────────────
 | `outputs.py` | Assessment/ranking contract + invariant validators, `derive_eligibility` | 1 ✅ |
 | `fixtures/` | Synthetic datasets (JSON) + deterministic builders | 1 ✅ |
 | `adapters/site_file.py` | Andrew's precomputed site files → `ScientificTimeSeries` (§3a) | 1 ✅ |
-| `compat/rescue.py` | Member 5's `evaluate_timeline(Scenario, Timeline) -> ViabilityResult` on top of this engine (§5a) | ✅ runs end to end on the real engine (explanations empty until Phase 6); Phase 2 metrics and Phase 3 verdicts verified against the placeholder |
+| `compat/rescue.py` | Member 5's `evaluate_timeline(Scenario, Timeline) -> ViabilityResult` on top of this engine (§5a) | 6 ✅ `rescue-compat/0.3.0`: validated side by side with the placeholder on real data (§5g) |
 | `windows.py` | Sampling semantics, sample supports, three-valued condition runs, visibility windows (§5b) | 2 ✅ |
 | `metrics.py` | Durations, percentages, longest outages, bounds, time-weighted means, data quality (§5b) | 2 ✅ |
 | `analysis.py` | `analyze_environment` / `analyze_scenario`: the Phase 2 entry points → `EnvironmentAnalysis` | 2 ✅ |
@@ -45,10 +46,10 @@ Members 3/4/5 ──────────────────────
 | `risk.py` | Rule-based risk indicators and `overall_risk`, consuming the margins (§5d) | 4 ✅ |
 | `scoring.py` | Desirability score (5A); re-exports `rank_assessments` from `ranking.py` | 5 ✅ |
 | `ranking.py` | Eligibility-aware, comparability-checked ranking (5B) | 5 ✅ |
-| `explain.py` | Explanations; `STANDARD_LIMITATIONS` (defined now) | 6 (stub) |
-| `engine.py` | `evaluate_scenario(scenario, series)` pipeline | 5–6 (stub; Phases 2–4 callable directly) |
+| `explain.py` | Evidence-based explanations (presentation only); `STANDARD_LIMITATIONS` (§5g) | 6 ✅ |
+| `engine.py` | `evaluate_scenario(scenario, series)` pipeline, Phases 2–6 | 6 ✅ |
 
-Stubs have final signatures and raise `NotImplementedError("Phase N: …")`.
+No stubs remain.
 
 Three verdicts are kept **separate**:
 - **Eligibility** (`pass`/`fail`/`unknown`): hard constraints only.
@@ -272,21 +273,21 @@ Timeline ─timeline_to_series──► ScientificTimeSeries ┴► evaluate_sce
 ViabilityResult ◄────────────── assessment_to_result ◄──────────────────────────────┘
 ```
 
-**Status: works end to end (Phase 5 integration).** `evaluate_scenario` returns a full assessment and the
-compat layer's default engine is the real one. Phase 2 metrics and Phase 3 verdicts are verified against the
-placeholder (coordination item 6 below); Arush's side-by-side test (`tests/test_engine_side_by_side.py`) is no
-longer skipped and passes. Rescue still imports its placeholder; nothing in
-`app/rescue/` was changed. To switch later, Member 5 changes one import in
-`app/rescue/viability/__init__.py` to `from app.viability.compat.rescue import evaluate_timeline`
-(keeping `CHECKS` / `CHECK_BY_CONSTRAINT`). `evaluate_timeline_detailed` returns the
-canonical assessment too, and `make_evaluate_fn(engine)` fits `Evaluator(evaluate=...)`.
+**Status: validated (Phase 6B, `rescue-compat/0.3.0`).** The compat layer's default engine is the real
+`evaluate_scenario`. On fully covered real data it reproduces rescue's placeholder exactly for all twelve
+`ViabilityMetrics` fields, every verdict and every `Violation`; only `score` differs (different, documented
+formula). Arush's side-by-side test (`tests/test_engine_side_by_side.py`) runs and passes. Rescue still imports its
+placeholder; nothing in `app/rescue/` was changed. The switch and the open Rescue findings are in §5g.
+`evaluate_timeline_detailed` returns the canonical assessment too (including its explanations, score interval and
+data basis, which the shared `ViabilityResult` cannot carry), and `make_evaluate_fn(engine)` fits
+`Evaluator(evaluate=...)`.
 
 **Scenario → MissionScenario**
 
 | Rescue | Canonical | Conversion |
 |---|---|---|
 | `site.id` (e.g. `custom:-89.46012,221.98000`) | `site.id` | characters outside `[A-Za-z0-9._-]` → `_` (`custom_-89.46012_221.98000`) |
-| `site.lon` (0–360 °E from the catalog) | `site.lon` | `lon − 360` if `> 180` (same function as the site-file adapter) |
+| `site.lon` (0–360 °E from the catalog) | `site.lon` | any finite value wrapped to the canonical range (same function as the site-file adapter). Phase 6B: rescue's `custom_site` stores `lon % 360`, which is exactly 360.0 for a tiny negative longitude and used to raise inside a search |
 | `landing_utc`, `duration_days` | `mission_start_utc`, `mission_end_utc` | start = landing (UTC); end = landing + duration |
 | `battery_hours` | `spacecraft.max_continuous_darkness_s` | × 3600 (power-dark per the threshold) |
 | `panel_threshold` | `spacecraft.solar_power_min_disk_fraction` | unchanged (configurable) |
@@ -307,9 +308,11 @@ rescue's `Timeline` has no `sun_visible`, so the single sub-precision sliver hou
 `earth_visible = False`) stays `unknown`, never a blackout.
 
 **Coverage and the final bin.** Coverage ends at the last sample. `evaluate_timeline` passes the
-mission end; when that is exactly one step after the last sample (rescue's bin layout), coverage
-is extended to it, so the final hour is represented under sample-and-hold. This happens **only if
-that time is covered by the source**:
+mission end; when that lies at most 1.5 steps after the last sample (rescue's `round(duration / step)`
+layout), the last sample is **held for one step, capped at mission end**, so the final hour is represented
+under sample-and-hold. A fractional-hour duration therefore no longer leaves a covered final partial bin
+unknown, and a mission under 1.5 h (a single sample) no longer raises (Phase 6B). Never more than one step,
+and **only if that time is covered by the source**:
 - **synthetic model:** always (it is defined at any time);
 - **precomputed file:** only if its last sample is at or after mission end. The file's last
   timestamp is read once and cached by path and modification time; this is the layer's only
@@ -335,7 +338,9 @@ Otherwise the final hour stays **unknown**. Verified edge cases on real data (PN
 | `Metric` bounded | unfavourable bound (lower for "more is better", upper for outages) |
 | `Metric` unavailable | worst case within the mission: 0 for fractions and initial hours; whole mission for gaps; 0 h to first sunset/Earthset; `null` clearances; **error** for mean solar elevation (no defensible worst case) |
 | first sunset/Earthset `not_applicable` | `null` (rescue's "never during the mission") |
-| `score` null | `score = null` ("not scored"; rescue ranks it via `score_or_zero`) |
+| `score` null, or `score_status = bounded` | `score = null` ("not scored"). A bound is never written into `score`; the interval stays in `assessment.score.score_bounds`. Rescue currently ranks `null` as 0 via `score_or_zero` (§5g finding 1) |
+| `explanations`, `risks`, `data_basis` | not carried (no shared field); available from `evaluate_timeline_detailed` |
+| source file precision metadata | recorded in the series provenance (`meta.fraction_decimals`, else the generator-version table); provenance only |
 | a failing constraint with no rescue field | **error** (can't occur from a rescue scenario) |
 
 Checked on every conversion: `passes == (no violations)` and an `unknown` result has only
@@ -345,11 +350,11 @@ violations; each keeps its own flag. Every constraint the layer creates maps 1:1
 
 **Coordination with Arush (Member 5):**
 1. **Unknown state: resolved by Arush** (`eligibility`, nullable `score`, `is_unknown`; loosening skips undecided results and unknown violations). The compat layer now uses these fields directly.
-2. **Sample semantics: resolved in Phase 2.** Canonical rule = sample-and-hold (§5b) plus the guarded one-step bin rule above (tested). *Still for Arush (his provider):* (a) `PrecomputedTimelineProvider.timeline` still serves a slice whose last bin starts at the file's final instant; the compat layer now refuses to cover that hour. (b) A mission extending even slightly past 2029‑01‑01 is evaluated **entirely** on synthetic geometry. It is flagged, but the user may not notice that real data covered most of the mission.
+2. **Sample semantics: resolved in Phase 2.** Canonical rule = sample-and-hold (§5b) plus the guarded one-step bin rule above (tested). *Still for Arush (his provider), quantified in §5g:* (a) rescue's coverage check accepts a mission whose last bin starts at the file's final instant; the compat layer refuses to cover that hour (finding 3). (b) In simulation mode a mission extending even slightly past 2029‑01‑01 is evaluated **entirely** on synthetic geometry, and so is every other candidate fetched in the same batch (finding 2b).
 3. **Panel threshold of 0: resolved by Arush** (placeholder now requires `fraction > 0`). Same rule as the canonical engine.
 4. **Naive datetimes.** Shared `Scenario.landing_utc` treats naive times as UTC, while the canonical API rejects them. The layer accepts the shared model's decision; flagged for the team.
 5. **Two readers of `data/sites`.** `rescue/timeline/precomputed.py` and the site-file adapter parse the same files. They agree sample for sample (tested), except that rescue ignores `sun_visible` (1 sliver hour at PNS, §3a) and reads a `null` `earth_visible` as `False`. The compat layer turns the latter back into unknown via the NaN margin. Keep one reader long-term.
-6. **Equivalence check: done, re-run on format 1.1 data.** On real precomputed timelines (3 sites × 6 landing dates, 14-day missions, `panel_threshold` 0.25), all 11 `ViabilityMetrics` fields from Phase 2 equal the placeholder's to 1e-12 (`test_phase2_metrics_match_rescue_placeholder_on_real_data`). Expected differences remain only where data is unknown, where the canonical engine bounds instead of counting. **Phase 3:** on the same real timelines (3 sites × 6 landing dates × {rescue defaults, a strict set incl. `min_earth_visibility_fraction` 0.55}), the canonical failing constraints, eligibility and each `Violation`'s `required`/`actual` equal the placeholder's (`test_phase3_verdicts_match_rescue_placeholder_on_real_data`, 36 cases, no unknowns). Arush's full side-by-side test (`tests/test_engine_side_by_side.py`) stays skipped until `evaluate_scenario` exists (Phases 5–6).
+6. **Equivalence check: done, re-run on format 1.1 data.** On real precomputed timelines (3 sites × 6 landing dates, 14-day missions, `panel_threshold` 0.25), all 11 `ViabilityMetrics` fields from Phase 2 equal the placeholder's to 1e-12 (`test_phase2_metrics_match_rescue_placeholder_on_real_data`). Expected differences remain only where data is unknown, where the canonical engine bounds instead of counting. **Phase 3:** on the same real timelines (3 sites × 6 landing dates × {rescue defaults, a strict set incl. `min_earth_visibility_fraction` 0.55}), the canonical failing constraints, eligibility and each `Violation`'s `required`/`actual` equal the placeholder's (`test_phase3_verdicts_match_rescue_placeholder_on_real_data`, 36 cases, no unknowns). **Phase 6B** extends this to all twelve metrics, verdicts and violations on the four original and six whole-Moon sites (`test_real_sites_phase6_compat.py`), and Arush's side-by-side test (`tests/test_engine_side_by_side.py`, 3 sites × 20 dates) runs and passes.
 
 ## 5b. Phase 2: sunlight and Earth-visibility time-series analysis
 
@@ -1152,13 +1157,150 @@ rescue's simulation mode. Synthetic scores are computed the same way but their n
 3. For `eligibility_unknown` and `no_scorable_components` show "not scored" with the reason.
 4. Always show `data_basis`; label synthetic results as simulation. Never put results with different data
    bases or configuration fingerprints into one table without grouping them.
-5. Show risk separately from the score. `explanations` is empty until Phase 6; do not render an empty
-   explanation as "no concerns".
+5. Show risk separately from the score. Since Phase 6 `explanations` is always filled (§5g); render it in
+   order and keep the `[SYNTHETIC DATA]` prefix visible.
 
 Code: `evaluate_scenario` in `engine.py`, scoring in `scoring.py`, ranking in `ranking.py`; tests in
 `test_phase5_integration.py` (whole pipeline on the four real sites, synthetic exact, bounded and unavailable cases,
 data-basis separation, tie-breaking, mutation, rounding) next to `test_scoring_phase5.py`, `test_ranking_phase5.py`
 and `test_real_sites_phase5_scoring.py`.
+
+## 5g. Phase 6: explanations and Rescue integration
+
+`ENGINE_VERSION = "0.6.0-phase6"`. Phase 6 adds text and validation only: **no verdict, metric, margin, risk
+level, score or ranking changed** between `0.5.0-phase5` and `0.6.0-phase6` (tested by evaluating with and without
+explanation generation and comparing every other field). The version bump is visible to Rescue only as
+`ViabilityResult.source = "viability-engine/0.6.0-phase6"`.
+
+```
+env, checks, margins, risks, level, score   (Phases 2–5, unchanged)
+        └─► explain.generate_explanations(eligibility, constraints, margins, risks, data_quality,
+                                          score=score, overall_risk=level)  ─► assessment.explanations
+```
+
+### Phase 6A: evidence-based explanations
+
+`explain.py` (`EXPLANATION_METHOD_VERSION = "explanations-v1"`) is a **presentation layer**. It decides nothing:
+verdicts and levels are read from their fields; margin classes reuse `margins.classify_margin`; a margin missing from
+the input is derived with `margins.operational_margin` (the same Phase 4A arithmetic). Inputs that contradict each
+other (eligibility versus constraint verdicts, `overall_risk` versus the indicators, score versus eligibility) raise
+`ValueError` instead of being explained; inside `evaluate_scenario` that would be an engine bug, never user input.
+
+Items, in a deterministic order with stable `ExplanationDetail.key` values:
+
+| Order | Category | Content |
+|---|---|---|
+| 1 | `summary` | eligibility verdict; overall screening risk (HIGH despite PASS is stated explicitly); score: exact, bounded **interval rounded outward**, withheld (UNKNOWN eligibility) or "no scorable components"; weighted breakdown; excluded components |
+| 2 | `constraint` | one per configured constraint, FAIL → UNKNOWN → PASS: threshold, measured value or proven bounds, unit, verdict, size of the shortfall, evidence windows |
+| 3 | `margin` | positive / narrow / zero / negative / uncertain headroom, with the risk indicator that bands it |
+| 4 | `risk` | landing in darkness or without Earth line of sight, and any indicator not explained elsewhere |
+| 5 | `data_quality` | synthetic (simulation), geometric-only or real provenance; coverage (sample gaps versus unknown states); pipeline warnings |
+| 6 | `limitation` | sampling resolution, illumination ≠ power, line of sight ≠ communication, unverified spacecraft capabilities, heuristic risk bands |
+
+Normative wording rules (tested on synthetic and real data):
+- A constraint is called PASS, FAIL or UNKNOWN exactly as its `status` says. **UNKNOWN is never called a failure**;
+  an unsupported requirement (clearance) is never described as evaluated.
+- No invented quantities: no probability of mission failure, no power or link estimate, no point value for a bounded
+  quantity. Advice to weaken a requirement is never given (that is Rescue's loosening feature, with its own caveats).
+- Every risk indicator is explained by **exactly one** item (`ExplanationDetail.risk_codes`).
+- Synthetic data prefixes **every** message with `[SYNTHETIC DATA]`.
+- `Explanation.message` is at most 500 characters; quoted external text (metric reasons, warnings) is shortened to
+  160 characters in the message and kept in full in `ExplanationDetail.details`.
+
+Real example (Malapert Massif, landing 2027-03-01, 14 days, rescue default requirements; 26 items):
+
+> Eligibility PASS: all 6 configured hard constraint(s) are met. …
+> Overall screening risk HIGH, driven by power-darkness exposure. Every configured hard constraint still passes: …
+> Desirability score 68.11 / 100 (exact). It is rank-eligible because eligibility is PASS. …
+
+Entry points: `evaluate_scenario` (filled automatically), `generate_explanations` (Phase 1 signature plus the
+keyword-only `score=` and `overall_risk=`, additive), `build_explanation_details`, and `explain_assessment` /
+`explain_assessment_details` for a whole assessment (its own `explanations` are ignored). All are exported from
+`app.viability`. Generation cost was not measurable above timing noise on a 14-day Rescue evaluation (≈ 4 ms
+either way).
+
+### Phase 6B: Rescue compatibility validation
+
+`compat/rescue.py` (`rescue-compat/0.3.0`) was validated behind Rescue's own `Evaluator`, provider and coverage policy,
+side by side with the placeholder on real data (four original and six whole-Moon sites), and three adapter defects
+were fixed: longitude wrapping (§5a), the one-step final-bin hold capped at mission end (§5a), and violations in
+Rescue's requirement order (same text as the placeholder). Results: on fully covered real data **every metric,
+verdict and violation equals the placeholder's**; scores differ only by the documented formula. Rescue search,
+sensitivity and compromise all run on the canonical engine. A 40-seed property test checks that unknown data never
+produces a confirmed result.
+
+### Rescue integration findings (for Member 5)
+
+Investigated with the canonical engine behind Rescue's real `Evaluator` (`make_evaluate_fn()`) on the committed
+site files. **All three known issues are in `app/rescue/` (Member 5's code) and were not changed.** The canonical
+side provides what each fix needs.
+
+**Finding 1: a `None` score is ranked as zero.** `search._rank_score`, `compromise` and `sensitivity` use
+`ViabilityResult.score_or_zero`. With the canonical engine a PASS can have `score = None` when its score is only
+bounded. Example: Connecting Ridge, 3-day mission landing 2028-12-29T01:00Z (rescue defaults) is PASS with proven
+score bounds **[79.04, 80.50]**, yet gets `rank_score = −0.5` (placeholder: 79.15 → 80.0), so it would rank below
+every scored candidate. On the committed files this happens only at the dataset end (finding 3): with rescue defaults,
+5 of 32 boundary cases (8 catalog sites with real data × 1, 3, 7, 14 days: Connecting Ridge 3 d; Malapert and
+Mons Mouton 3 d and 7 d). A failing
+candidate with a bounded score likewise gets sensitivity score 0. *Options for Member 5:* order PASS-with-`None` by
+the conservative lower bound from `evaluate_timeline_detailed(...)[1].score.score_bounds` (the canonical ranking's
+policy, §5f), or put it in a separate "not scored" tier, never at 0. Carrying the interval in `ViabilityResult`
+needs a shared-contract change (e.g. an optional `score_bounds`), agreed with Members 4 and 5.
+
+**Finding 2: real and synthetic candidates in one ranking.** In simulation mode (`include_synthetic=True`), catalog
+sites are evaluated on real data and nearby custom points on synthetic geometry, and `rescue()` ranks them together.
+Example (PNS, 2027-03-01 + 3 days, 6-day window): ranks 1, 2 and 4 are synthetic custom points (scores 100, 100, 93.5),
+ranks 3 and 5 are real Connecting Ridge candidates. Each result is labelled (`data_source`), but the order compares
+invented terrain with Horizons + LOLA. The canonical `rank_assessments` refuses this under every policy (D6).
+*Option:* rank real and synthetic separately, or real first.
+
+**Finding 2b (new): a simulation batch that crosses the dataset end turns covered candidates synthetic.**
+`Evaluator.evaluate_many` fetches one timeline for all start times of a site; `PrecomputedTimelineProvider.timeline`
+falls back to synthetic for the **whole** range if any part is uncovered. Example (Malapert, 14 days): landing
+2028-12-12 alone is evaluated on real data (FAIL), but batched with 2028-12-27 both are evaluated on synthetic
+geometry (FAIL and PASS, both labelled synthetic). *Option:* fetch covered and uncovered starts separately.
+
+**Finding 3: end-of-dataset coverage.** Rescue's coverage check accepts a mission whose last hourly bin starts at
+the file's final instant (2029-01-01T00:00Z), i.e. it counts that instant as covering one more hour (also in
+`no_data_result`, which reports coverage up to `last + 1 h`). The canonical series ends at that instant, so the
+latest accepted landing for each site and duration gets one unknown hour: the score is bounded (`None`) and, rarely,
+the verdict becomes UNKNOWN where the placeholder decides (Malapert 1 day with 24 h initial sunlight: placeholder PASS
+86.46, canonical UNKNOWN). Never a PASS↔FAIL flip (tested). One hour earlier the results are identical; one hour later
+rescue itself answers UNKNOWN. *Option:* require `landing + n·step ≤ last sample` in `evaluate_many`, and use the
+last sample (not `+1 h`) as the coverage end.
+
+**Required change for Arush (not made here).** To switch Rescue to the canonical engine:
+
+```python
+# app/rescue/viability/__init__.py
+from app.viability.compat.rescue import evaluate_timeline   # instead of .placeholder's
+from .placeholder import CHECK_BY_CONSTRAINT, CHECKS         # keep: loosening wording/rounding table
+```
+
+Before or with the switch: (1) stop treating `score=None` as 0 (finding 1); (2) after it, scores change by formula,
+so rank-dependent tests and thresholds such as `search`'s "better option available" (+5 points) need review;
+(3) Member 4's comparison (`app/compare/service.py`) imports the same swap point and switches with it;
+(4) findings 2, 2b and 3 are independent of the switch but affect what users see in simulation mode and near
+2029-01-01. If Rescue passes a non-default data directory, use
+`make_evaluate_fn(precomputed_data_dir=...)` so the final-bin coverage check reads the same files.
+
+### Phase 6 scientific limitations
+
+- Explanations restate the engine's evidence; they inherit every limitation of §5b–§5f (sampling resolution,
+  sample-and-hold timing uncertainty up to one spacing, heuristic risk bands, score formula) and add no validation.
+- Template text in English, versioned by `explanations-v1`; frontends that translate should key on
+  `ExplanationDetail.key` and the method version.
+- Through Rescue's shared `ViabilityResult` no explanation, risk, data basis or score interval is visible; Rescue's
+  own `app/rescue/explain.py` text is generated from its metrics. Use `evaluate_timeline_detailed` for the canonical
+  explanations.
+- Rescue's coverage policy withholds verdicts the canonical engine could prove from partial data (stricter, never
+  wrong); the synthetic fallback remains open (§10 item 14).
+
+Code: `explain.py`, `engine.py`, `compat/rescue.py`. Tests: `test_explain_phase6.py` (41 synthetic-pipeline cases),
+`test_real_sites_phase6_explanations.py` (four real sites, quoted values recomputed with NumPy),
+`test_phase6_rescue_compat.py`, `test_real_sites_phase6_compat.py` (side by side on ten real sites, Rescue search /
+sensitivity / compromise), `test_phase6_integration.py` (explanations in `evaluate_scenario`, no feedback into other
+fields, unchanged ranking and Rescue results, synthetic labelling, bounded PASS at the dataset end).
 
 ## 6. Assumptions and limitations
 
@@ -1239,6 +1381,9 @@ landing-without-Earth, dataset-edge and out-of-range missions. It also covers sy
 policy and worst-case independence, a threshold sweep, deterministic JSON and all four real sites.
 It checks the margin-to-risk contract (§5d) on every run.
 
+Phase 5 tests are listed in §5f, Phase 6 tests in §5g. Rescue's own suite (`tests/test_rescue*.py`,
+`tests/test_engine_side_by_side.py`, `tests/test_sensitivity_compromise.py`) must keep passing with every engine change.
+
 Requires Python ≥ 3.11, `pydantic` 2 and `pytest` (both already in `requirements.txt`).
 No new dependencies.
 - The core package, `adapters/` and `compat/rescue.py` import neither NumPy nor FastAPI.
@@ -1256,7 +1401,7 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 | 3 ✅ | Constraint evaluation with unknown-data policy; coverage-aware bounds; eligibility (§5c) |
 | 4 ✅ | Operational margins with bounds and classes; rule-based risk indicators (§5d); clearance margins pending item 10 |
 | 5 ✅ | Normalised, explainable score (5A); eligibility-aware ranking (5B); integrated into `evaluate_scenario` (§5e, §5f) |
-| 6 | Explanation text (`explanations` is empty until then); the assembled `ViabilityAssessment` itself exists since Phase 5 |
+| 6 ✅ | Evidence-based explanations in every assessment (6A); Rescue compatibility validated side by side (6B); Rescue findings handed to Member 5 (§5g) |
 | 7 | Real-data tests with Member 1 output; validation with Member 6; FastAPI endpoint wiring |
 
 ## 10. Remaining integration decisions
@@ -1290,7 +1435,7 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 11. ~~`worst_case` policy~~ **retired** (deprecated, inert; §5c). Members 3/4/5: please don't build on it.
 12. *Initial requirement longer than the mission:* kept as FAIL for compatibility (mission-scoped, same as rescue's placeholder). The message now states that the requirement exceeds the mission duration. With no data, it is also the only FAIL that needs no observations: the bound `[0, mission]` already rules it out. *Recommendation:* treat it as a configuration error, rejected where the scenario is built (UI / `MissionScenario`). That is a shared-input change, because rescue scenarios with `duration_days < min_initial_*_hours / 24` would start raising, so it needs Member 5's agreement first.
 13. *Contract notice:* `ConstraintEvaluation` gained optional fields (additive, defaults); `ConstraintAssessment` is new. Members 3/4 should know before consuming them.
-14. *Synthetic fallback in rescue (Member 5):* rescue's provider swaps a whole mission to synthetic geometry when it reaches past the dataset, and verdicts on it are definite but labelled synthetic. Options: rescue truncates or refuses such missions; or the canonical engine reports synthetic-basis results as UNKNOWN (affects custom sites and every synthetic test fixture). Not changed here.
+14. *Synthetic fallback in rescue (Member 5):* rescue's provider swaps a whole mission to synthetic geometry when it reaches past the dataset, and verdicts on it are definite but labelled synthetic. Since Phase 6 this is known to swap a whole simulation **batch** too (§5g finding 2b). Options: rescue truncates or refuses such missions; or the canonical engine reports synthetic-basis results as UNKNOWN (affects custom sites and every synthetic test fixture). Not changed here.
 
 **Phase 4 decisions for team review:**
 15. *Band boundary:* exactly 10 % headroom counts as `narrow` / HIGH (inclusive, resolving
@@ -1311,6 +1456,15 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 19. *Vacuous zero minimum* (e.g. `min_sunlight_percent = 0` with 0 % observed): the margin is
     `at_threshold` while risk is LOW, because the requirement cannot fail. Consider rejecting zero
     minimums at scenario construction.
+
+**Phase 6 decisions for team review:**
+20. *Rescue findings 1, 2, 2b, 3 (§5g):* Member 5's code; options listed there. Not changed here.
+21. *Shared `ViabilityResult` has no field for explanations, risks, data basis or a score interval.* Proposal (needs
+    Members 4 and 5): optional additive fields, e.g. `score_bounds` and `explanations`. Until then Rescue and the
+    comparison see none of them; `evaluate_timeline_detailed` returns them.
+22. *Contract notice for Members 3/4/5:* `explanations` is no longer empty (`explanations-v1`, §5g);
+    `generate_explanations` gained keyword-only `score=` and `overall_risk=` (additive); `ENGINE_VERSION` is
+    `0.6.0-phase6`, so Rescue results report `source = "viability-engine/0.6.0-phase6"`. No shared model changed.
 
 **With Members 3/4/5:** the field names above; whether `windows[]` should be paginated or
 down-sampled for long missions (a full 2-year analysis yields 300–600 windows per site). *Resolved in C0:* failed
