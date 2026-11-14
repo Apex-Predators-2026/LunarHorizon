@@ -131,7 +131,7 @@ def _number(value: Any, where: str) -> float | None:
     return float(value)
 
 
-def _columns(timeline: Mapping[str, Any]) -> tuple[dict[str, Sequence[Any]], int, list[str]]:
+def read_columns(timeline: Mapping[str, Any]) -> tuple[dict[str, Sequence[Any]], int, list[str]]:
     missing = [c for c in REQUIRED_COLUMNS if c not in timeline]
     if missing:
         raise SiteFileError(f"timeline is missing required column(s): {', '.join(missing)}")
@@ -155,7 +155,7 @@ def _columns(timeline: Mapping[str, Any]) -> tuple[dict[str, Sequence[Any]], int
 # --- per-sample conversion ----------------------------------------------------------------
 
 
-def _sun(cols: Mapping[str, Sequence[Any]], i: int) -> dict[str, Any]:
+def sun_observation(cols: Mapping[str, Sequence[Any]], i: int) -> dict[str, Any]:
     az = _number(cols["sun_azimuth_deg"][i], f"timeline.sun_azimuth_deg[{i}]")
     el = _number(cols["sun_elevation_deg"][i], f"timeline.sun_elevation_deg[{i}]")
     hz = _number(cols["sun_horizon_deg"][i], f"timeline.sun_horizon_deg[{i}]")
@@ -197,7 +197,7 @@ def _sun(cols: Mapping[str, Sequence[Any]], i: int) -> dict[str, Any]:
     }
 
 
-def _earth(cols: Mapping[str, Sequence[Any]], i: int) -> dict[str, Any]:
+def earth_observation(cols: Mapping[str, Sequence[Any]], i: int) -> dict[str, Any]:
     az = _number(cols["earth_azimuth_deg"][i], f"timeline.earth_azimuth_deg[{i}]")
     el = _number(cols["earth_elevation_deg"][i], f"timeline.earth_elevation_deg[{i}]")
     hz = _number(cols["earth_horizon_deg"][i], f"timeline.earth_horizon_deg[{i}]")
@@ -237,7 +237,7 @@ def _earth(cols: Mapping[str, Sequence[Any]], i: int) -> dict[str, Any]:
     }
 
 
-def _times(column: Sequence[Any]) -> list[datetime]:
+def parse_times(column: Sequence[Any]) -> list[datetime]:
     out: list[datetime] = []
     for i, raw in enumerate(column):
         if not isinstance(raw, str):
@@ -314,10 +314,10 @@ def site_file_to_series(
     step_raw = _get(meta, "step", str, "meta")
     step_s = parse_step_s(step_raw)
     generated_raw = meta.get("generated_utc")
-    generated = _times([generated_raw])[0] if generated_raw is not None else None
+    generated = parse_times([generated_raw])[0] if generated_raw is not None else None
 
-    cols, n, ignored = _columns(timeline)
-    times = _times(cols["time_utc"])
+    cols, n, ignored = read_columns(timeline)
+    times = parse_times(cols["time_utc"])
     for i, (a, b) in enumerate(pairwise(times)):
         if (b - a).total_seconds() < step_s - _SPACING_TOLERANCE_S:
             raise SiteFileError(
@@ -325,7 +325,9 @@ def site_file_to_series(
             )
 
     profile, az_step = _horizon_profile(data.get("horizon"))
-    samples = [{"time_utc": times[i], "sun": _sun(cols, i), "earth": _earth(cols, i)} for i in range(n)]
+    samples = [
+        {"time_utc": times[i], "sun": sun_observation(cols, i), "earth": earth_observation(cols, i)} for i in range(n)
+    ]
 
     start = meta.get("start_utc")
     stop = meta.get("stop_utc")

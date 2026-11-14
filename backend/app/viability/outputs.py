@@ -141,8 +141,19 @@ class MetricsSummary(ContractModel):
     earth_visible_percent: Metric
     simultaneous_duration: Metric
     simultaneous_percent: Metric
+    # "Darkness" means power-dark when spacecraft.solar_power_min_disk_fraction is set.
     longest_continuous_darkness: Metric
     longest_communication_blackout: Metric
+    mean_solar_disk_fraction: Metric  # time-average of visible_fraction (unit: fraction)
+    initial_sunlight_duration: Metric  # continuous power-lit time from evaluated start
+    initial_earth_visibility_duration: Metric  # continuous Earth visibility from evaluated start
+    # Time from evaluated start to the first lit->dark (visible->blocked) transition.
+    # NOT_APPLICABLE (with reason) when no such transition occurs within the range.
+    time_to_first_sunset: Metric
+    time_to_first_earthset: Metric
+    mean_sun_clearance: Metric  # mean (elevation - horizon) while the Sun counts as visible
+    mean_earth_clearance: Metric  # mean (elevation - horizon) while the Earth is visible
+    mean_solar_elevation: Metric  # mean Sun elevation above the local horizontal plane
 
 
 class ConstraintEvaluation(ContractModel):

@@ -20,18 +20,32 @@ START = datetime(2027, 1, 1, tzinfo=UTC)
 END = datetime(2027, 1, 2, tzinfo=UTC)
 
 
-def unavailable_metrics() -> MetricsSummary:
-    return MetricsSummary(
-        sunlight_duration=Metric.unavailable(Unit.SECONDS, "phase 1 placeholder"),
-        partial_sunlight_duration=Metric.unavailable(Unit.SECONDS, "phase 1 placeholder"),
-        sunlight_percent=Metric.unavailable(Unit.PERCENT, "phase 1 placeholder"),
-        earth_visible_duration=Metric.unavailable(Unit.SECONDS, "phase 1 placeholder"),
-        earth_visible_percent=Metric.unavailable(Unit.PERCENT, "phase 1 placeholder"),
-        simultaneous_duration=Metric.unavailable(Unit.SECONDS, "phase 1 placeholder"),
-        simultaneous_percent=Metric.unavailable(Unit.PERCENT, "phase 1 placeholder"),
-        longest_continuous_darkness=Metric.unavailable(Unit.SECONDS, "phase 1 placeholder"),
-        longest_communication_blackout=Metric.unavailable(Unit.SECONDS, "phase 1 placeholder"),
-    )
+METRIC_UNITS: dict[str, Unit] = {
+    "sunlight_duration": Unit.SECONDS,
+    "partial_sunlight_duration": Unit.SECONDS,
+    "sunlight_percent": Unit.PERCENT,
+    "earth_visible_duration": Unit.SECONDS,
+    "earth_visible_percent": Unit.PERCENT,
+    "simultaneous_duration": Unit.SECONDS,
+    "simultaneous_percent": Unit.PERCENT,
+    "longest_continuous_darkness": Unit.SECONDS,
+    "longest_communication_blackout": Unit.SECONDS,
+    "mean_solar_disk_fraction": Unit.FRACTION,
+    "initial_sunlight_duration": Unit.SECONDS,
+    "initial_earth_visibility_duration": Unit.SECONDS,
+    "time_to_first_sunset": Unit.SECONDS,
+    "time_to_first_earthset": Unit.SECONDS,
+    "mean_sun_clearance": Unit.DEGREES,
+    "mean_earth_clearance": Unit.DEGREES,
+    "mean_solar_elevation": Unit.DEGREES,
+}
+
+
+def unavailable_metrics(**overrides: Metric) -> MetricsSummary:
+    """Every metric UNAVAILABLE (placeholder), except the given overrides."""
+    fields = {name: Metric.unavailable(unit, "phase 1 placeholder") for name, unit in METRIC_UNITS.items()}
+    fields.update(overrides)
+    return MetricsSummary(**fields)
 
 
 def constraint(cid: ConstraintId, status: ConstraintStatus) -> ConstraintEvaluation:

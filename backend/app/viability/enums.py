@@ -91,6 +91,9 @@ class ConstraintId(StrEnum):
     MIN_SIMULTANEOUS_PERCENT = "min_simultaneous_percent"
     MIN_SUN_CLEARANCE = "min_sun_clearance"
     MIN_EARTH_CLEARANCE = "min_earth_clearance"
+    MIN_MEAN_SOLAR_DISK_FRACTION = "min_mean_solar_disk_fraction"
+    MIN_INITIAL_SUNLIGHT = "min_initial_sunlight"
+    MIN_INITIAL_EARTH_VISIBILITY = "min_initial_earth_visibility"
 
 
 class MetricStatus(StrEnum):

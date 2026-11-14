@@ -134,3 +134,47 @@ def test_unknown_scenario_field_rejected(scenario_dict: dict[str, Any]) -> None:
     scenario_dict["battery_kwh"] = 5
     with pytest.raises(ValidationError):
         MissionScenario.model_validate(scenario_dict)
+
+
+# --- requirements added for Mission Rescue compatibility ----------------------------------
+
+
+@pytest.mark.parametrize("value", [-0.01, 1.01])
+def test_solar_power_threshold_must_be_a_fraction(value: float) -> None:
+    with pytest.raises(ValidationError):
+        SpacecraftConfiguration(
+            name="x",
+            power_source=PowerSource.SOLAR,
+            communication_mode=CommunicationMode.DIRECT_TO_EARTH,
+            solar_power_min_disk_fraction=value,
+        )
+
+
+def test_solar_power_threshold_optional_and_preserved() -> None:
+    base = {"name": "x", "power_source": "solar", "communication_mode": "direct_to_earth"}
+    assert SpacecraftConfiguration.model_validate(base).solar_power_min_disk_fraction is None
+    assert (
+        SpacecraftConfiguration.model_validate(
+            {**base, "solar_power_min_disk_fraction": 0.25}
+        ).solar_power_min_disk_fraction
+        == 0.25
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("min_mean_solar_disk_fraction", 1.5),
+        ("min_mean_solar_disk_fraction", -0.1),
+        ("min_initial_sunlight_s", -1.0),
+        ("min_initial_earth_visibility_s", -60.0),
+    ],
+)
+def test_invalid_rescue_requirements_rejected(field: str, value: float) -> None:
+    with pytest.raises(ValidationError):
+        MissionRequirements.model_validate({field: value})
+
+
+def test_initial_requirements_may_be_zero() -> None:
+    r = MissionRequirements(min_initial_sunlight_s=0.0, min_initial_earth_visibility_s=0.0)
+    assert r.min_initial_sunlight_s == 0.0

@@ -15,7 +15,9 @@ from pydantic import Field, model_validator
 from .conventions import (
     MAX_MISSION_DURATION_S,
     ContractModel,
+    DurationS,
     ElevationDeg,
+    Fraction,
     Identifier,
     LatitudeDeg,
     LongitudeDeg,
@@ -56,14 +58,25 @@ class SpacecraftConfiguration(ContractModel):
     # Longest tolerable gap in direct-to-Earth line of sight. None = no limit
     # (e.g. relay-only) -> constraint NOT_APPLICABLE.
     max_communication_blackout_s: PositiveDurationS | None = None
+    # Solar-array usability threshold on the visible solar-disk fraction. When set, a sample is
+    # "power-lit" iff visible_fraction > 0 and visible_fraction >= this value; otherwise it
+    # counts as power-dark for darkness / initial-sunlight metrics. The fraction itself is
+    # always preserved. None = power-lit follows the Sun visibility state (Phase 2 rule).
+    solar_power_min_disk_fraction: Fraction | None = None
 
 
 class MissionRequirements(ContractModel):
     """Additional hard (mandatory) requirements. Any FAIL makes the scenario ineligible."""
 
-    min_sunlight_percent: Percent | None = None
+    min_sunlight_percent: Percent | None = None  # share of TIME with the Sun visible
     min_earth_visibility_percent: Percent | None = None
     min_simultaneous_percent: Percent | None = None
+    # Time-averaged visible solar-disk fraction (0..1), i.e. mean of visible_fraction over the
+    # mission. Distinct from min_sunlight_percent (share of time sunlit).
+    min_mean_solar_disk_fraction: Fraction | None = None
+    # Continuous power-lit time / Earth visibility required from mission start (landing).
+    min_initial_sunlight_s: DurationS | None = None
+    min_initial_earth_visibility_s: DurationS | None = None
     # Minimum body elevation above the terrain horizon (e.g. antenna mask angle), applied
     # whenever the body is counted as visible. None = no clearance requirement.
     min_sun_clearance_deg: ElevationDeg | None = None

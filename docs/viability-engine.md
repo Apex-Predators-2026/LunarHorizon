@@ -29,6 +29,7 @@ Members 3/4/5 ──────────────────────
 | `outputs.py` | Assessment/ranking contract + invariant validators, `derive_eligibility` | 1 ✅ |
 | `fixtures/` | Synthetic datasets (JSON) + deterministic builders | 1 ✅ |
 | `adapters/site_file.py` | Andrew's precomputed site files → `ScientificTimeSeries` (§3a) | 1 ✅ |
+| `compat/rescue.py` | Member 5's `evaluate_timeline(Scenario, Timeline) -> ViabilityResult` on top of this engine (§5a) | interface ✅, needs Phases 2–6 to run |
 | `windows.py` | Samples → visibility windows | 2 (stub) |
 | `metrics.py` | Durations, percentages, longest outages, data-quality summary | 2 (stub) |
 | `constraints.py` | PASS / FAIL / UNKNOWN / NOT_APPLICABLE per requirement | 3 (stub) |
@@ -186,8 +187,13 @@ to the file; recomputing fractions is Member 1's job.
 | Model | Fields | Meaning of `null` |
 |---|---|---|
 | `LandingSite` | `id`, `name`, `lat`, `lon`, `surface_height_m?` | Same field names as the shared `Site` |
-| `SpacecraftConfiguration` | `power_source` (solar/radioisotope/battery_only/hybrid/other), `communication_mode` (direct_to_earth/relay/direct_and_relay/none), `max_continuous_darkness_s`, `max_communication_blackout_s` | No such limit → constraint `not_applicable` |
-| `MissionRequirements` (hard) | `min_sunlight_percent`, `min_earth_visibility_percent`, `min_simultaneous_percent`, `min_sun_clearance_deg`, `min_earth_clearance_deg`, `unknown_data_policy` | Not required |
+| `SpacecraftConfiguration` | `power_source` (solar/radioisotope/battery_only/hybrid/other), `communication_mode` (direct_to_earth/relay/direct_and_relay/none), `max_continuous_darkness_s`, `max_communication_blackout_s`, `solar_power_min_disk_fraction` | No such limit → constraint `not_applicable`; no threshold → "power-lit" follows the Sun state |
+| `MissionRequirements` (hard) | `min_sunlight_percent` (share of *time* sunlit), `min_earth_visibility_percent`, `min_simultaneous_percent`, `min_mean_solar_disk_fraction` (time-average of the visible disk fraction), `min_initial_sunlight_s`, `min_initial_earth_visibility_s`, `min_sun_clearance_deg`, `min_earth_clearance_deg`, `unknown_data_policy` | Not required |
+
+**Power-lit / power-dark.** When `solar_power_min_disk_fraction` (rescue's `panel_threshold`,
+e.g. 0.25) is set, a sample is power-lit iff `visible_fraction > 0` and `visible_fraction ≥`
+the threshold. Darkness, initial-sunlight and first-sunset metrics use this definition. The
+fraction itself is always preserved, and with a threshold of 0 "any visible disk" counts.
 | `RankingPreferences` (soft) | Non-negative relative weights for sunlight, Earth visibility, simultaneity, darkness/blackout/clearance margins | At least one weight > 0 |
 
 `unknown_data_policy` is either `report_unknown` (the default: undecidable checks are `unknown`)
@@ -202,7 +208,7 @@ or `worst_case` (unknown counts as dark or blacked out). **There is no optimisti
 | `scenario_id`, `site`, `evaluated_start_utc/end_utc` | Identity and evaluated range (= mission window) |
 | `eligibility` | `pass` / `fail` / `unknown`, **derived** from `constraints` |
 | `constraints[]` | `constraint_id`, `status` (+`not_applicable`), `threshold`, `unit`, `measured`, `message` |
-| `metrics` | Sunlight / partial-sunlight / Earth-visible / simultaneous durations and percentages; longest darkness; longest blackout |
+| `metrics` | Sunlight / partial-sunlight / Earth-visible / simultaneous durations and percentages; longest darkness; longest blackout; mean solar-disk fraction; initial sunlight / Earth visibility; time to first sunset / Earthset (`not_applicable` = never in range); mean Sun / Earth clearance; mean solar elevation |
 | `windows[]` | `kind` (sunlight, darkness, earth_visible, communication_blackout, simultaneous_sun_earth, unknown_data), start/end/`duration_s`, `clipped_at_start/end` |
 | `margins[]` | Signed headroom (+ = safe), `reference`, `related_constraint` |
 | `risks[]`, `overall_risk` | Rule-triggered indicators with the explicit `rule` text |
@@ -222,6 +228,73 @@ or `worst_case` (unknown counts as dark or blacked out). **There is no optimisti
 - `score.rank_eligible == (eligibility == pass)`. A failed scenario may still carry a score, so Member 5 can find "the closest miss", but it is never rank-eligible.
 - `RankingResult` lists every `pass` entry (ranked 1..n), then every `unknown`, then every `fail` (both unranked), whatever their scores.
 - Windows lie inside the evaluated range, and a window's `duration_s` equals end − start.
+
+## 5a. Mission Rescue compatibility (Option A)
+
+Member 5's rescue calls `evaluate_timeline(scenario: Scenario, timeline: Timeline) -> ViabilityResult`
+(shared models in `app/models.py`; `Timeline` in `app/rescue/timeline/base.py`).
+`app.viability.compat.rescue` provides that exact signature on top of the canonical engine.
+It converts shapes and units only and **never computes a viability quantity itself**.
+
+```
+Scenario ─scenario_to_mission─► MissionScenario ──┐
+Timeline ─timeline_to_series──► ScientificTimeSeries ┴► evaluate_scenario() ─► ViabilityAssessment
+ViabilityResult ◄────────────── assessment_to_result ◄──────────────────────────────┘
+```
+
+**Status: interface only.** `evaluate_scenario` raises `NotImplementedError` until Phases 2–6,
+so the layer does not yet work end-to-end. Rescue still imports its placeholder; nothing in
+`app/rescue/` was changed. To switch later, Member 5 changes one import in
+`app/rescue/viability/__init__.py` to `from app.viability.compat.rescue import evaluate_timeline`
+(keeping `CHECKS` / `CHECK_BY_CONSTRAINT`). `evaluate_timeline_detailed` returns the
+canonical assessment too, and `make_evaluate_fn(engine)` fits `Evaluator(evaluate=...)`.
+
+**Scenario → MissionScenario**
+
+| Rescue | Canonical | Conversion |
+|---|---|---|
+| `site.id` (e.g. `custom:-89.46012,221.98000`) | `site.id` | characters outside `[A-Za-z0-9._-]` → `_` (`custom_-89.46012_221.98000`) |
+| `site.lon` (0–360 °E from the catalog) | `site.lon` | `lon − 360` if `> 180` (same function as the site-file adapter) |
+| `landing_utc`, `duration_days` | `mission_start_utc`, `mission_end_utc` | start = landing (UTC); end = landing + duration |
+| `battery_hours` | `spacecraft.max_continuous_darkness_s` | × 3600 (power-dark per the threshold) |
+| `panel_threshold` | `spacecraft.solar_power_min_disk_fraction` | unchanged (configurable) |
+| `max_comms_gap_hours` | `spacecraft.max_communication_blackout_s` | × 3600 |
+| `min_sunlight_fraction` (mean disk fraction) | `requirements.min_mean_solar_disk_fraction` | unchanged; **not** `min_sunlight_percent` |
+| `min_earth_visibility_fraction` | `requirements.min_earth_visibility_percent` | × 100 |
+| `min_initial_sun_hours` / `min_initial_comms_hours` | `min_initial_sunlight_s` / `min_initial_earth_visibility_s` | × 3600 |
+| *(implied by rescue's checks)* | `power_source = solar`, `communication_mode = direct_to_earth` | documented inference |
+
+**Timeline → ScientificTimeSeries:** columns are passed through the **same per-sample
+converters as the site-file adapter**, so `NaN` → `unknown`, a 360° azimuth → 0°, and a fraction
+without its horizon is rejected. `source` `precomputed:*` → `is_synthetic = false`, apparent
+angles. `synthetic*` → `is_synthetic = true`, geometric angles. Any other source is rejected,
+because real data can't be told from synthetic. A real timeline converted this way is
+sample-for-sample identical to `load_site_file` on the same file (tested).
+
+**ViabilityAssessment → ViabilityResult (lossy, never optimistic):**
+
+| Canonical | Rescue |
+|---|---|
+| `eligibility == pass` | `passes = true`; any `fail` / `unknown` → `passes = false` |
+| constraint `fail` | `Violation` with rescue field name, rescue units (h, fraction) |
+| constraint `unknown` | `Violation`, message prefixed `UNKNOWN (incomplete data; worst case shown):` |
+| `Metric` known | value, unit-converted (s → h, percent → fraction) |
+| `Metric` bounded | unfavourable bound (lower for "more is better", upper for outages) |
+| `Metric` unavailable | worst case within the mission: 0 for fractions and initial hours; whole mission for gaps; 0 h to first sunset/Earthset; `null` clearances; **error** for mean solar elevation (no defensible worst case) |
+| first sunset/Earthset `not_applicable` | `null` (rescue's "never during the mission") |
+| `score` null | 0.0 if not passing; **error** if passing |
+| a failing constraint with no rescue field | **error** (can't occur from a rescue scenario) |
+
+Every constraint the layer creates maps 1:1 onto rescue's `CHECK_BY_CONSTRAINT` (tested), so
+loosening and explanations keep working.
+
+**Coordination with Arush (Member 5):**
+1. **Unknown state.** Proposed: add optional `eligibility: "pass" | "fail" | "unknown"` (and/or `score: float | None`) to `ViabilityResult`. Until then, UNKNOWN reads as a failure with worst-case numbers. Rescue's **loosening may suggest relaxing a requirement because data is missing**. Suggest skipping loosening for violations whose message starts with `UNKNOWN`.
+2. **Sample semantics.** Rescue treats each hourly sample as a 1 h bin, so the last sample is at landing + duration − 1 h. The canonical Phase 2 integration rule is still open (§10). If samples are treated as instants, the final hour is uncovered and could make every rescue result UNKNOWN. Proposal: for regular series, hold each sample for one step (sample-and-hold). That matches rescue's placeholder and Andrew's `intervals()`.
+3. **Panel threshold of 0.** The placeholder counts `fraction >= 0` (even total darkness) as lit. The canonical rule needs `fraction > 0`. Results will differ only at threshold 0.
+4. **Naive datetimes.** Shared `Scenario.landing_utc` treats naive times as UTC, while the canonical API rejects them. The layer accepts the shared model's decision; flagged for the team.
+5. **Two readers of `data/sites`.** `rescue/timeline/precomputed.py` and the site-file adapter parse the same files. They agree today (tested); keep one reader long-term.
+6. **Equivalence check.** Once Phase 2 exists, compare canonical vs placeholder metrics on the same timelines before switching the import.
 
 ## 6. Assumptions and limitations
 
@@ -268,15 +341,18 @@ A test fails if the JSON and the builders drift apart.
 ```bash
 cd backend
 python -m pytest tests/viability -q
-ruff check --line-length 120 app/viability tests      # optional
-mypy --strict app/viability tests/viability           # optional
+ruff check --line-length 120 app/viability tests/viability                      # optional
+mypy --strict --follow-imports=silent app/viability tests/viability             # optional
 ```
 
 Requires Python ≥ 3.11, `pydantic` 2 and `pytest` (both already in `requirements.txt`).
-No new dependencies. The viability tests import `app.viability` only, so FastAPI, NumPy and
-rasterio are not needed. The adapter tests read the committed `data/sites/*.json`. Andrew's
-`tests/test_engine.py` needs `numpy` and `rasterio`; run `python -m pytest tests` for
-everything.
+No new dependencies.
+- The core package, `adapters/` and `compat/rescue.py` import neither NumPy nor FastAPI.
+- `test_rescue_compat.py` uses rescue's timeline providers, which need `numpy`.
+- The adapter tests read the committed `data/sites/*.json`.
+- `--follow-imports=silent` keeps mypy from reporting existing strict-mode findings in teammates' modules.
+
+Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.ini` is the team's config.
 
 ## 9. Roadmap
 
@@ -307,7 +383,7 @@ everything.
 
 **Engine semantics (Phase 2, team input welcome):**
 7. Integration rule between samples: transition at the interpolated zero-crossing of clearance, or at the sample midpoint?
-8. Does `partial` sunlight count as sunlit, dark, or fraction-weighted toward sunlight duration and longest darkness? This is material: partial-disk hours are 6–13% of the timeline at each real site that gets any sun. Andrew's summaries use "any part of the disk" (fraction > 0). The adapter preserves the fraction, so any rule remains possible.
+8. Does `partial` sunlight count as sunlit, dark, or fraction-weighted toward sunlight duration and longest darkness? This is material: partial-disk hours are 6–13% of the timeline at each real site that gets any sun. Andrew's summaries use "any part of the disk" (fraction > 0). For power, the configurable `solar_power_min_disk_fraction` (rescue default 0.25) now answers it per scenario. The default when no threshold is set is still to decide.
 9. Darkness spanning mission start is clipped. Is landing assumed to happen with a full battery?
 
 **With Members 3/4/5:** the field names above; whether `windows[]` should be paginated or
