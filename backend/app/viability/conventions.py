@@ -33,8 +33,8 @@ from pydantic import (
 )
 
 SCHEMA_VERSION = "0.1.0-draft"
-# Version of the viability computations (re-exported by engine.py). Phase 3 = constraint verdicts.
-ENGINE_VERSION = "0.4.0-phase4"
+# Version of the viability computations (re-exported by engine.py). Phase 5 = scoring and ranking.
+ENGINE_VERSION = "0.5.0-phase5"
 
 # Sanity cap on a single mission window. Not a physical limit; guards against typos.
 MAX_MISSION_DURATION_S = 10 * 365.25 * 86400.0

@@ -1,4 +1,4 @@
-"""Desirability scoring (Phase 5A; docs §5e, D1-D8) and the ranking stub for the integration step.
+"""Desirability scoring (Phase 5A; docs §5e, D1-D8). ``rank_assessments`` is re-exported from ``ranking``.
 
 Score: 100 * sum(effective weight * normalised component value) over the ACTIVE components, with
 each component value in [0, 1] known exactly or only as an interval:
@@ -40,11 +40,10 @@ from .outputs import (
     Metric,
     MetricsSummary,
     OperationalMargin,
-    RankingResult,
     ScoreBreakdown,
     ScoreComponentResult,
-    ViabilityAssessment,
 )
+from .ranking import rank_assessments  # re-exported: the Phase 1 import path keeps working
 
 __all__ = ["SCORING_METHOD_VERSION", "rank_assessments", "score_scenario"]
 
@@ -296,7 +295,3 @@ def score_scenario(
         score_bounds=bounds,
         configuration_key=scenario.configuration_key(),
     )
-
-
-def rank_assessments(assessments: list[ViabilityAssessment]) -> RankingResult:
-    raise NotImplementedError("Phase 5: ranking")

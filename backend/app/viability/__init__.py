@@ -69,11 +69,14 @@ from .outputs import (
     VisibilityWindow,
     derive_eligibility,
 )
+from .ranking import RankingComparabilityError, partition_comparable, rank_assessments, ranking_explanations
+from .scoring import SCORING_METHOD_VERSION, score_scenario
 from .windows import PreparedSeries, extract_windows, prepare_series
 
 __all__ = [
     "ENGINE_VERSION",
     "SCHEMA_VERSION",
+    "SCORING_METHOD_VERSION",
     "AngleType",
     "Body",
     "BodyObservation",
@@ -105,6 +108,7 @@ __all__ = [
     "PreparedSeries",
     "Provenance",
     "RankedScenario",
+    "RankingComparabilityError",
     "RankingPreferences",
     "RankingResult",
     "RiskIndicator",
@@ -135,5 +139,9 @@ __all__ = [
     "evaluate_constraints",
     "evaluate_scenario",
     "extract_windows",
+    "partition_comparable",
     "prepare_series",
+    "rank_assessments",
+    "ranking_explanations",
+    "score_scenario",
 ]

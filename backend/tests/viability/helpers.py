@@ -271,7 +271,7 @@ def raw_longest_outages(timeline: dict[str, Any], power_min_fraction: float = 0.
     would go stale whenever Member 1 regenerates the terrain. Requires fully known columns and 1 h steps.
     """
     tl = timeline  # the "timeline" object of a precomputed site file
-    t0, t1 = (datetime.fromisoformat(t.replace("Z", "+00:00")) for t in tl["time_utc"][:2])
+    t0, t1 = (datetime.fromisoformat(t) for t in tl["time_utc"][:2])
     assert t1 - t0 == timedelta(hours=1), "hourly samples required"
     n = len(tl["time_utc"]) - 1
     sun, frac, earth = tl["sun_visible"][:n], tl["sun_visible_fraction"][:n], tl["earth_visible"][:n]

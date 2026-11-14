@@ -81,9 +81,7 @@ def _comp(
     )
 
 
-def _components(
-    sun: Metric | None, two_active: bool, earth: Metric | None = None
-) -> list[Any]:
+def _components(sun: Metric | None, two_active: bool, earth: Metric | None = None) -> list[Any]:
     """SUN active (weight 1), or SUN + EARTH active (0.5 each); everything else inactive."""
     if two_active:
         w = 0.5
@@ -120,29 +118,20 @@ def known_score(
     )
 
 
-def bounded_score(
-    lo: float, hi: float, *, key: str = KEY, rank_eligible: bool = True
-) -> ScoreBreakdown:
+def bounded_score(lo: float, hi: float, *, key: str = KEY, rank_eligible: bool = True) -> ScoreBreakdown:
     return ScoreBreakdown(
         method_version="m1",
         score=None,
         rank_eligible=rank_eligible,
-        components=_components(
-            Metric.bounded(lo / 100.0, hi / 100.0, Unit.FRACTION), False
-        ),
+        components=_components(Metric.bounded(lo / 100.0, hi / 100.0, Unit.FRACTION), False),
         status=ScoreStatus.BOUNDED,
         score_bounds=Metric.bounded(lo, hi, Unit.PERCENT),
         configuration_key=key,
     )
 
 
-def no_components_score(
-    *, key: str = KEY, rank_eligible: bool = True
-) -> ScoreBreakdown:
-    comps = [
-        _comp(c, U if c is CLEAR else Z, 1.0 if c is CLEAR else 0.0, 0.0, None)
-        for c in ScoreComponent
-    ]
+def no_components_score(*, key: str = KEY, rank_eligible: bool = True) -> ScoreBreakdown:
+    comps = [_comp(c, U if c is CLEAR else Z, 1.0 if c is CLEAR else 0.0, 0.0, None) for c in ScoreComponent]
     return ScoreBreakdown(
         method_version="m1",
         score=None,
@@ -155,10 +144,7 @@ def no_components_score(
 
 def unknown_score(*, key: str = KEY, no_active: bool = False) -> ScoreBreakdown:
     comps = (
-        [
-            _comp(c, U if c is CLEAR else Z, 1.0 if c is CLEAR else 0.0, 0.0, None)
-            for c in ScoreComponent
-        ]
+        [_comp(c, U if c is CLEAR else Z, 1.0 if c is CLEAR else 0.0, 0.0, None) for c in ScoreComponent]
         if no_active
         else _components(None, False)
     )
@@ -188,30 +174,15 @@ def make(
     elif isinstance(score, ScoreBreakdown):
         sb = score
     elif score is None:
-        sb = (
-            unknown_score()
-            if eligibility is UNK
-            else known_score(50.0, rank_eligible=eligibility is P)
-        )
+        sb = unknown_score() if eligibility is UNK else known_score(50.0, rank_eligible=eligibility is P)
     else:
         sb = known_score(score, rank_eligible=eligibility is P)
     kw = assessment_kwargs(eligibility, statuses or _ELIG_STATUSES[eligibility])
     dq = kw["data_quality"]
-    prov = dq.provenance.model_copy(
-        update={"is_synthetic": basis is DataBasis.SYNTHETIC}
-    )
-    calc = (
-        CalculationBasis.GEOMETRIC_ONLY
-        if basis is DataBasis.REAL_GEOMETRIC_ONLY
-        else dq.calculation_basis
-    )
-    if (
-        basis is DataBasis.REAL_TERRAIN_AWARE
-        and calc is CalculationBasis.GEOMETRIC_ONLY
-    ):
-        calc = next(
-            c for c in CalculationBasis if c is not CalculationBasis.GEOMETRIC_ONLY
-        )
+    prov = dq.provenance.model_copy(update={"is_synthetic": basis is DataBasis.SYNTHETIC})
+    calc = CalculationBasis.GEOMETRIC_ONLY if basis is DataBasis.REAL_GEOMETRIC_ONLY else dq.calculation_basis
+    if basis is DataBasis.REAL_TERRAIN_AWARE and calc is CalculationBasis.GEOMETRIC_ONLY:
+        calc = next(c for c in CalculationBasis if c is not CalculationBasis.GEOMETRIC_ONLY)
     kw["data_quality"] = dq.model_copy(
         update={
             "provenance": prov,
@@ -258,9 +229,7 @@ def test_unknown_never_ranked_and_score_stays_none() -> None:
 
 
 def test_all_scenarios_are_preserved() -> None:
-    items = [
-        make(f"s{i}", e, 10.0 + i) for i, e in enumerate([P, F, UNK, P, F, UNK, P])
-    ]
+    items = [make(f"s{i}", e, 10.0 + i) for i, e in enumerate([P, F, UNK, P, F, UNK, P])]
     assert sorted(ids(rank_assessments(items))) == sorted(a.scenario_id for a in items)
 
 
@@ -287,15 +256,11 @@ def test_bounded_orders_by_lower_bound_without_inventing_a_score() -> None:
 
 
 def test_exact_before_bounded_at_equal_lower_bound() -> None:
-    r = rank_assessments(
-        [make("a-bounded", P, bounded_score(70.0, 90.0)), make("z-exact", P, 70.0)]
-    )
+    r = rank_assessments([make("a-bounded", P, bounded_score(70.0, 90.0)), make("z-exact", P, 70.0)])
     assert ids(r) == ["z-exact", "a-bounded"]  # known first even though id sorts later
 
 
-def test_pass_without_scorable_components_is_ranked_without_inventing_a_number() -> (
-    None
-):
+def test_pass_without_scorable_components_is_ranked_without_inventing_a_number() -> None:
     # No scorable component means all-zero effective weights: such scenarios only compare with each
     # other, and fall through to risk, coverage and id (never a score of 0).
     items = [
@@ -468,9 +433,7 @@ def test_order_independent_of_input_order() -> None:
         shuffled = items[:]
         rng.shuffle(shuffled)
         assert rank_assessments(shuffled).model_dump_json() == baseline
-    assert (
-        rank_assessments(reversed(items)).model_dump_json() == baseline
-    )  # also accepts any iterable
+    assert rank_assessments(reversed(items)).model_dump_json() == baseline  # also accepts any iterable
 
 
 def test_result_is_valid_contract_and_roundtrips() -> None:
@@ -497,9 +460,7 @@ def test_empty_input() -> None:
 def test_singleton(elig: Eligibility, rank: int | None) -> None:
     r = rank_assessments([make("only", elig, 33.0 if elig is not UNK else None)])
     assert ids(r) == ["only"] and r.entries[0].rank == rank
-    assert (
-        r.data_basis is DataBasis.SYNTHETIC and r.policy is ComparabilityPolicy.STRICT
-    )
+    assert r.data_basis is DataBasis.SYNTHETIC and r.policy is ComparabilityPolicy.STRICT
 
 
 def test_all_unranked_has_no_ranks() -> None:
@@ -537,13 +498,9 @@ def test_legacy_score_without_phase5_metadata_rejected() -> None:
     [DataBasis.REAL_TERRAIN_AWARE, DataBasis.REAL_GEOMETRIC_ONLY],
 )
 @pytest.mark.parametrize("policy", list(ComparabilityPolicy))
-def test_synthetic_never_competes_with_real_under_any_policy(
-    other: DataBasis, policy: ComparabilityPolicy
-) -> None:
+def test_synthetic_never_competes_with_real_under_any_policy(other: DataBasis, policy: ComparabilityPolicy) -> None:
     with pytest.raises(RankingComparabilityError, match="data basis"):
-        rank_assessments(
-            [make("syn", P, 99.0), make("real", P, 1.0, basis=other)], policy
-        )
+        rank_assessments([make("syn", P, 99.0), make("real", P, 1.0, basis=other)], policy)
 
 
 @pytest.mark.parametrize("policy", list(ComparabilityPolicy))
@@ -558,18 +515,12 @@ def test_real_terrain_and_geometric_not_mixed(policy: ComparabilityPolicy) -> No
 
 def test_mixed_basis_error_even_when_the_odd_one_is_unranked() -> None:
     with pytest.raises(RankingComparabilityError):
-        rank_assessments(
-            [make("p", P, 5.0), make("f", F, 5.0, basis=DataBasis.REAL_TERRAIN_AWARE)]
-        )
+        rank_assessments([make("p", P, 5.0), make("f", F, 5.0, basis=DataBasis.REAL_TERRAIN_AWARE)])
 
 
-@pytest.mark.parametrize(
-    "basis", [DataBasis.REAL_TERRAIN_AWARE, DataBasis.REAL_GEOMETRIC_ONLY]
-)
+@pytest.mark.parametrize("basis", [DataBasis.REAL_TERRAIN_AWARE, DataBasis.REAL_GEOMETRIC_ONLY])
 def test_each_real_basis_ranks_alone_and_is_recorded(basis: DataBasis) -> None:
-    r = rank_assessments(
-        [make("a", P, 1.0, basis=basis), make("b", P, 2.0, basis=basis)]
-    )
+    r = rank_assessments([make("a", P, 1.0, basis=basis), make("b", P, 2.0, basis=basis)])
     assert r.data_basis is basis and all(e.data_basis is basis for e in r.entries)
 
 
@@ -594,9 +545,7 @@ def test_requirements_mismatch_strict_vs_relaxed() -> None:
     with pytest.raises(RankingComparabilityError):
         rank_assessments([a, b], ComparabilityPolicy.STRICT)
     r = rank_assessments([a, b], ComparabilityPolicy.SAME_METHOD_AND_WEIGHTS)
-    assert (
-        ids(r) == ["b", "a"] and r.policy is ComparabilityPolicy.SAME_METHOD_AND_WEIGHTS
-    )
+    assert ids(r) == ["b", "a"] and r.policy is ComparabilityPolicy.SAME_METHOD_AND_WEIGHTS
 
 
 def test_duration_mismatch_strict_vs_relaxed() -> None:
@@ -609,9 +558,7 @@ def test_duration_mismatch_strict_vs_relaxed() -> None:
 def test_relaxed_still_requires_same_method_weights_basis() -> None:
     relaxed = ComparabilityPolicy.SAME_METHOD_AND_WEIGHTS
     with pytest.raises(RankingComparabilityError):
-        rank_assessments(
-            [make("a", P, 1.0), make("b", P, known_score(1.0, method="m9"))], relaxed
-        )
+        rank_assessments([make("a", P, 1.0), make("b", P, known_score(1.0, method="m9"))], relaxed)
     with pytest.raises(RankingComparabilityError):
         rank_assessments(
             [make("a", P, 1.0), make("b", P, 1.0, basis=DataBasis.REAL_TERRAIN_AWARE)],
@@ -663,12 +610,8 @@ def test_partition_comparable_groups_deterministically() -> None:
     ]
     groups = partition_comparable(items)
     assert [[a.scenario_id for a in g] for g in groups] == [["a", "b"], ["c"], ["d"]]
-    assert [
-        [a.scenario_id for a in g] for g in partition_comparable(reversed(items))
-    ] == [["a", "b"], ["c"], ["d"]]
-    assert (
-        len(partition_comparable(items, "same_method_and_weights")) == 2
-    )  # synthetic merged, real apart
+    assert [[a.scenario_id for a in g] for g in partition_comparable(reversed(items))] == [["a", "b"], ["c"], ["d"]]
+    assert len(partition_comparable(items, "same_method_and_weights")) == 2  # synthetic merged, real apart
     for g in groups:
         assert rank_assessments(g)  # every group is rankable
 
@@ -690,34 +633,19 @@ def test_scores_and_eligibility_are_copied_verbatim() -> None:
     by_id = {a.scenario_id: a for a in items}
     for e in rank_assessments(items).entries:
         a = by_id[e.scenario_id]
-        assert (
-            e.eligibility is a.eligibility
-            and e.score == a.score.score
-            and e.score_status is a.score.status
-        )
-        assert (
-            e.score_bounds == a.score.score_bounds and e.overall_risk is a.overall_risk
-        )
+        assert e.eligibility is a.eligibility and e.score == a.score.score and e.score_status is a.score.status
+        assert e.score_bounds == a.score.score_bounds and e.overall_risk is a.overall_risk
 
 
 # --- serialization and explanation ------------------------------------------------------------------------
 
 
 def test_serialization_metadata() -> None:
-    r = rank_assessments(
-        [make("p", P, bounded_score(10.0, 20.0)), make("u", UNK), make("f", F, 5.0)]
-    )
+    r = rank_assessments([make("p", P, bounded_score(10.0, 20.0)), make("u", UNK), make("f", F, 5.0)])
     d = json.loads(r.model_dump_json())
-    assert (
-        d["method_version"] == "m1"
-        and d["data_basis"] == "synthetic"
-        and d["policy"] == "strict"
-    )
+    assert d["method_version"] == "m1" and d["data_basis"] == "synthetic" and d["policy"] == "strict"
     assert [e["rank"] for e in d["entries"]] == [1, None, None]
-    assert (
-        d["entries"][0]["score"] is None
-        and d["entries"][0]["score_status"] == "bounded"
-    )
+    assert d["entries"][0]["score"] is None and d["entries"][0]["score_status"] == "bounded"
     assert d["entries"][1]["score_status"] == "eligibility_unknown"
 
 

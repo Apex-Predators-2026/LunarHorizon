@@ -148,9 +148,10 @@ def test_result_round_trips_through_the_contract_validator() -> None:
     assert ScoreBreakdown.model_validate(b.model_dump(mode="json")) == b
 
 
-def test_rank_assessments_stub_is_preserved_for_integration() -> None:
-    with pytest.raises(NotImplementedError):
-        rank_assessments([])
+def test_rank_assessments_is_the_ranking_module_function() -> None:
+    from app.viability import ranking
+
+    assert rank_assessments is ranking.rank_assessments  # re-exported, not a copy (integration step)
 
 
 # --- component formulas and boundaries -----------------------------------------------------------
