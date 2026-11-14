@@ -1,4 +1,4 @@
-"""Precompute horizon masks and 2-year hourly visibility timelines for all curated sites
+"""Precompute horizon masks and 5-year hourly (2026-2030) visibility timelines for all curated sites
 (landing candidates and reference landings, app/engine/sites.py ALL_SITES).
 
 Run from backend/:  .venv\\Scripts\\python.exe scripts\\precompute.py [site-id ...]
