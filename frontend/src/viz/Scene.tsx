@@ -102,6 +102,8 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     () => (site ? new SiteFrame(site.lat, site.lon, site.ground_height_m) : null),
     [site],
   )
+  // The Moon's spin axis (towards the north pole) in that frame: "north-up" for the top-down view.
+  const moonAxis = useMemo((): [number, number, number] | null => (frame ? [frame.east[2], frame.up[2], -frame.north[2]] : null), [frame])
   // The side panels cover the right of the view: shift the picture so the Moon/lander sits in the
   // middle of the free area to their left (half the panels' width, re-measured on resize).
   const sideRef = useRef<HTMLDivElement>(null)
@@ -357,8 +359,38 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
 
   const finestResM = terrainStats ? Math.max(5, Math.round(vertexSpacingM(terrainStats.deepest))) : null
 
+
+  // The clickable site labels sit on top of the canvas: a wheel (or trackpad pinch) over one still
+  // zooms the 3D view, as if the label weren't there. Native and non-passive, so a pinch over a label
+  // doesn't zoom the page instead.
+  const sceneRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const root = sceneRef.current
+    if (!root) return
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.target instanceof Element) || !e.target.closest('[data-site-label]')) return
+      e.preventDefault()
+      root.querySelector('canvas')?.dispatchEvent(
+        new WheelEvent('wheel', {
+          deltaX: e.deltaX,
+          deltaY: e.deltaY,
+          deltaZ: e.deltaZ,
+          deltaMode: e.deltaMode,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          ctrlKey: e.ctrlKey,
+          shiftKey: e.shiftKey,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    }
+    root.addEventListener('wheel', onWheel, { passive: false })
+    return () => root.removeEventListener('wheel', onWheel)
+  }, [])
+
   return (
-    <div className={`absolute inset-0 overflow-hidden ${pin.phase === 'armed' ? 'pin-cursor' : measureArmed ? 'measure-cursor' : ''}`}>
+    <div ref={sceneRef} className={`absolute inset-0 overflow-hidden ${pin.phase === 'armed' ? 'pin-cursor' : measureArmed ? 'measure-cursor' : ''}`}>
       {/* Renders only when something changes (camera, time, tiles arriving): an idle view costs
           nothing. Components that animate on their own must call invalidate(). */}
       {/* A new graphics preset gets a fresh canvas: anti-aliasing is fixed when the WebGL context is made. */}
@@ -421,6 +453,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             zooms towards the cursor. TileTree also keeps the camera itself above the ground. */}
         <GlobeControls
           moonCentre={frame?.moonCentre ?? null}
+          moonAxis={moonAxis}
           groundRadius={MOON_RADIUS_M + (site?.ground_height_m ?? 0)}
           maxDistance={MAX_CAMERA_DISTANCE_M}
         />
@@ -495,6 +528,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           key={x.id}
           ref={siteLabelRefs.get(x.id)}
           type="button"
+          data-site-label
           data-no-sfx
           onClick={() => {
             playBubblePop(0)
