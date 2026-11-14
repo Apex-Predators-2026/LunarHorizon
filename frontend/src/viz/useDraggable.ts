@@ -45,7 +45,6 @@ export function useDraggable(rootRef: RefObject<HTMLElement | null>) {
     if (e.button !== 0) return
     const rect = rootRef.current!.getBoundingClientRect()
     drag.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top, sx: e.clientX, sy: e.clientY, moved: false }
-    e.currentTarget.setPointerCapture(e.pointerId)
   }
   const onPointerMove = (e: React.PointerEvent<HTMLElement>) => {
     const d = drag.current
@@ -53,6 +52,12 @@ export function useDraggable(rootRef: RefObject<HTMLElement | null>) {
     if (!d.moved) {
       if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < CLICK_SLOP_PX) return
       d.moved = true
+      // Capture the pointer only once it is really a drag, so plain clicks on things inside the panel still work.
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId)
+      } catch {
+        /* pointer already gone */
+      }
       const r = rootRef.current!.getBoundingClientRect()
       setSize({ w: Math.round(r.width), h: Math.round(r.height) }) // whole pixels: fractional sizes let the panel's background fringe at the edges
       setDragging(true)

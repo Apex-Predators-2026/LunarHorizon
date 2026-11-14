@@ -3,6 +3,7 @@ import { useAppStore } from '../store'
 import type { SiteInfo, SiteStatus, TimelineStep } from '../types'
 import { vertexSpacingM } from './globe/cubeSphere'
 import type { TileStats } from './globe/TileTree'
+import { LoadingIndicator } from '../ui/LoadingIndicator'
 import { SelectField } from '../ui/MdFields'
 import { DatePopup } from './DatePopup'
 import { fmtDeg, fmtPct, sunUp } from './timeline'
@@ -57,7 +58,12 @@ export function SiteSelect({ sites, error, loading }: { sites: SiteInfo[] | null
         })}
       </SelectField>
       {error && <p className="px-4 text-red-400">{error}. Is the backend running on port 8000?</p>}
-      {!error && loading && <p className="px-4 text-slate-400">Loading…</p>}
+      {!error && loading && (
+        <p className="flex items-center gap-2 px-4 text-slate-400">
+          <LoadingIndicator size={20} contained={false} label="Loading" />
+          Loading…
+        </p>
+      )}
     </div>
   )
 }
