@@ -66,13 +66,16 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
     # Undecided (missing data) options can't be weighed against decided ones; count them and leave them out.
     undecided = sum(c.result.verdict == "unknown" for c in cands)
     cands = [c for c in cands if c.result.verdict != "unknown"]
+    # A score is needed to weigh engineering against science; unscored results are left out (never as 0).
+    unscored = sum(c.result.score is None for c in cands)
+    cands = [c for c in cands if c.result.score is not None]
 
     wsum = req.engineering_weight + req.science_weight
 
     def option(c: Candidate) -> CompromiseOption:
         d = _science_distance(c.scenario.site, target, radius)
         sci = _science_score(d, req)
-        eng = c.result.score_or_zero / 100.0
+        eng = c.result.score / 100.0
         meets_e, meets_s = c.result.passes, sci >= g.min_science_score
         combined = (req.engineering_weight * eng + req.science_weight * sci) / wsum
         bits = [f"{c.scenario.site.name} on {fmt_time(c.scenario.landing_utc)}",
@@ -90,8 +93,8 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
     for c in cands:
         k = c.key
         best = by_loc.get(k)
-        rank = (c.result.passes, c.result.score_or_zero)
-        if best is None or rank > (best.result.passes, best.result.score_or_zero):
+        rank = (c.result.passes, c.result.score)  # only scored results reach this point
+        if best is None or rank > (best.result.passes, best.result.score):
             by_loc[k] = c
     opts_all = [option(c) for c in by_loc.values()]
 
@@ -157,6 +160,9 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
         assumptions.append(f"{excluded} candidates were left out because there is no real data for them (e.g. points "
                            "around the science target). Simulation mode (include_synthetic=true) would use synthetic "
                            "placeholder data for them.")
+    if unscored:
+        assumptions.append(f"{unscored} candidates have no score from the viability engine and were left out of the "
+                           "trade-off (a missing score is never treated as 0).")
     if undecided:
         assumptions.append(f"{undecided} candidates are UNKNOWN (mission outside the real data's time range) and "
                            "were left out of the trade-off.")
