@@ -22,9 +22,11 @@ Open it from the **Scenario comparison** tab in the app header.
 - **Timelines** – the data engine's site records (`app/store.py`, same data as
   `/api/sites/{id}/timeline`). No Sun/Earth or terrain geometry is computed here.
 - **Terrain horizons** – `GET /api/sites/{id}/horizon` (frontend, cached per site).
-- **Viability** – `app/rescue/viability.evaluate_timeline`, the team's single swap point. When
-  Brandon's evaluator replaces the placeholder there, the comparison uses it automatically.
-  Ranking is "passes first, then score" on that output; nothing is re-scored.
+- **Viability** – `app/viability/compat/rescue.evaluate_timeline_detailed` (Member 2's canonical engine,
+  the same adapter Rescue uses): the shared `ViabilityResult` plus the full canonical assessment.
+- **Ranking** – `app/viability/ranking` via `app/compare/ranking.py`: `partition_comparable` splits the
+  selected scenarios into comparable groups, `rank_assessments` ranks each group, `ranking_explanations`
+  gives each scenario's reason. The comparison never ranks, sorts or re-scores on its own.
 - **PSR distances** – Mission Rescue's approximate PSR catalog (`app/rescue/catalog.py`), only for
   the clearly labelled *demonstration* science criterion of the trade-off panel.
 
@@ -53,6 +55,29 @@ lists, `events`, `site_context`, `science_context` and a columnar `timeline` (ho
 Full schema: `backend/app/compare/schemas.py` or http://localhost:8000/docs.
 
 Statistics are computed on the full hourly data even when the returned timeline is decimated.
+
+### Canonical ranking (`ranking`, `ranking_groups`, `ranking_method`)
+
+The selected scenarios are ranked **together** in one request (a ranking belongs to a set). Per result:
+
+```jsonc
+"ranking": {                       // null when the scenario has no canonical assessment (e.g. no data)
+  "eligibility": "pass",           // pass | fail | unknown   (UNKNOWN = cannot be decided, never FAIL)
+  "rank": 1,                       // PASS only; null for FAIL and UNKNOWN
+  "group": "G1", "group_size": 3, "ranked_in_group": 2,
+  "explanation": "Rank 1: all hard constraints pass; ...",   // the engine's own text
+  "score_status": "known",         // known | bounded | eligibility_unknown | no_scorable_components
+  "score": 97.4,                   // exact score only; null = no exact number (never 0)
+  "score_lower": 97.4, "score_upper": 97.4,   // bounds for a bounded score
+  "overall_risk": "moderate", "data_basis": "real_terrain_aware"
+}
+```
+
+`ranking_groups[]`: `{ id, primary, keys (canonical order: PASS, UNKNOWN, FAIL), ranked_keys, data_basis,
+policy, method_version, separate_reason }`. Scenarios with a different data basis, scoring method, requirements
+or mission duration are in separate groups (STRICT policy) and are **never ranked against each other**; the
+primary group is the largest. A PASS scenario in a non-primary group shows "rank n in separate group Gx",
+never a place in the main ranking.
 
 ## Data honesty rules
 

@@ -20,12 +20,13 @@ import {
   fromTeamScenario,
   makeScenario,
   resultKey,
+  selectionKey,
   siteOptionFromInfo,
   toTeamScenario,
   validateScenario,
   type SiteOption,
 } from './scenario'
-import type { ComparisonScenario, ResultState, ScenarioOrigin } from './types'
+import type { ComparisonScenario, RankingGroup, ResultState, ScenarioOrigin } from './types'
 
 type Status = 'idle' | 'loading' | 'done' | 'error'
 
@@ -45,6 +46,11 @@ export interface CompareState {
   results: Record<string, ResultState> // by resultKey
   notes: string[]
   viabilitySource: string
+  // Canonical ranking of the selected set. A ranking is a property of the whole set, so it is only valid
+  // while rankingSetKey === selectionKey(...) of the current selection.
+  rankingGroups: RankingGroup[]
+  rankingMethod: string | null
+  rankingSetKey: string | null
   sites: SiteOption[]
   sitesStatus: Status
   sitesError: string | null
@@ -134,6 +140,9 @@ export const useCompareStore = create<CompareState>()(
       results: {},
       notes: [],
       viabilitySource: '',
+      rankingGroups: [],
+      rankingMethod: null,
+      rankingSetKey: null,
       sites: FALLBACK_SITES,
       sitesStatus: 'idle',
       sitesError: null,
@@ -272,47 +281,62 @@ export const useCompareStore = create<CompareState>()(
       },
 
       refresh: async () => {
-        const { scenarios, selectedIds, allowDemo, results } = get()
-        const selected = scenarios.filter((s) => selectedIds.includes(s.id))
-        const pending: ComparisonScenario[] = []
+        const { scenarios, selectedIds, allowDemo, results, rankingSetKey } = get()
+        const selected = selectedIds.map((id) => scenarios.find((s) => s.id === id)).filter((s): s is ComparisonScenario => !!s)
+        const valid: ComparisonScenario[] = []
         const next = { ...results }
         for (const s of selected) {
           const key = resultKey(s, allowDemo)
           const problems = validateScenario(s)
           if (problems.length) next[key] = { state: 'error', message: problems.join(' ') }
-          else if (!next[key] || next[key].state === 'error') {
-            next[key] = { state: 'loading' }
-            pending.push(s)
-          }
+          else valid.push(s)
+        }
+        const setKey = selectionKey(valid, allowDemo)
+        const allDone = valid.every((s) => next[resultKey(s, allowDemo)]?.state === 'done')
+        if (setKey === rankingSetKey && allDone) {
+          set({ results: next })
+          return
+        }
+        // Scenarios without any result yet show "loading"; existing results stay visible while the set is re-ranked.
+        for (const s of valid) {
+          const key = resultKey(s, allowDemo)
+          if (!next[key] || next[key].state === 'error') next[key] = { state: 'loading' }
         }
         set({ results: next })
-        if (!pending.length) return
+        if (!valid.length) {
+          set({ rankingGroups: [], rankingMethod: null, rankingSetKey: setKey })
+          return
+        }
         inflight?.abort()
         const ctrl = new AbortController()
         inflight = ctrl
         try {
+          // The whole selected set goes in one request: the canonical ranking compares the scenarios together.
           const res = await postCompare(
             {
-              scenarios: pending.map((s) => ({ key: resultKey(s, allowDemo), scenario: toTeamScenario(s), spacecraft: s.spacecraft })),
+              scenarios: valid.map((s) => ({ key: resultKey(s, allowDemo), scenario: toTeamScenario(s), spacecraft: s.spacecraft })),
               allow_demo_data: allowDemo,
             },
             ctrl.signal,
           )
           const done = { ...get().results }
           for (const r of res.results) done[r.key] = { state: 'done', result: r }
-          set({ results: done, notes: res.notes, viabilitySource: res.viability_source })
+          set({
+            results: done, notes: res.notes, viabilitySource: res.viability_source,
+            rankingGroups: res.ranking_groups ?? [], rankingMethod: res.ranking_method ?? null, rankingSetKey: setKey,
+          })
         } catch (e) {
           if (ctrl.signal.aborted) return
           const failed = { ...get().results }
           const msg = errorMessage(e)
           const offline = /fetch|network|ECONNREFUSED|50[0-4]/i.test(msg)
-          for (const s of pending) {
+          for (const s of valid) {
             failed[resultKey(s, allowDemo)] = {
               state: 'error',
               message: offline ? `Backend unavailable (${msg}). No scientific data is shown for this scenario.` : msg,
             }
           }
-          set({ results: failed })
+          set({ results: failed, rankingGroups: [], rankingMethod: null, rankingSetKey: null })
         } finally {
           if (inflight === ctrl) inflight = null
         }
