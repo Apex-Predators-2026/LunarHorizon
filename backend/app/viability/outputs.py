@@ -34,6 +34,7 @@ from .conventions import (
 from .enums import (
     AngleType,
     CalculationBasis,
+    Comparison,
     Condition,
     ConditionState,
     ConstraintId,
@@ -46,6 +47,8 @@ from .enums import (
     ScoreComponent,
     Severity,
     Unit,
+    UnknownDataPolicy,
+    UnknownReason,
     VisibilityCriterion,
     WindowKind,
 )
@@ -176,12 +179,28 @@ class MetricsSummary(ContractModel):
 
 
 class ConstraintEvaluation(ContractModel):
+    """One hard requirement's verdict (Phase 3; docs section 5c).
+
+    The first six fields are the Phase 1 contract. The remaining fields are additive and
+    optional (defaults keep older constructors valid); ``constraints.evaluate_constraints``
+    always fills them so Phase 4 (risk) and Phase 6 (explanations) can trace every verdict.
+    """
+
     constraint_id: ConstraintId
     status: ConstraintStatus
     threshold: StrictFloat | None  # None only when NOT_APPLICABLE
     unit: Unit
     measured: Metric
     message: NonEmptyStr
+    # --- Phase 3 evidence (additive) ---
+    name: NonEmptyStr | None = None  # human-readable constraint name
+    comparison: Comparison | None = None  # AT_LEAST (min) / AT_MOST (max); None = not a threshold test
+    requirement_field: NonEmptyStr | None = None  # e.g. "spacecraft.max_continuous_darkness_s"
+    metric_field: NonEmptyStr | None = None  # MetricsSummary field evaluated; None = no metric available
+    condition: Condition | None = None  # Phase 2 condition the metric derives from (look up its windows)
+    condition_unknown_duration_s: DurationS | None = None  # unknown time of that condition in range
+    unknown_reason: UnknownReason | None = None  # set by Phase 3 exactly when status is UNKNOWN
+    evidence_windows: list[VisibilityWindow] = Field(default_factory=list)  # e.g. longest outage
 
     @model_validator(mode="after")
     def _threshold_matches_status(self) -> Self:
@@ -189,6 +208,8 @@ class ConstraintEvaluation(ContractModel):
             raise ValueError("threshold must be None exactly when status is not_applicable")
         if self.measured.unit is not self.unit:
             raise ValueError("measured.unit must match constraint unit")
+        if self.unknown_reason is not None and self.status is not ConstraintStatus.UNKNOWN:
+            raise ValueError("unknown_reason is only allowed when status is unknown")
         return self
 
 
@@ -322,6 +343,44 @@ class EnvironmentAnalysis(ContractModel):
 
     def windows_of(self, kind: WindowKind) -> list[VisibilityWindow]:
         return [w for w in self.windows if w.kind is kind]
+
+
+class ConstraintAssessment(ContractModel):
+    """Phase 3 result: hard-constraint verdicts for one scenario plus the Phase 2 evidence.
+
+    Contains no risk level, score or explanation text (Phases 4-6). ``constraints`` has one entry
+    per ``ConstraintId`` (NOT_APPLICABLE when not configured), in ``ConstraintId`` order, and
+    ``eligibility`` is derived from them by ``derive_eligibility`` (enforced).
+    """
+
+    schema_version: str = SCHEMA_VERSION
+    engine_version: NonEmptyStr
+    scenario_id: Identifier
+    unknown_data_policy: UnknownDataPolicy  # echoed as requested; only report_unknown has an effect
+    eligibility: Eligibility
+    constraints: list[ConstraintEvaluation]
+    environment: EnvironmentAnalysis  # metrics, condition statistics, windows, data quality
+
+    @model_validator(mode="after")
+    def _invariants(self) -> Self:
+        ids = [c.constraint_id for c in self.constraints]
+        if len(ids) != len(set(ids)):
+            raise ValueError("each constraint_id may appear at most once")
+        derived = derive_eligibility(c.status for c in self.constraints)
+        if self.eligibility is not derived:
+            raise ValueError(
+                f"eligibility {self.eligibility.value!r} contradicts constraint results ({derived.value!r})"
+            )
+        return self
+
+    def constraint(self, constraint_id: ConstraintId) -> ConstraintEvaluation:
+        for c in self.constraints:
+            if c.constraint_id is constraint_id:
+                return c
+        raise KeyError(constraint_id)
+
+    def with_status(self, status: ConstraintStatus) -> list[ConstraintEvaluation]:
+        return [c for c in self.constraints if c.status is status]
 
 
 class ViabilityAssessment(ContractModel):

@@ -1,9 +1,10 @@
 # Viability Engine: Architecture & Data Contracts
 
 Owner: Member 2 (Mission Viability, Risk Assessment & Ranking)
-Status: **Phase 2 implemented (sunlight / Earth-visibility time-series analysis, §5b); Phases 3–6
-not started**, so there is still no pass/fail, risk, score or full `evaluate_scenario`.
-Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.2.0-phase2"`.
+Status: **Phases 2–3 implemented** (sunlight / Earth-visibility analysis, §5b; constraint
+verdicts PASS / FAIL / UNKNOWN and eligibility, §5c). **Phases 4–6 not started**, so there is
+still no risk level, score, explanation text or full `evaluate_scenario`.
+Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.3.0-phase3"`.
 Synchronized with `main` as of 2026-11-13: Member 1 site-file format **1.1** (§3a) and Member 5's
 shared `ViabilityResult` with `eligibility` / nullable `score` / `Violation.is_unknown` (§5a).
 The input contract (§3) is a **proposal for Member 1 to review** before it counts as final.
@@ -33,16 +34,16 @@ Members 3/4/5 ──────────────────────
 | `outputs.py` | Assessment/ranking contract + invariant validators, `derive_eligibility` | 1 ✅ |
 | `fixtures/` | Synthetic datasets (JSON) + deterministic builders | 1 ✅ |
 | `adapters/site_file.py` | Andrew's precomputed site files → `ScientificTimeSeries` (§3a) | 1 ✅ |
-| `compat/rescue.py` | Member 5's `evaluate_timeline(Scenario, Timeline) -> ViabilityResult` on top of this engine (§5a) | interface ✅, Phase 2 metrics verified; needs Phases 3–6 to run |
+| `compat/rescue.py` | Member 5's `evaluate_timeline(Scenario, Timeline) -> ViabilityResult` on top of this engine (§5a) | interface ✅, Phase 2 metrics and Phase 3 verdicts verified; needs Phases 4–6 to run |
 | `windows.py` | Sampling semantics, sample supports, three-valued condition runs, visibility windows (§5b) | 2 ✅ |
 | `metrics.py` | Durations, percentages, longest outages, bounds, time-weighted means, data quality (§5b) | 2 ✅ |
 | `analysis.py` | `analyze_environment` / `analyze_scenario`: the Phase 2 entry points → `EnvironmentAnalysis` | 2 ✅ |
-| `constraints.py` | PASS / FAIL / UNKNOWN / NOT_APPLICABLE per requirement | 3 (stub) |
+| `constraints.py` | PASS / FAIL / UNKNOWN / NOT_APPLICABLE per requirement, eligibility; `assess_constraints` (§5c) | 3 ✅ |
 | `margins.py` | Duration and angular-clearance margins | 4 (stub) |
 | `risk.py` | Rule-based risk indicators | 4 (stub) |
 | `scoring.py` | Desirability score, ranking | 5 (stub) |
 | `explain.py` | Explanations; `STANDARD_LIMITATIONS` (defined now) | 6 (stub) |
-| `engine.py` | `evaluate_scenario(scenario, series)` pipeline | 3–6 (stub) |
+| `engine.py` | `evaluate_scenario(scenario, series)` pipeline | 4–6 (stub) |
 
 Stubs have final signatures and raise `NotImplementedError("Phase N: …")`.
 
@@ -217,8 +218,10 @@ preserved, and with a threshold of 0 "any visible disk" counts. **Without a thre
 power-lit = direct sunlight (any visible disk, `visible_fraction > 0`)**, i.e. the same as a
 threshold of 0. Direct, full and partial sunlight are always reported separately (§5b).
 
-`unknown_data_policy` is either `report_unknown` (the default: undecidable checks are `unknown`)
-or `worst_case` (unknown counts as dark or blacked out). **There is no optimistic option.**
+`unknown_data_policy` is `report_unknown` (the default and only effective policy: undecidable
+checks are `unknown`). `worst_case` is **deprecated since Phase 3**. It is still accepted so
+existing payloads validate, but it does not change any verdict: lack of evidence is never
+reported as a failure (§5c). **There is no optimistic option.**
 
 ## 5. Output contract: engine → Members 3, 4, 5, 6
 
@@ -228,7 +231,7 @@ or `worst_case` (unknown counts as dark or blacked out). **There is no optimisti
 |---|---|
 | `scenario_id`, `site`, `evaluated_start_utc/end_utc` | Identity and evaluated range (= mission window) |
 | `eligibility` | `pass` / `fail` / `unknown`, **derived** from `constraints` |
-| `constraints[]` | `constraint_id`, `status` (+`not_applicable`), `threshold`, `unit`, `measured`, `message` |
+| `constraints[]` | `constraint_id`, `status` (+`not_applicable`), `threshold`, `unit`, `measured`, `message`; Phase 3 evidence (additive, optional): `name`, `comparison`, `requirement_field`, `metric_field`, `condition`, `condition_unknown_duration_s`, `unknown_reason`, `evidence_windows` (§5c) |
 | `metrics` | `MetricsSummary` (§5b): direct / full / partial / power-lit sunlight, Earth-visible and simultaneous durations and percentages; longest simultaneous window; longest darkness (power-dark), longest without direct sunlight, longest blackout; mean solar-disk fraction; initial sunlight / Earth visibility; time to first sunset / Earthset (`not_applicable` = never in range); mean Sun / Earth clearance; mean solar elevation |
 | `windows[]` | `kind` (see §5b table), start/end/`duration_s`, `clipped_at_start/end` |
 | `margins[]` | Signed headroom (+ = safe), `reference`, `related_constraint` |
@@ -263,9 +266,9 @@ Timeline ─timeline_to_series──► ScientificTimeSeries ┴► evaluate_sce
 ViabilityResult ◄────────────── assessment_to_result ◄──────────────────────────────┘
 ```
 
-**Status: interface only.** `evaluate_scenario` raises `NotImplementedError` until Phases 3–6,
-so the layer does not yet work end-to-end. Phase 2 metrics are already verified against the
-placeholder (coordination item 6 below). Rescue still imports its placeholder; nothing in
+**Status: interface only.** `evaluate_scenario` raises `NotImplementedError` until Phases 4–6,
+so the layer does not yet work end-to-end. Phase 2 metrics and Phase 3 verdicts are already
+verified against the placeholder (coordination item 6 below). Rescue still imports its placeholder; nothing in
 `app/rescue/` was changed. To switch later, Member 5 changes one import in
 `app/rescue/viability/__init__.py` to `from app.viability.compat.rescue import evaluate_timeline`
 (keeping `CHECKS` / `CHECK_BY_CONSTRAINT`). `evaluate_timeline_detailed` returns the
@@ -339,7 +342,7 @@ violations; each keeps its own flag. Every constraint the layer creates maps 1:1
 3. **Panel threshold of 0: resolved by Arush** (placeholder now requires `fraction > 0`). Same rule as the canonical engine.
 4. **Naive datetimes.** Shared `Scenario.landing_utc` treats naive times as UTC, while the canonical API rejects them. The layer accepts the shared model's decision; flagged for the team.
 5. **Two readers of `data/sites`.** `rescue/timeline/precomputed.py` and the site-file adapter parse the same files. They agree sample for sample (tested), except that rescue ignores `sun_visible` (1 sliver hour at PNS, §3a) and reads a `null` `earth_visible` as `False`. The compat layer turns the latter back into unknown via the NaN margin. Keep one reader long-term.
-6. **Equivalence check: done, re-run on format 1.1 data.** On real precomputed timelines (3 sites × 6 landing dates, 14-day missions, `panel_threshold` 0.25), all 11 `ViabilityMetrics` fields from Phase 2 equal the placeholder's to 1e-12 (`test_phase2_metrics_match_rescue_placeholder_on_real_data`). Expected differences remain only where data is unknown, where the canonical engine bounds instead of counting. Arush's full side-by-side test (`tests/test_engine_side_by_side.py`) stays skipped until `evaluate_scenario` exists (Phases 3–6).
+6. **Equivalence check: done, re-run on format 1.1 data.** On real precomputed timelines (3 sites × 6 landing dates, 14-day missions, `panel_threshold` 0.25), all 11 `ViabilityMetrics` fields from Phase 2 equal the placeholder's to 1e-12 (`test_phase2_metrics_match_rescue_placeholder_on_real_data`). Expected differences remain only where data is unknown, where the canonical engine bounds instead of counting. **Phase 3:** on the same real timelines (3 sites × 6 landing dates × {rescue defaults, a strict set incl. `min_earth_visibility_fraction` 0.55}), the canonical failing constraints, eligibility and each `Violation`'s `required`/`actual` equal the placeholder's (`test_phase3_verdicts_match_rescue_placeholder_on_real_data`, 36 cases, no unknowns). Arush's full side-by-side test (`tests/test_engine_side_by_side.py`) stays skipped until `evaluate_scenario` exists (Phases 4–6).
 
 ## 5b. Phase 2: sunlight and Earth-visibility time-series analysis
 
@@ -479,6 +482,171 @@ a 2-year file ≈ 0.4–0.6 s (once); `prepare_series` 40–60 ms (once); full 2
 80–100 ms incl. windows; a 7-day / 14-day mission on a prepared series ≈ 1.5 / 2 ms; 7-day
 without preparing ≈ 60 ms. Prepare once per dataset when evaluating many candidates.
 
+## 5c. Phase 3: mission constraint evaluation
+
+```python
+from app.viability import assess_constraints, build_constraint_assessment, evaluate_constraints
+a = assess_constraints(scenario, prepared)    # Phase 2 analysis of the mission window + every constraint
+a.eligibility                                  # pass / fail / unknown (derived, enforced)
+a.constraints                                  # one ConstraintEvaluation per ConstraintId, enum order
+a.environment                                  # the Phase 2 EnvironmentAnalysis the verdicts came from
+build_constraint_assessment(scenario, env)     # same, from an existing analysis
+evaluate_constraints(scenario, env)            # just the list
+```
+
+`evaluate_constraints` takes the Phase 2 `EnvironmentAnalysis` instead of the Phase 1 stub's
+`(scenario, metrics, series)`: per-condition unknown time, evidence windows and an identity
+check need it. Nobody called the stub. The analysis must match the scenario's site, mission
+window **and** `solar_power_min_disk_fraction` (`ValueError` otherwise), because darkness and
+initial-sunlight verdicts depend on the threshold. `evaluate_scenario` stays a stub (Phases 4–6).
+A 14-day evaluation on a prepared real series takes ≈ 1.6 ms.
+
+### Constraints
+
+All `MissionRequirements` fields and the two spacecraft limits are **hard** constraints;
+`RankingPreferences` never enter Phase 3. `null` → `not_applicable` (its metric is still
+reported in `measured`).
+
+| `constraint_id` | Threshold source | Metric (Phase 2) | Test |
+|---|---|---|---|
+| `max_continuous_darkness` | `spacecraft.max_continuous_darkness_s` | `longest_continuous_darkness` (longest **power-dark** run) | ≤ |
+| `max_communication_blackout` | `spacecraft.max_communication_blackout_s` | `longest_communication_blackout` (Earth centre obstructed) | ≤ |
+| `min_sunlight_percent` | `requirements.min_sunlight_percent` | `sunlight_percent` (**direct** sunlight: any disk visible) | ≥ |
+| `min_earth_visibility_percent` | `requirements.min_earth_visibility_percent` | `earth_visible_percent` | ≥ |
+| `min_simultaneous_percent` | `requirements.min_simultaneous_percent` | `simultaneous_percent` (power-lit and Earth visible) | ≥ |
+| `min_mean_solar_disk_fraction` | `requirements.min_mean_solar_disk_fraction` | `mean_solar_disk_fraction` (time mean of the visible fraction) | ≥ |
+| `min_initial_sunlight` | `requirements.min_initial_sunlight_s` | `initial_sunlight_duration` (continuous **power-lit** time from start) | ≥ |
+| `min_initial_earth_visibility` | `requirements.min_initial_earth_visibility_s` | `initial_earth_visibility_duration` | ≥ |
+| `min_sun_clearance`, `min_earth_clearance` | `requirements.min_*_clearance_deg` | **none: unsupported** (below) | – |
+
+The duration constraints are mission-scoped. An outage spanning landing or mission end is
+measured inside the mission only, and the evidence window carries `clipped_at_start/end` for
+Phase 4. An initial-duration requirement longer than the mission can be met only up to the
+mission length, so it fails (the same rule as rescue; §10).
+
+### Verdict rule
+
+Let `t` be the threshold and `[L, U]` proven bounds on the true value:
+KNOWN `v` → `L = U = v`; BOUNDED → `lower`/`upper`; **UNAVAILABLE → the quantity's admissible
+range over the mission** (percent `[0, 100]`, fraction `[0, 1]`, durations `[0, |R|]`). These
+hold by construction, so a requirement satisfied by every possible value (e.g. a darkness limit
+≥ the mission length, or a 0 % minimum) is still proven. NOT_APPLICABLE metric → UNKNOWN
+(cannot occur for the metrics above).
+
+| | PASS | FAIL | otherwise |
+|---|---|---|---|
+| minimum (`at_least`) | `L ≥ t` | `U < t` | UNKNOWN |
+| maximum (`at_most`) | `U ≤ t` | `L > t` | UNKNOWN |
+
+Both comparisons are **inclusive**: exactly meeting a threshold passes (the same as rescue's
+placeholder, `shortfall > 1e-9` ⇒ violation). Equality within a relative `1e-12` counts as
+equal. That absorbs only floating-point representation (e.g. rescue's `0.55 × 100 =
+55.00000000000001` %); it is not a margin (1 µs of a 1 h step is 2.8e-10). The tolerance is
+applied identically in both directions.
+
+PASS or FAIL is therefore possible despite missing data whenever the bounds are decisive
+(tested). Unknown time is never counted as darkness, blackout, sunlight or visibility: it
+only widens the bounds.
+
+**`unknown_reason`** (set exactly when `unknown`; a validator enforces it): `incomplete_data`
+(threshold inside BOUNDED bounds), `no_data` (metric unavailable and its admissible range
+contains the threshold), `unsupported` (requirement configured but not evaluable by this
+engine version). **No UNKNOWN is a failure.** Rescue receives it as `Violation.is_unknown`
+and gives no loosening advice.
+
+**`unknown_data_policy`: verdicts are evidence-based only.** `worst_case` is deprecated and
+inert: results are identical to `report_unknown`, and UNKNOWN messages note the deprecation.
+Reasons for retiring it instead of keeping it:
+1. It would put an evidence-free FAIL into scientific eligibility.
+2. A worst-case screen carries no extra information: it passes exactly when eligibility is
+   `pass`, so consumers wanting a conservative screen use `eligibility != pass`.
+3. No consumer set it (rescue, the frontend and the compat layer all use the default).
+
+Only the enum value and its doc sentence were published (Phase 1). The value is still accepted
+(`ConstraintAssessment.unknown_data_policy` echoes it), so no client breaks.
+
+**Eligibility** = `derive_eligibility` (§5): any FAIL → `fail`; else any UNKNOWN →
+`unknown`; else `pass`; `not_applicable` is ignored. A confirmed failure dominates unknowns.
+With nothing configured the result is `pass`, vacuously, even without data. Coverage then
+shows only in `environment.data_quality`, for Phase 4 risks. Score and risk cannot change
+eligibility (Phases 4–5; enforced on `ViabilityAssessment`).
+
+### Sunlight semantics (kept distinct)
+
+| Concept | Where | Constraint |
+|---|---|---|
+| Direct sunlight (any visible disk, authoritative `sun_visible`) | `sunlight_percent` | `min_sunlight_percent` |
+| Full sunlight (whole disk) | `full_sunlight_percent` | none |
+| Power-eligible (`fraction > 0` and `≥ solar_power_min_disk_fraction`; = direct when unset) | `power_lit_percent`, darkness, initial sunlight, simultaneous | `max_continuous_darkness`, `min_initial_sunlight`, `min_simultaneous_percent` |
+| Mean visible disk fraction | `mean_solar_disk_fraction` | `min_mean_solar_disk_fraction` (rescue's `min_sunlight_fraction`) |
+
+`min_sunlight_percent` keeps its Phase 1 meaning (direct sunlight). It is **never** replaced by
+power-lit time. On PNS over two years, 35 % passes on direct sunlight (37.36 %) even though
+power-lit time at 0.25 is only 33.61 %. A fraction of 0 is never power-lit, even at threshold 0.
+
+*Proposal, not implemented (needs Members 3/4/5):* a separate hard requirement
+`min_power_lit_percent` → `power_lit_percent`, `at_least`, would express "share of mission time
+the arrays are usable". Implications: a new `MissionRequirements` field and `ConstraintId` (an
+additive contract change), a UI field, and nothing for rescue (it has no such requirement).
+Without it, users who mean "usable power time" must not use `min_sunlight_percent`.
+
+### Unsupported requirements
+
+`min_sun_clearance_deg` / `min_earth_clearance_deg` ("minimum elevation above the terrain
+horizon, applied whenever the body is counted as visible") are **UNKNOWN (`unsupported`)**
+when configured. Phase 2 provides only the *time-mean* clearance, and a mean above the mask
+does not show that every visible instant is above it. Two readings are still open: a mask
+that redefines visibility for the other constraints, or a per-instant minimum (which would fail
+at almost every sunrise and, for the Sun, conflicts with partial-disk visibility). Not evaluated:
+slopes, hazards, thermal limits, battery state of charge, power generation, radio link budgets.
+The models have no fields for them, and no verdict implies landing safety (`STANDARD_LIMITATIONS`).
+
+### Result fields (Phase 4 / Phase 6 inputs)
+
+Each `ConstraintEvaluation` keeps the Phase 1 fields (`threshold`, `unit`, `measured` with
+value or bounds and reason, `message`). Phase 3 adds optional fields with defaults, so earlier
+constructors stay valid: `name`, `comparison`, `requirement_field`, `metric_field`, `condition`
+(look up its windows in `environment.windows`), `condition_unknown_duration_s`,
+`unknown_reason`, and `evidence_windows`: the longest confirmed
+outage for the two `max_*` limits, and the window at mission start (lit / dark / unknown) for
+the two initial requirements. `message` is a factual one-liner; explanation text is Phase 6.
+`ConstraintAssessment` = `engine_version`, `scenario_id`, `unknown_data_policy`,
+`eligibility`, `constraints`, `environment`. It is JSON round-trip safe and deterministic.
+
+### Real-data verification (format 1.1 files; panel 0.25, 50 h darkness, 96 h blackout, ≥ 40 % Earth, ≥ 24 h / 12 h initial, mean fraction ≥ 0.5, direct sun ≥ 50 %)
+
+103 weekly 14-day landings per site (first 2027-01-01, last 2028-12-15, ending 2028-12-29):
+Malapert 58 pass / 45 fail; Connecting Ridge 2 pass / 101 fail; Peak Near Shackleton 2 pass /
+101 fail; Shackleton floor (permanently shadowed control) 0 pass / 103 fail. There is no unknown
+on fully covered data. All 412 eligibility results equal an **independent** NumPy recomputation
+from the raw columns (checked in review). The test suite does the same per constraint for all
+four sites × 9 landing dates. Two-year limits exactly at the Phase 2 outage
+extremes pass and 1 h below fail. Percentages exactly at the independently counted value pass
+and 1e-9 relative above fail.
+
+| Scenario | Eligibility | Why |
+|---|---|---|
+| Malapert, 2027-07-20 + 14 d | pass | every configured check met |
+| Malapert, 2027-02-05 + 14 d | fail | darkness > 50 h; < 24 h initial power-lit |
+| PNS, 2027-04-01 + 14 d (inside its 2,802 h night) | fail | power-dark the whole mission (window clipped at both ends); 0 h initial |
+| Shackleton floor (control), 30 d | fail | all seven checks |
+| Malapert, 2028-12-25 → 2029-01-08 | **unknown** | Earth ≥ 40 % proven by the covered week alone; darkness and blackout undecidable over the 7 uncovered days |
+| Malapert, 14 d ending 2029-01-01T00:00Z | pass | fully covered |
+| Malapert, 14 d ending 2029-01-01T01:00Z | pass | 1 h unknown, but bounds still decide every check |
+| Connecting Ridge, 2029-02-01 + 14 d | **unknown** | no data; all `no_data`, nothing fabricated |
+| Malapert, 2027-01-01 + 14 d with `min_earth_clearance_deg` 2 | **unknown** | `unsupported` |
+
+These are illumination and line-of-sight verdicts under hourly sample-and-hold, with no
+interpolation. Transitions are resolved to ≤ 1 h, and events shorter than an hour can be missed.
+
+**Dataset boundary and synthetic data.** On the canonical path (`load_site_file`), time after
+2029-01-01T00:00Z is never filled in: it is unknown, and verdicts are bounded or UNKNOWN (table
+above). On the rescue path, Member 5's provider evaluates a mission reaching even slightly past
+the dataset end **entirely on synthetic geometry** (§5a item 2b). Phase 3 then gives definite
+verdicts, and the assessment labels them `provenance.is_synthetic = true` with the warning
+"SYNTHETIC data: not NASA-derived; not valid for mission decisions" (tested). The labelling is
+explicit, but eligibility itself does not encode the data basis (§10 item 14).
+
 ## 6. Assumptions and limitations
 
 - The engine consumes geometry; it **does not compute** ephemerides, terrain or horizons.
@@ -536,6 +704,16 @@ thresholds, JSON), `test_real_sites_phase2.py` (four real files: independent sam
 Andrew's `intervals()`, his summary, regression outages), and the Phase 2 additions to
 `test_rescue_compat.py` (bin rule, equivalence with the placeholder).
 
+Phase 3 tests: `test_constraints.py` (decision rule at / just below / just above every threshold
+direction, tolerance, admissible ranges, panel thresholds, direct vs power-lit, start/end edge
+cases, partial / full unknown data, bounds proving PASS and FAIL, coverage gaps, beyond-coverage,
+irregular sampling and both sampling policies, worst-case policy, unsupported clearance,
+aggregation, identity checks, JSON determinism), `test_real_sites_phase3.py` (four real files:
+verdicts vs an independent NumPy recomputation, two-year limits at the measured extremes, exact
+coverage end, straddling and post-coverage missions), Phase 3 additions to
+`test_rescue_compat.py` (verdict and Violation equivalence with the placeholder; unknown and
+worst-case mapping to `is_unknown`) and validator tests in `test_outputs.py`.
+
 Requires Python ≥ 3.11, `pydantic` 2 and `pytest` (both already in `requirements.txt`).
 No new dependencies.
 - The core package, `adapters/` and `compat/rescue.py` import neither NumPy nor FastAPI.
@@ -550,7 +728,7 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 | Phase | Deliverable |
 |---|---|
 | 2 ✅ | Windows, durations, percentages, longest outages, bounded metrics, coverage gaps (§5b) |
-| 3 | Constraint evaluation with unknown-data policy; site/time compatibility checks |
+| 3 ✅ | Constraint evaluation with unknown-data policy; coverage-aware bounds; eligibility (§5c) |
 | 4 | Duration and clearance margins; risk rules |
 | 5 | Normalised, explainable score; ranking |
 | 6 | Assembled `ViabilityAssessment`; explanation text |
@@ -574,8 +752,15 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 
 **Engine semantics (decided in Phase 2; team review welcome):**
 7. *Integration rule:* **decided.** Sample-and-hold by default (the source convention), with nearest-sample (midpoint) available as `SamplingPolicy.NEAREST_SAMPLE` for sensitivity checks. Interpolated zero-crossings are not used (§5b). Member 6 may want to quantify the timing uncertainty (≤ one spacing).
-8. *Partial sunlight:* **decided.** All three are reported separately: direct (fraction > 0, matching Andrew's `sunlit_pct`), full and partial. Power-eligibility uses `solar_power_min_disk_fraction`, and without a threshold it equals direct sunlight. Open for Phase 3: whether `min_sunlight_percent` should test direct sunlight (current definition) or power-lit time.
-9. *Darkness spanning mission start:* clipped to the mission and flagged `clipped_at_start`. Battery state at landing is still a Phase 3/4 question (e.g. a margin rule).
+8. *Partial sunlight:* **decided.** All three are reported separately: direct (fraction > 0, matching Andrew's `sunlit_pct`), full and partial. Power-eligibility uses `solar_power_min_disk_fraction`, and without a threshold it equals direct sunlight. **Phase 3:** `min_sunlight_percent` keeps testing direct sunlight; a separate `min_power_lit_percent` is *proposed* (§5c), not added.
+9. *Darkness spanning mission start:* clipped to the mission and flagged `clipped_at_start`. Phase 3 evaluates the clipped value and exposes the clipped evidence window; battery state at landing is a Phase 4 risk-rule question.
+
+**Phase 3 decisions for team review:**
+10. *Clearance requirements:* `min_sun/earth_clearance_deg` are `unknown (unsupported)` when set (§5c). Needs a decision: mask angle redefining visibility (changes Phase 2 conditions) vs per-instant minimum (needs a per-sample minimum metric).
+11. ~~`worst_case` policy~~ **retired** (deprecated, inert; §5c). Members 3/4/5: please don't build on it.
+12. *Initial requirement longer than the mission:* kept as FAIL for compatibility (mission-scoped, same as rescue's placeholder). The message now states that the requirement exceeds the mission duration. With no data, it is also the only FAIL that needs no observations: the bound `[0, mission]` already rules it out. *Recommendation:* treat it as a configuration error, rejected where the scenario is built (UI / `MissionScenario`). That is a shared-input change, because rescue scenarios with `duration_days < min_initial_*_hours / 24` would start raising, so it needs Member 5's agreement first.
+13. *Contract notice:* `ConstraintEvaluation` gained optional fields (additive, defaults); `ConstraintAssessment` is new. Members 3/4 should know before consuming them.
+14. *Synthetic fallback in rescue (Member 5):* rescue's provider swaps a whole mission to synthetic geometry when it reaches past the dataset, and verdicts on it are definite but labelled synthetic. Options: rescue truncates or refuses such missions; or the canonical engine reports synthetic-basis results as UNKNOWN (affects custom sites and every synthetic test fixture). Not changed here.
 
 **With Members 3/4/5:** the field names above; whether `windows[]` should be paginated or
 down-sampled for long missions (a full 2-year analysis yields 300–600 windows per site); and whether failed scenarios should be scored, so rescue can

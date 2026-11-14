@@ -81,6 +81,7 @@ class MissionRequirements(ContractModel):
     # whenever the body is counted as visible. None = no clearance requirement.
     min_sun_clearance_deg: ElevationDeg | None = None
     min_earth_clearance_deg: ElevationDeg | None = None
+    # Only REPORT_UNKNOWN has an effect; WORST_CASE is deprecated and accepted for compatibility.
     unknown_data_policy: UnknownDataPolicy = UnknownDataPolicy.REPORT_UNKNOWN
 
 

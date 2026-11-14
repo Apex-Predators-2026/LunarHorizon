@@ -3,7 +3,8 @@
 Inputs use rescue's own types and providers (synthetic placeholder + real precomputed files).
 Outputs are hand-built canonical assessments: the full canonical engine (Phases 3-6) does not exist
 yet, so end-to-end tests use a TEST DOUBLE engine, clearly labelled, to exercise the plumbing.
-Phase 2 metrics are compared directly against rescue's placeholder on the same timelines.
+Phase 2 metrics and Phase 3 constraint verdicts are compared directly against rescue's placeholder
+on the same real timelines.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from app.viability.compat.rescue import (
     SOURCE,
     RescueCompatError,
     assessment_to_result,
+    constraint_to_violation,
     evaluate_timeline,
     internal_site_id,
     make_evaluate_fn,
@@ -40,6 +42,7 @@ from app.viability.compat.rescue import (
     scenario_to_mission,
     timeline_to_series,
 )
+from app.viability.constraints import assess_constraints
 from app.viability.enums import (
     AngleType,
     CommunicationMode,
@@ -644,3 +647,83 @@ def test_precomputed_dataset_end_is_conservative(tmp_path: Path) -> None:
     steps = [{"time_utc": "2027-01-01T00:00Z"}, {"time_utc": "2027-01-01T05:00Z"}]
     (tmp_path / "steps.json").write_text(json.dumps(steps), encoding="utf-8")
     assert precomputed_dataset_end("precomputed:steps.json", tmp_path) == datetime(2027, 1, 1, 5, tzinfo=UTC)
+
+
+# --- Phase 3: canonical constraint verdicts vs rescue's placeholder -----------------------------
+
+
+def _real_rescue_case(site_id: str, day: int, req: RescueRequirements) -> tuple[Scenario, Timeline]:
+    provider = PrecomputedTimelineProvider(fallback=SyntheticTimelineProvider(), data_dir=SITES_DIR)
+    landing = datetime(2027, 1, 1, tzinfo=UTC) + timedelta(days=day)
+    sc = Scenario(site=get_site(site_id).to_site(), landing_utc=landing, duration_days=14, requirements=req)
+    n = 14 * 24
+    tl = provider.timeline(sc.site, landing, landing + timedelta(hours=n - 1), 1.0).slice(0, n)
+    assert tl.source.startswith("precomputed:")
+    return sc, tl
+
+
+STRICT_RESCUE = RescueRequirements(
+    min_sunlight_fraction=0.6,
+    battery_hours=24,
+    panel_threshold=0.5,
+    min_earth_visibility_fraction=0.55,
+    max_comms_gap_hours=24,
+    min_initial_sun_hours=72,
+    min_initial_comms_hours=48,
+)
+
+
+@pytest.mark.parametrize("site_id", ["connecting-ridge", "malapert-massif", "peak-near-shackleton"])
+@pytest.mark.parametrize("day", [0, 61, 200, 333, 512, 700])
+@pytest.mark.parametrize("req", [RescueRequirements.model_validate({}), STRICT_RESCUE], ids=["default", "strict"])
+def test_phase3_verdicts_match_rescue_placeholder_on_real_data(site_id: str, day: int, req: RescueRequirements) -> None:
+    """Same timelines: identical failing checks, eligibility and Violation numbers (no unknowns here)."""
+    sc, tl = _real_rescue_case(site_id, day, req)
+    mission = scenario_to_mission(sc)
+    phase3 = assess_constraints(mission, timeline_to_series(tl, mission_end_utc=mission.mission_end_utc))
+    old = placeholder_evaluate(sc, tl)
+    assert phase3.with_status(ConstraintStatus.UNKNOWN) == []
+    assert phase3.eligibility.value == old.verdict
+    hours = mission.duration_s / H
+    ours = {
+        v.constraint: v for v in (constraint_to_violation(c, hours) for c in phase3.with_status(ConstraintStatus.FAIL))
+    }
+    theirs = {v.constraint: v for v in old.violations}
+    assert set(ours) == set(theirs)
+    for field, v in ours.items():
+        assert not v.is_unknown
+        assert v.required == pytest.approx(theirs[field].required, rel=1e-12)
+        assert v.actual == pytest.approx(theirs[field].actual, rel=1e-12, abs=1e-12)
+    # Only constraints rescue can express are ever applicable for a rescue scenario.
+    applicable = {c.constraint_id for c in phase3.constraints if c.status is not ConstraintStatus.NOT_APPLICABLE}
+    assert applicable == set(CONSTRAINT_TO_RESCUE)
+
+
+def test_phase3_unknown_verdicts_map_to_unknown_violations() -> None:
+    """Final rescue bin past the dataset end: canonical UNKNOWN -> is_unknown, never a loosening target."""
+    sc, tl = _real_timeline("malapert-massif", datetime(2029, 1, 1, 1, tzinfo=UTC))
+    mission = scenario_to_mission(sc)
+    series = timeline_to_series(tl, mission_end_utc=mission.mission_end_utc)
+    phase3 = assess_constraints(mission, series)
+    assert phase3.environment.data_quality.uncovered_duration_s == H
+    unknown = phase3.with_status(ConstraintStatus.UNKNOWN)
+    for c in unknown:
+        v = constraint_to_violation(c, mission.duration_s / H)
+        assert v.is_unknown and v.message.startswith("UNKNOWN")
+    for c in phase3.with_status(ConstraintStatus.FAIL):
+        assert not constraint_to_violation(c, mission.duration_s / H).is_unknown
+
+
+def test_phase3_on_rescue_synthetic_fallback_is_labelled_synthetic() -> None:
+    """A rescue mission reaching past 2029-01-01 is evaluated on synthetic geometry by rescue's provider.
+
+    Phase 3 then gives definite verdicts, but the assessment must say the data are synthetic.
+    """
+    sc, tl = _real_timeline("malapert-massif", datetime(2029, 1, 7, 22, tzinfo=UTC), days=7)
+    assert tl.source.startswith("synthetic")
+    mission = scenario_to_mission(sc)
+    phase3 = assess_constraints(mission, timeline_to_series(tl, mission_end_utc=mission.mission_end_utc))
+    dq = phase3.environment.data_quality
+    assert dq.provenance.is_synthetic is True
+    assert any(w.startswith("SYNTHETIC data") for w in dq.warnings)
+    assert "SYNTHETIC" in dq.provenance.ephemeris_source and "SYNTHETIC" in (dq.provenance.terrain_source or "")

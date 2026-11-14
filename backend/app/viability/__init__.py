@@ -5,6 +5,7 @@ Consumers import contracts from here; see docs/viability-engine.md.
 """
 
 from .analysis import analyze_environment, analyze_scenario
+from .constraints import assess_constraints, build_constraint_assessment, evaluate_constraints
 from .conventions import SCHEMA_VERSION
 from .engine import ENGINE_VERSION, evaluate_scenario
 from .enums import (
@@ -12,6 +13,7 @@ from .enums import (
     Body,
     CalculationBasis,
     CommunicationMode,
+    Comparison,
     Condition,
     ConditionState,
     ConstraintId,
@@ -22,6 +24,7 @@ from .enums import (
     RiskLevel,
     SamplingPolicy,
     UnknownDataPolicy,
+    UnknownReason,
     VisibilityCriterion,
     VisibilityState,
     WindowKind,
@@ -44,6 +47,7 @@ from .mission import (
 )
 from .outputs import (
     ConditionSummary,
+    ConstraintAssessment,
     ConstraintEvaluation,
     DataQualitySummary,
     EnvironmentAnalysis,
@@ -69,9 +73,11 @@ __all__ = [
     "BodyObservation",
     "CalculationBasis",
     "CommunicationMode",
+    "Comparison",
     "Condition",
     "ConditionState",
     "ConditionSummary",
+    "ConstraintAssessment",
     "ConstraintEvaluation",
     "ConstraintId",
     "ConstraintStatus",
@@ -103,6 +109,7 @@ __all__ = [
     "SpacecraftConfiguration",
     "UncertaintyInfo",
     "UnknownDataPolicy",
+    "UnknownReason",
     "ViabilityAssessment",
     "VisibilityCriterion",
     "VisibilityState",
@@ -110,7 +117,10 @@ __all__ = [
     "WindowKind",
     "analyze_environment",
     "analyze_scenario",
+    "assess_constraints",
+    "build_constraint_assessment",
     "derive_eligibility",
+    "evaluate_constraints",
     "evaluate_scenario",
     "extract_windows",
     "prepare_series",

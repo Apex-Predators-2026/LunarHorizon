@@ -65,7 +65,9 @@ class UnknownDataPolicy(StrEnum):
     optimistic option: unknown data can never make a constraint pass."""
 
     REPORT_UNKNOWN = "report_unknown"  # constraint is UNKNOWN unless decidable from bounds
-    WORST_CASE = "worst_case"  # unknown counts as dark / blacked-out
+    # DEPRECATED (Phase 3): accepted for contract compatibility but does not change any verdict.
+    # Lack of evidence is never reported as FAIL; a worst-case screen equals eligibility != PASS.
+    WORST_CASE = "worst_case"
 
 
 class Eligibility(StrEnum):
@@ -81,6 +83,21 @@ class ConstraintStatus(StrEnum):
     FAIL = "fail"
     UNKNOWN = "unknown"
     NOT_APPLICABLE = "not_applicable"  # constraint not configured for this scenario
+
+
+class Comparison(StrEnum):
+    """How a constraint compares its measured quantity with the threshold (both inclusive)."""
+
+    AT_LEAST = "at_least"  # PASS iff measured >= threshold (minimum requirements)
+    AT_MOST = "at_most"  # PASS iff measured <= threshold (maximum limits)
+
+
+class UnknownReason(StrEnum):
+    """Why a constraint is UNKNOWN. Never a statement that the requirement failed."""
+
+    INCOMPLETE_DATA = "incomplete_data"  # metric bounded; the threshold lies inside the bounds
+    NO_DATA = "no_data"  # metric unavailable; its admissible range contains the threshold
+    UNSUPPORTED = "unsupported"  # requirement configured but not evaluable by this engine version
 
 
 class ConstraintId(StrEnum):

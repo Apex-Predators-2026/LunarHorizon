@@ -6,8 +6,20 @@ from datetime import timedelta
 import pytest
 from pydantic import ValidationError
 
-from app.viability.enums import ConstraintId, ConstraintStatus, Eligibility, MetricStatus, RiskLevel, Unit, WindowKind
+from app.viability.analysis import analyze_environment
+from app.viability.enums import (
+    ConstraintId,
+    ConstraintStatus,
+    Eligibility,
+    MetricStatus,
+    RiskLevel,
+    Unit,
+    UnknownDataPolicy,
+    UnknownReason,
+    WindowKind,
+)
 from app.viability.outputs import (
+    ConstraintAssessment,
     ConstraintEvaluation,
     Metric,
     RankedScenario,
@@ -18,7 +30,7 @@ from app.viability.outputs import (
     derive_eligibility,
 )
 
-from .helpers import END, START, assessment_kwargs
+from .helpers import END, START, assessment_kwargs, at, hourly
 
 P, F, U, NA = ConstraintStatus.PASS, ConstraintStatus.FAIL, ConstraintStatus.UNKNOWN, ConstraintStatus.NOT_APPLICABLE
 
@@ -123,6 +135,75 @@ def test_constraint_unit_mismatch_rejected() -> None:
             measured=Metric.known(80.0, Unit.SECONDS),
             message="x",
         )
+
+
+def _phase3_constraint(status: ConstraintStatus, **extra: object) -> ConstraintEvaluation:
+    return ConstraintEvaluation.model_validate(
+        {
+            "constraint_id": ConstraintId.MIN_SUNLIGHT_PERCENT,
+            "status": status,
+            "threshold": 50.0,
+            "unit": Unit.PERCENT,
+            "measured": Metric.bounded(40.0, 60.0, Unit.PERCENT),
+            "message": "x",
+            **extra,
+        }
+    )
+
+
+def test_phase3_fields_default_for_phase1_constructors() -> None:
+    c = _phase3_constraint(U)
+    assert (c.name, c.comparison, c.unknown_reason, c.evidence_windows) == (None, None, None, [])
+
+
+@pytest.mark.parametrize("status", [P, F])
+def test_unknown_reason_only_with_unknown_status(status: ConstraintStatus) -> None:
+    assert _phase3_constraint(U, unknown_reason=UnknownReason.INCOMPLETE_DATA).unknown_reason is not None
+    with pytest.raises(ValidationError, match="unknown_reason"):
+        _phase3_constraint(status, unknown_reason=UnknownReason.INCOMPLETE_DATA)
+
+
+def test_worst_case_flag_no_longer_exists() -> None:
+    with pytest.raises(ValidationError, match="decided_by_worst_case"):
+        _phase3_constraint(F, decided_by_worst_case=True)  # retired before publication
+
+
+def _constraint_assessment(eligibility: Eligibility, statuses: list[ConstraintStatus]) -> ConstraintAssessment:
+    s = hourly(["V", "N"])
+    env = analyze_environment(s, at(0), at(2))
+    ids = list(ConstraintId)
+    return ConstraintAssessment(
+        engine_version="test",
+        scenario_id="s1",
+        unknown_data_policy=UnknownDataPolicy.REPORT_UNKNOWN,
+        eligibility=eligibility,
+        constraints=[
+            _phase3_constraint(st).model_copy(update={"constraint_id": ids[i]}) for i, st in enumerate(statuses)
+        ],
+        environment=env,
+    )
+
+
+@pytest.mark.parametrize(
+    ("statuses", "eligibility"),
+    [([P, U], Eligibility.UNKNOWN), ([F, U], Eligibility.FAIL), ([P, P], Eligibility.PASS), ([], Eligibility.PASS)],
+)
+def test_constraint_assessment_eligibility_is_derived(
+    statuses: list[ConstraintStatus], eligibility: Eligibility
+) -> None:
+    a = _constraint_assessment(eligibility, statuses)
+    assert a.eligibility is eligibility
+    wrong = Eligibility.FAIL if eligibility is not Eligibility.FAIL else Eligibility.UNKNOWN
+    with pytest.raises(ValidationError, match="contradicts"):
+        _constraint_assessment(wrong, statuses)
+
+
+def test_constraint_assessment_rejects_duplicate_ids() -> None:
+    a = _constraint_assessment(Eligibility.PASS, [P])
+    with pytest.raises(ValidationError, match="at most once"):
+        ConstraintAssessment.model_validate({**a.model_dump(), "constraints": [a.constraints[0]] * 2})
+    with pytest.raises(KeyError):
+        a.constraint(ConstraintId.MIN_EARTH_CLEARANCE)
 
 
 # --- assessment --------------------------------------------------------------------------
