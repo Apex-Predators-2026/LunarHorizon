@@ -5,7 +5,7 @@ import type { TimelineStep } from '../types'
 import { azElToVector } from './geometry'
 import type { Vec3 } from './globe/cubeSphere'
 
-// The bits of drei's OrbitControls (registered with makeDefault) that we use.
+// The bits of the scene's controls (GlobeControls) that we use.
 type Controls = { target: Vector3; update: () => void }
 
 export type ViewMode = 'globe' | 'region' | 'overview' | 'sun' | 'earth'

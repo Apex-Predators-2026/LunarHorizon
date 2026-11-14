@@ -320,7 +320,7 @@ export function TimeBar({
         {views}
         <span className="min-w-0 flex-1 text-right text-[10px] leading-tight text-slate-500">
           {site.lat.toFixed(4)}°, {site.lon.toFixed(4)}°E · ground {Math.round(site.ground_height_m)} m · terrain: Moon Trek LOLA ·
-          ephemeris: {site.kind === 'custom' ? 'JPL DE421 (local, checked against Horizons)' : 'JPL Horizons'} · drag to orbit, scroll to zoom
+          ephemeris: {site.kind === 'custom' ? 'JPL DE421 (local, checked against Horizons)' : 'JPL Horizons'} · drag to spin the Moon, right-drag to turn, scroll to zoom
         </span>
       </div>
     </div>
