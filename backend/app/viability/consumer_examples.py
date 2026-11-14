@@ -83,6 +83,8 @@ def dataset_end(sites_dir: Path = SITES_DIR) -> datetime:
     if end is None:
         raise RuntimeError(f"real site file {_END_SITE}.json not found in {sites_dir}")
     return end
+
+
 _SYNTHETIC_FIXTURE: Final = "intermittent_sunlight"
 
 EXAMPLE_KEYS: Final = (
