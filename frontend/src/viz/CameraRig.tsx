@@ -1,9 +1,9 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
-import type { Vector3 } from 'three'
+import { Vector3 } from 'three'
 import type { TimelineStep } from '../types'
 import { azElToVector } from './geometry'
-import type { Vec3 } from './globe/cubeSphere'
+import { MOON_RADIUS_M, type Vec3 } from './globe/cubeSphere'
 
 // The bits of the scene's controls (GlobeControls, registered as the default controls) that we use.
 type Controls = {
@@ -145,6 +145,17 @@ export function CameraRig({
     const dist = Math.exp(lerp(Math.log(l0), Math.log(l1)))
     controls.target.set(...tgt)
     camera.position.set(tgt[0] + (dir[0] / dl) * dist, tgt[1] + (dir[1] / dl) * dist, tgt[2] + (dir[2] / dl) * dist)
+    // Never through the Moon: e.g. Site -> Globe slides the target from the surface down to the
+    // Moon's centre, which took the camera hundreds of km underground (a black screen mid-flight).
+    // Keep it at least a smooth blend of its start and end heights above the surface.
+    if (moonCentre) {
+      const height = (t: V3, o: V3) => Math.hypot(t[0] + o[0] - moonCentre[0], t[1] + o[1] - moonCentre[1], t[2] + o[2] - moonCentre[2]) - MOON_RADIUS_M
+      const h0 = Math.max(1, height(f.fromTarget, f.fromOff))
+      const h1 = Math.max(1, height(f.toTarget, f.toOff))
+      const minR = MOON_RADIUS_M + Math.exp(lerp(Math.log(h0), Math.log(h1)))
+      const rel = camera.position.clone().sub(new Vector3(...moonCentre))
+      if (rel.length() < minR) camera.position.set(...moonCentre).add(rel.setLength(minR))
+    }
     controls.update()
     if (raw >= 1) flight.current = null
     else invalidate()
