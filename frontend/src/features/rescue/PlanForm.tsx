@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useAppStore } from '../../store'
 import { DEFAULT_REQUIREMENTS, type MissionRequirements, type RequirementKey } from '../../types'
 import { errorMessage, fetchRescueCatalog } from './api'
+import { DateField, SelectField, TextField } from '../../ui/MdFields'
 import { DatePopup } from '../../viz/DatePopup'
 import { fromUtcInput, toUtcInput } from './format'
 import type { RescueCatalog } from './types'
@@ -21,7 +22,15 @@ const REQUIREMENT_FIELDS: { key: RequirementKey; label: string; step: number; pe
   { key: 'min_initial_comms_hours', label: 'Earth contact needed after landing (h)', step: 1 },
 ]
 
-const inputCls = 'rounded border border-slate-700 bg-slate-950 px-2 py-1 text-slate-100'
+const REQUIREMENT_TIPS: Record<RequirementKey, string> = {
+  min_sunlight_fraction: 'The least average share of the mission the Sun must be up, for solar power.',
+  battery_hours: 'The longest stretch of darkness the battery can carry the lander through.',
+  panel_threshold: 'Below this share of full sunlight the solar panels count as being in the dark.',
+  min_earth_visibility_fraction: 'The least share of the mission that Earth must be in view, for communications.',
+  max_comms_gap_hours: 'The longest allowed stretch with no line of sight to Earth.',
+  min_initial_sun_hours: 'Hours of continuous sunlight needed right after landing.',
+  min_initial_comms_hours: 'Hours of Earth contact needed right after landing.',
+}
 
 export function PlanForm() {
   const original = useRescueStore((s) => s.original)
@@ -77,18 +86,21 @@ export function PlanForm() {
   const site = catalog?.sites.find((s) => s.id === siteId)
 
   return (
-    <form onSubmit={submit} className="space-y-2 text-xs">
-      <label className="flex flex-col gap-1 text-slate-400">
-        Landing site
-        <select value={siteId} onChange={(e) => setSiteId(e.target.value)} className={inputCls} disabled={!catalog}>
-          {catalog?.sites.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-              {s.has_real_data ? '' : ' (no real data: simulation only)'}
-            </option>
-          ))}
-        </select>
-      </label>
+    <form onSubmit={submit} className="space-y-4 text-xs">
+      <SelectField
+        label="Landing site"
+        tip="Where the lander touches down. Pick a candidate site to plan the mission for."
+        value={siteId}
+        onChange={(e) => setSiteId(e.target.value)}
+        disabled={!catalog}
+      >
+        {catalog?.sites.map((s) => (
+          <option key={s.id} value={s.id}>
+            {s.name}
+            {s.has_real_data ? '' : ' (no real data: simulation only)'}
+          </option>
+        ))}
+      </SelectField>
       {site && (
         <p className="text-slate-500">
           {site.description}
@@ -97,12 +109,15 @@ export function PlanForm() {
             : ' No real data yet: results are unknown unless simulation mode is on.'}
         </p>
       )}
-      <div className="grid grid-cols-2 gap-2">
-        <label className="flex flex-col gap-1 text-slate-400">
-          Landing (UTC)
-          <button type="button" onClick={() => setCalendar((o) => !o)} aria-expanded={calendar} className={`${inputCls} text-left`}>
-            {landing.replace('T', ' ')}
-          </button>
+      <div className="grid grid-cols-1 gap-2">
+        <div>
+          <DateField
+            label="Landing (UTC)"
+            tip="Planned landing date and time (UTC). Opens a date picker."
+            value={landing.replace('T', ' ')}
+            expanded={calendar}
+            onOpen={() => setCalendar((o) => !o)}
+          />
           {calendar && (
             <DatePopup
               timeUtc={fromUtcInput(landing)}
@@ -112,36 +127,36 @@ export function PlanForm() {
               onClose={() => setCalendar(false)}
             />
           )}
-        </label>
-        <label className="flex flex-col gap-1 text-slate-400">
-          Mission length (days)
-          <input type="number" min={1} max={365} step={1} required value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))} className={inputCls} />
-        </label>
+        </div>
+        <TextField
+          label="Mission length (days)"
+          tip="How many days the mission lasts after landing."
+          type="number" min={1} max={365} step={1} required value={duration}
+          onChange={(e) => setDuration(Number(e.target.value))}
+        />
       </div>
-      <details className="rounded border border-slate-800 p-2">
-        <summary className="cursor-pointer text-slate-300">Spacecraft requirements</summary>
-        <div className="mt-2 grid grid-cols-2 gap-2">
+      <details className="rounded-xl border border-slate-800 px-4 py-2">
+        <summary className="flex min-h-10 cursor-pointer items-center text-slate-300" data-tip="What the spacecraft needs to survive and communicate: sunlight, battery, Earth contact. The plan is checked against these.">Spacecraft requirements</summary>
+        <div className="mt-2 grid grid-cols-1 gap-2">
           {REQUIREMENT_FIELDS.map((f) => (
-            <label key={f.key} className="flex flex-col gap-1 text-slate-400">
-              {f.label}
-              <input
-                type="number"
-                min={0}
-                max={f.percent ? 100 : undefined}
-                step={f.step}
-                value={f.percent ? Math.round(req[f.key] * 100) : req[f.key]}
-                onChange={(e) => {
-                  const v = Number(e.target.value)
-                  setReq({ ...req, [f.key]: f.percent ? v / 100 : v })
-                }}
-                className={inputCls}
-              />
-            </label>
+            <TextField
+              key={f.key}
+              label={f.label}
+              tip={REQUIREMENT_TIPS[f.key]}
+              type="number"
+              min={0}
+              max={f.percent ? 100 : undefined}
+              step={f.step}
+              value={f.percent ? Math.round(req[f.key] * 100) : req[f.key]}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                setReq({ ...req, [f.key]: f.percent ? v / 100 : v })
+              }}
+            />
           ))}
         </div>
       </details>
-      <button type="submit" disabled={!site} className="w-full rounded border border-slate-600 py-1.5 text-slate-200 hover:bg-slate-800 disabled:opacity-50">
+      <button type="submit" disabled={!site} data-tip="Save this plan and show it on the map and in the timeline." className="md-btn w-full border border-slate-600 text-slate-200 hover:bg-slate-800 disabled:opacity-50">
         {original ? 'Update plan' : 'Set plan'}
       </button>
     </form>
