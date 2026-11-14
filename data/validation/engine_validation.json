@@ -8,7 +8,7 @@
     "connecting-ridge": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -27,7 +27,7 @@
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -39,7 +39,7 @@
             "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00069,
+            "max": 0.00071,
             "rms": 0.00041,
             "p99": 0.00066
           },
@@ -100,7 +100,7 @@
     "peak-near-shackleton": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -109,7 +109,7 @@
           "azimuth_diff_deg": {
             "max": 0.0005,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "separation_deg": {
             "max": 0.00071,
@@ -119,11 +119,11 @@
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "azimuth_diff_deg": {
             "max": 0.00051,
@@ -131,7 +131,7 @@
             "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00071,
+            "max": 0.00072,
             "rms": 0.00041,
             "p99": 0.00066
           },
@@ -192,7 +192,7 @@
     "malapert-massif": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -211,7 +211,7 @@
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -220,10 +220,10 @@
           "azimuth_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.0005
+            "p99": 0.00049
           },
           "separation_deg": {
-            "max": 0.00069,
+            "max": 0.00071,
             "rms": 0.00041,
             "p99": 0.00065
           },
@@ -257,7 +257,7 @@
     "de-gerlache-rim": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -276,11 +276,11 @@
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "azimuth_diff_deg": {
             "max": 0.00051,
@@ -289,8 +289,8 @@
           },
           "separation_deg": {
             "max": 0.0007,
-            "rms": 0.0004,
-            "p99": 0.00066
+            "rms": 0.00041,
+            "p99": 0.00065
           },
           "verdict_changes": 0
         }
@@ -349,7 +349,7 @@
     "haworth-rim": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -368,7 +368,7 @@
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -382,7 +382,7 @@
           "separation_deg": {
             "max": 0.0007,
             "rms": 0.00041,
-            "p99": 0.00066
+            "p99": 0.00065
           },
           "verdict_changes": 0
         }
@@ -414,7 +414,7 @@
     "nobile-rim-1": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -423,21 +423,21 @@
           "azimuth_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.0005
+            "p99": 0.00049
           },
           "separation_deg": {
-            "max": 0.0007,
+            "max": 0.00071,
             "rms": 0.00041,
             "p99": 0.00066
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "azimuth_diff_deg": {
             "max": 0.00051,
@@ -447,7 +447,7 @@
           "separation_deg": {
             "max": 0.00071,
             "rms": 0.00041,
-            "p99": 0.00065
+            "p99": 0.00066
           },
           "verdict_changes": 0
         }
@@ -479,11 +479,11 @@
     "mons-mouton": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "azimuth_diff_deg": {
             "max": 0.00051,
@@ -491,14 +491,14 @@
             "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.0007,
+            "max": 0.00071,
             "rms": 0.00041,
             "p99": 0.00065
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -544,7 +544,7 @@
     "faustini-rim-a": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -563,7 +563,7 @@
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -575,7 +575,7 @@
             "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00069,
+            "max": 0.00071,
             "rms": 0.00041,
             "p99": 0.00066
           },
@@ -609,7 +609,7 @@
     "shackleton-floor": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -628,7 +628,7 @@
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -701,7 +701,7 @@
     "apollo-11": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -713,14 +713,14 @@
             "p99": 0.00052
           },
           "separation_deg": {
-            "max": 0.00068,
+            "max": 0.00069,
             "rms": 0.00035,
             "p99": 0.00062
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -732,7 +732,7 @@
             "p99": 0.00051
           },
           "separation_deg": {
-            "max": 0.00055,
+            "max": 0.00056,
             "rms": 0.00032,
             "p99": 0.00052
           },
@@ -752,39 +752,39 @@
     "apollo-12": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.0005,
             "rms": 0.00029,
             "p99": 0.0005
           },
           "azimuth_diff_deg": {
-            "max": 0.00068,
+            "max": 0.00069,
             "rms": 0.00029,
             "p99": 0.00052
           },
           "separation_deg": {
             "max": 0.00069,
             "rms": 0.00035,
-            "p99": 0.0006
+            "p99": 0.00061
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
             "p99": 0.0005
           },
           "azimuth_diff_deg": {
-            "max": 0.00053,
+            "max": 0.00054,
             "rms": 0.00029,
             "p99": 0.00051
           },
           "separation_deg": {
             "max": 0.00055,
-            "rms": 0.00032,
+            "rms": 0.00031,
             "p99": 0.00052
           },
           "verdict_changes": 0
@@ -803,39 +803,39 @@
     "apollo-14": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
-            "max": 0.0005,
-            "rms": 0.00028,
-            "p99": 0.00049
+            "max": 0.00051,
+            "rms": 0.00029,
+            "p99": 0.0005
           },
           "azimuth_diff_deg": {
             "max": 0.00072,
             "rms": 0.00029,
-            "p99": 0.00051
+            "p99": 0.00052
           },
           "separation_deg": {
             "max": 0.00068,
             "rms": 0.00035,
-            "p99": 0.0006
+            "p99": 0.00061
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
             "p99": 0.00049
           },
           "azimuth_diff_deg": {
-            "max": 0.00055,
+            "max": 0.00056,
             "rms": 0.00029,
             "p99": 0.00052
           },
           "separation_deg": {
             "max": 0.00053,
-            "rms": 0.0003,
+            "rms": 0.00031,
             "p99": 0.00051
           },
           "verdict_changes": 0
@@ -854,11 +854,11 @@
     "apollo-15": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
-            "rms": 0.00028,
-            "p99": 0.0005
+            "rms": 0.00029,
+            "p99": 0.00049
           },
           "azimuth_diff_deg": {
             "max": 0.00051,
@@ -868,12 +868,12 @@
           "separation_deg": {
             "max": 0.00068,
             "rms": 0.00036,
-            "p99": 0.00063
+            "p99": 0.00061
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -887,7 +887,7 @@
           "separation_deg": {
             "max": 0.00057,
             "rms": 0.00032,
-            "p99": 0.00053
+            "p99": 0.00052
           },
           "verdict_changes": 0
         }
@@ -905,9 +905,9 @@
     "apollo-16": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
-            "max": 0.0005,
+            "max": 0.00051,
             "rms": 0.00029,
             "p99": 0.0005
           },
@@ -919,24 +919,24 @@
           "separation_deg": {
             "max": 0.00069,
             "rms": 0.00036,
-            "p99": 0.00062
+            "p99": 0.00061
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
-            "max": 0.0005,
+            "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "azimuth_diff_deg": {
-            "max": 0.00054,
+            "max": 0.00059,
             "rms": 0.00029,
             "p99": 0.00052
           },
           "separation_deg": {
-            "max": 0.00053,
+            "max": 0.00054,
             "rms": 0.0003,
             "p99": 0.00051
           },
@@ -956,7 +956,7 @@
     "apollo-17": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -968,26 +968,26 @@
             "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00066,
+            "max": 0.00069,
             "rms": 0.00036,
-            "p99": 0.0006
+            "p99": 0.00061
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
             "p99": 0.0005
           },
           "azimuth_diff_deg": {
-            "max": 0.00051,
+            "max": 0.00052,
             "rms": 0.00029,
             "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00059,
+            "max": 0.0006,
             "rms": 0.00034,
             "p99": 0.00055
           },
@@ -1007,7 +1007,7 @@
     "im-1-odysseus": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1016,7 +1016,7 @@
           "azimuth_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.0005
+            "p99": 0.00049
           },
           "separation_deg": {
             "max": 0.0007,
@@ -1026,7 +1026,7 @@
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1035,10 +1035,10 @@
           "azimuth_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00069,
+            "max": 0.0007,
             "rms": 0.0004,
             "p99": 0.00065
           },
@@ -1072,7 +1072,7 @@
     "im-2-athena": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1091,7 +1091,7 @@
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1100,12 +1100,12 @@
           "azimuth_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00069,
+            "max": 0.00071,
             "rms": 0.00041,
-            "p99": 0.00065
+            "p99": 0.00066
           },
           "verdict_changes": 0
         }
@@ -1137,7 +1137,7 @@
     "blue-ghost-1": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1151,12 +1151,12 @@
           "separation_deg": {
             "max": 0.0007,
             "rms": 0.00036,
-            "p99": 0.00061
+            "p99": 0.00062
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1165,10 +1165,10 @@
           "azimuth_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00067,
+            "max": 0.00068,
             "rms": 0.00039,
             "p99": 0.00063
           },
@@ -1188,11 +1188,11 @@
     "change-3": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "azimuth_diff_deg": {
             "max": 0.00051,
@@ -1202,12 +1202,12 @@
           "separation_deg": {
             "max": 0.00069,
             "rms": 0.00038,
-            "p99": 0.00063
+            "p99": 0.00062
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1239,26 +1239,26 @@
     "change-4": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
             "p99": 0.0005
           },
           "azimuth_diff_deg": {
-            "max": 0.0005,
+            "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.00049
+            "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00068,
+            "max": 0.0007,
             "rms": 0.00038,
-            "p99": 0.00062
+            "p99": 0.00063
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1290,7 +1290,7 @@
     "change-5": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1304,12 +1304,12 @@
           "separation_deg": {
             "max": 0.0007,
             "rms": 0.00038,
-            "p99": 0.00062
+            "p99": 0.00063
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1341,7 +1341,7 @@
     "change-6": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1355,12 +1355,12 @@
           "separation_deg": {
             "max": 0.00071,
             "rms": 0.00038,
-            "p99": 0.00061
+            "p99": 0.00062
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1392,7 +1392,7 @@
     "chandrayaan-3": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1401,17 +1401,17 @@
           "azimuth_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
-            "p99": 0.0005
+            "p99": 0.00049
           },
           "separation_deg": {
-            "max": 0.00069,
+            "max": 0.0007,
             "rms": 0.0004,
             "p99": 0.00065
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1423,7 +1423,7 @@
             "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00068,
+            "max": 0.0007,
             "rms": 0.0004,
             "p99": 0.00064
           },
@@ -1457,7 +1457,7 @@
     "slim": {
       "ephemeris": {
         "sun": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1469,14 +1469,14 @@
             "p99": 0.0005
           },
           "separation_deg": {
-            "max": 0.00067,
+            "max": 0.00069,
             "rms": 0.00036,
-            "p99": 0.00061
+            "p99": 0.00062
           },
           "verdict_changes": 0
         },
         "earth": {
-          "samples": 2925,
+          "samples": 7305,
           "elevation_diff_deg": {
             "max": 0.00051,
             "rms": 0.00029,
@@ -1488,7 +1488,7 @@
             "p99": 0.00051
           },
           "separation_deg": {
-            "max": 0.00056,
+            "max": 0.00057,
             "rms": 0.00032,
             "p99": 0.00053
           },

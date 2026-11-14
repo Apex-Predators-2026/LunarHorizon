@@ -15,6 +15,7 @@ export interface Layers {
   psr: boolean
   blockers: boolean
   imagery: boolean // LRO WAC photo mosaic on the terrain (off by default: its shadows are not "now")
+  paths: boolean // the Sun's and Earth's paths across the sky over the time window
 }
 
 export type PinState =
@@ -36,6 +37,11 @@ const LAYER_ROWS: { key: keyof Layers; label: string; hint: string }[] = [
   { key: 'psr', label: 'PSRs & ice', hint: 'Permanently shadowed regions and surface-ice detections (Moon Trek)' },
   { key: 'blockers', label: 'Blockers', hint: 'Lines from the lander to the terrain that blocks the Sun (red) or Earth (blue)' },
   {
+    key: 'paths',
+    label: 'Sun & Earth paths',
+    hint: "The Sun's and Earth's paths across the sky over the time window: bright where they clear the terrain, dim where it blocks them",
+  },
+  {
     key: 'imagery',
     label: 'LRO imagery',
     hint: 'LRO Wide Angle Camera photo mosaic (Moon Trek, ~100 m/px) on the terrain. Its shadows are from when the photos were taken, not from the time shown.',
@@ -52,6 +58,7 @@ const ICON = {
   pause: 'M6 19h4V5H6v14zm8-14v14h4V5h-4z',
   speed: 'M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z',
   check: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
+  flag: 'M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z',
 }
 
 function Icon({ d, size = 24 }: { d: string; size?: number }) {
@@ -69,6 +76,7 @@ function fmtLat(lat: number) {
 /** M3 icon button. `selected` = toggled on (filled), `open` = its menu is showing (tonal). */
 function ToolButton({
   label,
+  tip,
   icon,
   selected,
   open,
@@ -77,6 +85,7 @@ function ToolButton({
   haspopup,
 }: {
   label: string
+  tip?: string
   icon: string
   selected?: boolean
   open?: boolean
@@ -93,7 +102,7 @@ function ToolButton({
     <button
       type="button"
       aria-label={label}
-      title={label}
+      data-tip={tip ?? label}
       aria-pressed={selected === undefined ? undefined : selected}
       aria-haspopup={haspopup ? 'menu' : undefined}
       aria-expanded={haspopup ? !!open : undefined}
@@ -113,7 +122,10 @@ function ToolMenu({
   setOpenId,
   onHeight,
   label,
+  tip,
   icon,
+  hover = false,
+  onActivate,
   children,
 }: {
   id: string
@@ -121,7 +133,10 @@ function ToolMenu({
   setOpenId: (id: string | null) => void
   onHeight: (h: number) => void // the open menu's height, so other popups can make room for it
   label: string
+  tip: string
   icon: string
+  hover?: boolean // the menu opens when hovered or focused; clicking the button runs onActivate instead
+  onActivate?: () => void
   children: (close: () => void) => ReactNode
 }) {
   const open = openId === id
@@ -129,6 +144,26 @@ function ToolMenu({
   const root = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const close = () => setClosing(true)
+  const timer = useRef<number>(0)
+
+  // Hover menus: open shortly after the pointer arrives, close shortly after it leaves (the delay lets
+  // the pointer cross from the button to the menu).
+  const enter = () => {
+    if (!hover) return
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      setClosing(false)
+      setOpenId(id)
+    }, 120)
+  }
+  const leave = () => {
+    if (!hover) return
+    window.clearTimeout(timer.current)
+    timer.current = window.setTimeout(() => {
+      if (open) setClosing(true)
+    }, 280)
+  }
+  useEffect(() => () => window.clearTimeout(timer.current), [])
 
   useLayoutEffect(() => {
     if (open && menuRef.current) onHeight(menuRef.current.offsetHeight)
@@ -149,13 +184,25 @@ function ToolMenu({
   }, [open, setOpenId])
 
   return (
-    <div ref={root} className="relative">
+    <div
+      ref={root}
+      className="relative"
+      onPointerEnter={hover ? enter : undefined}
+      onPointerLeave={hover ? leave : undefined}
+      onFocus={hover ? (e) => e.target.matches(':focus-visible') && enter() : undefined}
+      onBlur={hover ? (e) => !root.current?.contains(e.relatedTarget as Node) && leave() : undefined}
+    >
       <ToolButton
         label={label}
+        tip={open ? undefined : tip}
         icon={icon}
         haspopup
         open={open && !closing}
         onClick={() => {
+          if (onActivate) {
+            onActivate()
+            return
+          }
           if (open && !closing) close()
           else {
             setClosing(false)
@@ -168,7 +215,7 @@ function ToolMenu({
           ref={menuRef}
           role="menu"
           aria-label={label}
-          className={`absolute bottom-full left-1/2 mb-3 min-w-56 rounded-2xl bg-opal-50 py-2 shadow-xl shadow-black/40 ${closing ? 'md-menu-out' : 'md-menu'}`}
+          className={`absolute bottom-full left-1/2 min-w-56 pb-3 ${closing ? 'md-menu-out' : 'md-menu'}`}
           onAnimationEnd={() => {
             if (closing) {
               setOpenId(null)
@@ -176,7 +223,7 @@ function ToolMenu({
             }
           }}
         >
-          {children(close)}
+          <div className="rounded-2xl bg-opal-50 py-2 shadow-xl shadow-black/40">{children(close)}</div>
         </div>
       )}
     </div>
@@ -188,10 +235,10 @@ function CoordinateForm({ onSubmit }: { onSubmit: (lat: number, lon: number) => 
   const [lat, setLat] = useState('')
   const [lon, setLon] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const field = 'w-24 rounded-lg border border-opal-300 bg-white px-1.5 py-0.5 text-xs text-slate-300'
+  const field = 'h-10 w-28 rounded-full border border-opal-300 bg-white px-3 text-xs text-slate-300'
   return (
     <form
-      className="md-reveal lp-light pointer-events-auto flex flex-wrap items-center gap-1.5 rounded-xl bg-opal-50 px-2 py-1.5 text-xs text-slate-300 shadow-lg shadow-black/30"
+      className="md-reveal lp-light pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl bg-opal-50 px-4 py-2 text-xs text-slate-300 shadow-lg shadow-black/30"
       onSubmit={(e) => {
         e.preventDefault()
         const r = parseCoordinates(lat, lon)
@@ -203,15 +250,15 @@ function CoordinateForm({ onSubmit }: { onSubmit: (lat: number, lon: number) => 
       }}
     >
       <span>Click the terrain, or enter coordinates:</span>
-      <label className="flex items-center gap-1">
+      <label className="flex items-center gap-2">
         Lat
         <input className={field} inputMode="decimal" placeholder="-89.45" value={lat} onChange={(e) => setLat(e.target.value)} aria-label="Latitude (degrees, negative = south)" />
       </label>
-      <label className="flex items-center gap-1">
+      <label className="flex items-center gap-2">
         Lon
         <input className={field} inputMode="decimal" placeholder="222.69" value={lon} onChange={(e) => setLon(e.target.value)} aria-label="Longitude (degrees east)" />
       </label>
-      <button type="submit" className="rounded-lg border border-opal-300 bg-white px-2 py-0.5 transition-colors hover:bg-calcite-peach/40">
+      <button type="submit" className="md-compact border border-opal-300 bg-white transition-colors hover:bg-calcite-peach/40">
         Analyse
       </button>
       {error && <span className="w-full text-red-300">{error}</span>}
@@ -229,11 +276,13 @@ export function MapTools({
   timeUtc,
   view,
   onView,
+  onGoToView,
   graphics,
   onGraphics,
   farShadows,
   farShadowsAvailable,
   onFarShadows,
+  mission,
 }: {
   layers: Layers
   onLayers: (l: Layers) => void
@@ -244,11 +293,13 @@ export function MapTools({
   timeUtc: string
   view: ViewMode
   onView: (v: ViewMode) => void
+  onGoToView: () => void // fly the camera to the chosen view (again, if you have orbited away)
   graphics: GraphicsQuality
   onGraphics: (q: GraphicsQuality) => void
   farShadows: boolean
   farShadowsAvailable: boolean // not in the Low preset (no shadows at all there)
   onFarShadows: (on: boolean) => void
+  mission: { available: boolean; active: boolean; reason: string; start: () => void; stop: () => void } // mission playback
 }) {
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
@@ -279,17 +330,28 @@ export function MapTools({
 
   return (
     // Column-reverse: the toolbar is the bottom item; messages and the verify panel open upwards.
-    <div className="lp-light pointer-events-none mb-2 flex flex-col-reverse items-center gap-1.5">
-      <div role="toolbar" aria-label="Map tools" className="pointer-events-auto flex items-center gap-1 rounded-full bg-opal-50 p-1.5 shadow-lg shadow-black/30">
+    <div className="lp-light pointer-events-none mb-2 flex flex-col-reverse items-center gap-2">
+      <div role="toolbar" aria-label="Map tools" className="pointer-events-auto flex items-center gap-1 rounded-full bg-opal-50 p-2 shadow-lg shadow-black/30">
         <ToolButton
           label={playing ? 'Pause' : 'Play'}
+          tip={playing ? 'Pause: stop the time simulation' : 'Play: run the simulation forward in time at the chosen speed'}
           icon={playing ? ICON.pause : ICON.play}
           selected={playing}
           disabled={!siteId}
           onClick={() => setPlaying(!playing)}
         />
-        <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" label="Camera position" icon={ICON.camera}>
+        <ToolButton
+          label={mission.active ? 'Stop the mission playback' : mission.available ? `Play mission: ${mission.reason.replace(/^Play the plan: /, '')}` : `Play mission: ${mission.reason}`}
+          icon={ICON.flag}
+          selected={mission.active}
+          disabled={!mission.active && !mission.available}
+          onClick={() => (mission.active ? mission.stop() : mission.start())}
+        />
+        <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" hover onActivate={() => {
+            onGoToView()
+            showSnackbar(`Camera: ${VIEWS.find((v) => v.id === view)?.label ?? view}`)
+          }} label="Camera position" tip="Camera: click to fly to the chosen view. Hover to pick a different one (whole Moon, region, site, or a lander's-eye view of the Sun or Earth)." icon={ICON.camera}>
           {(close) =>
             VIEWS.map((v) => (
               <button
@@ -297,10 +359,11 @@ export function MapTools({
                 type="button"
                 role="menuitemradio"
                 aria-checked={view === v.id}
-                title={v.hint}
+                data-tip={v.hint}
                 onClick={() => {
-                  if (v.id !== view) showSnackbar(`Camera: ${v.label}`)
+                  showSnackbar(`Camera: ${v.label}`)
                   onView(v.id)
+                  onGoToView()
                   close()
                 }}
                 className={`flex h-12 w-full items-center gap-3 px-4 text-left text-sm transition-colors ${view === v.id ? 'bg-coral/15 font-semibold' : ''}`}
@@ -311,7 +374,7 @@ export function MapTools({
             ))
           }
         </ToolMenu>
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="layers" label="Map layers" icon={ICON.layers}>
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="layers" label="Map layers" tip="Map layers: switch on landing sites, permanently shadowed regions and ice, and lines to the terrain blocking the Sun or Earth" icon={ICON.layers}>
           {() =>
             LAYER_ROWS.map((r) => (
               <button
@@ -319,7 +382,7 @@ export function MapTools({
                 type="button"
                 role="switch"
                 aria-checked={layers[r.key]}
-                title={r.hint}
+                data-tip={r.hint}
                 data-no-ripple
                 onClick={() => toggle(r.key)}
                 className="md-row flex h-14 w-full items-center justify-between gap-6 px-4 text-left text-sm"
@@ -348,8 +411,8 @@ export function MapTools({
           disabled={!siteId || verify?.loading}
           onClick={runVerify}
         />
-        <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="graphics" label="Graphics quality" icon={ICON.speed}>
+        <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="graphics" label="Graphics quality" tip="Graphics quality: High is full detail and shadows; Low is lighter for Chromebooks and older laptops" icon={ICON.speed}>
           {(close) =>
             (Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
               <button
@@ -357,7 +420,7 @@ export function MapTools({
                 type="button"
                 role="menuitemradio"
                 aria-checked={graphics === q}
-                title={GRAPHICS[q].hint}
+                data-tip={GRAPHICS[q].hint}
                 onClick={() => {
                   if (q !== graphics) showSnackbar(`Graphics set to ${GRAPHICS[q].label}`, 'success')
                   onGraphics(q)
@@ -377,7 +440,7 @@ export function MapTools({
                 role="switch"
                 aria-checked={farShadows}
                 disabled={!farShadowsAvailable}
-                title={
+                data-tip={
                   farShadowsAvailable
                     ? 'Shadows from all terrain on screen, not just ~6 km around the lander (cascaded shadow maps; more GPU work while the camera moves)'
                     : 'Not available in the Low graphics setting (no shadows)'
@@ -402,7 +465,7 @@ export function MapTools({
       </div>
 
       {/* Room for the open menu: everything above the toolbar is pushed up while it is open and falls back after. */}
-      <div aria-hidden className="transition-[height] duration-300 ease-[var(--md-ease-emph-decel)]" style={{ height: openMenu ? menuH + 12 : 0 }} />
+      <div aria-hidden className="transition-[height] duration-300 ease-[var(--md-ease-emph-decel)]" style={{ height: openMenu ? menuH : 0 }} />
 
       {armed && <CoordinateForm onSubmit={onCoordinates} />}
       {pin.phase === 'working' && (
@@ -468,9 +531,9 @@ export function ColorKey({ layers }: { layers: Layers }) {
   if (!layers.sites && !layers.psr && !layers.blockers) return null
   const dot = (c: string) => <span className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />
   return (
-    <div className="md-reveal pointer-events-none mt-3 max-w-[30rem] text-[10px] leading-snug text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }} aria-label="Colour key">
+    <div className="md-reveal pointer-events-none mt-4 max-w-[30rem] text-[10px] leading-snug text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }} aria-label="Colour key">
       {layers.sites && (
-        <p className="flex flex-wrap gap-x-2.5">
+        <p className="flex flex-wrap gap-x-3">
           {(['artemis', 'apollo', 'clps', 'international', 'custom'] as const).map((k) => (
             <span key={k} className="flex items-center gap-1">
               {dot(KIND_COLOR[k])}
@@ -480,13 +543,13 @@ export function ColorKey({ layers }: { layers: Layers }) {
         </p>
       )}
       {layers.psr && (
-        <p className="flex flex-wrap gap-x-2.5">
+        <p className="flex flex-wrap gap-x-3">
           <span className="flex items-center gap-1">{dot('#7dd3fc')} PSR (approx. extent)</span>
           <span className="flex items-center gap-1">{dot('#e0f2fe')} Surface ice</span>
         </p>
       )}
       {layers.blockers && (
-        <p className="flex flex-wrap gap-x-2.5">
+        <p className="flex flex-wrap gap-x-3">
           <span className="flex items-center gap-1">{dot('#ef4444')} Terrain blocking the Sun</span>
           <span className="flex items-center gap-1">{dot('#60a5fa')} Terrain blocking Earth</span>
         </p>
