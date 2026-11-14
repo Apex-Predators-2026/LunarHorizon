@@ -50,7 +50,8 @@ export function HorizonCompare({ entries }: { entries: Entry[] }) {
       for (const e of lines) {
         const h = horizons[e.scenario.site.id]!
         const i = Math.round((a % 360) / 0.5) % h.elevation_deg.length
-        row[e.scenario.id] = h.elevation_deg[i]
+        const el = h.elevation_deg[i]
+        if (el !== null) row[e.scenario.id] = el // null = unknown terrain (custom sites): leave a gap
       }
       out.push(row)
     }

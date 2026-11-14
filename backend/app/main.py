@@ -70,6 +70,18 @@ def _site_model(d: store.SiteData) -> SiteInfo:
     )
 
 
+def _num(col: np.ndarray | None, i: int) -> float | None:
+    """Column value as a float, or None if unknown (NaN) or the column is absent."""
+    if col is None:
+        return None
+    v = float(col[i])
+    return None if np.isnan(v) else v
+
+
+def _flag(d: store.SiteData, name: str, i: int) -> bool | None:
+    return bool(d.cols[name][i]) if d.known[name][i] else None
+
+
 def _step(d: store.SiteData, i: int) -> dict:
     c = d.cols
     return {
@@ -77,15 +89,17 @@ def _step(d: store.SiteData, i: int) -> dict:
         "sun": SunState(
             azimuth_deg=c["sun_azimuth_deg"][i],
             elevation_deg=c["sun_elevation_deg"][i],
-            horizon_deg=c["sun_horizon_deg"][i],
-            visible_fraction=c["sun_visible_fraction"][i],
+            horizon_deg=_num(c["sun_horizon_deg"], i),
+            visible_fraction=_num(c["sun_visible_fraction"], i),
+            visible=_flag(d, "sun_visible", i),
+            angular_radius_deg=_num(c.get("sun_angular_radius_deg"), i),
         ),
         "earth": EarthState(
             azimuth_deg=c["earth_azimuth_deg"][i],
             elevation_deg=c["earth_elevation_deg"][i],
-            horizon_deg=c["earth_horizon_deg"][i],
-            visible=bool(c["earth_visible"][i]),
-            margin_deg=c["earth_margin_deg"][i],
+            horizon_deg=_num(c["earth_horizon_deg"], i),
+            visible=_flag(d, "earth_visible", i),
+            margin_deg=_num(c["earth_margin_deg"], i),
         ),
     }
 

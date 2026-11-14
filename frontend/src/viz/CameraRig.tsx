@@ -1,7 +1,7 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect } from 'react'
 import type { Vector3 } from 'three'
-import type { SiteStatus } from '../types'
+import type { TimelineStep } from '../types'
 
 // The bits of drei's OrbitControls (registered with makeDefault) that we use.
 type Controls = { target: Vector3; update: () => void }
@@ -24,7 +24,7 @@ export function CameraRig({
   maxTerrainHeight,
 }: {
   view: ViewMode
-  status: SiteStatus | null
+  status: TimelineStep | null
   siteId: string | null
   maxTerrainHeight: number | null // highest terrain in the grid, relative to the site (m)
 }) {

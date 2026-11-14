@@ -19,11 +19,15 @@ class Site(BaseModel):
 
 
 class SiteSummaryStats(BaseModel):
-    sunlit_pct: float
-    mean_sun_fraction_pct: float
-    earth_visible_pct: float
-    horizon_min_deg: float
-    horizon_max_deg: float
+    """Percentages are over hours where the answer is known (None if nothing is known)."""
+
+    sunlit_pct: float | None
+    mean_sun_fraction_pct: float | None
+    earth_visible_pct: float | None
+    horizon_min_deg: float | None
+    horizon_max_deg: float | None
+    unknown_horizon_pct: float = 0  # directions with missing terrain data
+    unknown_hours_pct: float = 0  # hours where Sun or Earth visibility is unknown
 
 
 class SiteInfo(Site):
@@ -45,25 +49,31 @@ class CustomSiteRequest(BaseModel):
 
 class Horizon(BaseModel):
     azimuth_deg: list[float]  # clockwise from north
-    elevation_deg: list[float]  # terrain horizon elevation per azimuth
-    distance_m: list[float]  # how far away the blocking terrain is
+    elevation_deg: list[float | None]  # terrain horizon elevation per azimuth (None = unknown)
+    distance_m: list[float | None]  # how far away the blocking terrain is (None = unknown)
     ground_height_m: float
     observer_height_m: float
+
+
+# None in the fields below means "unknown": terrain data is missing in that direction
+# (only possible for custom sites). Curated sites are always fully known.
 
 
 class BodyState(BaseModel):
     azimuth_deg: float
     elevation_deg: float
-    horizon_deg: float  # terrain horizon elevation at this azimuth
+    horizon_deg: float | None  # terrain horizon elevation at this azimuth
 
 
 class SunState(BodyState):
-    visible_fraction: float  # portion of the solar disk above terrain, 0..1
+    visible_fraction: float | None  # portion of the solar disk above terrain, 0..1
+    visible: bool | None = None  # any of the disk above terrain (authoritative, unlike fraction > 0)
+    angular_radius_deg: float | None = None  # apparent solar radius used for the disk
 
 
 class EarthState(BodyState):
-    visible: bool
-    margin_deg: float  # elevation_deg - horizon_deg
+    visible: bool | None
+    margin_deg: float | None  # elevation_deg - horizon_deg
 
 
 class TimelineStep(BaseModel):

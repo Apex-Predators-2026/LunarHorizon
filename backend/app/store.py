@@ -17,17 +17,35 @@ CUSTOM_DIR = SITES_DIR / "custom"
 _custom_lock = threading.Lock()
 
 
+BOOL_COLUMNS = ("sun_visible", "earth_visible")
+
+
 class SiteData:
-    """One site record with the timeline as numpy arrays for fast slicing."""
+    """One site record with the timeline as numpy arrays for fast slicing.
+
+    Numeric columns: float arrays, NaN where the file has null (unknown).
+    Boolean columns: bool arrays (False where unknown) plus `known[name]` masks.
+    """
 
     def __init__(self, record: dict):
         self.record = record
         self.site = record["site"]
-        tl = record["timeline"]
-        self.times = np.array([t.rstrip("Z") for t in tl["time_utc"]], dtype="datetime64[s]")
-        self.cols = {k: np.asarray(v) for k, v in tl.items() if k != "time_utc"}
-        self.sunlit = self.cols["sun_visible_fraction"] > 0
-        self.earth_visible = self.cols["earth_visible"].astype(bool)
+        tl = dict(record["timeline"])
+        self.times = np.array([t.rstrip("Z") for t in tl.pop("time_utc")], dtype="datetime64[s]")
+        self.cols: dict[str, np.ndarray] = {}
+        self.known: dict[str, np.ndarray] = {}
+        for name, values in tl.items():
+            if name in BOOL_COLUMNS:
+                self.known[name] = np.array([v is not None for v in values])
+                self.cols[name] = np.array([bool(v) for v in values])
+            else:
+                self.cols[name] = np.array([np.nan if v is None else v for v in values], dtype=float)
+        if "sun_visible" not in self.cols:  # files from generator 1.0
+            frac = self.cols["sun_visible_fraction"]
+            self.known["sun_visible"] = ~np.isnan(frac)
+            self.cols["sun_visible"] = np.nan_to_num(frac) > 0
+        self.sunlit = self.cols["sun_visible"]
+        self.earth_visible = self.cols["earth_visible"]
 
 
 def _site_files() -> dict[str, Path]:
