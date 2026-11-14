@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { SiteFrame } from './cubeSphere'
-import { blockerLine, currentBlockers, destination, horizonAt, surfacePoint } from './overlays'
+import { ARTEMIS_FORMER_COLOR, artemisNote, blockerLine, currentBlockers, destination, horizonAt, KIND_COLOR, siteColor, surfacePoint } from './overlays'
 
 describe('surface overlays', () => {
   const frame = new SiteFrame(-89.53432, 209.94767, 1654)
@@ -57,5 +57,22 @@ describe('blockerLine', () => {
     expect(b.to[0]).toBeCloseTo(8000, 6) // due east, 8 km out horizontally
     expect(b.to[1]).toBeCloseTo(2 + 8000 * Math.tan((3 * Math.PI) / 180), 6)
     expect(Math.abs(b.to[2])).toBeLessThan(1e-9)
+  })
+})
+
+describe('Artemis region labels (NASA 2024 list vs 2022 list)', () => {
+  it('colours current regions blue and earlier candidates a paler blue; other sites by kind', () => {
+    expect(siteColor({ kind: 'artemis', artemis_list: '2024' })).toBe(KIND_COLOR.artemis)
+    expect(siteColor({ kind: 'artemis', artemis_list: '2022' })).toBe(ARTEMIS_FORMER_COLOR)
+    expect(siteColor({ kind: 'artemis', artemis_list: 'unconfirmed' })).toBe(ARTEMIS_FORMER_COLOR)
+    expect(siteColor({ kind: 'artemis' })).toBe(KIND_COLOR.artemis) // an older backend without the field
+    expect(siteColor({ kind: 'apollo', artemis_list: null })).toBe(KIND_COLOR.apollo)
+  })
+
+  it('explains each status in words', () => {
+    expect(artemisNote({ artemis_list: '2024' })).toMatch(/one of the 9 in NASA's October 2024 update/)
+    expect(artemisNote({ artemis_list: '2022' })).toMatch(/original 13.*not among the 9/)
+    expect(artemisNote({ artemis_list: 'unconfirmed' })).toMatch(/Rim 2.*Rim 1/)
+    expect(artemisNote({ artemis_list: null })).toBeNull()
   })
 })

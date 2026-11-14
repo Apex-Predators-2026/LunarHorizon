@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import store
+from .engine.sites import ALL_SITES
 from .engine.verify import verify
 from .engine.visibility import next_edge
 from .models import (
@@ -59,6 +60,11 @@ def _iso(t) -> str:
     return str(np.datetime64(t, "m")) + "Z"
 
 
+# Labels that live in engine/sites.py rather than in the precomputed site files (so they can be corrected
+# without regenerating the data), e.g. which NASA Artemis III list names the region.
+_SITE_LABELS = {s["id"]: s for s in ALL_SITES}
+
+
 def _site_model(d: store.SiteData) -> SiteInfo:
     s = d.site
     return SiteInfo(
@@ -69,6 +75,7 @@ def _site_model(d: store.SiteData) -> SiteInfo:
         source=s.get("source", ""),
         kind=s.get("kind", "custom"),
         approximate=bool(s.get("approximate", False)),
+        artemis_list=_SITE_LABELS.get(s["id"], {}).get("artemis_list"),
         ground_height_m=s["ground_height_m"],
         observer_height_m=s["observer_height_m"],
         summary=d.record["summary"],

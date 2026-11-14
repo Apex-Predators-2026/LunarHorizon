@@ -85,7 +85,7 @@ into the shared `useAppStore` for the followed scenario; "View in 3D ↗" switch
 
 ## Known limitations
 
-- Real data covers the curated sites for 2027-01-01 → 2029-01-01 (hourly). Custom sites created
+- Real data covers the curated sites for 2026-01-01 → 2031-01-01 (hourly). Custom sites created
   through `/api/sites/custom` work; `custom:<lat>,<lon>` ids from rescue have no real data.
 - Workspace persists in `sessionStorage` (current browser session only).
 - The viability score shown is whatever `app/rescue/viability` points at (currently `placeholder-v1`).
