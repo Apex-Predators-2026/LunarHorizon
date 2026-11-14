@@ -45,18 +45,31 @@ export function PlanForm() {
   const [req, setReq] = useState<MissionRequirements>(original?.requirements ?? DEFAULT_REQUIREMENTS)
 
   // Load the site list once; start on the site the rest of the app has selected, if any.
+  // Also seed the default plan into the store if none is set yet, so Mission Playback
+  // and Rescue/Compromise tools work immediately on first load.
   useEffect(() => {
     const ctl = new AbortController()
     fetchRescueCatalog(ctl.signal)
       .then((c) => {
         setCatalog(c)
         const appSite = useAppStore.getState().siteId
-        setSiteId((cur) => cur || (c.sites.find((s) => s.id === appSite) ?? c.sites[0])?.id || '')
+        const chosen = c.sites.find((s) => s.id === appSite) ?? c.sites.find((s) => s.id === 'connecting-ridge') ?? c.sites[0]
+        const nextSiteId = chosen?.id || ''
+        setSiteId((cur) => cur || nextSiteId)
+        if (chosen && !useRescueStore.getState().original) {
+          useRescueStore.getState().setOriginal({
+            site: { id: chosen.id, name: chosen.name, lat: chosen.lat, lon: chosen.lon },
+            landing_utc: fromUtcInput(landing),
+            duration_days: duration,
+            requirements: req,
+          })
+        }
       })
       .catch((e) => {
         if (!ctl.signal.aborted) setLoadError(errorMessage(e))
       })
     return () => ctl.abort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const submit = (e: FormEvent) => {
