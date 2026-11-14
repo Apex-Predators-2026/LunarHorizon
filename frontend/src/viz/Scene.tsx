@@ -193,7 +193,9 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         </FollowCamera>
         <Lander status={s} observerHeight={eye} showBeacon={view === 'overview'} />
 
-        <OrbitControls minDistance={5} maxDistance={MAX_CAMERA_DISTANCE_M} makeDefault />
+        {/* Pan along the ground (like a map), not in the screen plane, which would drag the view down
+            into the terrain. TileTree also keeps the camera itself above the ground. */}
+        <OrbitControls minDistance={5} maxDistance={MAX_CAMERA_DISTANCE_M} screenSpacePanning={false} makeDefault />
         <CameraRig
           view={view}
           status={s}
