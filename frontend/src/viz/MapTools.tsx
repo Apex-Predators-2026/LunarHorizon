@@ -8,10 +8,34 @@ import { showSnackbar } from './snackbarStore'
 import { useUiPrefs } from './uiPrefs'
 import type { ViewMode } from './CameraRig'
 import { InteractiveGrainGradient } from '../ui/InteractiveGrainGradient'
+import type { MeasureAnalysis, MeasureWaypoint, ProfileSample } from './globe/measure'
 import { KIND_COLOR } from './globe/overlays'
 import { parseCoordinates } from './coordinates'
 import { GRAPHICS, type GraphicsQuality } from './graphics'
 import { toggleTopDown, useCameraTilt } from './cameraTilt'
+import { MeasureCard, type MeasureDrawer } from './MeasureCard'
+
+export interface MeasureController {
+  armed: boolean
+  onArm: (armed: boolean) => void
+  waypoints: MeasureWaypoint[]
+  selectedWaypointId: string | null
+  onSelectWaypoint: (id: string | null) => void
+  hoveredWaypointId: string | null
+  onHoverWaypoint: (id: string | null) => void
+  onRenameWaypoint: (id: string, name: string) => void
+  onDeleteWaypoint: (id: string) => void
+  analysis: MeasureAnalysis | null
+  hoveredSample: ProfileSample | null
+  onHoverSample: (s: ProfileSample | null) => void
+  onStartAtLander: () => void
+  onUndo: () => void
+  onClear: () => void
+  onClose: () => void
+  finestResM: number | null
+  drawer: MeasureDrawer
+  onDrawerChange: (d: MeasureDrawer) => void
+}
 
 export interface Layers {
   sites: boolean
@@ -51,6 +75,7 @@ const ICON = {
   topDown: 'M16 13h-3V3h-2v10H8l4 4 4-4zM4 19v2h16v-2H4z', // an arrow straight down onto the ground
   layers: 'M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z',
   pin: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+  ruler: 'M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H3V8h2v4h2V8h2v4h2V8h2v4h2V8h2v4h2V8h2v8z',
   verify: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z',
   play: 'M8 5v14l11-7z',
   pause: 'M6 19h4V5H6v14zm8-14v14h4V5h-4z',
@@ -294,6 +319,7 @@ export function MapTools({
   farShadowsAvailable,
   onFarShadows,
   mission,
+  measure,
 }: {
   layers: Layers
   onLayers: (l: Layers) => void
@@ -311,6 +337,7 @@ export function MapTools({
   farShadowsAvailable: boolean // not in the Low preset (no shadows at all there)
   onFarShadows: (on: boolean) => void
   mission: { available: boolean; active: boolean; reason: string; start: () => void; stop: () => void } // mission playback
+  measure: MeasureController
 }) {
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
@@ -342,6 +369,7 @@ export function MapTools({
     showSnackbar(`${name} ${layers[k] ? 'hidden' : 'shown'}`)
   }
   const armed = pin.phase === 'armed'
+  const measureOpen = measure.armed || measure.waypoints.length > 0
 
   return (
     // Column-reverse: the toolbar is the bottom item; messages and the verify panel open upwards.
@@ -363,7 +391,7 @@ export function MapTools({
           onClick={() => (mission.active ? mission.stop() : mission.start())}
         />
         <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" hover onActivate={() => {
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" hover={!armed && !measureOpen} onActivate={() => {
             onGoToView()
             showSnackbar(`Camera: ${VIEWS.find((v) => v.id === view)?.label ?? view}`)
           }} label="Camera position" tip="Camera: click to fly to the chosen view. Hover to pick a different one (whole Moon, region, site, or a lander's-eye view of the Sun or Earth)." icon={ICON.camera}>
@@ -432,6 +460,17 @@ export function MapTools({
           selected={armed}
           disabled={pin.phase === 'working'}
           onClick={() => onArmPin(!armed)}
+        />
+        <ToolButton
+          label={
+            measure.armed
+              ? 'Measure tool active: click points on the terrain (click again to stop adding points)'
+              : 'Measure distance & traverse: place waypoints on the Moon to measure surface distance, slope hazards, and line-of-sight'
+          }
+          icon={ICON.ruler}
+          selected={measure.armed}
+          disabled={!siteId}
+          onClick={() => measure.onArm(!measure.armed)}
         />
         <ToolButton
           label={verify?.loading ? 'Asking JPL…' : "Verify with JPL: compare this hour's Sun/Earth positions with JPL Horizons, live"}
@@ -533,6 +572,32 @@ export function MapTools({
       <div aria-hidden className="transition-[height] duration-300 ease-[var(--md-ease-emph-decel)]" style={{ height: openMenu ? menuH : 0 }} />
 
       {armed && <CoordinateForm onSubmit={onCoordinates} />}
+      {measureOpen && (
+        <MeasureCard
+          armed={measure.armed}
+          waypoints={measure.waypoints}
+          selectedWaypointId={measure.selectedWaypointId}
+          onSelectWaypoint={measure.onSelectWaypoint}
+          hoveredWaypointId={measure.hoveredWaypointId}
+          onHoverWaypoint={measure.onHoverWaypoint}
+          onRenameWaypoint={measure.onRenameWaypoint}
+          onDeleteWaypoint={measure.onDeleteWaypoint}
+          analysis={measure.analysis}
+          hoveredSample={measure.hoveredSample}
+          onHoverSample={measure.onHoverSample}
+          onStartAtLander={measure.onStartAtLander}
+          onUndo={measure.onUndo}
+          onClear={measure.onClear}
+          onClose={measure.onClose}
+          onAnalyseEndpoint={(lat, lon) => {
+            measure.onArm(false)
+            onCoordinates(lat, lon)
+          }}
+          finestResM={measure.finestResM}
+          drawer={measure.drawer}
+          onDrawerChange={measure.onDrawerChange}
+        />
+      )}
       {pin.phase === 'working' && (
         <p className="md-reveal pointer-events-auto rounded bg-slate-950/85 px-2 py-1 text-xs text-slate-200">
           Analysing {fmtLat(pin.lat)}, {pin.lon.toFixed(3)}°E… downloading terrain can take up to a minute in a new area.
