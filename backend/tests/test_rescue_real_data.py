@@ -14,6 +14,7 @@ from app.rescue.engine import is_real
 from app.rescue.schemas import PlanChange, RescueRequest, SearchOptions, SensitivityRequest
 from app.rescue.timeline import PrecomputedTimelineProvider, SyntheticTimelineProvider
 from app.rescue.timeline.precomputed import DEFAULT_DATA_DIR, load_timeline_file
+from tests.data_range import data_range
 
 REAL_IDS = ["peak-near-shackleton", "connecting-ridge", "malapert-massif"]
 pytestmark = pytest.mark.skipif(not all((DEFAULT_DATA_DIR / f"{i}.json").exists() for i in REAL_IDS),
@@ -74,13 +75,14 @@ def test_provider_coverage_and_unaligned_times(ev):
     site = get_site("malapert-massif").to_site()
     p: PrecomputedTimelineProvider = ev.provider
     assert p.has_data(site) and p.has_data(site, datetime(2027, 5, 1), datetime(2027, 6, 1))
-    assert not p.has_data(site, datetime(2030, 1, 1))
+    _, end = data_range("malapert-massif")
+    assert not p.has_data(site, end + timedelta(days=365))
     assert not p.has_data(custom_site("x", site.lat, site.lon))
     # A landing at 12:30 still uses the real hourly data.
     r = ev.evaluate(Scenario(site=site, landing_utc=datetime(2027, 3, 1, 12, 30, tzinfo=timezone.utc)))
     assert is_real(r)
     # Outside the precomputed range -> UNKNOWN by default; synthetic only in simulation mode.
-    late = Scenario(site=site, landing_utc=datetime(2030, 3, 1, tzinfo=timezone.utc))
+    late = Scenario(site=site, landing_utc=end + timedelta(days=60))
     r = ev.evaluate(late)
     assert r.verdict == "unknown" and r.score is None and r.data_source == "no-real-data"
     assert ev.evaluate(late, simulation=True).data_source == "synthetic-placeholder"
