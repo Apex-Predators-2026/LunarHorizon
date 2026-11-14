@@ -19,6 +19,7 @@ import { ScreenLabels } from './ScreenLabels'
 import { SkyBodies } from './SkyBodies'
 import { SunLight } from './SunLight'
 import { TimeBar } from './TimeBar'
+import { ViewCentre } from './ViewCentre'
 import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor } from './timeline'
 import { FloatingSidebar } from './FloatingSidebar'
 import { GRAPHICS, useGraphicsQuality } from './graphics'
@@ -69,6 +70,27 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
     () => (site ? new SiteFrame(site.lat, site.lon, site.ground_height_m) : null),
     [site],
   )
+  // The side panels cover the right of the view: shift the picture so the Moon/lander sits in the
+  // middle of the free area to their left (half the panels' width, re-measured on resize).
+  const sideRef = useRef<HTMLDivElement>(null)
+  const [viewShiftPx, setViewShiftPx] = useState(0)
+  useEffect(() => {
+    const side = sideRef.current
+    const host = side?.parentElement
+    if (!side || !host || typeof ResizeObserver === 'undefined') return
+    const measure = () => {
+      const w = host.getBoundingClientRect().width
+      const covered = host.getBoundingClientRect().right - side.getBoundingClientRect().left
+      // On narrow screens the panels cover most of the view anyway: don't shift there.
+      setViewShiftPx(covered > 0 && covered < w / 2 ? Math.round(covered / 2) : 0)
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(side)
+    ro.observe(host)
+    return () => ro.disconnect()
+  }, [])
+
   // Graphics preset (High = full quality, the default; Low for Chromebooks and old laptops).
   const [graphicsQuality, setGraphicsQuality] = useGraphicsQuality()
   const gfx = GRAPHICS[graphicsQuality]
@@ -179,6 +201,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         camera={{ position: [2600, 1400, 3400], fov: 50, near: 0.5, far: 1e9 }}
       >
         <color attach="background" args={['#000000']} />
+        <ViewCentre shiftLeftPx={viewShiftPx} />
         {/* Display aid, not real light: a dim overhead fill so terrain in shadow still shows its
             shape. Sunlight (intensity 3 x visible fraction near the lander) stays >10x brighter. */}
         <ambientLight intensity={0.03} />
@@ -294,7 +317,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         <div className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(60px,6.2vw,92px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))]">
           <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
         </div>
-        <div className="absolute bottom-4 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-3">
+        <div ref={sideRef} className="absolute bottom-4 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-3">
           {site && <MiniMapPanel horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />}
           <FloatingSidebar>
             <div className="space-y-4">
