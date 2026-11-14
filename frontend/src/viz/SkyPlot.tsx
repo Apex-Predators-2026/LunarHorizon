@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Horizon, TimelineStep } from '../types'
+import { GlassSurface } from '../ui/GlassSurface'
 import { skyRange, skyXY, sunUp } from './timeline'
 
 const SIZE = 220
@@ -77,8 +78,11 @@ export function SkyPlot({
       onFocus={() => setFocused(true)}
       onBlur={() => setFocused(false)}
     >
-      <svg width={SIZE} height={SIZE} role="img" aria-label="Sky plot: terrain horizon with Sun and Earth paths">
-        <circle cx={C} cy={C} r={R} fill="#05080f" stroke="#ffffff" strokeWidth={1.5} />
+      <div className="relative" style={{ width: SIZE, height: SIZE }}>
+      {/* The disc is glass: frosted and translucent over the Moon behind it. */}
+      <GlassSurface radius="50%" interactive={false} aria-hidden className="pointer-events-none absolute" style={{ left: C - R, top: C - R, width: 2 * R, height: 2 * R, background: 'linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05))' }} />
+      <svg className="relative" width={SIZE} height={SIZE} role="img" aria-label="Sky plot: terrain horizon with Sun and Earth paths">
+        <circle cx={C} cy={C} r={R} fill="none" stroke="#ffffff" strokeWidth={1.5} />
         {/* neutral outline, so the yellow Sun path (which often hugs the skyline) stays distinct */}
         {terrainPath && <path d={terrainPath} fill={COLORS.terrain} fillRule="evenodd" stroke="#8b93a5" strokeWidth={0.8} />}
         {rings.map((el) => {
@@ -127,6 +131,7 @@ export function SkyPlot({
           </>
         )}
       </svg>
+      </div>
       <figcaption
         role="tooltip"
         className={`pointer-events-none fixed z-50 w-60 rounded-xl bg-calcite-ink/95 px-3 py-2 text-[11px] leading-snug origin-top-left text-opal-50 transition-[opacity,transform] duration-150 ${
