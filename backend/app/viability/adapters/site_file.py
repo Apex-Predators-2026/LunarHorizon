@@ -67,10 +67,21 @@ REQUIRED_COLUMNS: Final = (
     "earth_visible",
 )
 OPTIONAL_COLUMNS: Final = ("sun_visible", "sun_angular_radius_deg", "earth_angular_radius_deg")
-# Rounding of sun_visible_fraction per documented generator version (docs/interfaces.md, Member 1).
-# 1.2 (whole-Moon pipeline) leaves the rounding unchanged: pipeline.py still writes _r(sun_fraction, 6), and every
-# committed 1.2 file has <= 6 decimals. Files do not yet carry an explicit meta.fraction_decimals (see docs).
+# Fallback only: rounding of sun_visible_fraction per documented generator version (docs/interfaces.md, Member 1),
+# used for files without an explicit meta.fraction_decimals (1.0 / 1.1; 1.2 files carry it, and 1.2 = 6 either way).
 FRACTION_DECIMALS_BY_GENERATOR_VERSION: Final = {"1.0": 3, "1.1": 6, "1.2": 6}
+
+
+def _decimals_field(meta: dict[str, Any], key: str) -> int | None:
+    """Optional ``meta.<key>``: a strict integer 0-17 (a bool, float or string is an error, never coerced)."""
+    value = meta.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 17:
+        raise SiteFileError(f"meta.{key} must be an integer 0-17, got {value!r}")
+    return value
+
+
 _ABSENT: Final = object()  # column not present in the file (distinct from a JSON null)
 
 _STEP_RE: Final = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(m|min|h|d)\s*$")
@@ -343,7 +354,12 @@ def site_file_to_series(
     frame = meta.get("frame")
     if frame is not None and not (isinstance(frame, str) and frame.strip()):
         raise SiteFileError(f"meta.frame must be a non-empty string, got {frame!r}")
-    decimals = FRACTION_DECIMALS_BY_GENERATOR_VERSION.get(generator_version) if generator_version else None
+    explicit_fraction = _decimals_field(meta, "fraction_decimals")
+    angle_decimals = _decimals_field(meta, "angle_decimals")
+    if explicit_fraction is not None:  # the producer's own statement beats inference from the version
+        decimals: int | None = explicit_fraction
+    else:
+        decimals = FRACTION_DECIMALS_BY_GENERATOR_VERSION.get(generator_version) if generator_version else None
 
     cols, n, ignored = read_columns(timeline)
     times = parse_times(cols["time_utc"])
@@ -374,6 +390,11 @@ def site_file_to_series(
             else "Lunar body-fixed frame of ephemeris vs DEM not stated in the file; NOT verified."
         )
         + (f" generator_version={generator_version!r}." if generator_version else "")
+        + (
+            f" meta.angle_decimals={angle_decimals} (recorded; not part of the input contract)."
+            if angle_decimals is not None
+            else ""
+        )
     )
     if ignored:
         notes += f" Ignored timeline columns: {', '.join(ignored)}."
