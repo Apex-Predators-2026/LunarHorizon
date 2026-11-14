@@ -25,7 +25,7 @@ export function ElevationCharts({ entries, view, align, originMs }: { entries: E
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div role="radiogroup" aria-label="Elevation reference" className="inline-flex overflow-hidden rounded-md border border-[#25365a] text-xs">
+        <div role="radiogroup" aria-label="Elevation reference" className="inline-flex overflow-hidden rounded-md border border-line-strong text-xs">
           {(['elevation', 'clearance'] as const).map((m) => (
             <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => setMode(m)}
               className={`px-3 py-1 ${mode === m ? 'bg-cyan-700/40 text-cyan-100' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -41,20 +41,20 @@ export function ElevationCharts({ entries, view, align, originMs }: { entries: E
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
         <div>
-          <h3 className="mb-1 text-xs font-semibold text-amber-200">☀ Sun {clear ? 'clearance above terrain' : 'elevation'}</h3>
+          <h3 className="mb-2 text-sm font-medium text-ink">Sun {clear ? 'clearance above terrain' : 'elevation'}</h3>
           <SeriesChart {...common} value={clear ? sunClear : sunEl} unit="°" yLabel="degrees" format={deg}
             refLines={[{ y: 0, label: clear ? 'terrain line: below = blocked' : 'flat horizon' }]}
             ariaLabel={`Sun ${mode} over time for each compared scenario`} />
         </div>
         <div>
-          <h3 className="mb-1 text-xs font-semibold text-sky-200">⊕ Earth {clear ? 'clearance above terrain (margin)' : 'elevation'}</h3>
+          <h3 className="mb-2 text-sm font-medium text-ink">Earth {clear ? 'clearance above terrain (margin)' : 'elevation'}</h3>
           <SeriesChart {...common} value={clear ? earthClear : earthEl} unit="°" yLabel="degrees" format={deg}
             refLines={[{ y: 0, label: clear ? 'terrain line: below = no line of sight' : 'flat horizon' }]}
             ariaLabel={`Earth ${mode} over time for each compared scenario`} />
         </div>
       </div>
       <div className="mt-4">
-        <h3 className="mb-1 text-xs font-semibold text-amber-200">Idealised solar incidence factor (0–1)</h3>
+        <h3 className="mb-2 text-sm font-medium text-ink">Idealised solar incidence factor (0–1)</h3>
         <p className="mb-1 text-[11px] text-slate-500">
           visible solar disk × max(0, cos θ) for each scenario’s panel configuration ({panels.join(', ').replaceAll('_', ' ') || 'n/a'}).
           This is a geometric upper bound, not electrical power.

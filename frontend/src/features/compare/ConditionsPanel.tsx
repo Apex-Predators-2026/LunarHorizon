@@ -23,7 +23,7 @@ export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entrie
         {entries.map((e) => {
           const c = conditionsAt(e, cursor)
           return (
-            <div key={e.scenario.id} className="rounded-lg border border-[#1c2a48] bg-[#08111f] p-2.5 text-xs">
+            <div key={e.scenario.id} className="rounded-lg border border-line bg-inset p-2.5 text-xs">
               <div className="mb-1.5 flex items-center gap-2">
                 <ScenarioChip s={e.scenario} size="sm" />
                 <span className="min-w-0 flex-1 truncate text-slate-200">{e.scenario.site.name}</span>
@@ -41,7 +41,7 @@ export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entrie
                 <>
                   <p className="text-[11px] text-slate-400">{fmtUtc(c.time_utc)} · T+{Math.round(c.met)} h</p>
                   <div className={`mt-1.5 rounded px-2 py-1 ${c.sunFraction > 0 ? 'bg-amber-950/40 text-amber-200' : 'bg-slate-900 text-slate-300'}`}>
-                    <div className="font-medium">☀ {c.sunReason}</div>
+                    <div className="font-medium">Sun: {c.sunReason}</div>
                     <div className="mt-0.5 grid grid-cols-2 gap-x-2 text-[11px] tabular-nums text-slate-300">
                       <span>Elevation {d2(c.sunEl)}</span><span>Azimuth {az(c.sunAz)}</span>
                       <span>Terrain {d2(c.sunHorizon)}</span><span>Disk {Math.round(c.sunFraction * 100)}%</span>
@@ -49,7 +49,7 @@ export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entrie
                     </div>
                   </div>
                   <div className={`mt-1.5 rounded px-2 py-1 ${c.earthVisible ? 'bg-sky-950/50 text-sky-200' : 'bg-red-950/40 text-red-200'}`}>
-                    <div className="font-medium">⊕ {c.earthReason}</div>
+                    <div className="font-medium">Earth: {c.earthReason}</div>
                     <div className="mt-0.5 grid grid-cols-2 gap-x-2 text-[11px] tabular-nums text-slate-300">
                       <span>Elevation {d2(c.earthEl)}</span><span>Azimuth {az(c.earthAz)}</span>
                       <span>Terrain {d2(c.earthHorizon)}</span><span>Margin {d2(c.earthEl - c.earthHorizon)}</span>
