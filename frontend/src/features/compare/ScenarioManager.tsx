@@ -7,7 +7,7 @@ import { RescueImport } from './RescueImport'
 import { ScenarioEditor } from './ScenarioEditor'
 import { fmtDate, shiftIso } from './scenario'
 import type { ComparisonScenario } from './types'
-import { ScenarioChip, btn, btnPrimary, input } from './ui'
+import { ScenarioChip, btn, btnPrimary, btnQuiet, input } from './ui'
 import { useCompareStore } from './useCompareStore'
 
 const ORIGIN_LABEL: Record<ComparisonScenario['origin'], string> = {
@@ -24,7 +24,7 @@ function ShiftMenu({ s, onDone }: { s: ComparisonScenario; onDone: () => void })
   const customDays = (new Date(`${custom}T${s.landing_utc.slice(11, 19) || '00:00:00'}Z`).getTime() - new Date(s.landing_utc).getTime()) / 86_400_000
   return (
     <div role="menu" aria-label={`Duplicate ${s.label} and shift date`}
-      className="absolute right-0 top-full z-30 mt-1 w-60 rounded-lg border border-[#2a3c63] bg-[#0a1427] p-2 shadow-xl">
+      className="absolute right-0 top-full z-30 mt-1 w-60 rounded-lg border border-line-strong bg-surface p-2 shadow-md">
       <div className="mb-1.5 text-[11px] text-slate-400">Duplicate {s.label} and shift landing by</div>
       <div className="grid grid-cols-4 gap-1">
         {[1, 7, 14, 30].map((d) => (
@@ -59,38 +59,38 @@ function ScenarioRow({ s }: { s: ComparisonScenario }) {
   const full = !selected && st.selectedIds.length >= MAX_COMPARED
   const active = st.activeId === s.id
   return (
-    <li className={`relative rounded-lg border px-3 py-2 transition ${active ? 'border-cyan-600/80 bg-cyan-950/20' : selected ? 'border-[#2a3c63] bg-[#0e1a31]' : 'border-[#1a2743] bg-[#0a1324]'}`}>
+    <li className={`relative rounded-lg border px-3 py-2 transition ${active ? 'border-cyan-600/80 bg-cyan-950/20' : selected ? 'border-line-strong bg-surface' : 'border-line bg-surface'}`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2" title={full ? `At most ${MAX_COMPARED} scenarios can be compared at once` : ''}>
           <input type="checkbox" checked={selected} disabled={full} onChange={() => st.toggleSelected(s.id)}
-            className="h-4 w-4 accent-cyan-500" aria-label={`Compare scenario ${s.label}`} />
-          {selected ? <ScenarioChip s={s} /> : <span className="grid h-5 min-w-5 place-items-center rounded bg-slate-700 px-1 text-xs font-bold text-slate-300">{s.label}</span>}
+            className="h-4 w-4" aria-label={`Compare scenario ${s.label}`} />
+          {selected ? <ScenarioChip s={s} /> : <span className="grid h-5 min-w-5 place-items-center rounded bg-slate-700 px-1 text-xs font-medium text-slate-300">{s.label}</span>}
           <span className="min-w-0">
             <span className="block truncate text-sm font-medium text-slate-100">{s.name}</span>
             <span className="block truncate text-[11px] text-slate-400">
               {s.site.lat.toFixed(3)}°, {s.site.lon.toFixed(3)}°E · {fmtUtc(s.landing_utc)} · {s.duration_days} d
-              <span className="ml-1.5 rounded bg-slate-800 px-1 text-[10px] text-slate-400">{ORIGIN_LABEL[s.origin]}</span>
-              {st.baselineId === s.id && <span className="ml-1.5 rounded bg-cyan-900/70 px-1 text-[10px] text-cyan-200">baseline</span>}
+              <span className="ml-1.5 rounded bg-slate-800 px-1 text-[11px] text-slate-400">{ORIGIN_LABEL[s.origin]}</span>
+              {st.baselineId === s.id && <span className="ml-1.5 rounded bg-cyan-900/70 px-1 text-[11px] text-cyan-200">baseline</span>}
             </span>
           </span>
         </label>
         <div className="flex flex-wrap gap-1">
-          <button type="button" className={btn} aria-pressed={active} onClick={() => st.setActive(active ? null : s.id)}>
+          <button type="button" className={btnQuiet} aria-pressed={active} onClick={() => st.setActive(active ? null : s.id)}>
             {active ? 'Close' : 'Edit'}
           </button>
-          <button type="button" className={btn} onClick={() => st.duplicateScenario(s.id)}>Duplicate</button>
+          <button type="button" className={btnQuiet} onClick={() => st.duplicateScenario(s.id)}>Duplicate</button>
           <div className="relative">
-            <button type="button" className={btn} aria-expanded={menu} aria-haspopup="menu" onClick={() => setMenu(!menu)}>
+            <button type="button" className={btnQuiet} aria-expanded={menu} aria-haspopup="menu" onClick={() => setMenu(!menu)}>
               Duplicate &amp; shift date ▾
             </button>
             {menu && <ShiftMenu s={s} onDone={() => setMenu(false)} />}
           </div>
-          <button type="button" className={btn} disabled={!selected} aria-pressed={st.baselineId === s.id}
+          <button type="button" className={btnQuiet} disabled={!selected} aria-pressed={st.baselineId === s.id}
             title="Show every other scenario’s metrics as better/worse than this one"
             onClick={() => st.setBaseline(st.baselineId === s.id ? null : s.id)}>
             {st.baselineId === s.id ? 'Unset baseline' : 'Set baseline'}
           </button>
-          <button type="button" className={`${btn} hover:border-red-700 hover:text-red-300`} onClick={() => st.removeScenario(s.id)}
+          <button type="button" className={`${btnQuiet} cmp-danger`} onClick={() => st.removeScenario(s.id)}
             aria-label={`Remove scenario ${s.label}`}>
             Remove
           </button>
