@@ -98,7 +98,7 @@ export function TopInfo({
           onClick={() => setCalendar((o) => !o)}
           aria-expanded={calendar}
           aria-label={`Simulation time ${timeUtc.slice(0, 16).replace('T', ' ')} UTC. Click to change.`}
-          title="Click to change the time"
+          data-tip="Click to change the time"
           className="pointer-events-auto cursor-pointer font-display underline underline-offset-2 transition-colors duration-200 hover:text-calcite-peach"
         >
           {timeUtc.slice(0, 10)} {timeUtc.slice(11, 16)} UTC
