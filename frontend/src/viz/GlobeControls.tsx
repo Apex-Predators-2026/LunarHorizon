@@ -9,12 +9,13 @@
 //     dragging from orbit keeps the Moon centred instead of low on the screen (as in Google Earth).
 //   * Top-down toggle (map toolbar button or the U key, cameraTilt.ts): swing to look straight down
 //     at the middle of the view, at the same distance, and back to the tilt it had.
+//   * Fly-to (a click on the minimap, cameraTilt.ts): spin the Moon until that point is in the middle.
 // Registered as the scene's default controls, with the `target` + `update()` that CameraRig's
 // view presets and the camera readout use. Geometry: globeNav.ts (unit-tested).
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
-import { TOP_DOWN_WITHIN_RAD, useCameraTilt } from './cameraTilt'
+import { TOP_DOWN_WITHIN_RAD, useCameraTilt, useFlyTo } from './cameraTilt'
 import type { Vec3 } from './globe/cubeSphere'
 import { PERF_ENABLED } from './perf'
 import {
@@ -47,6 +48,7 @@ const MAX_SPIN_COAST_RAD = 0.5 // at most about this much extra turn after letti
 const TILT_SWING_MS = 700 // the top-down toggle's swing
 const DEFAULT_TILT = (60 * Math.PI) / 180 // tilting back from a view that started top-down
 const EYE_LEVEL_LOOK_AHEAD_M = 60 // at eye level, top-down looks at the ground this far ahead
+const FLY_MS = 500 // + up to FLY_MS more for a spin of a quarter turn or more
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2)
 
 type Mode =
@@ -71,6 +73,8 @@ export function GlobeControls({
   const zoom = useRef<{ focus: THREE.Vector3; remaining: number } | null>(null)
   const spin = useRef<{ axis: THREE.Vector3; rate: number; last: number; maxStep: number } | null>(null) // rad/ms
   // The top-down toggle's swing: tilt about the pivot and look offset (eye level), from -> to.
+  // A fly-to: the whole spin about the Moon's centre, how much of it is done, when it started and how long.
+  const fly = useRef<{ total: THREE.Quaternion; applied: THREE.Quaternion; start: number; ms: number } | null>(null)
   const swing = useRef<{ pivot: THREE.Vector3; from: number; to: number; offFrom: number; offTo: number; start: number; down: boolean } | null>(null)
   const limits = useRef({ groundRadius, maxDistance })
 
@@ -169,6 +173,7 @@ export function GlobeControls({
       n.dispatchEvent({ type: 'start' }) // stops a view flight
       zoom.current = null
       spin.current = null
+      fly.current = null
       const start = performance.now()
       if (nadirAngle(camera, n.centre) < TOP_DOWN_WITHIN_RAD) {
         // Back to the tilt it had: exactly the old view if the camera hasn't moved since, else that
@@ -197,6 +202,28 @@ export function GlobeControls({
       if (e >= 1 && sw.down && before) before.arrived = camera.position.clone()
       changed()
     }
+    // Fly-to: spin the Moon (camera about its centre) so the target comes to the middle of the view.
+    const unsubscribeFly = useFlyTo.subscribe((s, prev) => {
+      if (s.id === prev.id || !s.target) return
+      n.dispatchEvent({ type: 'start' }) // stops a view flight
+      zoom.current = null
+      spin.current = null
+      swing.current = null
+      fly.current = null
+      const total = grabRotation(n.centre, viewCentrePoint(), new THREE.Vector3(...s.target))
+      const angle = 2 * Math.acos(THREE.MathUtils.clamp(Math.abs(total.w), -1, 1))
+      fly.current = { total, applied: new THREE.Quaternion(), start: performance.now(), ms: FLY_MS * (1 + Math.min(1, angle / (Math.PI / 2))) }
+      invalidate()
+    })
+    flyStep.current = (eased: number) => {
+      const f = fly.current
+      if (!f) return
+      const now = new THREE.Quaternion().slerp(f.total, eased)
+      rotateAbout(camera, n.centre, now.clone().multiply(f.applied.clone().invert()), n.target)
+      f.applied.copy(now)
+      relevel()
+      changed()
+    }
     const unsubscribe = useCameraTilt.subscribe((s, prev) => {
       if (s.requests !== prev.requests) toggleTopDown()
     })
@@ -216,6 +243,7 @@ export function GlobeControls({
       zoom.current = null // a new gesture stops any zoom still easing in, spin still going or swing
       spin.current = null
       swing.current = null
+      fly.current = null
       velocity = null
       last = { x: e.clientX, y: e.clientY }
       if (pointers.size === 2) {
@@ -340,6 +368,7 @@ export function GlobeControls({
       let focus: THREE.Vector3
       spin.current = null
       swing.current = null
+      fly.current = null
       if (px > 0) {
         focus = viewCentrePoint()
       } else {
@@ -369,6 +398,9 @@ export function GlobeControls({
       el.removeEventListener('contextmenu', onContextMenu)
       window.removeEventListener('keydown', onKey)
       unsubscribe()
+      unsubscribeFly()
+      flyStep.current = null
+      fly.current = null
       n.removeEventListener('change', publishTilt)
       el.style.cursor = ''
       zoomStep.current = null
@@ -384,7 +416,15 @@ export function GlobeControls({
   // Ease wheel zoom over a few frames (runs before TileTree keeps the camera above the ground).
   const zoomStep = useRef<((focus: THREE.Vector3, factor: number) => void) | null>(null)
   const swingStep = useRef<((eased: number) => void) | null>(null)
+  const flyStep = useRef<((eased: number) => void) | null>(null)
   useFrame(({ camera }) => {
+    const fl = fly.current
+    if (fl && flyStep.current) {
+      const t = Math.min(1, (performance.now() - fl.start) / fl.ms)
+      flyStep.current(easeInOut(t))
+      if (t >= 1) fly.current = null
+      else invalidate()
+    }
     const sw = swing.current
     if (sw && swingStep.current) {
       const t = Math.min(1, (performance.now() - sw.start) / TILT_SWING_MS)

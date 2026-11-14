@@ -202,3 +202,23 @@ describe('top-down toggle at eye level (the Sun and Earth views)', () => {
     expect(Math.abs(lookOffset(c, pivot))).toBeLessThan(1e-9)
   })
 })
+
+describe('fly to a point (minimap click)', () => {
+  it('spins the Moon in steps until the clicked point is in the middle of the view, keeping the height', () => {
+    const pivot = new THREE.Vector3(0, 0, 0)
+    const c = camera([2600, 1400, 3400], pivot)
+    const height = c.position.distanceTo(centre)
+    // A point ~300 km away on the surface (site frame, the Moon's centre straight below the site).
+    const dir = new THREE.Vector3(Math.sin(0.17), Math.cos(0.17), 0)
+    const target = centre.clone().addScaledVector(dir, R)
+    const total = grabRotation(centre, pivot, target)
+    const applied = new THREE.Quaternion()
+    for (let k = 1; k <= 12; k++) {
+      const now = new THREE.Quaternion().slerp(total, k / 12)
+      rotateAbout(c, centre, now.clone().multiply(applied.clone().invert()))
+      applied.copy(now)
+    }
+    expect(distanceToRay(rayAt(c, 0, 0), target)).toBeLessThan(0.5)
+    expect(c.position.distanceTo(centre)).toBeCloseTo(height, 3)
+  })
+})
