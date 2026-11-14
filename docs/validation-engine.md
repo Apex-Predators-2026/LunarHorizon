@@ -6,8 +6,8 @@ team's validation work (Member 6); it covers the engine's science, not the viabi
 - **Reproduce:** `cd backend` then `.venv\Scripts\python.exe scripts\validate_engine.py` (a few minutes;
   downloads ~25 MB of JPL kernels and LROC data on first run, cached in `data/cache/` and `data/raw/`).
 - **Raw results:** `data/validation/engine_validation.json`.
-- **Data checked:** all 24 curated site files `data/sites/*.json` (9 Artemis candidates + control, 15 past
-  landings), generator version 1.2.
+- **Data checked:** all 24 curated site files `data/sites/*.json` (8 Artemis III candidate-region sites + the
+  Shackleton control, 15 past landings), generator version 1.2.
 
 ## Summary (generator 1.2, all 24 sites)
 
