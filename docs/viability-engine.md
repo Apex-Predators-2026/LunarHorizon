@@ -138,7 +138,15 @@ through the adapter. Load once and reuse the object for many scenarios (Member 5
 Andrew's engine (`backend/app/engine/`, run by `backend/scripts/precompute.py`) writes one
 **column-oriented** file per curated site, `data/sites/<id>.json` (format in
 `docs/interfaces.md`). Index `i` across every `timeline` array is one hourly time step,
-2027-01-01 → 2029-01-01 (17,545 steps). His format and engine are **not modified**.
+2026-01-01 → 2031-01-01 (43,825 steps) since commit 4ebc988; earlier files covered 2027-01-01 → 2029-01-01
+(17,545 steps). His format and engine are **not modified**.
+
+> **Data regeneration (2026-11-14).** Member 1 extended all 24 files from 2027–2028 to 2026–2030. Every timeline
+> column over 2027-01-01 → 2029-01-01 is byte-identical in the new files (checked for all 24; site and horizon
+> blocks unchanged). The Phase 2–6 tables in this document were measured on that two-year window and remain valid
+> for it; where they mention the end of the data (2029-01-01T00:00Z), the current end is **2031-01-01T00:00Z**.
+> The real-data tests read the dataset bounds from the files (`tests/viability/real_data.py`) instead of pinning
+> dates. Only Member 1's `summary` block changed (now a 5-year mean).
 `app.viability.adapters` translates it:
 
 ```python
@@ -461,7 +469,7 @@ samples with unknown states, threshold set but fractions missing). Provenance pa
 unchanged, **including the adapter's note that the lunar body-fixed frame is not verified**.
 No probability or confidence score is produced.
 
-### Real NASA-derived sites (generator 1.2 files; full coverage 2027-01-01 → 2029-01-01, threshold 0.25)
+### Real NASA-derived sites (generator 1.2 files; measured over 2027-01-01 → 2029-01-01, threshold 0.25)
 
 Values below are a snapshot of the committed files (2026-11-14) and change whenever Member 1 regenerates
 them; the regression tests re-derive every outage from the raw columns instead of pinning these numbers.
@@ -496,7 +504,9 @@ Malapert the longest direct-sunlight period (2,809 h) shrinks to 2,107 h at ≥ 
 **Performance** (Python 3.14, Windows laptop, medians; machine-dependent): loading + validating
 a 2-year file ≈ 0.4–0.6 s (once); `prepare_series` 40–60 ms (once); full 2-year analysis
 80–100 ms incl. windows; a 7-day / 14-day mission on a prepared series ≈ 1.5 / 2 ms; 7-day
-without preparing ≈ 60 ms. Prepare once per dataset when evaluating many candidates.
+without preparing ≈ 60 ms. Prepare once per dataset when evaluating many candidates. *Current 5-year files*
+(measured 2026-11-14, docs/member2-part2-validation.md §5): load ≈ 1.5 s per file, `prepare_series` ≈ 0.12 s,
+a 14-day `evaluate_scenario` on a prepared series median 3.7 ms.
 
 ## 5c. Phase 3: mission constraint evaluation
 
@@ -1302,6 +1312,59 @@ Code: `explain.py`, `engine.py`, `compat/rescue.py`. Tests: `test_explain_phase6
 sensitivity / compromise), `test_phase6_integration.py` (explanations in `evaluate_scenario`, no feedback into other
 fields, unchanged ranking and Rescue results, synthetic labelling, bounded PASS at the dataset end).
 
+## 5h. Part 2: decision evidence, sampling sensitivity and validation
+
+Part 2 adds evidence *about* finished assessments. It changes no verdict, metric, margin, risk, score or ranking, no
+output field and no shared model; `ENGINE_VERSION` stays `0.6.0-phase6` (all Phase 2–6 tests unchanged).
+
+| Capability | Entry point (all re-exported from `app.viability`) | Method version | Details |
+|---|---|---|---|
+| Why A ranks above B, and how decisive that is | `compare_scenarios(a, b, ranking=...)`, `explain_adjacent(group, ranking)` → `PairwiseEvidence` | `ranking-evidence-v1` | [member2-part2-consumer-handoff.md](member2-part2-consumer-handoff.md) §8 |
+| Robustness of a verdict to the hourly-sampling interpretation | `sampling_sensitivity_report(scenario, prepare_policy_series(series))` → `SamplingSensitivityReport` | `1.0.0-part2b` | [member2-part2-sampling.md](member2-part2-sampling.md) |
+| Sampling policy on the canonical entry point | `evaluate_scenario(scenario, series, *, policy=None)` (also accepts a `PreparedSeries`) | – | `None` = sample-and-hold, unchanged |
+| Reproducible consumer examples | `python -m app.viability.consumer_examples` | `consumer-examples-v1` | handoff §9 |
+| Validation on all committed datasets | `python -m app.viability.validation` | `member2-part2-validation-v1` | [member2-part2-validation.md](member2-part2-validation.md) |
+| Demonstration (two real candidates) | `python -m app.viability.validation.demo` | `member2-part2-demo-v1` | [member2-part2-demo.md](member2-part2-demo.md) |
+
+**Pairwise evidence.** For two comparable assessments the evidence names the first ranking-key position where
+they differ (`deciding_criterion`) and the conservative interval of the score difference, computed exactly on the
+stored values and rounded outward: `selected_higher` / `competitor_higher` only when the interval excludes 0,
+`not_established` when it contains 0 (overlapping intervals are not evidence of equality), `unavailable` when a
+score is missing (never read as 0), `not_comparable` across comparability groups. Per score component it reports
+both normalized values, contributions and whether that component's advantage is established.
+
+**Sampling sensitivity.** The same samples are interpreted under sample-and-hold (canonical) and nearest-sample;
+everything else is held constant. Verdicts: `unchanged`, `constraints_changed`, `changed`, `inconclusive` (UNKNOWN
+for lack of data is never called a change). On real data, changes are rare (38 of 154,881 14-day landings at nine
+sites over 2027–2028) and always a measurement exactly at a whole-hour threshold. A `changed` verdict marks a
+marginal decision, not a probability.
+
+**Measured examples (2026-11-14 files).**
+
+| Example | Result |
+|---|---|
+| Malapert Massif vs Connecting Ridge, 14 d from 2027-12-03 | both PASS; 91.113497 vs 68.778203 (exact); advantage +22.335294 established; darkness margin (15 h vs 43 h) contributes 14.0 points; sampling verdict unchanged at both |
+| Connecting Ridge, 3 d ending at vs one hour past the last sample | exact 87.219675 vs bounded [86.264814, 87.219676]; ranked by lower bound; difference [−0.000001, +0.954861]: not established |
+| Peak Near Shackleton, 14 d from 2027-10-13 | PASS with HIGH screening risk (`communication_exposure`), score 64.093922; still rank-eligible |
+| Malapert, 14 d from 2027-07-20T14Z | sampling `changed`: darkness 50 h (PASS) vs 50.5 h (FAIL) |
+| Connecting Ridge, 2030-12-25 → 2031-01-08 | UNKNOWN (168 h past the data), no FAIL, not scored; Malapert on the same dates is a proven FAIL (power-dark final week) |
+
+**Validation (Work Package E).** 24 datasets smoke-tested (inputs and three evaluations each), 11 deep cases,
+5 invariants (stricter limits never help; missing data never creates certainty; weights never change eligibility;
+explanations never change calculations; ranking independent of input order): 1,089 checks, 0 failures.
+
+**Part 2 limitations.** The evidence explains the engine's own ordering under its stated weights; it is not a
+probability, confidence level or proof of physical superiority. Sampling sensitivity compares two interpretations
+of the same samples; agreement is not independent validation. Validation checks internal consistency and soundness,
+not NASA validation. No power, battery, thermal, link-budget or landing-safety modelling.
+
+**Handoff.** Consumer rules for Members 5 (Rescue) and 4 (comparison), covering missing scores, UNKNOWN, score
+intervals, synthetic data, incompatible rankings, canonical explanations and detailed assessment data:
+[member2-part2-consumer-handoff.md](member2-part2-consumer-handoff.md) §12. Production activation (switching
+`app/rescue/viability/__init__.py` from the placeholder to `app.viability.compat.rescue`) is Member 5's release
+decision and is separate from Member 2's completion; on `origin/main` at integration time Rescue still used the
+placeholder. Eleven teammate tests assert the old 2029 data end and fail on `origin/main` (handoff §12 item 9).
+
 ## 6. Assumptions and limitations
 
 - The engine consumes geometry; it **does not compute** ephemerides, terrain or horizons.
@@ -1387,6 +1450,8 @@ Phase 5 tests are listed in §5f, Phase 6 tests in §5g. Rescue's own suite (`te
 Requires Python ≥ 3.11, `pydantic` 2 and `pytest` (both already in `requirements.txt`).
 No new dependencies.
 - The core package, `adapters/` and `compat/rescue.py` import neither NumPy nor FastAPI.
+Part 2 tests: `test_ranking_evidence_part2.py` and `test_consumer_examples_part2.py` (2A), `test_sampling_sensitivity_part2.py` and `test_real_sites_sampling_part2.py` (2B), `test_part2_validation.py` (validation package on all committed datasets, invariants, demonstration snapshot, the `policy` keyword and the Part 2 exports). Shared real-data bounds: `tests/viability/real_data.py`.
+
 - `test_rescue_compat.py` uses rescue's timeline providers, which need `numpy`.
 - The adapter tests read the committed `data/sites/*.json`.
 - `--follow-imports=silent` keeps mypy from reporting existing strict-mode findings in teammates' modules.
@@ -1402,7 +1467,8 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 | 4 ✅ | Operational margins with bounds and classes; rule-based risk indicators (§5d); clearance margins pending item 10 |
 | 5 ✅ | Normalised, explainable score (5A); eligibility-aware ranking (5B); integrated into `evaluate_scenario` (§5e, §5f) |
 | 6 ✅ | Evidence-based explanations in every assessment (6A); Rescue compatibility validated side by side (6B); Rescue findings handed to Member 5 (§5g) |
-| 7 | Real-data tests with Member 1 output; validation with Member 6; FastAPI endpoint wiring |
+| Part 2 ✅ | Pairwise ranking evidence and consumer examples (2A); sampling-policy sensitivity (2B); validation package on all 24 datasets and a real demonstration (E) (§5h) |
+| 7 | Production activation in Rescue / comparison (Members 5 and 4, §5h handoff); validation with Member 6; FastAPI endpoint wiring |
 
 ## 10. Remaining integration decisions
 
