@@ -36,9 +36,7 @@ export function MiniMapPanel(props: {
         ref={cardRef}
         {...handlers}
         data-tip="Drag to move"
-        className={`lp-light pointer-events-auto flex touch-none select-none flex-col items-center rounded-[20px] bg-opal-50 transition-shadow ${
-          dragging ? 'cursor-grabbing shadow-2xl shadow-black/50' : 'cursor-grab shadow-lg shadow-black/30'
-        }`}
+        className={`lp-light pointer-events-auto flex touch-none select-none flex-col items-center rounded-[20px] ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={pos && size ? { position: 'fixed', left: pos.x, top: pos.y, width: size.w, zIndex: 20 } : undefined}
       >
         <div role="tablist" aria-label="Mini map" className="flex w-full justify-center gap-1 px-3 pt-2">
@@ -52,7 +50,7 @@ export function MiniMapPanel(props: {
               onPointerDown={(e) => e.stopPropagation()} // a click on a tab, not a drag of the card
               onClick={() => setTab(t.id)}
               className={`relative h-8 min-w-20 rounded-full px-4 text-sm transition-colors ${
-                tab === t.id ? 'bg-coral/15 font-semibold text-calcite-ink' : 'text-calcite-ink/70 hover:bg-coral/10'
+                tab === t.id ? 'bg-white/20 font-semibold text-white' : 'text-white/70 hover:bg-white/10'
               }`}
             >
               {t.label}
