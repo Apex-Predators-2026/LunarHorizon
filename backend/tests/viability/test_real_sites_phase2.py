@@ -26,6 +26,8 @@ from app.viability.enums import Condition, ConditionState, MetricStatus, Samplin
 from app.viability.outputs import EnvironmentAnalysis, Metric
 from app.viability.windows import PreparedSeries
 
+from .helpers import raw_longest_outages
+
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
 START, END = datetime(2027, 1, 1, tzinfo=UTC), datetime(2029, 1, 1, tzinfo=UTC)
@@ -130,32 +132,33 @@ def test_agrees_with_andrews_summary_where_definitions_match(
     assert v(m.full_sunlight_percent) <= v(m.power_lit_percent) <= sunlit
 
 
-# site -> (longest without direct sunlight h, start, longest power-dark @0.25 h, start,
-#          longest Earth blackout h, start, longest simultaneous window h)
-REGRESSION: dict[str, tuple[float, str, float, str, float, str, float]] = {
-    "connecting-ridge": (293, "2027-04-20T08", 492, "2028-03-31T13", 352, "2027-01-23T20", 272),
-    "malapert-massif": (265, "2027-05-03T04", 266, "2027-05-03T04", 17, "2028-12-10T17", 2107),
-    "peak-near-shackleton": (2116, "2028-02-23T06", 2802, "2027-03-05T22", 347, "2027-01-23T20", 272),
-    "shackleton-floor": (17544, "2027-01-01T00", 17544, "2027-01-01T00", 17544, "2027-01-01T00", 0),
-}
+# Longest outages are re-derived from the raw columns by pure-Python run-length counting (helpers.py), not
+# pinned per site: Member 1 regenerates the terrain (generator 1.2 changed Malapert from 82.6 % to 77.1 % sunlit),
+# and a pinned number would then fail without telling us whether the ENGINE regressed.
 
 
 @pytest.mark.parametrize("site", SITES)
-def test_longest_outage_regression(site: str, analyses: dict[str, EnvironmentAnalysis]) -> None:
-    a = analyses[site]
-    dark_h, dark_t, pdark_h, pdark_t, blk_h, blk_t, simul_h = REGRESSION[site]
-    for cond, hours, start in (
-        (Condition.DIRECT_SUNLIGHT, dark_h, dark_t),
-        (Condition.POWER_ELIGIBLE, pdark_h, pdark_t),
-        (Condition.EARTH_VISIBLE, blk_h, blk_t),
+def test_longest_outage_regression(
+    site: str, raw: dict[str, dict[str, Any]], analyses: dict[str, EnvironmentAnalysis]
+) -> None:
+    a, times = analyses[site], raw[site]["timeline"]["time_utc"]
+    runs = raw_longest_outages(raw[site]["timeline"], power_min_fraction=0.25)
+    for cond, key in (
+        (Condition.DIRECT_SUNLIGHT, "no_direct_sunlight"),
+        (Condition.POWER_ELIGIBLE, "power_dark"),
+        (Condition.EARTH_VISIBLE, "earth_blackout"),
     ):
+        hours, i = runs[key]
         c = a.condition(cond)
-        assert v(c.longest_not_met) == hours * H, cond
+        assert v(c.longest_not_met) == hours * H, (site, cond)
         w = c.longest_not_met_window
-        assert w is not None and f"{w.start_utc:%Y-%m-%dT%H}" == start, cond
-        assert w.duration_s == hours * H
-    assert v(a.metrics.longest_simultaneous_window) == simul_h * H
-    assert v(a.metrics.longest_continuous_darkness) == pdark_h * H  # threshold set -> power-dark
+        if hours == 0:  # never out (e.g. Earth always visible at Malapert, generator 1.2): no window at all
+            assert w is None, (site, cond)
+            continue
+        assert w is not None and w.duration_s == hours * H, (site, cond)
+        assert f"{w.start_utc:%Y-%m-%dT%H}" == times[i][:13], (site, cond)
+    assert v(a.metrics.longest_simultaneous_window) == runs["simultaneous"][0] * H
+    assert v(a.metrics.longest_continuous_darkness) == runs["power_dark"][0] * H  # threshold set -> power-dark
 
 
 def test_shackleton_floor_control_site(analyses: dict[str, EnvironmentAnalysis]) -> None:
@@ -200,19 +203,27 @@ def test_sampling_policy_sensitivity_is_at_most_one_step(site: str, prepared: di
         assert abs(v(getattr(hold.metrics, name)) - v(getattr(nearest.metrics, name))) <= H, name
 
 
-def test_sub_precision_sliver_hour_at_peak_near_shackleton(prepared: dict[str, PreparedSeries]) -> None:
-    """2027-08-13T21Z: sun_visible true but the 6-decimal fraction is 0.0 (disk sliver < 5e-7).
+def _sliver_hours(raw: dict[str, Any]) -> list[datetime]:
+    """Hours where sun_visible is true but the 6-decimal fraction was written as 0.0 (disk sliver < 5e-7)."""
+    tl = raw["timeline"]
+    return [
+        datetime.fromisoformat(t)
+        for t, f, vis in zip(tl["time_utc"], tl["sun_visible_fraction"], tl["sun_visible"], strict=True)
+        if vis and f == 0.0
+    ]
 
-    Direct sunlight and partial: yes (authoritative flag). Full: no. Power-eligible: yes at
-    threshold 0 ("any visible disk"), no at 0.25 (fraction far below). Fraction kept as written.
-    """
-    hour = (datetime(2027, 8, 13, 21, tzinfo=UTC), datetime(2027, 8, 13, 22, tzinfo=UTC))
-    p = prepared["peak-near-shackleton"]
-    for threshold, power_lit in ((0.0, 1.0), (0.25, 0.0)):
-        m = analyze_environment(p, *hour, solar_power_min_disk_fraction=threshold).metrics
-        assert (v(m.sunlight_duration), v(m.partial_sunlight_duration), v(m.full_sunlight_duration)) == (H, H, 0.0)
-        assert v(m.power_lit_duration) == power_lit * H
-        assert v(m.mean_solar_disk_fraction) == 0.0
-    # Isolated: dark on both sides, so it splits a darkness period into two confirmed windows.
-    a = analyze_environment(p, hour[0] - timedelta(hours=2), hour[1] + timedelta(hours=2))
-    assert [w.duration_s for w in a.windows_of(WindowKind.DARKNESS)] == [2 * H, 2 * H]
+
+def test_sub_precision_sliver_hours(raw: dict[str, dict[str, Any]], prepared: dict[str, PreparedSeries]) -> None:
+    """Wherever a sliver hour exists in the committed files: direct sunlight and partial (authoritative flag),
+    not full, power-eligible only at threshold 0, fraction kept as written. Discovered from the data, so the
+    test follows terrain regenerations (generator 1.1 had one at Peak near Shackleton, 1.2 has none there)."""
+    found = [(site, h) for site in SITES for h in _sliver_hours(raw[site])]
+    if not found:
+        pytest.skip("no sub-precision sliver hours in the committed site files (generator 1.2 data)")
+    for site, start in found:
+        hour = (start, start + timedelta(hours=1))
+        for threshold, power_lit in ((0.0, 1.0), (0.25, 0.0)):
+            m = analyze_environment(prepared[site], *hour, solar_power_min_disk_fraction=threshold).metrics
+            assert (v(m.sunlight_duration), v(m.partial_sunlight_duration), v(m.full_sunlight_duration)) == (H, H, 0.0)
+            assert v(m.power_lit_duration) == power_lit * H
+            assert v(m.mean_solar_disk_fraction) == 0.0

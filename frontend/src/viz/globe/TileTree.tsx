@@ -3,12 +3,15 @@
 // (see SiteFrame) and refined until each vertex step covers < ~4 px on screen.
 // Works with frameloop="demand": tile selection only runs when the camera moved or a tile arrived,
 // and the shadow map is only redrawn when the set of drawn tiles changes.
+// It also keeps the camera above the ground: after the orbit controls move it, a camera that would
+// be closer than cameraClearanceM to the loaded terrain below it is lifted straight up.
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { API_URL } from '../api'
-import { PERF_ENABLED, recordTileBuild, recordTileLevels } from '../perf'
+import { PERF_ENABLED, recordCameraClearance, recordTileBuild, recordTileLevels } from '../perf'
 import { MAX_ZOOM, MOON_RADIUS_M, SiteFrame, TILE_N, tileVertexUV, uvToVec, vertexSpacingM, type Vec3 } from './cubeSphere'
+import { groundHeightAt, liftAboveGround, type TileHeights } from './terrainHeight'
 import { buildTileMesh } from './tileGeometry'
 
 const SSE_THRESHOLD_PX = 4 // refine while a vertex step spans more than this on screen
@@ -29,6 +32,7 @@ interface TileNode {
   centre: Vec3 // site frame (approximate until loaded)
   radius: number
   mesh: THREE.Mesh | null
+  heights: Float32Array | null // kept while the mesh is, for ground-height lookups
   lastUsed: number
 }
 
@@ -63,11 +67,13 @@ export function TileTree({
   material,
   onStats,
   onPick,
+  cameraClearanceM = 3,
 }: {
   frame: SiteFrame
   material: THREE.Material
   onStats?: (s: TileStats) => void
   onPick?: (point: Vec3) => void // a click on the terrain (not an orbit drag), in the site frame
+  cameraClearanceM?: number // the camera never gets closer than this to the ground below it (m)
 }) {
   const group = useRef<THREE.Group>(null)
   const nodes = useRef(new Map<string, TileNode>())
@@ -97,7 +103,7 @@ export function TileTree({
     let n = nodes.current.get(key)
     if (!n) {
       const [centre, radius] = approxBounds(frame, f, z, x, y)
-      n = { key, face: f, z, x, y, state: 'idle', leaf: z >= MAX_ZOOM, centre, radius, mesh: null, lastUsed: 0 }
+      n = { key, face: f, z, x, y, state: 'idle', leaf: z >= MAX_ZOOM, centre, radius, mesh: null, heights: null, lastUsed: 0 }
       nodes.current.set(key, n)
     }
     return n
@@ -134,6 +140,7 @@ export function TileTree({
         n.centre = m.centre
         n.radius = m.radius
         n.mesh = mesh
+        n.heights = heights
         n.state = 'ready'
       })
       .catch(() => {
@@ -155,7 +162,22 @@ export function TileTree({
     }
   }
 
-  useFrame(({ gl }) => {
+  const tileHeights: TileHeights = (f, z, x, y) => nodes.current.get(keyOf(f, z, x, y))?.heights ?? undefined
+
+  useFrame((state) => {
+    // Runs after drei's OrbitControls (priority -1) has moved the camera, before this frame renders.
+    const c = state.camera.position
+    const lifted = liftAboveGround([c.x, c.y, c.z], frame, tileHeights, cameraClearanceM)
+    if (lifted) {
+      c.set(...lifted)
+      state.camera.updateMatrixWorld()
+    }
+    if (PERF_ENABLED) {
+      const m = frame.toMoon([c.x, c.y, c.z])
+      const h = groundHeightAt(m, tileHeights)
+      recordCameraClearance(h === null ? null : Math.hypot(m[0], m[1], m[2]) - MOON_RADIUS_M - h)
+    }
+
     const g = group.current
     if (!g) return
     const sizeKey = `${size.width}x${size.height}`
@@ -239,7 +261,7 @@ export function TileTree({
         changed = true
       }
     }
-    if (changed) gl.shadowMap.needsUpdate = true // terrain under the lander may have changed detail
+    if (changed) state.gl.shadowMap.needsUpdate = true // terrain under the lander may have changed detail
 
     // Forget meshes not used for a while once the cache is large.
     const ready = [...nodes.current.values()].filter((n) => n.mesh)
@@ -251,6 +273,7 @@ export function TileTree({
         .forEach((n) => {
           n.mesh!.geometry.dispose()
           n.mesh = null
+          n.heights = null
           n.state = 'idle'
         })
     }

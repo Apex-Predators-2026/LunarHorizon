@@ -96,7 +96,15 @@ def _convert(d: dict[str, Any]) -> ScientificTimeSeries:
 
 
 def test_all_real_site_files_present() -> None:
-    assert {p.stem for p in SITES_DIR.glob("*.json")} == set(REAL_SITES)
+    # The four sites Member 2 validated against are always present; Member 1's catalog may hold more
+    # (generator 1.2 publishes 24), and those convert too (see test_every_published_site_file_converts).
+    assert set(REAL_SITES) <= {p.stem for p in SITES_DIR.glob("*.json")}
+
+
+def test_every_published_site_file_converts() -> None:
+    for path in sorted(SITES_DIR.glob("*.json")):
+        s = load_site_file(path)
+        assert s.provenance.is_synthetic is False and s.fraction_decimals == 6, path.stem
 
 
 @pytest.mark.parametrize("site", REAL_SITES)
@@ -166,11 +174,11 @@ def test_real_site_matches_andrews_own_summary(site: str) -> None:
     # His sunlit_pct is computed from the same flag, so only its 0.1 % display rounding differs.
     assert sunlit == pytest.approx(summary["sunlit_pct"], abs=0.05)
     # Slivers below the 6-decimal rounding (sun_visible true, fraction written as 0.0) are kept as
-    # partial with the written 0.0. Measured on the committed files: one hour, at PNS only.
+    # partial with the written 0.0. Their number depends on the terrain generation (1.1: one hour at PNS,
+    # 1.2: none), so it is discovered, not pinned.
     slivers = [
         i for i, (f, v) in enumerate(zip(tl["sun_visible_fraction"], tl["sun_visible"], strict=True)) if v and f == 0.0
     ]
-    assert len(slivers) == (1 if site == "peak-near-shackleton" else 0)
     for i in slivers:
         assert s.samples[i].sun.state is P and s.samples[i].sun.visible_fraction == 0.0
 
@@ -552,3 +560,45 @@ def test_invalid_format_11_metadata_rejected(mini: dict[str, Any], key: str, val
     mini["meta"][key] = value
     with pytest.raises(SiteFileError, match=key):
         _convert(mini)
+
+
+# --- fraction precision per generator version (SYNTHETIC site files) ----------------------------
+
+
+@pytest.mark.parametrize(("version", "decimals"), [("1.0", 3), ("1.1", 6), ("1.2", 6), ("9.9", None)])
+def test_fraction_precision_is_taken_from_generator_version(
+    mini: dict[str, Any], version: str, decimals: int | None
+) -> None:
+    """Generator 1.2 (whole-Moon pipeline) still writes 6-decimal fractions; an unknown version declares nothing.
+
+    Explicit ``meta.fraction_decimals`` is not published by Member 1 yet (docs follow-up), so it is not read here.
+    """
+    mini["meta"]["generator_version"] = version
+    if version == "1.0":  # 3-decimal files must really be 3-decimal
+        mini["timeline"]["sun_visible_fraction"] = [1.0, 0.5, 0.0]
+    assert _convert(mini).fraction_decimals == decimals
+
+
+def test_explicit_fraction_decimals_beats_the_version_table(mini: dict[str, Any]) -> None:
+    mini["meta"].update(generator_version="1.2", fraction_decimals=6, angle_decimals=3)
+    s = _convert(mini)
+    assert s.fraction_decimals == 6 and "meta.angle_decimals=3" in (s.provenance.notes or "")
+    mini["meta"].update(generator_version="1.1", fraction_decimals=3)  # explicit statement wins over inference
+    assert _convert(mini).fraction_decimals == 3
+    del mini["meta"]["generator_version"]  # works without any version at all
+    assert _convert(mini).fraction_decimals == 3
+
+
+@pytest.mark.parametrize("key", ["fraction_decimals", "angle_decimals"])
+@pytest.mark.parametrize("bad", [True, 6.0, "6", -1, 18])
+def test_invalid_precision_metadata_is_rejected(mini: dict[str, Any], key: str, bad: object) -> None:
+    mini["meta"][key] = bad
+    with pytest.raises(SiteFileError, match=key):
+        _convert(mini)
+
+
+def test_real_published_files_state_their_precision() -> None:
+    for site in REAL_SITES:
+        meta = _raw(site)["meta"]
+        assert (meta["fraction_decimals"], meta["angle_decimals"]) == (6, 3)
+        assert _real(site).fraction_decimals == meta["fraction_decimals"]

@@ -57,7 +57,13 @@ export function tileVertexUV(z: number, x: number, y: number, i: number, j: numb
 
 /** (face, x, y) of the level-z tile containing a lat/lon (inverse of the mapping). */
 export function tileAt(latDeg: number, lonDeg: number, z: number): [number, number, number] {
-  const p = latLonToVec(latDeg, lonDeg)
+  const [face, u, v] = vecToFaceUV(latLonToVec(latDeg, lonDeg))
+  const n = 2 ** z
+  return [face, Math.min(n - 1, Math.floor(((u + 1) / 2) * n)), Math.min(n - 1, Math.floor(((v + 1) / 2) * n))]
+}
+
+/** Face and face coordinates u, v in [-1, 1] of a direction (any length; inverse of uvToVec). */
+export function vecToFaceUV(p: Vec3): [number, number, number] {
   let face = 0
   let best = -Infinity
   FACES.forEach(([c], f) => {
@@ -71,8 +77,7 @@ export function tileAt(latDeg: number, lonDeg: number, z: number): [number, numb
   const k = 1 / (c[0] * p[0] + c[1] * p[1] + c[2] * p[2]) // project onto the face plane
   const u = (Math.atan(k * (r[0] * p[0] + r[1] * p[1] + r[2] * p[2])) * 4) / Math.PI
   const v = (Math.atan(k * (up[0] * p[0] + up[1] * p[1] + up[2] * p[2])) * 4) / Math.PI
-  const n = 2 ** z
-  return [face, Math.min(n - 1, Math.floor(((u + 1) / 2) * n)), Math.min(n - 1, Math.floor(((v + 1) / 2) * n))]
+  return [face, u, v]
 }
 
 export const vertexSpacingM = (z: number, n = TILE_N) => FACE_EDGE_M / 2 ** z / (n - 1)

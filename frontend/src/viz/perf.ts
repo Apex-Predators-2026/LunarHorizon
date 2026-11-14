@@ -43,6 +43,11 @@ export function formatPerf(s: PerfStats) {
   )
 }
 
+/** Camera height above the loaded ground below it, in metres (window.__cameraClearance), or null if unknown. */
+export function recordCameraClearance(m: number | null) {
+  if (PERF_ENABLED) (window as unknown as { __cameraClearance?: number | null }).__cameraClearance = m
+}
+
 /** Drawn tiles per level at the last selection (window.__tileLevels), for checking what the LOD picks. */
 export function recordTileLevels(levels: Record<number, number>) {
   if (PERF_ENABLED) (window as unknown as { __tileLevels?: Record<number, number> }).__tileLevels = levels
