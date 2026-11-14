@@ -2,6 +2,8 @@
 // its own component and all comparison logic lives in analysis.ts.
 import { useEffect, useMemo } from 'react'
 
+import { GlassSurface } from '../../ui/GlassSurface'
+
 import { axisOffsets, axisOrigin, fullDomain, type Entry } from './analysis'
 import { ConditionsPanel } from './ConditionsPanel'
 import { ElevationCharts } from './ElevationCharts'
@@ -107,13 +109,18 @@ export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}
           </div>
         </header>
 
-        <nav aria-label="Comparison sections" className="sticky top-0 z-20 -mx-6 mb-6 flex items-center gap-1 overflow-x-auto border-b border-line bg-canvas px-5 py-1 lg:-mx-8 lg:px-7">
-          {NAV.map(([id, label]) => (
-            <a key={id} href={`#${id}`} className="cmp-navlink">{label}</a>
-          ))}
-          <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap pl-4 text-xs text-ink-4" aria-live="polite">
-            {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-300" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
-          </span>
+        {/* Section bar: a glass pill, sticky just below the app header. */}
+        <nav aria-label="Comparison sections" className="sticky top-2 z-40 mb-6">
+          <div>
+            <GlassSurface radius="9999px" className="flex items-center gap-1 overflow-x-auto px-4 py-1">
+              {NAV.map(([id, label]) => (
+                <a key={id} href={`#${id}`} className="cmp-navlink">{label}</a>
+              ))}
+              <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap pl-4 text-xs" aria-live="polite">
+                {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-700" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
+              </span>
+            </GlassSurface>
+          </div>
         </nav>
 
         {hasDemo && (

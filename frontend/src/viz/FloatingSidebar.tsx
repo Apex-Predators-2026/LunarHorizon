@@ -108,7 +108,8 @@ export function FloatingSidebar({ children }: { children: ReactNode }) {
         data-tip={open ? 'Drag to move · click to minimize' : 'Drag to move · click to expand'}
         {...handlers}
         onClick={onClick}
-        className="flex h-6 w-full shrink-0 cursor-grab touch-none select-none items-center justify-center bg-coral transition-[filter] hover:brightness-95 active:cursor-grabbing"
+        data-no-ripple
+        className="no-press -mx-px flex h-6 w-[calc(100%+2px)] shrink-0 cursor-grab touch-none select-none items-center justify-center bg-coral transition-[filter] hover:brightness-95 active:cursor-grabbing"
       >
         <InteractiveGrainGradient fill strength={1.6} patternScale={0.45} />
         <span aria-hidden className="relative h-1 w-10 rounded-full bg-white/70" />
