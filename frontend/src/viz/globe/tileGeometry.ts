@@ -24,6 +24,7 @@ export interface TileTopology {
   indices: Uint16Array | Uint32Array // surface triangles first, then skirt walls
   surfaceIndexCount: number
   vertexCount: number
+  uvs: Float32Array // texture coordinates (i, j) / (n - 1); skirts copy their edge vertex
 }
 
 /** Grid vertices along the tile border, in loop order (bottom, right, top, left). */
@@ -69,7 +70,18 @@ export function tileTopology(n = TILE_N): TileTopology {
     indices.set([a, sa, b, b, sa, sb], k6)
     k6 += 6
   }
-  t = { border, borderOf: Uint32Array.from(border), indices, surfaceIndexCount, vertexCount }
+  const uvs = new Float32Array(vertexCount * 2)
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      uvs[2 * (j * n + i)] = i / (n - 1)
+      uvs[2 * (j * n + i) + 1] = j / (n - 1)
+    }
+  }
+  border.forEach((g, s) => {
+    uvs[2 * (n * n + s)] = uvs[2 * g]
+    uvs[2 * (n * n + s) + 1] = uvs[2 * g + 1]
+  })
+  t = { border, borderOf: Uint32Array.from(border), indices, surfaceIndexCount, vertexCount, uvs }
   topologies.set(n, t)
   return t
 }
@@ -164,6 +176,17 @@ export function buildTileMesh(
     normals[k + 2] = normals[3 * g + 2]
   }
   return { centre, radius, positions, normals, indices, surfaceIndexCount, skirtStart: n * n, borderOf }
+}
+
+/**
+ * How many rings of neighbour vertices a tile response carries, from its number of heights:
+ * 1 for a padded tile ((n + 2)^2, /api/terrain/tile?pad=1), 0 for a plain one (n^2: what a backend
+ * from before padding sends, since it ignores the parameter), null for anything else.
+ */
+export function tilePadding(valueCount: number, n = TILE_N): 0 | 1 | null {
+  if (valueCount === (n + 2) * (n + 2)) return 1
+  if (valueCount === n * n) return 0
+  return null
 }
 
 /** The tile's own n x n heights out of a padded array (for ground-height lookups). */
