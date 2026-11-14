@@ -73,14 +73,14 @@ export function RescuePanel() {
           type="text" placeholder="e.g. launch slipped" value={s.change.reason ?? ''}
           onChange={(e) => s.setChange({ reason: e.target.value || null })}
         />
-        <label className="col-span-2 flex items-center gap-4 py-2 text-slate-400" data-tip="Fills gaps with made-up placeholder data where no real data exists. Results are not real.">
+        <label className="flex items-center gap-4 py-2 text-slate-400" data-tip="Fills gaps with made-up placeholder data where no real data exists. Results are not real.">
           <input type="checkbox" checked={s.search.include_synthetic === true}
             onChange={(e) => s.setSearch({ include_synthetic: e.target.checked ? true : null })} />
           Simulation mode: use synthetic placeholder data where there is no real data (not real results)
         </label>
         <button type="submit" disabled={loading || !s.original}
           data-tip="Search for other landing sites and dates that still meet the requirements."
-          className="md-btn col-span-2 bg-sky-600 text-white hover:bg-sky-500 disabled:opacity-50">
+          className="md-btn bg-sky-600 text-white hover:bg-sky-500 disabled:opacity-50">
           {loading ? 'Searching…' : 'Find alternatives'}
         </button>
       </form>

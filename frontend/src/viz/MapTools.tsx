@@ -6,6 +6,7 @@ import type { VerifyResult } from '../types'
 import { fetchVerify } from './api'
 import { showSnackbar } from './snackbarStore'
 import type { ViewMode } from './CameraRig'
+import { InteractiveGrainGradient } from '../ui/InteractiveGrainGradient'
 import { KIND_COLOR } from './globe/overlays'
 import { parseCoordinates } from './coordinates'
 import { GRAPHICS, type GraphicsQuality } from './graphics'
@@ -14,7 +15,6 @@ export interface Layers {
   sites: boolean
   psr: boolean
   blockers: boolean
-  imagery: boolean // LRO WAC photo mosaic on the terrain (off by default: its shadows are not "now")
   paths: boolean // the Sun's and Earth's paths across the sky over the time window
 }
 
@@ -41,11 +41,6 @@ const LAYER_ROWS: { key: keyof Layers; label: string; hint: string }[] = [
     label: 'Sun & Earth paths',
     hint: "The Sun's and Earth's paths across the sky over the time window: bright where they clear the terrain, dim where it blocks them",
   },
-  {
-    key: 'imagery',
-    label: 'LRO imagery',
-    hint: 'LRO Wide Angle Camera photo mosaic (Moon Trek, ~100 m/px) on the terrain. Its shadows are from when the photos were taken, not from the time shown.',
-  },
 ]
 
 // Material icons (24 dp).
@@ -66,6 +61,16 @@ function Icon({ d, size = 24 }: { d: string; size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       <path d={d} />
     </svg>
+  )
+}
+
+/** An icon that is lit (toggled on): its glyph is cut out of the live mango mesh. */
+function LitIcon({ d }: { d: string }) {
+  const mask = `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='${d}'/></svg>`)}")`
+  return (
+    <span aria-hidden className="block h-6 w-6" style={{ WebkitMaskImage: mask, maskImage: mask, WebkitMaskSize: '100% 100%', maskSize: '100% 100%' }}>
+      <InteractiveGrainGradient className="h-full w-full" />
+    </span>
   )
 }
 
@@ -94,7 +99,7 @@ function ToolButton({
   haspopup?: boolean
 }) {
   const tone = selected
-    ? 'bg-coral text-white'
+    ? 'bg-coral/10 text-coral'
     : open
       ? 'bg-coral/20 text-calcite-ink'
       : 'text-calcite-ink'
@@ -110,7 +115,7 @@ function ToolButton({
       onClick={onClick}
       className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors disabled:opacity-40 ${tone}`}
     >
-      <Icon d={icon} />
+      {selected ? <LitIcon d={icon} /> : <Icon d={icon} />}
     </button>
   )
 }
