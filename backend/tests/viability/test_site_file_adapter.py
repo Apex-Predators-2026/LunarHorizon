@@ -560,3 +560,25 @@ def test_invalid_format_11_metadata_rejected(mini: dict[str, Any], key: str, val
     mini["meta"][key] = value
     with pytest.raises(SiteFileError, match=key):
         _convert(mini)
+
+
+# --- fraction precision per generator version (SYNTHETIC site files) ----------------------------
+
+
+@pytest.mark.parametrize(("version", "decimals"), [("1.0", 3), ("1.1", 6), ("1.2", 6), ("9.9", None)])
+def test_fraction_precision_is_taken_from_generator_version(
+    mini: dict[str, Any], version: str, decimals: int | None
+) -> None:
+    """Generator 1.2 (whole-Moon pipeline) still writes 6-decimal fractions; an unknown version declares nothing.
+
+    Explicit ``meta.fraction_decimals`` is not published by Member 1 yet (docs follow-up), so it is not read here.
+    """
+    mini["meta"]["generator_version"] = version
+    if version == "1.0":  # 3-decimal files must really be 3-decimal
+        mini["timeline"]["sun_visible_fraction"] = [1.0, 0.5, 0.0]
+    assert _convert(mini).fraction_decimals == decimals
+
+
+def test_unpublished_precision_metadata_is_ignored_not_trusted(mini: dict[str, Any]) -> None:
+    mini["meta"].update(generator_version="1.2", fraction_decimals=3, angle_decimals=2)
+    assert _convert(mini).fraction_decimals == 6  # until Member 1 publishes and documents the fields
