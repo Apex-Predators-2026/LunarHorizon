@@ -8,7 +8,7 @@ evidence-based explanations and Rescue compatibility validation, §5g).
 `evaluate_scenario` returns a complete `ViabilityAssessment`, and since Phase 6 its `explanations` list is
 always filled (§5g). Rescue still runs on its placeholder: switching is Member 5's decision (§5g, Rescue findings).
 Contracts are `SCHEMA_VERSION = "0.1.0-draft"`, `ENGINE_VERSION = "0.6.0-phase6"`.
-Synchronized with `origin/main` as of 2026-11-14 (`b244b68`: whole-Moon terrain, site-file generator **1.2**, §3a) and
+Synchronized with `origin/main` as of 2026-11-14 (`6bb7f4f`: whole-Moon terrain, site-file generator **1.2**, §3a) and
 Member 5's shared `ViabilityResult` with `eligibility` / nullable `score` / `Violation.is_unknown` (§5a).
 The input contract (§3) is a **proposal for Member 1 to review** before it counts as final.
 
