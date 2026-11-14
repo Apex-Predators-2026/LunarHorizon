@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
+import { GlassSurface } from '../ui/GlassSurface'
 import type { Horizon, SiteInfo, TimelineStep } from '../types'
 import type { SiteFrame } from './globe/cubeSphere'
 import { MoonMiniMap } from './MoonMiniMap'
@@ -29,6 +30,12 @@ export function MiniMapPanel(props: {
   const cardRef = useRef<HTMLDivElement>(null)
   const { pos, size, dragging, handlers } = useDraggable(cardRef)
   const [tab, setTab] = useState<Tab>('map')
+  const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({})
+  const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
+  useLayoutEffect(() => {
+    const el = tabRefs.current[tab]
+    if (el) setPill({ left: el.offsetLeft, width: el.offsetWidth })
+  }, [tab])
 
   return (
     <div className="shrink-0" style={pos && size ? { height: size.h } : undefined}>
@@ -39,24 +46,35 @@ export function MiniMapPanel(props: {
         className={`lp-light pointer-events-auto flex touch-none select-none flex-col items-center rounded-[20px] ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={pos && size ? { position: 'fixed', left: pos.x, top: pos.y, width: size.w, zIndex: 20 } : undefined}
       >
-        <div role="tablist" aria-label="Mini map" className="flex w-full justify-center gap-1 px-3 pt-2">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              data-tip={t.tip}
-              onPointerDown={(e) => e.stopPropagation()} // a click on a tab, not a drag of the card
-              onClick={() => setTab(t.id)}
-              className={`relative h-8 min-w-20 rounded-full px-4 text-sm transition-colors ${
-                tab === t.id ? 'bg-white/20 font-semibold text-white' : 'text-white/70 hover:bg-white/10'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <GlassSurface radius="9999px" interactive={false} className="glass-strong mt-2 inline-flex p-1">
+          <div role="tablist" aria-label="Mini map" className="relative flex gap-1">
+            {/* The selected tab's glass slides between the options. */}
+            <GlassSurface
+              radius="9999px"
+              interactive={false}
+              aria-hidden
+              className="glass-slide pointer-events-none absolute inset-y-0"
+              style={{ left: pill?.left ?? 0, width: pill?.width ?? 0, opacity: pill ? 1 : 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.22))' }}
+            />
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                ref={(el) => {
+                  tabRefs.current[t.id] = el
+                }}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                data-tip={t.tip}
+                onPointerDown={(e) => e.stopPropagation()} // a click on a tab, not a drag of the card
+                onClick={() => setTab(t.id)}
+                className={`relative z-10 h-8 min-w-20 rounded-full px-4 text-sm transition-colors ${tab === t.id ? 'font-semibold text-white' : 'text-white/75 hover:text-white'}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </GlassSurface>
         {tab === 'map' ? (
           <MoonMiniMap sites={props.sites} siteId={props.siteId} frame={props.frame} current={props.current} />
         ) : (
