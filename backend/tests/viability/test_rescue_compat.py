@@ -483,8 +483,10 @@ def test_real_engine_runs_end_to_end_through_compat_layer(pns: Scenario) -> None
     assert assessment.data_basis is DataBasis.SYNTHETIC
 
 
-def test_rescue_still_uses_its_placeholder() -> None:
-    assert rescue_default_evaluate is placeholder_evaluate  # we did not swap Member 5's import
+def test_rescue_uses_the_canonical_engine() -> None:
+    # Member 5 switched rescue's import after the side-by-side validation (§5g).
+    from app.viability.compat.rescue import evaluate_timeline as compat_evaluate
+    assert rescue_default_evaluate is compat_evaluate
 
 
 def test_rescue_evaluator_runs_through_compat_layer_with_test_double(pns: Scenario) -> None:

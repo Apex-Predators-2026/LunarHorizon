@@ -57,7 +57,7 @@ export interface Robustness {
   checked_points: number
   passing_points: number
   pass_rate: number
-  worst_score: number
+  worst_score: number | null // null = none of the checks was scored
   verdict: 'robust' | 'sensitive' | 'fragile'
   note: string
 }
@@ -68,7 +68,7 @@ export interface Alternative {
   is_catalog_site: boolean
   scenario: Scenario
   viability: ViabilityResult
-  rank_score: number
+  rank_score: number | null // null = unscored result (ranked after scored ones, never as 0)
   date_shift_hours: number // vs the delayed landing time
   distance_km: number // vs the original site
   improvements: MetricDelta[] // vs the changed (broken) plan
@@ -147,7 +147,7 @@ export interface SensitivityPoint {
   lat: number
   lon: number
   passes: boolean
-  score: number
+  score: number | null
   failing_constraints: RequirementKey[]
 }
 
@@ -157,8 +157,8 @@ export interface SensitivityResponse {
   date_pass_rate: number | null
   position_pass_rate: number | null // null = not checked (no real data around the site)
   safe_date_window_hours: [number, number] | null
-  score_min: number
-  score_max: number
+  score_min: number | null
+  score_max: number | null
   most_sensitive_constraint: RequirementKey | null
   skipped_points: number
   verdict: 'robust' | 'sensitive' | 'fragile' | 'fails' | 'unknown' // unknown = no real data for the plan
