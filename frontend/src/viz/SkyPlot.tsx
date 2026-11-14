@@ -6,7 +6,7 @@ const SIZE = 220
 const R = SIZE / 2 - 18
 const C = SIZE / 2
 
-const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', terrain: '#3a3f4b', grid: '#22304d', axis: '#8a93a8' }
+const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', terrain: '#3a3f4b', grid: '#22304d', axis: '#cbd5e1' }
 
 type Pt = (az: number, el: number) => [number, number]
 
@@ -86,7 +86,7 @@ export function SkyPlot({
           return (
             <g key={el}>
               <circle cx={C} cy={C} r={C - y} fill="none" stroke={COLORS.grid} strokeDasharray={el === 0 ? '' : '2 3'} />
-              <text x={C + 2} y={y - 2} fontSize={8} fill={COLORS.axis}>
+              <text x={C + 2} y={y - 2} fontSize={9} fill={COLORS.axis} stroke="#05080f" strokeWidth={2.5} paintOrder="stroke">
                 {el}°
               </text>
             </g>
