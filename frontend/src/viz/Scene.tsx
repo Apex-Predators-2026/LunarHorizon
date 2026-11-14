@@ -17,12 +17,12 @@ import { BEACON_HEIGHT, BEACON_HIDE_WITHIN_M, Lander } from './Lander'
 import { skyPositions } from './geometry'
 import { ScreenLabels } from './ScreenLabels'
 import { SkyBodies } from './SkyBodies'
-import { SkyPlot } from './SkyPlot'
 import { SunLight } from './SunLight'
 import { TimeBar } from './TimeBar'
 import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor } from './timeline'
 import { FloatingSidebar } from './FloatingSidebar'
-import { SimControls, SiteSelect, useViewerSetup } from './ViewerHud'
+import { MiniMapPanel } from './MiniMapPanel'
+import { SiteSelect, TopInfo, useViewerSetup, ViewButtons } from './ViewerHud'
 
 const SHADOW_HALF_WIDTH_M = 6000 // shadow map covers ~12 km around the lander
 const CURTAIN_RADIUS_M = 28000 // engine skyline (from 300 km of terrain), drawn this far out in eye views
@@ -261,12 +261,11 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         className="pointer-events-none absolute inset-0 [--lp-side-w:clamp(280px,23.5vw,360px)]"
         style={{ fontFamily: 'var(--font-inter)' }}
       >
+        <div className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(60px,6.2vw,92px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))]">
+          <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
+        </div>
         <div className="absolute bottom-4 right-[4vw] top-[clamp(64px,9.5vh,105px)] flex w-[var(--lp-side-w)] flex-col gap-3">
-          {site && (
-            <div className="lp-light pointer-events-auto flex shrink-0 justify-center rounded-[20px] bg-opal-50 p-3 shadow-lg shadow-black/30">
-              <SkyPlot horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />
-            </div>
-          )}
+          {site && <MiniMapPanel horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />}
           <FloatingSidebar>
             <div className="space-y-4">
               <SiteSelect sites={sites.data} error={error} loading={loading} />
@@ -292,16 +291,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
               windowDays={windowDays}
               onWindowDays={setWindowDays}
               loading={timeline.loading}
-              aside={
-                <SimControls
-                  sites={sites.data}
-                  current={s}
-                  events={events}
-                  view={view}
-                  onView={setView}
-                  terrainStats={terrainStats}
-                />
-              }
+              views={<ViewButtons view={view} onView={setView} />}
             />
           )}
         </div>
