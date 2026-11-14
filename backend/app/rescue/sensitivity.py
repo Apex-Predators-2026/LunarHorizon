@@ -26,7 +26,7 @@ def _verdict(rate: float) -> str:
 
 def _point(r, h: float, dist: float, bearing: float | None, lat: float, lon: float) -> SensitivityPoint:
     return SensitivityPoint(date_offset_hours=h, distance_km=dist, bearing_deg=bearing, lat=lat, lon=lon,
-                            passes=r.passes, score=r.score_or_zero, failing_constraints=[v.constraint for v in r.violations])
+                            passes=r.passes, score=r.score, failing_constraints=[v.constraint for v in r.violations])
 
 
 def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
@@ -37,7 +37,7 @@ def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
     if base.verdict == "unknown":
         return SensitivityResponse(
             base=base, points=[], date_pass_rate=None, position_pass_rate=None, safe_date_window_hours=None,
-            score_min=0.0, score_max=0.0, most_sensitive_constraint=None, skipped_points=n_requested,
+            score_min=None, score_max=None, most_sensitive_constraint=None, skipped_points=n_requested,
             verdict="unknown",
             explanation="No real data covers this plan, so its sensitivity can't be checked. "
                         + _sentence(base.violations[0].message.removeprefix("UNKNOWN: ")))
@@ -88,7 +88,7 @@ def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
 
     fails = Counter(c for p in points for c in p.failing_constraints)
     most = fails.most_common(1)[0][0] if fails else None
-    scores = [p.score for p in points] + [base.score_or_zero]
+    scores = [s for s in [p.score for p in points] + [base.score] if s is not None]
 
     parts = []
     if date_rate is not None:
@@ -111,7 +111,7 @@ def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
         expl += (f" {skipped} point(s) skipped: no real data there"
                  + (" (landing-position checks need terrain for points around the site)." if pos_rate is None else "."))
     return SensitivityResponse(base=base, points=points, date_pass_rate=date_rate, position_pass_rate=pos_rate,
-                               safe_date_window_hours=window, score_min=min(scores), score_max=max(scores),
+                               safe_date_window_hours=window, score_min=min(scores, default=None), score_max=max(scores, default=None),
                                most_sensitive_constraint=most, skipped_points=skipped, verdict=verdict,
                                explanation=expl)
 
@@ -135,5 +135,5 @@ def quick_robustness(sc: Scenario, ev: Evaluator, include_synthetic: bool | None
     if res.position_pass_rate is None and res.skipped_points:
         note += " (Landing-position error not checked: no real data around the site.)"
     return Robustness(checked_points=n, passing_points=passing, pass_rate=r,
-                      worst_score=min(p.score for p in res.points) if res.points else res.base.score_or_zero,
+                      worst_score=min((p.score for p in res.points if p.score is not None), default=res.base.score),
                       verdict=_verdict(r), note=note)

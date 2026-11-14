@@ -77,8 +77,7 @@ def no_data_result(site: Site, t: datetime, duration_days: float, req: MissionRe
         msg = (f"UNKNOWN: no real Horizons + LOLA data exists for {site.name}, so this plan can't be checked. "
                + SIMULATION_HINT)
     else:
-        first, last = coverage
-        last_end = last + np.timedelta64(3600, "s")  # the final hourly sample covers one more hour
+        first, last_end = coverage  # real data ends at the last sample (no extra hour after it)
         lo, hi = max(start, first), min(end, last_end)
         covered = max(0.0, float((hi - lo).astype("timedelta64[s]").astype(np.int64)) / 3600.0)
         msg = (f"UNKNOWN: real data for {site.name} covers {_fmt_day(first)} to {_fmt_day(last_end)}, but this "
@@ -129,19 +128,26 @@ class Evaluator:
         sim = self.simulation if simulation is None else simulation
         step = TIMELINE_STEP_HOURS
         n = max(1, int(round(duration_days * 24 / step)))
-        span = timedelta(hours=(n - 1) * step)
+        span = timedelta(hours=(n - 1) * step)  # first to last sample of the mission
+        end = timedelta(hours=n * step)  # the mission's end
 
-        cov = None if sim else self.coverage(site)
-        if sim:
-            ok = list(range(len(starts)))
-        else:  # real data only: every sample of the mission must come from the real dataset
-            ok = [] if cov is None else [k for k, t in enumerate(starts)
-                                         if cov[0] <= _np(t) and _np(t + span) <= cov[1]]
+        # Covered = the whole mission lies inside the real data: it starts at or after the first
+        # sample and ends by the last one. The last sample is an instant, not one more hour of data
+        # (same rule as the canonical engine).
+        cov = self.coverage(site)
+        covered = [] if cov is None else [k for k, t in enumerate(starts)
+                                          if cov[0] <= _np(t) and _np(t + end) <= cov[1]]
+        groups = [covered]
+        if sim:  # simulation mode: the rest goes to the synthetic fallback, in its own fetch so it
+            in_cov = set(covered)  # can't turn the covered starts synthetic too
+            groups.append([k for k in range(len(starts)) if k not in in_cov])
 
         results: dict[int, ViabilityResult] = {}
-        if ok:
-            tl = self.provider.timeline(site, min(starts[k] for k in ok), max(starts[k] for k in ok) + span, step)
-            for k in ok:
+        for group in groups:
+            if not group:
+                continue
+            tl = self.provider.timeline(site, min(starts[k] for k in group), max(starts[k] for k in group) + span, step)
+            for k in group:
                 t = starts[k]
                 i = tl.index_of(t)
                 scen = Scenario(site=site, landing_utc=t, duration_days=duration_days, requirements=req)
