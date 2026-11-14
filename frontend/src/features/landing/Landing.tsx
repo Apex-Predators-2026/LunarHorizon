@@ -1,14 +1,14 @@
 // Landing page for the whole project: the first screen of the app (route "/"), with "Open the navigator"
-// leading into the Mission Planner (#app). The page is one scroll film (ScrollFilm) followed by the NASA data
-// credits and a close. Same tokens as the app (Opaline / charcoal / coral, Inter, Helvetica display), the
+// leading into the Mission Planner (#app). The page opens on a photograph of the Moon, followed by the app pictures,
+// the NASA data credits and a close. Same tokens as the app (Opaline / charcoal / coral, Inter, Helvetica display), the
 // team's frosted GlassSurface, and M3 easing for every move.
 import { useEffect, useRef, useState } from 'react'
 
 import { GlassDefs, GlassSurface } from '../../ui/GlassSurface'
 import { ExternalIcon } from '../../ui/icons'
-import { BEATS, DATA_SOURCES, NAV_BEATS, PICTURES, REPO_URL } from './content'
+import { LiveNow } from './LiveNow'
+import { DATA_SOURCES, HERO, PICTURES, REPO_URL } from './content'
 import './landing.css'
-import { ScrollFilm } from './ScrollFilm'
 
 const toBeat = (id: string) => (e: React.MouseEvent) => {
   e.preventDefault()
@@ -16,23 +16,20 @@ const toBeat = (id: string) => (e: React.MouseEvent) => {
   document.getElementById(id)?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' })
 }
 
-function Nav({ onOpen, active }: { onOpen: () => void; active: number }) {
+function Nav({ onOpen }: { onOpen: () => void }) {
   const [scrolled, setScrolled] = useState(false)
   const [tone, setTone] = useState<'dark' | 'light'>('dark')
   useEffect(() => {
     const on = () => {
       setScrolled(window.scrollY > 24)
-      // Light glass while the bar sits over a light section, dark glass over the film.
-      const under = document.elementsFromPoint(window.innerWidth / 2, 72).find((el) => el.closest('.lnd-light, .lnd-film, .lnd-close'))
+      // Light glass while the bar sits over a light section.
+      const under = document.elementsFromPoint(window.innerWidth / 2, 72).find((el) => el.closest('.lnd-light, .lnd-hero-photo, .lnd-preview, .lnd-close'))
       setTone(under?.closest('.lnd-light') ? 'light' : 'dark')
     }
     on()
     window.addEventListener('scroll', on, { passive: true })
     return () => window.removeEventListener('scroll', on)
   }, [])
-  // The header link that covers the current beat: the last linked beat at or before it.
-  const order = BEATS.map((b) => b.id)
-  const current = [...NAV_BEATS].reverse().find((id) => order.indexOf(id) <= active)
   return (
     <header className="lnd-nav" data-tone={tone}>
       <GlassSurface radius="0px" interactive={false} enabled={scrolled} className="lnd-nav-bar lnd-glass-dark">
@@ -40,12 +37,7 @@ function Nav({ onOpen, active }: { onOpen: () => void; active: number }) {
           Site Navigator
         </a>
         <nav aria-label="Mission" className="lnd-nav-links">
-          {NAV_BEATS.map((id) => (
-            <a key={id} href={`#beat-${id}`} aria-current={current === id ? 'step' : undefined} onClick={toBeat(`beat-${id}`)}>
-              {BEATS[order.indexOf(id)].short}
-            </a>
-          ))}
-          <a href="#inside" onClick={toBeat('inside')}>The app</a>
+          <a href="#preview" onClick={toBeat('preview')}>The app</a>
           <a href="#data" onClick={toBeat('data')}>NASA data</a>
         </nav>
         <button type="button" className="lnd-btn lnd-btn-filled lnd-btn-sm" onClick={onOpen}>
@@ -56,14 +48,14 @@ function Nav({ onOpen, active }: { onOpen: () => void; active: number }) {
   )
 }
 
-/** The app's real screens, large, after the film. */
+/** The app's real screens, large, after the preview. */
 function Gallery() {
   return (
     <section id="inside" className="lnd-section lnd-light lnd-gallery" aria-labelledby="gallery-h">
       <div className="lnd-wrap">
         <div className="lnd-gallery-head" data-reveal>
           <h2 id="gallery-h">Inside the navigator</h2>
-          <p>The real app, running on the same Horizons and LOLA data as the film above.</p>
+          <p>Explore how the navigator uses Horizons and LOLA data to plan a lunar landing.</p>
         </div>
         <ul className="lnd-gallery-grid">
           {PICTURES.map((p, i) => (
@@ -134,15 +126,55 @@ function Close({ onOpen }: { onOpen: () => void }) {
   )
 }
 
+/** The opening picture: the Moon with Earth rising behind it, with the project's headline over it. */
+function Hero({ onOpen }: { onOpen: () => void }) {
+  return (
+    <section className="lnd-hero-photo" aria-labelledby="lnd-title">
+      <img src="/landing/moon.jpg" alt="A crescent Moon, its craters lit along the terminator, with a small crescent Earth rising behind its edge." fetchPriority="high" />
+      <div className="lnd-scrim" aria-hidden="true" />
+      <div className="lnd-hero-photo-copy">
+        <div className="lnd-hero-copy">
+          <p className="lnd-hero-team">{HERO.team}</p>
+          <h1 id="lnd-title">{HERO.headline}</h1>
+          <p className="lnd-hero-lead">{HERO.lead}</p>
+          <div className="lnd-hero-actions">
+            <button type="button" className="lnd-btn lnd-btn-filled" onClick={onOpen}>
+              Open the navigator
+            </button>
+            <a className="lnd-btn lnd-btn-glass" href="#preview" onClick={toBeat('preview')}>
+              See the app
+            </a>
+          </div>
+          <div className="lnd-live-inline">
+            <LiveNow idPrefix="lnd-live-inline" />
+          </div>
+        </div>
+      </div>
+      <p className="lnd-hero-credit">
+        Image: <a href="https://science.nasa.gov/moon/" target="_blank" rel="noopener noreferrer">NASA</a>
+      </p>
+    </section>
+  )
+}
+
 export default function Landing({ onOpen }: { onOpen: () => void }) {
   const root = useRef<HTMLDivElement>(null)
-  const [active, setActive] = useState(0)
   return (
     <div ref={root} id="top" className="lnd md-host">
       <GlassDefs />
-      <Nav onOpen={onOpen} active={active} />
+      <Nav onOpen={onOpen} />
       <main>
-        <ScrollFilm onOpen={onOpen} onActive={setActive} />
+        <Hero onOpen={onOpen} />
+        <div id="preview" className="lnd-preview">
+          <figure className="lnd-preview-frame">
+            <img
+              src="/landing/mission-planner-preview.png"
+              alt="Mission Planner showing Connecting Ridge on the Moon, the sunlight and Earth visibility timeline, and the Mission Rescue panel."
+              width={1919}
+              height={1079}
+            />
+          </figure>
+        </div>
         <Gallery />
         <Data />
       </main>
