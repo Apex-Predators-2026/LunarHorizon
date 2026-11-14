@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from ..models import Scenario
-from .engine import (Candidate, Evaluator, candidate_sites, candidate_times, classify, diverse_top,
+from .engine import (Candidate, Evaluator, candidate_sites, candidate_times, classify, diverse_top, is_real,
                      SIMULATION_HINT, resolve_simulation, search_grid, site_group)
 from .catalog import is_catalog
 from .explain import fmt_score, fmt_time, headline_for, metric_deltas, reasons_for, why_fails
@@ -54,11 +54,22 @@ def clearance_bonus(c: Candidate, per_deg: float) -> float:
     return per_deg * (sum(vals) / 2 if vals else 0.0)
 
 
-def _rank_score(c: Candidate, opts) -> float:
-    return (c.result.score_or_zero
-            + clearance_bonus(c, opts.clearance_bonus_per_deg)
+def _adjustments(c: Candidate, opts) -> float:
+    return (clearance_bonus(c, opts.clearance_bonus_per_deg)
             - opts.date_penalty_per_day * abs(c.date_shift_hours) / 24
             - opts.distance_penalty_per_km * c.distance_km)
+
+
+def _rank_score(c: Candidate, opts) -> float | None:
+    """Score plus adjustments, or None for an unscored result (never treated as a score of 0)."""
+    return None if c.result.score is None else c.result.score + _adjustments(c, opts)
+
+
+def _rank_key(c: Candidate, opts, penalty: float = 0.0) -> tuple:
+    """Tiers first, then value: real data before synthetic (never ranked together as equals),
+    scored before unscored; within the unscored tier only the adjustments order them."""
+    rs = _rank_score(c, opts)
+    return (is_real(c.result), rs is not None, (rs if rs is not None else _adjustments(c, opts)) - penalty)
 
 
 def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
@@ -86,20 +97,21 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
                              site_group(changed_sc.site))
 
     # Rank: shortlist by score + penalties, then add a robustness penalty and re-rank.
-    shortlist = diverse_top(passing, lambda c: _rank_score(c, opts), opts.top_n * 2, opts.min_separation_hours)
+    shortlist = diverse_top(passing, lambda c: _rank_key(c, opts), opts.top_n * 2, opts.min_separation_hours)
     scored = []
     for c in shortlist:
         rob = quick_robustness(c.scenario, ev, sim) if opts.robustness_check else None
-        rs = _rank_score(c, opts) - (ROBUSTNESS_PENALTY * (1 - rob.pass_rate) if rob else 0.0)
-        scored.append((rs, c, rob))
-    scored.sort(key=lambda x: -x[0])
+        penalty = ROBUSTNESS_PENALTY * (1 - rob.pass_rate) if rob else 0.0
+        rs = _rank_score(c, opts)
+        scored.append((_rank_key(c, opts, penalty), None if rs is None else rs - penalty, c, rob))
+    scored.sort(key=lambda x: x[0], reverse=True)
 
     alternatives = []
-    for rank, (rs, c, rob) in enumerate(scored[: opts.top_n], start=1):
+    for rank, (_key, rs, c, rob) in enumerate(scored[: opts.top_n], start=1):
         deltas = metric_deltas(changed, c.result)
         alternatives.append(Alternative(
             rank=rank, kind=c.kind, is_catalog_site=c.is_catalog_site, scenario=c.scenario, viability=c.result,
-            rank_score=round(rs, 2), date_shift_hours=c.date_shift_hours, distance_km=round(c.distance_km, 3),
+            rank_score=None if rs is None else round(rs, 2), date_shift_hours=c.date_shift_hours, distance_km=round(c.distance_km, 3),
             improvements=deltas, robustness=rob, headline=headline_for(c, changed), reasons=reasons_for(c, changed, deltas),
         ))
 
@@ -118,7 +130,8 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
         status = "still_viable"
         summary = (f"The changed plan still works: {changed_sc.site.name} on {fmt_time(changed_sc.landing_utc)} "
                    f"passes with score {fmt_score(changed.score)}.")
-        if alternatives and alternatives[0].viability.score_or_zero > changed.score_or_zero + 5:
+        if (alternatives and alternatives[0].viability.score is not None and changed.score is not None
+                and alternatives[0].viability.score > changed.score + 5):
             summary += f" Better option available: {alternatives[0].headline}"
     elif alternatives:
         status = "rescued"
