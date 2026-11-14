@@ -78,6 +78,29 @@ export const KIND_COLOR: Record<string, string> = {
   custom: '#f97316',
 }
 
+/** Artemis sites whose region isn't on NASA's current (2024) list: a paler, greyer blue. */
+export const ARTEMIS_FORMER_COLOR = '#7c93b8'
+
+/** Marker colour of a site: by kind, and for Artemis sites by whether NASA's current list names the region. */
+export function siteColor(s: { kind?: string; artemis_list?: string | null }): string {
+  if (s.kind === 'artemis' && s.artemis_list && s.artemis_list !== '2024') return ARTEMIS_FORMER_COLOR
+  return KIND_COLOR[s.kind ?? 'custom'] ?? KIND_COLOR.custom
+}
+
+/** What an Artemis site's status means, for tooltips (null for other sites). Sources: backend engine/sites.py. */
+export function artemisNote(s: { artemis_list?: string | null }): string | null {
+  switch (s.artemis_list) {
+    case '2024':
+      return "Artemis III candidate region: one of the 9 in NASA's October 2024 update"
+    case '2022':
+      return "In NASA's original 13 Artemis III candidate regions (2022), not among the 9 of the October 2024 update (NASA: that doesn't make it unsuitable for future exploration)"
+    case 'unconfirmed':
+      return "Approximate point at de Gerlache Rim: NASA's 2024 list keeps de Gerlache Rim 2 and dropped Rim 1; which one this point is in isn't confirmed"
+    default:
+      return null
+  }
+}
+
 type BodyStep = { azimuth_deg: number; elevation_deg: number; horizon_deg: number | null }
 
 /** The Sun/Earth blockers at one hour, from the engine's horizon mask (empty when both are clear). */
