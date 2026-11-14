@@ -1,17 +1,20 @@
 // Streaming, level-of-detail terrain for the whole Moon (cube-sphere quadtree).
 // Tiles come from /api/terrain/tile (backend/app/terrain_router.py), are built in the site frame
 // (see SiteFrame) and refined until each vertex step covers < ~4 px on screen.
+// Works with frameloop="demand": tile selection only runs when the camera moved or a tile arrived,
+// and the shadow map is only redrawn when the set of drawn tiles changes.
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { API_URL } from '../api'
+import { PERF_ENABLED, recordTileBuild, recordTileLevels } from '../perf'
 import { MAX_ZOOM, MOON_RADIUS_M, SiteFrame, TILE_N, tileVertexUV, uvToVec, vertexSpacingM, type Vec3 } from './cubeSphere'
 import { buildTileMesh } from './tileGeometry'
 
 const SSE_THRESHOLD_PX = 4 // refine while a vertex step spans more than this on screen
 const MAX_IN_FLIGHT = 6
 const MAX_CACHED_MESHES = 500
-const UPDATE_EVERY_MS = 120
+const UPDATE_EVERY_MS = 60 // at most this often while the camera moves
 
 type State = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -42,6 +45,8 @@ const keyOf = (f: number, z: number, x: number, y: number) => `${f}/${z}/${x}/${
 const frustum = new THREE.Frustum()
 const projView = new THREE.Matrix4()
 const sphere = new THREE.Sphere()
+const lastView = new THREE.Matrix4() // camera at the last selection
+const lastProj = new THREE.Matrix4()
 
 /** Rough bounding sphere of a tile before its heights are known (on the reference sphere). */
 function approxBounds(frame: SiteFrame, f: number, z: number, x: number, y: number): [Vec3, number] {
@@ -69,18 +74,23 @@ export function TileTree({
   const inFlight = useRef(0)
   const queue = useRef<TileNode[]>([])
   const lastUpdate = useRef(0)
+  const dirty = useRef(true) // a tile arrived (or the site changed) since the last selection
+  const lastSize = useRef('')
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
+  const invalidate = useThree((s) => s.invalidate)
 
   // A different site means a different frame: drop everything.
   useEffect(() => {
     const map = nodes.current
+    dirty.current = true
+    invalidate()
     return () => {
       for (const n of map.values()) n.mesh?.geometry.dispose()
       map.clear()
       queue.current = []
     }
-  }, [frame])
+  }, [frame, invalidate])
 
   const node = (f: number, z: number, x: number, y: number): TileNode => {
     const key = keyOf(f, z, x, y)
@@ -102,6 +112,7 @@ export function TileTree({
         n.leaf = res.headers.get('X-Tile-Leaf') === '1' || n.z >= MAX_ZOOM
         const heights = new Float32Array(await res.arrayBuffer())
         if (!nodes.current.has(n.key)) return // site changed meanwhile
+        const t0 = performance.now()
         const m = buildTileMesh(n.face, n.z, n.x, n.y, heights, frame)
         const geom = new THREE.BufferGeometry()
         geom.setAttribute('position', new THREE.BufferAttribute(m.positions, 3))
@@ -112,6 +123,7 @@ export function TileTree({
         const nrm = geom.getAttribute('normal') as THREE.BufferAttribute
         m.borderOf.forEach((g, s) => nrm.setXYZ(m.skirtStart + s, nrm.getX(g), nrm.getY(g), nrm.getZ(g)))
         geom.setIndex(new THREE.BufferAttribute(m.indices, 1))
+        recordTileBuild(performance.now() - t0)
         const mesh = new THREE.Mesh(geom, material)
         mesh.position.set(...m.centre)
         mesh.castShadow = true
@@ -129,15 +141,37 @@ export function TileTree({
       })
       .finally(() => {
         inFlight.current--
+        pump() // keep the connections busy between selections
+        dirty.current = true // reselect on the next frame
+        invalidate()
       })
   }
 
-  useFrame(({ clock }) => {
-    const now = clock.elapsedTime * 1000
-    if (now - lastUpdate.current < UPDATE_EVERY_MS) return
-    lastUpdate.current = now
+  /** Start queued loads (from the last selection) up to MAX_IN_FLIGHT, skipping stale entries. */
+  const pump = () => {
+    while (inFlight.current < MAX_IN_FLIGHT && queue.current.length) {
+      const n = queue.current.shift()!
+      if (n.state === 'idle' && nodes.current.get(n.key) === n) load(n)
+    }
+  }
+
+  useFrame(({ gl }) => {
     const g = group.current
     if (!g) return
+    const sizeKey = `${size.width}x${size.height}`
+    const moved =
+      !lastView.equals(camera.matrixWorld) || !lastProj.equals(camera.projectionMatrix) || lastSize.current !== sizeKey
+    if (!moved && !dirty.current) return // nothing changed: keep the current selection
+    const now = performance.now()
+    if (now - lastUpdate.current < UPDATE_EVERY_MS) {
+      invalidate() // come back once the throttle allows (otherwise an idle canvas would never reselect)
+      return
+    }
+    lastUpdate.current = now
+    lastView.copy(camera.matrixWorld)
+    lastProj.copy(camera.projectionMatrix)
+    lastSize.current = sizeKey
+    dirty.current = false
 
     projView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
     frustum.setFromProjectionMatrix(projView)
@@ -188,12 +222,24 @@ export function TileTree({
 
     // Start loads: coarse and near first.
     queue.current = wanted.sort((a, b) => a.z - b.z || dist(a) - dist(b))
-    while (inFlight.current < MAX_IN_FLIGHT && queue.current.length) load(queue.current.shift()!)
+    pump()
 
     // Show exactly the selected meshes.
     const show = new Set(draw.map((n) => n.mesh!))
-    for (const child of [...g.children]) if (!show.has(child as THREE.Mesh)) g.remove(child)
-    for (const m of show) if (m.parent !== g) g.add(m)
+    let changed = false
+    for (const child of [...g.children]) {
+      if (!show.has(child as THREE.Mesh)) {
+        g.remove(child)
+        changed = true
+      }
+    }
+    for (const m of show) {
+      if (m.parent !== g) {
+        g.add(m)
+        changed = true
+      }
+    }
+    if (changed) gl.shadowMap.needsUpdate = true // terrain under the lander may have changed detail
 
     // Forget meshes not used for a while once the cache is large.
     const ready = [...nodes.current.values()].filter((n) => n.mesh)
@@ -207,6 +253,11 @@ export function TileTree({
           n.mesh = null
           n.state = 'idle'
         })
+    }
+    if (PERF_ENABLED) {
+      const levels: Record<number, number> = {}
+      for (const n of draw) levels[n.z] = (levels[n.z] ?? 0) + 1
+      recordTileLevels(levels)
     }
     onStats?.({
       visible: draw.length,

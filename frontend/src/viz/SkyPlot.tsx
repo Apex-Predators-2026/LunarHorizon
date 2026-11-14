@@ -69,7 +69,7 @@ export function SkyPlot({
 
   return (
     <figure
-      className="relative m-0 flex justify-center rounded-2xl outline-offset-4"
+      className="relative m-0 flex w-full justify-center rounded-[20px] p-3 outline-offset-[-4px]"
       tabIndex={0}
       aria-label="Mini map: sky from the lander. Hover or focus for details."
       onPointerMove={(e) => setTip({ x: e.clientX, y: e.clientY })}

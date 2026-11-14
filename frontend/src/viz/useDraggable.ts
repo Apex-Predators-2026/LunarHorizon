@@ -74,7 +74,9 @@ export function useDraggable(rootRef: RefObject<HTMLElement | null>) {
 
   return {
     pos,
+    setPos,
     size,
+    setSize,
     dragging,
     refit,
     consumeClick,

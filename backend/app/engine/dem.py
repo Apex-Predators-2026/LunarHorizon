@@ -114,6 +114,9 @@ class _BlockStore:
         y1 = ymax0 - by * bp * px
         return x0, y1 - bp * px, x0 + bp * px, y1, px
 
+    def in_memory(self, src: DemSource, level: int, bx: int, by: int) -> bool:
+        return (src.name, level, bx, by) in self.mem
+
     def get(self, src: DemSource, level: int, bx: int, by: int) -> np.ndarray:
         key = (src.name, level, bx, by)
         with self.lock:
@@ -186,6 +189,7 @@ class _BlockStore:
 
 
 _store = _BlockStore()
+_BLOCK_ID_STRIDE = 1 << 31  # block id = by * stride + bx
 
 
 def sample_source(src: DemSource, level: int, x: np.ndarray, y: np.ndarray, store: _BlockStore | None = None) -> np.ndarray:
@@ -207,28 +211,31 @@ def sample_source(src: DemSource, level: int, x: np.ndarray, y: np.ndarray, stor
             cc = cc % ncols  # the 180 deg meridian is continuous
         return rr, cc
 
-    # Download all blocks this lookup needs in parallel first (cold starts are request-latency bound).
-    needed = set()
+    # Which block each of the 4 bilinear neighbours falls in, as one integer id per point
+    # (1-D np.unique is ~50x faster than unique rows over (bx, by) pairs).
+    corners_idx = []
     for dr, dc in ((0, 0), (0, 1), (1, 0), (1, 1)):
         rr, cc = neighbour(dr, dc)
         ok = (rr >= 0) & (cc >= 0)
-        needed.update(map(tuple, np.unique(np.stack([cc // bp, rr // bp], axis=-1)[ok], axis=0).tolist()))
-    if len(needed) > 1:
+        bid = np.where(ok, (rr // bp) * _BLOCK_ID_STRIDE + cc // bp, -1)
+        corners_idx.append((rr, cc, bid))
+    needed = np.unique(np.concatenate([b for _, _, b in corners_idx]))
+    needed = [(int(b % _BLOCK_ID_STRIDE), int(b // _BLOCK_ID_STRIDE)) for b in needed if b >= 0]
+
+    # Download missing blocks in parallel first (cold starts are request-latency bound).
+    missing = [k for k in needed if not store.in_memory(src, level, *k)]
+    if len(missing) > 1:
         with ThreadPoolExecutor(max_workers=8) as pool:
-            list(pool.map(lambda k: store.get(src, level, int(k[0]), int(k[1])), needed))
+            list(pool.map(lambda k: store.get(src, level, k[0], k[1]), missing))
 
     # Gather the 4 neighbours, each possibly in a different block.
     corners = []
-    for dr, dc in ((0, 0), (0, 1), (1, 0), (1, 1)):
-        rr, cc = neighbour(dr, dc)
+    for rr, cc, bid in corners_idx:
         vals = np.full(col.shape, np.nan)
-        ok = (rr >= 0) & (cc >= 0)
-        bx, by = cc // bp, rr // bp
-        keys = np.stack([bx, by], axis=-1)[ok]
-        if keys.size:
-            for kx, ky in np.unique(keys, axis=0):
-                sel = ok & (bx == kx) & (by == ky)
-                block = store.get(src, level, int(kx), int(ky))
+        for kx, ky in needed:
+            sel = bid == ky * _BLOCK_ID_STRIDE + kx
+            if sel.any():
+                block = store.get(src, level, kx, ky)
                 vals[sel] = block[rr[sel] - ky * bp, cc[sel] - kx * bp]
         corners.append(vals)
     z00, z01, z10, z11 = corners

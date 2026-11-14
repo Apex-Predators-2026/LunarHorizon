@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useDraggable } from './useDraggable'
 
 const DOW = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
@@ -45,13 +46,13 @@ export function DatePopup({
   }
   const selectedDay = timeUtc.slice(0, 10)
 
-  return (
+  return createPortal(
     <div
       ref={ref}
       role="dialog"
       aria-label="Choose simulation time (UTC)"
       className="lp-light pointer-events-auto z-40 w-64 select-none rounded-2xl bg-opal-50 text-xs shadow-xl shadow-black/40"
-      style={pos ? { position: 'fixed', left: pos.x, top: pos.y } : { position: 'fixed', left: 'clamp(16px,4.5vw,65px)', top: 150 }}
+      style={{ textShadow: 'none', position: 'fixed', ...(pos ? { left: pos.x, top: pos.y } : { left: 'clamp(16px,4.5vw,65px)', top: 150 }) }}
     >
       <div
         {...handlers}
@@ -102,6 +103,7 @@ export function DatePopup({
           />
         </label>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

@@ -31,7 +31,7 @@ Produced by `backend/scripts/precompute.py` (`app/engine/pipeline.py`). Columnar
 ```jsonc
 {
   "site": { "id", "name", "kind", "approximate", "lat", "lon", "source", "x_m", "y_m", "ground_height_m", "observer_height_m" },
-  "meta": { "generated_utc", "generator_version", "frame", "start_utc", "stop_utc", "step", "ephemeris", "terrain": [...],
+  "meta": { "generated_utc", "generator_version", "fraction_decimals", "angle_decimals", "frame", "start_utc", "stop_utc", "step", "ephemeris", "terrain": [...],
             "horizon_method" },
   "summary": { "sunlit_pct", "mean_sun_fraction_pct", "earth_visible_pct", "horizon_min_deg", "horizon_max_deg",
                "unknown_horizon_pct", "unknown_hours_pct" },
@@ -67,6 +67,9 @@ Definitions:
   (the missing point could be the one that blocks the sky). Timeline values that depend on such a direction are
   `null` too. Only custom sites can have them; curated sites are fully known (`unknown_*_pct` = 0).
   Summary percentages are over known hours.
+- **`meta.fraction_decimals`** (6) and **`meta.angle_decimals`** (3): how many decimals `sun_visible_fraction` and the
+  azimuth/elevation/horizon/margin columns are rounded to. Read these instead of inferring precision from
+  `generator_version`. Present in every 1.2 file; absent in older files (1.0 = 3, 1.1 = 6 fraction decimals).
 - `meta.generator_version`: `1.0` = first release; `1.1` = adds `sun_visible`, `sun_angular_radius_deg`,
   6-decimal fractions, nulls, `generated_utc` / `generator_version` / `frame`; `1.2` = works anywhere on the Moon
   (great-circle horizon over the whole-Moon elevation registry), adds `site.kind` / `site.approximate` /
