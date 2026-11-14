@@ -1,6 +1,6 @@
 // Streaming, level-of-detail terrain for the whole Moon (cube-sphere quadtree).
 // Tiles come from /api/terrain/tile (backend/app/terrain_router.py), are built in the site frame
-// (see SiteFrame) and refined until each vertex step covers < ~4 px on screen.
+// (see SiteFrame) and refined until each vertex step covers < lodThresholdPx (default 4) px on screen.
 // Works with frameloop="demand": tile selection only runs when the camera moved or a tile arrived,
 // and the shadow map is only redrawn when the set of drawn tiles changes.
 // It also keeps the camera above the ground: after the orbit controls move it, a camera that would
@@ -14,9 +14,7 @@ import { MAX_ZOOM, MOON_RADIUS_M, SiteFrame, TILE_N, tileVertexUV, uvToVec, vert
 import { groundHeightAt, liftAboveGround, type TileHeights } from './terrainHeight'
 import { buildTileMesh } from './tileGeometry'
 
-const SSE_THRESHOLD_PX = 4 // refine while a vertex step spans more than this on screen
 const MAX_IN_FLIGHT = 6
-const MAX_CACHED_MESHES = 500
 const UPDATE_EVERY_MS = 60 // at most this often while the camera moves
 
 type State = 'idle' | 'loading' | 'ready' | 'error'
@@ -68,12 +66,16 @@ export function TileTree({
   onStats,
   onPick,
   cameraClearanceM = 3,
+  lodThresholdPx = 4,
+  maxCachedMeshes = 500,
 }: {
   frame: SiteFrame
   material: THREE.Material
   onStats?: (s: TileStats) => void
   onPick?: (point: Vec3) => void // a click on the terrain (not an orbit drag), in the site frame
   cameraClearanceM?: number // the camera never gets closer than this to the ground below it (m)
+  lodThresholdPx?: number // refine while a vertex step spans more than this on screen (graphics preset)
+  maxCachedMeshes?: number // tile meshes kept in memory (graphics preset)
 }) {
   const group = useRef<THREE.Group>(null)
   const nodes = useRef(new Map<string, TileNode>())
@@ -97,6 +99,12 @@ export function TileTree({
       queue.current = []
     }
   }, [frame, invalidate])
+
+  // A different detail level: reselect on the next frame.
+  useEffect(() => {
+    dirty.current = true
+    invalidate()
+  }, [lodThresholdPx, invalidate])
 
   const node = (f: number, z: number, x: number, y: number): TileNode => {
     const key = keyOf(f, z, x, y)
@@ -213,7 +221,7 @@ export function TileTree({
       sphere.radius = n.radius
       return frustum.intersectsSphere(sphere) && dist(n) <= horizonDist + n.radius
     }
-    const wantsRefine = (n: TileNode) => !n.leaf && (vertexSpacingM(n.z) * pxPerRad) / dist(n) > SSE_THRESHOLD_PX
+    const wantsRefine = (n: TileNode) => !n.leaf && (vertexSpacingM(n.z) * pxPerRad) / dist(n) > lodThresholdPx
 
     const visit = (n: TileNode) => {
       n.lastUsed = now
@@ -265,11 +273,11 @@ export function TileTree({
 
     // Forget meshes not used for a while once the cache is large.
     const ready = [...nodes.current.values()].filter((n) => n.mesh)
-    if (ready.length > MAX_CACHED_MESHES) {
+    if (ready.length > maxCachedMeshes) {
       ready
         .filter((n) => now - n.lastUsed > 10_000 && n.z > 1)
         .sort((a, b) => a.lastUsed - b.lastUsed)
-        .slice(0, ready.length - MAX_CACHED_MESHES)
+        .slice(0, ready.length - maxCachedMeshes)
         .forEach((n) => {
           n.mesh!.geometry.dispose()
           n.mesh = null

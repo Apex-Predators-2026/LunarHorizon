@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { VerifyResult } from '../types'
 import { fetchVerify } from './api'
 import { KIND_COLOR } from './globe/overlays'
+import { GRAPHICS, type GraphicsQuality } from './graphics'
 
 export interface Layers {
   sites: boolean
@@ -32,6 +33,8 @@ export function MapTools({
   onArmPin,
   siteId,
   timeUtc,
+  graphics,
+  onGraphics,
 }: {
   layers: Layers
   onLayers: (l: Layers) => void
@@ -39,6 +42,8 @@ export function MapTools({
   onArmPin: (armed: boolean) => void
   siteId: string | null
   timeUtc: string
+  graphics: GraphicsQuality
+  onGraphics: (q: GraphicsQuality) => void
 }) {
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
 
@@ -84,6 +89,22 @@ export function MapTools({
           title="Compare this hour's Sun/Earth positions with JPL Horizons, live">
           {verify?.loading ? 'Asking JPL…' : 'Verify with JPL'}
         </button>
+        <span className="mx-0.5 h-4 w-px bg-slate-700" aria-hidden="true" />
+        <label className="flex items-center gap-1 text-xs text-slate-300" title={GRAPHICS[graphics].hint}>
+          Graphics
+          <select
+            className="rounded border border-opal-300 bg-white px-1 py-1 text-xs text-slate-300"
+            value={graphics}
+            onChange={(e) => onGraphics(e.target.value as GraphicsQuality)}
+          >
+            {(Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
+              <option key={q} value={q} title={GRAPHICS[q].hint}>
+                {GRAPHICS[q].label}
+                {q === 'high' ? ' (default)' : ' (Chromebook)'}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {pin.phase === 'working' && (
