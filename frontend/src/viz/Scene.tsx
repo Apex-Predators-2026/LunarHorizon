@@ -48,6 +48,7 @@ import { TerrainLoadingOverlay, TerrainProgressBar } from './TerrainProgress'
 import { CoverageBadge } from './CoverageBadge'
 import { TooltipHost } from './TooltipHost'
 import { showSnackbar } from './snackbarStore'
+import { playBubblePop, playBubbleRemove } from './sfx'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
 import { SiteSelect, TopInfo, useViewerSetup } from './ViewerHud'
@@ -256,6 +257,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         setMeasureArmed(false)
       } else if (e.key === 'Backspace' && waypoints.length > 0) {
         e.preventDefault()
+        playBubbleRemove()
         setWaypoints((prev) => reindexWaypoints(prev.slice(0, -1)))
         setHoveredWaypointId(null)
         setHoveredSample(null)
@@ -289,6 +291,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   )
 
   const deleteWaypoint = useCallback((id: string) => {
+    playBubbleRemove()
     setWaypoints((prev) => removeWaypointById(prev, id))
     setSelectedWaypointId((sel) => (sel === id ? null : sel))
     setHoveredWaypointId((hov) => (hov === id ? null : hov))
@@ -312,6 +315,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           showSnackbar(`Removed waypoint ${hit.label}${hit.name ? ` (${hit.name})` : ''}`)
           return
         }
+        playBubblePop(waypoints.length)
         const heightM = Math.hypot(m[0], m[1], m[2]) - MOON_RADIUS_M
         const id = `${Date.now()}-${waypoints.length}`
         setSelectedWaypointId(id)
@@ -327,6 +331,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         ])
         return
       }
+      playBubblePop(0)
       analyseSpot(lat, lon)
     },
     [frame, measureArmed, waypoints, deleteWaypoint, analyseSpot],
@@ -334,6 +339,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
 
   const startMeasureAtLander = useCallback(() => {
     if (!site) return
+    playBubblePop(0)
     if (!isLanderWaypointPresent(waypoints, site.lat, site.lon)) {
       const id = `lander-${Date.now()}`
       setSelectedWaypointId(id)
@@ -489,7 +495,11 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           key={x.id}
           ref={siteLabelRefs.get(x.id)}
           type="button"
-          onClick={() => setSite(x.id)}
+          data-no-sfx
+          onClick={() => {
+            playBubblePop(0)
+            setSite(x.id)
+          }}
           data-tip={`${x.name}${x.approximate ? ' (approximate coordinates)' : ''}: click to select`}
           className="absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 px-1.5 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800"
           style={{ borderColor: KIND_COLOR[x.kind ?? 'custom'] ?? KIND_COLOR.custom }}
@@ -519,6 +529,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             onPointerEnter={() => setHoveredWaypointId(wp.id)}
             onPointerLeave={() => setHoveredWaypointId((cur) => (cur === wp.id ? null : cur))}
             onClick={() => {
+              playBubblePop(idx)
               setSelectedWaypointId(wp.id)
               setMeasureDrawer('points')
             }}
@@ -538,6 +549,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
               </span>
               <button
                 type="button"
+                data-no-sfx
                 aria-label={`Delete waypoint ${wp.label}`}
                 data-tip={`Delete waypoint ${wp.label}`}
                 onClick={(e) => {
@@ -680,7 +692,10 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
                 },
                 waypoints,
                 selectedWaypointId,
-                onSelectWaypoint: setSelectedWaypointId,
+                onSelectWaypoint: (id) => {
+                  if (id) playBubblePop(0)
+                  setSelectedWaypointId(id)
+                },
                 hoveredWaypointId,
                 onHoverWaypoint: setHoveredWaypointId,
                 onRenameWaypoint: renameWaypoint,
@@ -690,11 +705,13 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
                 onHoverSample: setHoveredSample,
                 onStartAtLander: startMeasureAtLander,
                 onUndo: () => {
+                  playBubbleRemove()
                   setWaypoints((prev) => reindexWaypoints(prev.slice(0, -1)))
                   setHoveredWaypointId(null)
                   setHoveredSample(null)
                 },
                 onClear: () => {
+                  playBubbleRemove()
                   setWaypoints([])
                   setSelectedWaypointId(null)
                   setHoveredWaypointId(null)
