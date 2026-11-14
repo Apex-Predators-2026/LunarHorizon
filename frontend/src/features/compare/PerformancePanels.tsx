@@ -1,10 +1,11 @@
 // Availability and outage bar charts, and the mission performance / ranking panel.
-// Ranking order and pass/fail come from the team viability evaluator (not recomputed here).
+// Eligibility, ranks and order come from the canonical viability engine via the backend (never recomputed here).
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-import { comparableEntries, fmtMetric, okEntries, rankByViability, type Entry } from './analysis'
+import { canonicalRanking, comparableEntries, fmtMetric, okEntries, scoreText, type Entry } from './analysis'
 import { STATE, seriesColor } from './palette'
-import { DataKindBadge, Explain, PassBadge, ScenarioChip, Icon } from './ui'
+import type { RankingGroup } from './types'
+import { DataKindBadge, EligibilityBadge, Explain, Icon, ScenarioChip } from './ui'
 
 interface BarRow {
   id: string
@@ -93,61 +94,130 @@ export function AvailabilityCharts({ entries }: { entries: Entry[] }) {
   )
 }
 
-export function MissionPerformance({ entries }: { entries: Entry[] }) {
-  const { real, demo } = rankByViability(entries)
-  const viabilitySource = [...new Set([...real, ...demo].map((r) => r.entry.result!.viability!.source))].join(', ')
-  const placeholder = viabilitySource.includes('placeholder')
-  const list = (ranked: typeof real, title: string) => (
-    <div>
-      <h3 className="mb-2 text-xs font-medium text-slate-200">{title}</h3>
-      <ol className="space-y-2">
-        {ranked.map(({ entry: e, rank }) => {
-          const v = e.result!.viability!
-          return (
-            <li key={e.scenario.id} className="rounded-lg border border-line bg-inset p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-lg font-medium tabular-nums text-slate-500">#{rank}</span>
-                <ScenarioChip s={e.scenario} />
-                <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{e.scenario.name}</span>
-                <PassBadge passes={v.passes} />
-                <DataKindBadge kind={e.result!.data_kind} />
-                <span className="ml-1 text-right">
-                  <span className="block text-xl font-medium tabular-nums text-slate-50">{v.score?.toFixed(1) ?? '—'}</span>
-                  <span className="block text-[11px] text-slate-500">viability score</span>
-                </span>
-              </div>
-              <div className="mt-2 h-1.5 overflow-hidden rounded bg-slate-800" aria-hidden="true">
-                <div className="h-full rounded" style={{ width: `${Math.max(0, Math.min(100, v.score ?? 0))}%`, background: seriesColor(e.scenario.colorSlot) }} />
-              </div>
-              {v.violations.length > 0 ? (
-                <ul className="mt-2 space-y-0.5 text-xs text-red-200">
-                  {v.violations.map((x) => (
-                    <li key={x.constraint}>
-                      <Icon name="close" size={14} className="mr-1 align-[-2px]" />{x.message} <span className="text-red-300/70">(short by {(x.relative_shortfall * 100).toFixed(0)}%)</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-xs text-emerald-300"><Icon name="check" size={14} className="mr-1 align-[-2px]" />No constraint violations</p>
-              )}
-            </li>
-          )
-        })}
-      </ol>
-    </div>
-  )
-  if (!real.length && !demo.length) return <p className="text-xs text-slate-500">No viability results yet.</p>
+function ScenarioRow({ e, rankLabel }: { e: Entry; rankLabel: string | null }) {
+  const v = e.result!.viability
+  const r = e.ranking!
+  const failed = v?.violations.filter((x) => !x.is_unknown) ?? []
+  const undecided = v?.violations.filter((x) => x.is_unknown) ?? []
+  const width = r.score_status === 'known' && r.score !== null ? r.score : null // bar only for an exact score
   return (
-    <div className="space-y-4">
+    <li className="rounded-lg border border-line bg-inset p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="w-20 text-sm font-medium tabular-nums text-slate-400">{rankLabel ?? 'Not ranked'}</span>
+        <ScenarioChip s={e.scenario} />
+        <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{e.scenario.name}</span>
+        <EligibilityBadge eligibility={r.eligibility} />
+        <DataKindBadge kind={e.result!.data_kind} />
+        <span className="ml-1 text-right">
+          <span className="block text-sm font-medium tabular-nums text-slate-50">{scoreText(r)}</span>
+          <span className="block text-[11px] text-slate-500">desirability score · risk {r.overall_risk}</span>
+        </span>
+      </div>
+      {width !== null && (
+        <div className="mt-2 h-1.5 overflow-hidden rounded bg-slate-800" aria-hidden="true">
+          <div className="h-full rounded" style={{ width: `${Math.max(0, Math.min(100, width))}%`, background: seriesColor(e.scenario.colorSlot) }} />
+        </div>
+      )}
+      {failed.length > 0 && (
+        <ul className="mt-2 space-y-0.5 text-xs text-red-200" aria-label="Failed requirements">
+          {failed.map((x) => (
+            <li key={x.constraint}>
+              <Icon name="close" size={14} className="mr-1 align-[-2px]" />{x.message}{' '}
+              <span className="text-red-300/70">(short by {(x.relative_shortfall * 100).toFixed(0)}%)</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {undecided.length > 0 && (
+        <ul className="mt-2 space-y-0.5 text-xs text-slate-300" aria-label="Requirements that cannot be decided">
+          {undecided.map((x) => (
+            <li key={x.constraint}><Icon name="unknown" size={14} className="mr-1 align-[-2px]" />{x.message}</li>
+          ))}
+        </ul>
+      )}
+      {r.eligibility === 'pass' && (
+        <p className="mt-2 text-xs text-emerald-300"><Icon name="check" size={14} className="mr-1 align-[-2px]" />Every applicable requirement is met</p>
+      )}
+      <p className="mt-2 text-[11px] leading-snug text-slate-500">{r.explanation}</p>
+    </li>
+  )
+}
+
+/**
+ * Canonical ranking from the viability engine, one list per comparable group. Only PASS scenarios carry a rank;
+ * UNKNOWN and FAIL scenarios are listed separately for inspection and are never ranked or recommended.
+ */
+export function MissionPerformance({ entries, groups, ranking = 'ready' }: {
+  entries: Entry[]
+  groups: RankingGroup[]
+  ranking?: 'ready' | 'updating'
+}) {
+  const { groups: views, unassessed } = canonicalRanking(entries, groups)
+  const sources = [...new Set(entries.map((e) => e.result?.viability?.source).filter(Boolean))].join(', ')
+  const method = groups[0]?.method_version
+  if (ranking === 'updating') return <p className="text-xs text-slate-400">Updating the canonical ranking for the selected scenarios…</p>
+  if (!views.length && !unassessed.some((e) => e.result)) return <p className="text-xs text-slate-500">No viability results yet.</p>
+  const multi = views.length > 1
+  return (
+    <div className="space-y-5">
       <p className="text-[11px] text-slate-400">
-        Ranked by the team viability evaluator (<code className="text-slate-300">{viabilitySource || 'n/a'}</code>): passing scenarios first, then by score.
-        {placeholder && ' This is the interim placeholder implementation until Brandon’s evaluator is connected; the comparison will use his automatically.'}
+        Canonical ranking from the viability engine
+        {sources && <> (<code className="text-slate-300">{sources}</code>{method && <>, <code className="text-slate-300">{method}</code></>})</>}.
+        Only scenarios that pass every requirement are ranked, in the engine’s own order. Scenarios that fail or cannot be
+        decided are listed for inspection and never ranked.
+        {multi && ' Scenarios with a different data basis, requirements or mission duration form separate groups; ranks never cross groups.'}
       </p>
-      {real.length > 0 && list(real, 'Real-data scenarios')}
-      {demo.length > 0 && list(demo, 'Demonstration-data scenarios (ranked separately, not comparable with real data)')}
+      {views.map((v) => (
+        <section key={v.group.id} aria-label={`Ranking group ${v.group.id}`} className="space-y-2">
+          {multi && (
+            <h3 className="text-xs font-medium text-slate-200">
+              {v.group.primary ? `Group ${v.group.id} (main comparison)` : `Group ${v.group.id}: ranked separately`}
+              {v.group.data_basis === 'synthetic' && <span className="ml-2 text-amber-300">demonstration data</span>}
+              {v.group.separate_reason && (
+                <span className="ml-2 font-normal text-slate-400">Not comparable with {views[0].group.id}: {v.group.separate_reason}</span>
+              )}
+            </h3>
+          )}
+          {v.ranked.length > 0 ? (
+            <ol className="space-y-2" aria-label="Ranked: passes every requirement">
+              {v.ranked.map((e) => <ScenarioRow key={e.scenario.id} e={e} rankLabel={`#${e.ranking!.rank}`} />)}
+            </ol>
+          ) : (
+            <p className="text-xs text-slate-400">No scenario in this group passes every requirement, so this group has no recommended option.</p>
+          )}
+          {v.unknown.length > 0 && (
+            <div>
+              <h4 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">Cannot be decided (UNKNOWN), not ranked</h4>
+              <ul className="space-y-2">{v.unknown.map((e) => <ScenarioRow key={e.scenario.id} e={e} rankLabel={null} />)}</ul>
+            </div>
+          )}
+          {v.failed.length > 0 && (
+            <div>
+              <h4 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">Fails a requirement, not ranked</h4>
+              <ul className="space-y-2">{v.failed.map((e) => <ScenarioRow key={e.scenario.id} e={e} rankLabel={null} />)}</ul>
+            </div>
+          )}
+        </section>
+      ))}
+      {unassessed.length > 0 && (
+        <section aria-label="Not assessed" className="space-y-1">
+          <h3 className="text-xs font-medium text-slate-200">Not assessed</h3>
+          <ul className="space-y-1 text-xs text-slate-400">
+            {unassessed.map((e) => (
+              <li key={e.scenario.id} className="flex items-start gap-2">
+                <ScenarioChip s={e.scenario} size="sm" />
+                <span>
+                  {e.state?.state === 'error' ? e.state.message
+                    : e.state?.state === 'done' ? (e.state.result.message ?? 'No canonical assessment.') : 'Waiting for results…'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <Explain title="Why are long darkness periods dangerous?">
         <p>Without sunlight the lander runs on its battery for heaters and electronics. If darkness lasts longer than the battery can supply (the “max darkness” requirement), the lander can freeze or shut down. At the poles, nights are irregular: terrain can block the Sun for a few hours or for many days.</p>
-        <p>The viability score combines how comfortably each requirement is met. It is a team engineering heuristic, not a NASA mission assessment.</p>
+        <p>The desirability score is a relative index of illumination and line-of-sight geometry under the engine’s weights. It is not a probability of mission success, and it never overrides a failed requirement.</p>
       </Explain>
     </div>
   )

@@ -12,6 +12,7 @@ import { errorMessage, runCompromise, runRescue, runSensitivity } from './api'
 import type {
   CompromiseResponse,
   PlanChange,
+  RescueCatalog,
   RescueResponse,
   ScienceGoal,
   SearchOptions,
@@ -44,7 +45,16 @@ interface RescueState {
 
   /** Plan the user picked from the results (alternative, loosening, compromise...). */
   selected: Scenario | null
+  /** "Show on map" switch: draw the rescue result in the 3D view. */
+  showOnMap: boolean
+  /** "Explain" switch: show a step-by-step walkthrough above the alternatives. */
+  explain: boolean
+  /** Site catalog (coordinates) for the 3D overlay; loaded once. */
+  catalog: RescueCatalog | null
 
+  setShowOnMap: (v: boolean) => void
+  setExplain: (v: boolean) => void
+  setCatalog: (c: RescueCatalog) => void
   setOriginal: (s: Scenario) => void
   setChange: (c: Partial<PlanChange>) => void
   setSearch: (s: Partial<SearchOptions>) => void
@@ -105,6 +115,12 @@ export const useRescueStore = create<RescueState>((set, get) => ({
   science: { target_psr_id: 'shackleton-psr', max_traverse_km: 15, min_science_score: 0.5 },
   weights: { engineering: 0.5, science: 0.5 },
   ...initialResults,
+  showOnMap: true,
+  explain: false,
+  catalog: null,
+  setShowOnMap: (showOnMap) => set({ showOnMap }),
+  setExplain: (explain) => set({ explain }),
+  setCatalog: (catalog) => set({ catalog }),
 
   // A new plan makes old results meaningless.
   setOriginal: (original) => {
