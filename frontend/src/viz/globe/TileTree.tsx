@@ -13,10 +13,14 @@ import { PERF_ENABLED, recordCameraClearance, recordTileBuild, recordTileLevels 
 import { MAX_ZOOM, MOON_RADIUS_M, SiteFrame, TILE_N, tileVertexUV, uvToVec, vertexSpacingM, type Vec3 } from './cubeSphere'
 import { groundHeightAt, liftAboveGround, type TileHeights } from './terrainHeight'
 import { buildTileMesh, innerHeights, tilePadding, tileTopology } from './tileGeometry'
+import { basePack } from './basePack'
+import { useTerrainLoad } from './terrainLoad'
 import { TileImagery } from './tileImagery'
 import { MAX_TILE_ATTEMPTS, retryDelayMs, TILE_TIMEOUT_MS } from './tileRetry'
 
 const MAX_IN_FLIGHT = 6
+// Start downloading the ready-made coarse globe with the page, before the first tile is wanted.
+if (typeof window !== 'undefined') void basePack()
 const UPDATE_EVERY_MS = 60 // at most this often while the camera moves
 
 type State = 'idle' | 'loading' | 'ready' | 'error'
@@ -108,6 +112,16 @@ export function TileTree({
   const warned = useRef(false) // a tile failure has been reported (once per site)
   const requests = useRef(new Set<AbortController>()) // in flight, cancelled when the site changes
   const retryTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  // Loading bar: tiles finished in the current burst (since tiles started being needed again).
+  const burstDone = useRef(0)
+  const drawnCount = useRef(0)
+  const publish = () => {
+    const pending = inFlight.current + queue.current.filter((q) => q.state === 'idle').length
+    const s = useTerrainLoad.getState()
+    if (s.pending === 0 && pending > 0) burstDone.current = 0 // a new burst
+    const next = { drawn: drawnCount.current, pending, done: burstDone.current, total: burstDone.current + pending }
+    if (next.drawn !== s.drawn || next.pending !== s.pending || next.done !== s.done || next.total !== s.total) useTerrainLoad.setState(next)
+  }
   const lastSize = useRef('')
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
@@ -120,6 +134,8 @@ export function TileTree({
     const map = nodes.current
     dirty.current = true
     warned.current = false
+    drawnCount.current = 0
+    useTerrainLoad.setState({ drawn: 0 }) // a new site: "Loading the Moon" until its first tiles draw
     invalidate()
     const pending = requests.current
     const timers = retryTimers.current
@@ -178,11 +194,20 @@ export function TileTree({
     const ctl = new AbortController()
     requests.current.add(ctl)
     const timeout = setTimeout(() => ctl.abort(new Error(`tile ${n.key}: no answer in ${TILE_TIMEOUT_MS / 1000} s`)), TILE_TIMEOUT_MS)
-    fetch(`${API_URL}/api/terrain/tile/${n.face}/${n.z}/${n.x}/${n.y}?pad=${PAD}`, { signal: ctl.signal })
-      .then(async (res) => {
+    basePack()
+      .then(async (pack): Promise<Float32Array> => {
+        // The coarsest levels ship with the page (globe/basePack.ts): no request at all.
+        const local = pack?.get(n.key)
+        if (local) {
+          n.leaf = local.leaf || n.z >= MAX_ZOOM
+          return local.heights
+        }
+        const res = await fetch(`${API_URL}/api/terrain/tile/${n.face}/${n.z}/${n.x}/${n.y}?pad=${PAD}`, { signal: ctl.signal })
         if (!res.ok) throw new Error(`tile ${n.key}: HTTP ${res.status}`)
         n.leaf = res.headers.get('X-Tile-Leaf') === '1' || n.z >= MAX_ZOOM
-        const heights = new Float32Array(await res.arrayBuffer())
+        return new Float32Array(await res.arrayBuffer())
+      })
+      .then((heights) => {
         // A backend from before padding ignores ?pad=1 and sends the plain tile: draw that too
         // (its edges get one-sided normals) rather than no terrain at all.
         const pad = tilePadding(heights.length)
@@ -236,7 +261,9 @@ export function TileTree({
         clearTimeout(timeout)
         requests.current.delete(ctl)
         inFlight.current--
+        burstDone.current++
         pump() // keep the connections busy between selections
+        publish()
         dirty.current = true // reselect on the next frame
         invalidate()
       })
@@ -386,6 +413,8 @@ export function TileTree({
       for (const n of draw) levels[n.z] = (levels[n.z] ?? 0) + 1
       recordTileLevels(levels)
     }
+    drawnCount.current = draw.length
+    publish()
     onStats?.({
       visible: draw.length,
       loading: inFlight.current,
