@@ -1,15 +1,61 @@
 // Comparison logic: metric table, best-of, ranking, baseline deltas, trade-off index, conditions at a
 // time and the written summary. Pure functions over backend results; no React, no fetching.
 //
-// Nothing here computes Sun/Earth geometry or viability. Viability (pass/fail, score, violations) is
-// the team evaluator's output and is only displayed and sorted.
-import type { ComparisonScenario, CompareResult, ResultState, TimelineColumns } from './types'
+// Nothing here computes Sun/Earth geometry, viability or rank. Eligibility (PASS / FAIL / UNKNOWN), scores and
+// the ranking come from the canonical viability engine through the backend (compare/ranking.py) and are only
+// displayed. A missing score is never treated as 0, and UNKNOWN is never treated as FAIL.
+import { verdictOf, type Eligibility } from '../../types'
+import type { ComparisonScenario, CompareResult, RankingGroup, RankingInfo, ResultState, TimelineColumns } from './types'
 
 export interface Entry {
   scenario: ComparisonScenario
   state: ResultState | undefined
   result: CompareResult | null // set only when state is done AND status is ok
   offsetHours: number // where this scenario's landing sits on the shared time axis
+  /** Canonical ranking info, only when it belongs to the currently selected set (null while re-ranking). */
+  ranking: RankingInfo | null
+}
+
+/** Canonical eligibility: from the ranking, else from the viability result; null = not assessed. */
+export function eligibilityOf(e: Entry): Eligibility | null {
+  if (e.ranking) return e.ranking.eligibility
+  const v = e.result?.viability
+  return v ? verdictOf(v) : null
+}
+
+export const ELIGIBILITY_LABEL: Record<Eligibility, string> = {
+  pass: 'Passes',
+  fail: 'Fails',
+  unknown: 'Cannot be decided',
+}
+
+/** Score as the engine reports it. Never prints a bound alone and never prints 0 for a missing score. */
+export function scoreText(r: RankingInfo | null | undefined, fallback?: number | null): string {
+  if (!r) return fallback === null || fallback === undefined ? '—' : fallback.toFixed(1)
+  switch (r.score_status) {
+    case 'known':
+      return r.score === null ? '—' : r.score.toFixed(1)
+    case 'bounded':
+      return r.score_lower !== null && r.score_upper !== null
+        ? `between ${r.score_lower.toFixed(1)} and ${r.score_upper.toFixed(1)}`
+        : 'bounded (range unavailable)'
+    case 'eligibility_unknown':
+      return 'not scored: eligibility unknown'
+    case 'no_scorable_components':
+      return 'not scored: no active score component'
+    default:
+      return r.score === null ? '—' : r.score.toFixed(1)
+  }
+}
+
+/** Number of distinct canonical ranking groups among the entries. */
+export const groupCountOf = (entries: Entry[]) => new Set(entries.map((e) => e.ranking?.group).filter(Boolean)).size
+
+/** Rank text scoped to its group, e.g. "#1 of 3" or "#1 of 1 in separate group G2". Null without a rank. */
+export function rankText(r: RankingInfo | null | undefined, groupCount: number): string | null {
+  if (!r || r.rank === null) return null
+  const base = `#${r.rank} of ${r.ranked_in_group}`
+  return groupCount > 1 && r.group !== 'G1' ? `${base} in separate group ${r.group}` : base
 }
 
 export type Better = 'higher' | 'lower' | null
@@ -23,6 +69,8 @@ export interface MetricDef {
   better: Better
   provenance: Provenance
   get: (r: CompareResult, s: ComparisonScenario) => number | null
+  /** Optional text override (e.g. a bounded score), shown instead of fmtMetric(get(...)). */
+  text?: (r: CompareResult) => string | null
   hint?: string
 }
 
@@ -77,10 +125,15 @@ export const METRICS: MetricDef[] = [
     provenance: 'derived', get: (r) => r.earth?.min_margin_visible_deg ?? null,
     hint: 'Smallest clearance between Earth and the terrain while in view. Near 0° = marginal line of sight.' },
   // ---- mission performance (team viability evaluator)
-  { id: 'score', group: 'mission', label: 'Viability score', unit: 'score', better: 'higher', provenance: 'viability',
-    get: (r) => r.viability?.score ?? null },
-  { id: 'violations', group: 'mission', label: 'Constraint violations', unit: 'count', better: 'lower', provenance: 'viability',
-    get: (r) => r.viability?.violations.length ?? null },
+  // Score: the canonical ranking already orders by it (with bounds and tie-breaks), so it is not marked "best" here.
+  { id: 'score', group: 'mission', label: 'Desirability score', unit: 'score', better: null, provenance: 'viability',
+    get: (r) => r.ranking?.score ?? r.viability?.score ?? null, text: (r) => scoreText(r.ranking, r.viability?.score),
+    hint: 'Relative index of illumination and line-of-sight geometry under the engine’s weights. Not a probability of success.' },
+  { id: 'violations', group: 'mission', label: 'Failed requirements', unit: 'count', better: 'lower', provenance: 'viability',
+    get: (r) => (r.viability ? r.viability.violations.filter((v) => !v.is_unknown).length : null) },
+  { id: 'undecided', group: 'mission', label: 'Undecided requirements (missing data)', unit: 'count', better: 'lower',
+    provenance: 'viability', get: (r) => (r.viability ? r.viability.violations.filter((v) => v.is_unknown).length : null),
+    hint: 'Requirements the engine could not decide from the data. Not failures.' },
   { id: 'solar_margin', group: 'mission', label: 'Solar margin', unit: 'pts', better: 'higher', provenance: 'viability',
     get: (r, s) => (r.viability ? (r.viability.metrics.sunlight_fraction - s.requirements.min_sunlight_fraction) * 100 : null),
     hint: 'Mean visible solar disk minus the required minimum.' },
@@ -184,24 +237,33 @@ export function deltaVsBaseline(m: MetricDef, e: Entry, base: Entry | undefined)
   return { value: d, better: m.better === 'higher' ? d > 0 : d < 0 }
 }
 
-// ---------------------------------------------------------------- ranking (team viability)
+// ---------------------------------------------------------------- canonical ranking (viability engine)
 
-export interface Ranked {
-  entry: Entry
-  rank: number
+export interface GroupView {
+  group: RankingGroup
+  ranked: Entry[] // PASS, in canonical rank order
+  unknown: Entry[] // eligibility UNKNOWN: never ranked
+  failed: Entry[] // eligibility FAIL: never ranked
 }
 
-/** Order by the team evaluator's verdict and score. Demonstration results are ranked only among themselves. */
-export function rankByViability(entries: Entry[]): { real: Ranked[]; demo: Ranked[] } {
-  const order = (list: Entry[]) =>
-    [...list]
-      .sort((a, b) => {
-        const va = a.result!.viability!, vb = b.result!.viability!
-        return Number(vb.passes) - Number(va.passes) || (vb.score ?? 0) - (va.score ?? 0)
-      })
-      .map((entry, i) => ({ entry, rank: i + 1 }))
-  const ok = okEntries(entries).filter((e) => e.result!.viability)
-  return { real: order(ok.filter((e) => e.result!.data_kind === 'real')), demo: order(ok.filter((e) => e.result!.data_kind === 'demonstration')) }
+/**
+ * The backend's canonical ranking mapped onto the displayed entries. Nothing is re-sorted or re-ranked here:
+ * group membership and order come from the response. Entries without an assessment are returned separately.
+ */
+export function canonicalRanking(entries: Entry[], groups: RankingGroup[]): { groups: GroupView[]; unassessed: Entry[] } {
+  const byKey = new Map(entries.filter((e) => e.result && e.ranking).map((e) => [e.result!.key, e]))
+  const seen = new Set<Entry>()
+  const views = groups.map((group) => {
+    const members = group.keys.map((k) => byKey.get(k)).filter((e): e is Entry => !!e)
+    members.forEach((e) => seen.add(e))
+    return {
+      group,
+      ranked: members.filter((e) => e.ranking!.rank !== null),
+      unknown: members.filter((e) => e.ranking!.eligibility === 'unknown'),
+      failed: members.filter((e) => e.ranking!.eligibility === 'fail'),
+    }
+  })
+  return { groups: views, unassessed: entries.filter((e) => !seen.has(e)) }
 }
 
 // ---------------------------------------------------------------- trade-off (user preferences)
@@ -400,7 +462,8 @@ export function mergeSeries(
 export interface ScenarioHighlights {
   entry: Entry
   strengths: string[]
-  weaknesses: string[]
+  weaknesses: string[] // measured disadvantages and proven requirement failures
+  uncertain: string[] // requirements that cannot be decided (missing data): never failures
 }
 
 export interface Summary {
@@ -446,7 +509,6 @@ export function buildSummary(entries: Entry[]): Summary {
   const comms = pick(list, (e) => e.result!.earth!.visible_fraction, 'higher')!
   const dark = pick(list, (e) => e.result!.solar!.longest_dark_hours, 'lower')!
   const black = pick(list, (e) => e.result!.earth!.longest_blackout_hours, 'lower')!
-  const viab = pick(list, (e) => (e.result!.viability ? (e.result!.viability.score ?? 0) + (e.result!.viability.passes ? 1000 : 0) : null), 'higher')
 
   const tied = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol
   const winners = (x: NonNullable<ReturnType<typeof pick>>, tol: number) => x.all.filter((y) => tied(y.v, x.best.v, tol)).map((y) => y.e)
@@ -461,10 +523,11 @@ export function buildSummary(entries: Entry[]): Summary {
   add('Best Earth communication', bestComms, `Earth in view ${p(comms.best.v)} of the mission`, list.length)
   add('Shortest darkness', bestDark, `longest darkness ${h(dark.best.v)}`, list.length)
   add('Shortest blackout', bestBlack, `longest blackout ${h(black.best.v)}`, list.length)
-  if (viab) {
-    const v = viab.best.e.result!.viability!
-    bests.push({ label: 'Best mission viability', ids: [viab.best.e.scenario.id],
-      detail: `score ${v.score?.toFixed(1) ?? 'n/a'}, ${v.passes ? 'passes all requirements' : `${v.violations.length} violation(s)`}` })
+  // Top canonical rank: only rank 1 of the primary group, and only when it was ranked against other PASS scenarios.
+  const top = list.find((e) => e.ranking?.rank === 1 && e.ranking.group === 'G1' && e.ranking.ranked_in_group > 1)
+  if (top) {
+    bests.push({ label: 'Top canonical rank', ids: [top.scenario.id],
+      detail: `#1 of ${top.ranking!.ranked_in_group} passing; score ${scoreText(top.ranking)}` })
   }
 
   const highlights: ScenarioHighlights[] = list.map((e) => {
@@ -474,14 +537,15 @@ export function buildSummary(entries: Entry[]): Summary {
     if (bestComms.includes(e) && bestComms.length < list.length) strengths.push('Longest Earth visibility')
     if (bestDark.includes(e) && bestDark.length < list.length) strengths.push('Shortest continuous darkness')
     if (bestBlack.includes(e) && bestBlack.length < list.length) strengths.push('Shortest communication blackout')
-    if (r.viability?.passes) strengths.push('Meets every mission requirement')
+    if (eligibilityOf(e) === 'pass') strengths.push('Meets every mission requirement')
     // Only call something a weakness when the gap to the best is meaningful.
     if (solar.worst.e === e && solar.best.v - solar.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least solar availability (${p(r.solar!.mean_visible_fraction)})`)
     if (comms.worst.e === e && comms.best.v - comms.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least Earth visibility (${p(r.earth!.visible_fraction)})`)
     if (dark.worst.e === e && significantHours(dark.best.v, dark.worst.v)) weaknesses.push(`Longest darkness (${h(r.solar!.longest_dark_hours)})`)
     if (black.worst.e === e && significantHours(black.best.v, black.worst.v)) weaknesses.push(`Longest blackout (${h(r.earth!.longest_blackout_hours)})`)
-    for (const v of r.viability?.violations ?? []) weaknesses.push(v.message)
-    return { entry: e, strengths, weaknesses }
+    const uncertain: string[] = []
+    for (const v of r.viability?.violations ?? []) (v.is_unknown ? uncertain : weaknesses).push(v.message)
+    return { entry: e, strengths, weaknesses, uncertain }
   })
 
   // ---- overall narrative, only from numbers above
@@ -522,10 +586,15 @@ export function buildSummary(entries: Entry[]): Summary {
   if (clear && clear.best.v - clear.worst.v > 0.5) {
     overall.push(`While lit, the Sun stays on average ${clear.best.v.toFixed(2)}° above the local terrain at ${lbl(clear.best.e)} but only ${clear.worst.v.toFixed(2)}° at ${lbl(clear.worst.e)}, so at ${lbl(clear.worst.e)} small changes in the Sun’s height are enough for the terrain to block it.`)
   }
-  const passing = list.filter((e) => e.result!.viability?.passes)
-  if (viab) {
-    if (passing.length === 0) overall.push('No compared scenario passes every mission requirement; see each scenario’s violations below.')
-    else if (passing.length < list.length) overall.push(`${passing.map(lbl).join(', ')} ${passing.length > 1 ? 'pass' : 'passes'} every requirement according to the team viability evaluator.`)
+  const assessed = list.filter((e) => eligibilityOf(e) !== null)
+  const passing = assessed.filter((e) => eligibilityOf(e) === 'pass')
+  const unknown = assessed.filter((e) => eligibilityOf(e) === 'unknown')
+  if (assessed.length) {
+    if (passing.length === 0 && unknown.length === 0) overall.push('No compared scenario passes every mission requirement, so none is ranked as a recommendation; see each scenario’s failed requirements below.')
+    else if (passing.length && passing.length < assessed.length) overall.push(`${passing.map(lbl).join(', ')} ${passing.length > 1 ? 'pass' : 'passes'} every requirement according to the canonical viability engine.`)
+    if (unknown.length) overall.push(`${unknown.map(lbl).join(', ')} cannot be decided from the available data (UNKNOWN): neither passing nor failing, and not ranked.`)
   }
+  const groupIds = new Set(list.map((e) => e.ranking?.group).filter(Boolean))
+  if (groupIds.size > 1) caveats.push(`These scenarios fall into ${groupIds.size} separate ranking groups (different data basis, requirements or mission duration). Canonical ranks only compare scenarios inside the same group.`)
   return { bests, highlights, overall, caveats }
 }

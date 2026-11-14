@@ -5,6 +5,7 @@ import { Component, type ReactNode } from 'react'
 import type { Provenance } from './analysis'
 import { seriesColor, seriesDash } from './palette'
 import type { ComparisonScenario, DataKind } from './types'
+import type { Eligibility } from '../../types'
 import { useCompareStore } from './useCompareStore'
 
 // One line-icon set, one size and stroke, in the colour of the surrounding text.
@@ -13,6 +14,7 @@ const ICON_PATHS = {
   close: 'M6.5 6.5l11 11M17.5 6.5l-11 11',
   warning: 'M12 4l9 16H3L12 4zM12 10v4.5M12 17.5v.5',
   info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v6M12 7.5v.5',
+  unknown: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.6 9.4a2.5 2.5 0 114.3 1.7c-.9.8-1.9 1.3-1.9 2.6M12 17v.5',
 } as const
 export type IconName = keyof typeof ICON_PATHS
 
@@ -95,14 +97,31 @@ export function ProvenanceTag({ p }: { p: Provenance }) {
   )
 }
 
-export function PassBadge({ passes }: { passes: boolean }) {
-  return passes ? (
-    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-950 px-2 py-0.5 text-xs font-medium text-emerald-300">
-      <Icon name="check" size={14} /> Passes
+const ELIGIBILITY_STYLE: Record<Eligibility, { icon: IconName; text: string; cls: string; title: string }> = {
+  pass: { icon: 'check', text: 'Passes', cls: 'bg-emerald-950 text-emerald-300',
+    title: 'Every applicable mission requirement is proven satisfied (canonical viability engine).' },
+  fail: { icon: 'close', text: 'Fails', cls: 'bg-red-950 text-red-300',
+    title: 'At least one mission requirement is proven violated. Never ranked as a recommendation.' },
+  unknown: { icon: 'unknown', text: 'Cannot be decided', cls: 'bg-slate-800 text-slate-200 ring-1 ring-slate-500',
+    title: 'UNKNOWN: the data cannot decide at least one requirement. Not a failure; never ranked or scored.' },
+}
+
+/** PASS / FAIL / UNKNOWN with icon and words. UNKNOWN is a neutral, separate state, never shown as a failure. */
+export function EligibilityBadge({ eligibility }: { eligibility: Eligibility }) {
+  const s = ELIGIBILITY_STYLE[eligibility]
+  return (
+    <span title={s.title} className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${s.cls}`}>
+      <Icon name={s.icon} size={14} /> {s.text}
     </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 rounded-md bg-red-950 px-2 py-0.5 text-xs font-medium text-red-300">
-      <Icon name="close" size={14} /> Fails
+  )
+}
+
+/** Canonical rank badge, scoped to its comparable group. Only rendered for ranked (PASS) scenarios. */
+export function RankBadge({ text }: { text: string }) {
+  return (
+    <span title="Canonical rank from the viability engine, among comparable passing scenarios"
+      className="inline-flex items-center rounded-md bg-sky-950 px-2 py-0.5 text-xs font-medium tabular-nums text-sky-200 ring-1 ring-sky-800">
+      Rank {text}
     </span>
   )
 }
