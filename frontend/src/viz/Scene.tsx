@@ -110,6 +110,9 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const loading = sites.loading || horizon.loading || timeline.loading
 
   useViewerSetup(sites.data)
+  const barRef = useRef<HTMLDivElement>(null)
+  const [barHidden, setBarHidden] = useState(false)
+  const [barH, setBarH] = useState(0)
 
   const sunLabel = useRef<HTMLDivElement>(null)
   const earthLabel = useRef<HTMLDivElement>(null)
@@ -264,7 +267,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         <div className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(60px,6.2vw,92px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))]">
           <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
         </div>
-        <div className="absolute bottom-4 right-[4vw] top-[clamp(64px,9.5vh,105px)] flex w-[var(--lp-side-w)] flex-col gap-3">
+        <div className="absolute bottom-4 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-3">
           {site && <MiniMapPanel horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />}
           <FloatingSidebar>
             <div className="space-y-4">
@@ -284,15 +287,39 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             timeUtc={timeUtc}
           />
           {site && win && (
-            <TimeBar
-              site={site}
-              steps={timeline.data ?? []}
-              win={win}
-              windowDays={windowDays}
-              onWindowDays={setWindowDays}
-              loading={timeline.loading}
-              views={<ViewButtons view={view} onView={setView} />}
-            />
+            <div
+              ref={barRef}
+              className="relative transition-[transform,margin] duration-300 ease-out"
+              style={barHidden ? { transform: `translateY(${barH}px)`, marginBottom: -barH } : undefined}
+              inert={barHidden}
+            >
+              <TimeBar
+                site={site}
+                steps={timeline.data ?? []}
+                win={win}
+                windowDays={windowDays}
+                onWindowDays={setWindowDays}
+                loading={timeline.loading}
+                views={<ViewButtons view={view} onView={setView} />}
+                onHide={() => {
+                  setBarH(barRef.current?.offsetHeight ?? 0)
+                  setBarHidden(true)
+                }}
+              />
+            </div>
+          )}
+          {site && win && barHidden && (
+            <button
+              type="button"
+              onClick={() => setBarHidden(false)}
+              aria-label="Show timeline panel"
+              title="Show timeline"
+              className="pointer-events-auto absolute bottom-1 left-1/2 flex h-9 w-12 -translate-x-1/2 items-center justify-center text-white transition-opacity hover:opacity-70"
+            >
+              <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M4 14l7-7 7 7" />
+              </svg>
+            </button>
           )}
         </div>
       </div>

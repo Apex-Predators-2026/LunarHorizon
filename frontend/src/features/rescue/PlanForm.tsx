@@ -6,6 +6,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useAppStore } from '../../store'
 import { DEFAULT_REQUIREMENTS, type MissionRequirements, type RequirementKey } from '../../types'
 import { errorMessage, fetchRescueCatalog } from './api'
+import { DatePopup } from '../../viz/DatePopup'
 import { fromUtcInput, toUtcInput } from './format'
 import type { RescueCatalog } from './types'
 import { useRescueStore } from './useRescueStore'
@@ -30,6 +31,7 @@ export function PlanForm() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [siteId, setSiteId] = useState(original?.site.id ?? '')
   const [landing, setLanding] = useState(toUtcInput(original?.landing_utc ?? '2027-10-15T00:00:00Z'))
+  const [calendar, setCalendar] = useState(false)
   const [duration, setDuration] = useState(original?.duration_days ?? 7)
   const [req, setReq] = useState<MissionRequirements>(original?.requirements ?? DEFAULT_REQUIREMENTS)
 
@@ -98,7 +100,18 @@ export function PlanForm() {
       <div className="grid grid-cols-2 gap-2">
         <label className="flex flex-col gap-1 text-slate-400">
           Landing (UTC)
-          <input type="datetime-local" required value={landing} onChange={(e) => setLanding(e.target.value)} className={inputCls} />
+          <button type="button" onClick={() => setCalendar((o) => !o)} aria-expanded={calendar} className={`${inputCls} text-left`}>
+            {landing.replace('T', ' ')}
+          </button>
+          {calendar && (
+            <DatePopup
+              timeUtc={fromUtcInput(landing)}
+              min="0000-01-01T00:00:00Z"
+              max="9999-12-31T23:59:00Z"
+              onPick={(iso) => setLanding(toUtcInput(iso))}
+              onClose={() => setCalendar(false)}
+            />
+          )}
         </label>
         <label className="flex flex-col gap-1 text-slate-400">
           Mission length (days)
