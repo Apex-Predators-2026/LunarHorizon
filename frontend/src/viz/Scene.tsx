@@ -608,13 +608,14 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             <div ref={scaleBarRef} className="h-1.5 border-x-2 border-b-2 border-white" style={{ width: 60 }} />
           </div>
           <div ref={readoutRef} aria-label="Camera position" className="whitespace-nowrap" />
+          <CoverageBadge />
           </div>
         </div>
         <div className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(60px,6.2vw,92px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))]">
           <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
           <ColorKey layers={layers} />
         </div>
-        <div ref={sideRef} className="absolute bottom-32 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4">
+        <div ref={sideRef} className="absolute bottom-44 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4">
           {site && (
             <MiniMapPanel
               horizon={horizon.data}
@@ -636,7 +637,10 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         {/* Floating + (new plan): 32 px above the timeline panel, near its right edge; drops to the corner when the panel is hidden. */}
         {fab && (
           <div
-            className="md-slide pointer-events-auto absolute right-[calc(4vw+var(--lp-side-w)+16px+1vw)] transition-[bottom] duration-[400ms] ease-[var(--md-ease-emph-decel)] max-md:right-3"
+            className={`md-slide pointer-events-auto absolute right-[calc(4vw+var(--lp-side-w)+16px+1vw)] transition-[bottom] max-md:right-3 ${
+              // Same duration and easing as the timeline panel, so the two slide together.
+              barHidden ? 'duration-[250ms] ease-[var(--md-ease-emph-accel)]' : 'duration-[400ms] ease-[var(--md-ease-emph-decel)]'
+            }`}
             style={{ bottom: barHidden ? 24 : barNow + 32 }}
           >
             {fab}
@@ -648,10 +652,6 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           <MissionPanel mission={mission} />
           {/* Lifted above the "show timeline" arrow while the panel is hidden. */}
           <div className={`md-slide relative transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>
-            {/* Which surface data is showing, level with the toolbar at the left (wide screens). */}
-            <div className="pointer-events-none absolute bottom-2 left-0 hidden h-14 items-center md:flex">
-              <CoverageBadge />
-            </div>
             <MapTools
               layers={layers}
               onLayers={setLayers}

@@ -26,8 +26,8 @@ export function useDraggable(rootRef: RefObject<HTMLElement | null>) {
       const w = el?.offsetWidth ?? 0
       const h = el?.offsetHeight ?? 0
       return {
-        x: Math.min(Math.max(MARGIN, x), Math.max(MARGIN, window.innerWidth - w - MARGIN)),
-        y: Math.min(Math.max(MARGIN, y), Math.max(MARGIN, window.innerHeight - h - MARGIN)),
+        x: Math.round(Math.min(Math.max(MARGIN, x), Math.max(MARGIN, window.innerWidth - w - MARGIN))),
+        y: Math.round(Math.min(Math.max(MARGIN, y), Math.max(MARGIN, window.innerHeight - h - MARGIN))),
       }
     },
     [rootRef],
@@ -54,7 +54,7 @@ export function useDraggable(rootRef: RefObject<HTMLElement | null>) {
       if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < CLICK_SLOP_PX) return
       d.moved = true
       const r = rootRef.current!.getBoundingClientRect()
-      setSize({ w: r.width, h: r.height })
+      setSize({ w: Math.round(r.width), h: Math.round(r.height) }) // whole pixels: fractional sizes let the panel's background fringe at the edges
       setDragging(true)
     }
     setPos(clamp(e.clientX - d.dx, e.clientY - d.dy))
