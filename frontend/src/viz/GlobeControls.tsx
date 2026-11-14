@@ -46,6 +46,7 @@ const TURN_RAD_PER_PX = 0.005
 const ZOOM_PER_WHEEL_PX = 0.0015 // log-scale zoom per wheel pixel (100 px notch ~ 14%)
 const ZOOM_EASE = 0.3 // fraction of the remaining zoom applied per frame (smooth, not instant)
 const EYE_LEVEL_M = 200 // below this height, dragging looks around instead of grabbing the ground
+const MIN_USEFUL_TILT = (6 * Math.PI) / 180 // right-drag tilting fades in from here (see the orbit drag)
 const MIN_FOCUS_DISTANCE_M = 2
 const SPIN_DECAY_MS = 220 // after a flick, the Moon keeps spinning and slows down over about this long
 const MAX_SPIN_COAST_RAD = 0.5 // at most about this much extra turn after letting go
@@ -331,12 +332,19 @@ export function GlobeControls({
       } else if (mode.kind === 'orbit') {
         // Tilt only as far as this height allows (straight down from far away): otherwise the tilt
         // swings the camera round the pivot and the levelling then turns the view back, so the camera
-        // drifts and dives while the Moon slides off-centre. A tilt beyond the limit already (e.g.
-        // after a preset) is kept, just not increased.
+        // drifts and dives while the Moon slides off-centre. A tilt allowance of a few degrees is no
+        // use either (it only rolls the whole Moon towards you a little), so it fades in only from
+        // MIN_USEFUL_TILT up: from far away, up/down right-drag does nothing, like in Google Earth.
+        // A tilt beyond the limit already (e.g. after a preset) is kept, just not increased.
         const pivotRadius = mode.pivot.distanceTo(n.centre)
         const allowed = maxTiltForNadir(maxNadirAngleAt(altitude()), pivotRadius, camera.position.distanceTo(mode.pivot))
-        const maxTilt = Math.max(allowed, tiltAt(camera, mode.pivot, n.centre))
-        orbitAbout(camera, mode.pivot, n.centre, -dx * TURN_RAD_PER_PX, -dy * TURN_RAD_PER_PX, 0.02, Math.min(MAX_TILT, maxTilt))
+        const usable = allowed * THREE.MathUtils.smoothstep(allowed, MIN_USEFUL_TILT, 2 * MIN_USEFUL_TILT)
+        const tilt = tiltAt(camera, mode.pivot, n.centre)
+        // Limits never move the view by themselves: a view already straighter down than the minimum
+        // (e.g. the top-down toggle) isn't pushed up to it when the drag starts.
+        const minTilt = Math.min(0.02, tilt)
+        const maxTilt = Math.min(MAX_TILT, Math.max(usable, tilt))
+        orbitAbout(camera, mode.pivot, n.centre, -dx * TURN_RAD_PER_PX, -dy * TURN_RAD_PER_PX, minTilt, maxTilt)
         n.target.copy(mode.pivot)
         relevel()
         changed()
