@@ -7,11 +7,14 @@
 //   * At eye level (the Sun / Earth views), dragging looks around in place instead.
 //   * The higher up, the less the view may tilt (straight down from far away), so zooming out or
 //     dragging from orbit keeps the Moon centred instead of low on the screen (as in Google Earth).
+//   * Top-down toggle (map toolbar button or the U key, cameraTilt.ts): swing to look straight down
+//     at the middle of the view, at the same distance, and back to the tilt it had.
 // Registered as the scene's default controls, with the `target` + `update()` that CameraRig's
 // view presets and the camera readout use. Geometry: globeNav.ts (unit-tested).
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
+import { TOP_DOWN_WITHIN_RAD, useCameraTilt } from './cameraTilt'
 import type { Vec3 } from './globe/cubeSphere'
 import { PERF_ENABLED } from './perf'
 import {
@@ -20,10 +23,16 @@ import {
   grabRotation,
   limitNadirAngle,
   lookAt,
+  lookOffset,
   maxNadirAngleAt,
+  nadirAngle,
   orbitAbout,
   raySphere,
   rotateAbout,
+  setLookOffset,
+  tiltAt,
+  tiltTo,
+  TOP_DOWN_TILT,
   viewPivot,
   zoomAbout,
 } from './globeNav'
@@ -35,6 +44,10 @@ const EYE_LEVEL_M = 200 // below this height, dragging looks around instead of g
 const MIN_FOCUS_DISTANCE_M = 2
 const SPIN_DECAY_MS = 220 // after a flick, the Moon keeps spinning and slows down over about this long
 const MAX_SPIN_COAST_RAD = 0.5 // at most about this much extra turn after letting go
+const TILT_SWING_MS = 700 // the top-down toggle's swing
+const DEFAULT_TILT = (60 * Math.PI) / 180 // tilting back from a view that started top-down
+const EYE_LEVEL_LOOK_AHEAD_M = 60 // at eye level, top-down looks at the ground this far ahead
+const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2)
 
 type Mode =
   | { kind: 'grab'; grabbed: THREE.Vector3; radius: number }
@@ -57,6 +70,8 @@ export function GlobeControls({
   const nav = useRef<GlobeNavigation | null>(null)
   const zoom = useRef<{ focus: THREE.Vector3; remaining: number } | null>(null)
   const spin = useRef<{ axis: THREE.Vector3; rate: number; last: number; maxStep: number } | null>(null) // rad/ms
+  // The top-down toggle's swing: tilt about the pivot and look offset (eye level), from -> to.
+  const swing = useRef<{ pivot: THREE.Vector3; from: number; to: number; offFrom: number; offTo: number; start: number; down: boolean } | null>(null)
   const limits = useRef({ groundRadius, maxDistance })
 
   useEffect(() => {
@@ -131,12 +146,76 @@ export function GlobeControls({
       }
     }
 
+    // Top-down toggle. The button shows whether the view is top-down now, whatever made it so.
+    // What to swing back to: the tilt and look offset before going top-down, and (to restore that view
+    // exactly) the pivot and where the camera ended up, in case it hasn't moved since.
+    let before: { tilt: number; offset: number; pivot: THREE.Vector3; arrived: THREE.Vector3 | null } | null = null
+    const publishTilt = () => {
+      const topDown = nadirAngle(camera, n.centre) < TOP_DOWN_WITHIN_RAD
+      if (useCameraTilt.getState().topDown !== topDown) useCameraTilt.setState({ topDown })
+    }
+    n.addEventListener('change', publishTilt)
+    /** The point to swing about: the middle of the view, or at eye level the ground just ahead. */
+    const swingPivot = () => {
+      if (altitude() >= EYE_LEVEL_M) return viewCentrePoint()
+      const up = camera.position.clone().sub(n.centre).normalize()
+      const ahead = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+      ahead.addScaledVector(up, -ahead.dot(up)) // level: along the ground
+      if (ahead.lengthSq() < 1e-8) ahead.set(1, 0, 0).applyQuaternion(camera.quaternion) // looking straight up/down
+      const above = camera.position.clone().addScaledVector(ahead.normalize(), EYE_LEVEL_LOOK_AHEAD_M)
+      return grabPoint(new THREE.Ray(above, up.negate()), n.centre, limits.current.groundRadius)
+    }
+    const toggleTopDown = () => {
+      n.dispatchEvent({ type: 'start' }) // stops a view flight
+      zoom.current = null
+      spin.current = null
+      const start = performance.now()
+      if (nadirAngle(camera, n.centre) < TOP_DOWN_WITHIN_RAD) {
+        // Back to the tilt it had: exactly the old view if the camera hasn't moved since, else that
+        // tilt over what's in the middle of the view now.
+        const unmoved = before?.arrived && before.arrived.distanceTo(camera.position) < 0.5
+        const pivot = unmoved ? before!.pivot : viewCentrePoint()
+        const offFrom = lookOffset(camera, pivot)
+        const from = tiltAt(camera, pivot, n.centre)
+        swing.current = { pivot, from, to: before?.tilt ?? DEFAULT_TILT, offFrom, offTo: unmoved ? before!.offset : 0, start, down: false }
+      } else {
+        const pivot = swingPivot()
+        const from = tiltAt(camera, pivot, n.centre)
+        const offFrom = lookOffset(camera, pivot)
+        before = { tilt: from, offset: offFrom, pivot, arrived: null }
+        swing.current = { pivot, from, to: TOP_DOWN_TILT, offFrom, offTo: 0, start, down: true }
+      }
+      invalidate()
+    }
+    swingStep.current = (e: number) => {
+      const sw = swing.current
+      if (!sw) return
+      tiltTo(camera, sw.pivot, n.centre, sw.from + (sw.to - sw.from) * e)
+      setLookOffset(camera, sw.pivot, sw.offFrom + (sw.offTo - sw.offFrom) * e) // at eye level: from the horizon to the spot
+      n.target.copy(sw.pivot)
+      relevel() // high up, tilting back is limited as for a drag
+      if (e >= 1 && sw.down && before) before.arrived = camera.position.clone()
+      changed()
+    }
+    const unsubscribe = useCameraTilt.subscribe((s, prev) => {
+      if (s.requests !== prev.requests) toggleTopDown()
+    })
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'u' && e.key !== 'U') return
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return // typing
+      useCameraTilt.setState((s) => ({ requests: s.requests + 1 }))
+    }
+    window.addEventListener('keydown', onKey)
+
     const onDown = (e: PointerEvent) => {
       n.dispatchEvent({ type: 'start' }) // the user takes over (e.g. stops a view flight)
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       el.setPointerCapture(e.pointerId)
-      zoom.current = null // a new gesture stops any zoom still easing in or spin still going
+      zoom.current = null // a new gesture stops any zoom still easing in, spin still going or swing
       spin.current = null
+      swing.current = null
       velocity = null
       last = { x: e.clientX, y: e.clientY }
       if (pointers.size === 2) {
@@ -260,6 +339,7 @@ export function GlobeControls({
       // In: towards the cursor. Out: away from the view's centre, so the Moon doesn't drift sideways.
       let focus: THREE.Vector3
       spin.current = null
+      swing.current = null
       if (px > 0) {
         focus = viewCentrePoint()
       } else {
@@ -287,8 +367,13 @@ export function GlobeControls({
       el.removeEventListener('pointercancel', onUp)
       el.removeEventListener('wheel', onWheel)
       el.removeEventListener('contextmenu', onContextMenu)
+      window.removeEventListener('keydown', onKey)
+      unsubscribe()
+      n.removeEventListener('change', publishTilt)
       el.style.cursor = ''
       zoomStep.current = null
+      swingStep.current = null
+      swing.current = null
       if (get().controls === n) set({ controls: null })
       nav.current = null
     }
@@ -298,7 +383,15 @@ export function GlobeControls({
 
   // Ease wheel zoom over a few frames (runs before TileTree keeps the camera above the ground).
   const zoomStep = useRef<((focus: THREE.Vector3, factor: number) => void) | null>(null)
+  const swingStep = useRef<((eased: number) => void) | null>(null)
   useFrame(({ camera }) => {
+    const sw = swing.current
+    if (sw && swingStep.current) {
+      const t = Math.min(1, (performance.now() - sw.start) / TILT_SWING_MS)
+      swingStep.current(easeInOut(t))
+      if (t >= 1) swing.current = null
+      else invalidate()
+    }
     const sp = spin.current
     const n = nav.current
     if (sp && n) {

@@ -10,6 +10,7 @@ import { InteractiveGrainGradient } from '../ui/InteractiveGrainGradient'
 import { KIND_COLOR } from './globe/overlays'
 import { parseCoordinates } from './coordinates'
 import { GRAPHICS, type GraphicsQuality } from './graphics'
+import { toggleTopDown, useCameraTilt } from './cameraTilt'
 
 export interface Layers {
   sites: boolean
@@ -46,6 +47,7 @@ const LAYER_ROWS: { key: keyof Layers; label: string; hint: string }[] = [
 // Material icons (24 dp).
 const ICON = {
   camera: 'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z',
+  topDown: 'M16 13h-3V3h-2v10H8l4 4 4-4zM4 19v2h16v-2H4z', // an arrow straight down onto the ground
   layers: 'M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z',
   pin: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
   verify: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z',
@@ -309,6 +311,7 @@ export function MapTools({
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const [menuH, setMenuH] = useState(0)
+  const topDown = useCameraTilt((s) => s.topDown)
   const playing = useAppStore((s) => s.playing)
   const setPlaying = useAppStore((s) => s.setPlaying)
 
@@ -379,6 +382,20 @@ export function MapTools({
             ))
           }
         </ToolMenu>
+        <ToolButton
+          label={topDown ? 'Top-down view: on (click to tilt back)' : 'Top-down view: look straight down'}
+          tip={
+            topDown
+              ? 'Top-down view is on. Click (or press U) to tilt back to the angle you had. Right-drag or Shift + drag tilts freely.'
+              : 'Top-down view: look straight down at the middle of the view (or press U). Click again to tilt back. Right-drag or Shift + drag tilts freely.'
+          }
+          icon={ICON.topDown}
+          selected={topDown}
+          onClick={() => {
+            toggleTopDown()
+            showSnackbar(topDown ? 'Camera: tilted' : 'Camera: top-down')
+          }}
+        />
         <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="layers" label="Map layers" tip="Map layers: switch on landing sites, permanently shadowed regions and ice, and lines to the terrain blocking the Sun or Earth" icon={ICON.layers}>
           {() =>
             LAYER_ROWS.map((r) => (
