@@ -88,7 +88,8 @@ def test_out_of_range_is_unavailable_not_fabricated():
     res = r.json()["results"][0]
     assert res["status"] == "unavailable" and res["data_kind"] == "unavailable"
     assert res["viability"] is None and res["timeline"] is None
-    assert "2029" in res["message"]
+    from tests.data_range import data_range, day  # the real data's end date, not a fixed year
+    assert day(data_range("malapert-massif")[1]) in res["message"]
 
 
 def test_unknown_site_unavailable_then_demo_when_opted_in():

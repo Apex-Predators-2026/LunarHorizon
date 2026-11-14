@@ -1362,8 +1362,10 @@ not NASA validation. No power, battery, thermal, link-budget or landing-safety m
 intervals, synthetic data, incompatible rankings, canonical explanations and detailed assessment data:
 [member2-part2-consumer-handoff.md](member2-part2-consumer-handoff.md) §12. Production activation (switching
 `app/rescue/viability/__init__.py` from the placeholder to `app.viability.compat.rescue`) is Member 5's release
-decision and is separate from Member 2's completion; on `origin/main` at integration time Rescue still used the
-placeholder. Eleven teammate tests assert the old 2029 data end and fail on `origin/main` (handoff §12 item 9).
+decision and is separate from Member 2's completion. Member 5 made the switch in commit 3d00dbc (merged at the
+Part 2 integration), fixing Rescue findings 1–4 of §5g; the comparison service uses the same import, so it is
+canonical too, and its frontend ranking (`score ?? 0`, `passes`) is the remaining consumer fix (handoff §10
+item 5).
 
 ## 6. Assumptions and limitations
 

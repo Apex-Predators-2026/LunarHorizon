@@ -30,6 +30,7 @@ import { MiniMapPanel } from './MiniMapPanel'
 import { MissionPanel } from './MissionPlayback'
 import { useMissionPlayback } from './useMissionPlayback'
 import { SnackbarHost } from './Snackbar'
+import { TerrainLoadingOverlay, TerrainProgressBar } from './TerrainProgress'
 import { TooltipHost } from './TooltipHost'
 import { showSnackbar } from './snackbarStore'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
@@ -358,6 +359,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         style={{ fontFamily: 'var(--font-inter)' }}
       >
         <SnackbarHost />
+        <TerrainLoadingOverlay />
         <TooltipHost />
         <div
           className="pointer-events-none absolute bottom-2 right-[4vw] flex flex-col items-end gap-1 text-[10px] tabular-nums text-white"
@@ -385,6 +387,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         </div>
         {/* Bottom stack: map tools (pin / layers / JPL check) sit just above the timeline panel. */}
         <div className="absolute bottom-0 left-3 right-3 flex flex-col md:left-[3.6vw] md:right-[calc(4vw+var(--lp-side-w)+16px)]">
+          <TerrainProgressBar />
           <MissionPanel mission={mission} />
           {/* Lifted above the "show timeline" arrow while the panel is hidden. */}
           <div className={`md-slide transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>

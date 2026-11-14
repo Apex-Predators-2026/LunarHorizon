@@ -96,6 +96,23 @@ describe('view limit by altitude (Moon centred when zoomed out)', () => {
     expect(Math.abs(right.dot(c.position.clone().sub(centre).normalize()))).toBeLessThan(1e-6) // horizon level
   })
 
+  it('never rolls the view when straightening it near straight down (no horizontal/vertical flip)', () => {
+    for (const roll of [0, 0.7, 1.6, 2.9]) {
+      // 900 km up, looking 5 deg off straight down, with some roll about the view axis.
+      const pos = new THREE.Vector3(0, 9e5, 0)
+      const lookPoint = centre.clone().add(new THREE.Vector3(0.09 * 2.6e6, 0, 0))
+      const c = camera([pos.x, pos.y, pos.z], lookPoint)
+      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(c.quaternion)
+      c.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(fwd, roll))
+      const rightBefore = new THREE.Vector3(1, 0, 0).applyQuaternion(c.quaternion)
+      const off = nadirAngle(c, centre)
+      limitNadirAngle(c, centre, (1 * Math.PI) / 180)
+      const rightAfter = new THREE.Vector3(1, 0, 0).applyQuaternion(c.quaternion)
+      // The right-hand direction turns by no more than the straightening itself.
+      expect(rightBefore.angleTo(rightAfter)).toBeLessThanOrEqual(off + 1e-6)
+    }
+  })
+
   it('leaves a low view of the horizon alone', () => {
     const c = camera([0, 50, 0], new THREE.Vector3(0, 50, -5000)) // eye level, looking level
     const q = c.quaternion.clone()

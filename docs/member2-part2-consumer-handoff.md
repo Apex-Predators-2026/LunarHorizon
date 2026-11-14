@@ -220,7 +220,7 @@ pinned.
 
 ## 10. Known issues in teammates' components (not changed here)
 
-**Rescue (Member 5), details in viability-engine.md §5g:**
+**Rescue (Member 5), details in viability-engine.md §5g.** *Status at the Part 2 integration: items 1–4 were fixed by Member 5 in commit 3d00dbc ("Switch rescue to the canonical viability engine": unscored passes rank after scored ones and never as 0, real data ranks first, covered dates stay real in simulation, coverage ends at the last sample). They are kept below for the record.*
 
 1. `ViabilityResult.score_or_zero` (`app/models.py`) is used by `app/rescue/search.py` (`_rank_score`, the
    "+5 points better option" check), `app/rescue/compromise.py` and `app/rescue/sensitivity.py`. A PASS with a
@@ -234,7 +234,7 @@ pinned.
 4. End-of-dataset coverage counts the final sample as one more hour, giving one unknown hour (bounded score,
    rarely UNKNOWN) at the latest accepted landing.
 
-**Comparison (Member 4):**
+**Comparison (Member 4).** *Still open at the Part 2 integration, and now live: `compare/service.py` imports the same entry point, which runs the canonical engine since 3d00dbc.*
 
 5. `frontend/src/features/compare/analysis.ts`: `rankByViability` sorts by `passes` then `score ?? 0`, and
    the "best viability" pick uses `(score ?? 0) + (passes ? 1000 : 0)`. With the canonical engine this ranks a
@@ -245,10 +245,10 @@ pinned.
    switches together with Rescue and sees only `ViabilityResult`. Bounds, data basis and explanations need
    `evaluate_timeline_detailed` or an additive shared-contract field (§10 item 21 of viability-engine.md).
 
-**Production switch (owner: Member 5, with Member 4).** In `backend/app/rescue/viability/__init__.py`
-import `evaluate_timeline` from `app.viability.compat.rescue` instead of `.placeholder` (keep `CHECKS` /
-`CHECK_BY_CONSTRAINT` from the placeholder). Do it together with or after fixes 1 and 5. Rank-dependent Rescue
-tests and thresholds need review because the score formula differs.
+**Production switch (owner: Member 5, with Member 4). Done by Member 5 in commit 3d00dbc:**
+`backend/app/rescue/viability/__init__.py` imports `evaluate_timeline` from `app.viability.compat.rescue` and keeps
+`CHECKS` / `CHECK_BY_CONSTRAINT` from the placeholder, which stays for reference. Fix 5 (comparison frontend) is
+still open.
 
 ### Files each owner should review
 
@@ -274,9 +274,12 @@ tests and thresholds need review because the score formula differs.
 
 ## 12. Instructions for Member 5 (Arush, Rescue) and Member 4 (comparison)
 
-These are the rules for showing canonical results. They apply as soon as `app/rescue/viability/__init__.py` imports
-`evaluate_timeline` from `app.viability.compat.rescue` (still the placeholder on `origin/main` at the time of the
-Part 2 integration). Activating that switch is your release decision, separate from Member 2's completion.
+These are the rules for showing canonical results. They apply now: Member 5 switched
+`app/rescue/viability/__init__.py` to `app.viability.compat.rescue` in commit 3d00dbc, so Rescue **and** the
+comparison service (`compare/service.py`, same import) return canonical results. Production activation and release
+remain Members 5 and 4's decision, separate from Member 2's completion. Rescue already follows rules 1, 2 and 4
+for its own ranking (3d00dbc); the comparison frontend does not yet (rule 1/2: `rankByViability` and the
+best-viability pick in `frontend/src/features/compare/analysis.ts` still use `score ?? 0` and `passes`).
 
 1. **Missing scores.** `score = None` (Rescue `ViabilityResult.score`, canonical `ScoreBreakdown.score`) means *no exact
    number exists*. Never coerce it to 0 (`score_or_zero`, `score ?? 0`), never sort it as 0 and never print `0`.
@@ -311,8 +314,11 @@ Part 2 integration). Activating that switch is your release decision, separate f
 8. **Sampling sensitivity (optional display).** If shown, put the canonical verdict first and
    `sampling_sensitivity_report(...).summary` as a secondary "robustness to hourly sampling" note with its
    limitations. A `changed` verdict marks a marginal decision; it never turns a canonical PASS into UNKNOWN.
-9. **Data range changed upstream.** Since commit 4ebc988 the site files cover 2026-01-01 to 2031-01-01. Eleven
-   teammate tests still assert the old 2029 end and fail on `origin/main`: `tests/test_compare.py`
-   (`test_out_of_range_is_unavailable_not_fabricated`, Member 4), `tests/test_rescue_coverage.py` (9 cases) and
-   `tests/test_rescue_real_data.py::test_provider_coverage_and_unaligned_times` (Member 5). Member 2's own tests now
-   read the bounds from the files (`tests/viability/real_data.py`); the same approach would fix these.
+9. **Data range changed upstream.** Since commit 4ebc988 the site files cover 2026-01-01 to 2031-01-01. Member 2's
+   tests read the bounds from the files (`tests/viability/real_data.py`); Member 5 updated the Rescue and comparison
+   tests the same way in 3d00dbc (`tests/data_range.py`). The full backend suite passes after the integration.
+10. **Rescue's coverage rule changed (3d00dbc).** A mission must now end by the last sample, so the `pass_bounded`
+    example (one mission hour past the data) is answered UNKNOWN by Rescue's `Evaluator` coverage check; the example
+    still reaches the compatibility layer directly (`evaluate_timeline_detailed` on the provider's timeline) to show
+    how a bounded score must be displayed. Any consumer of canonical results (`evaluate_scenario`, the comparison
+    service, `evaluate_timeline_detailed`) must still handle `score = null` with bounds (rules 1 and 3).
