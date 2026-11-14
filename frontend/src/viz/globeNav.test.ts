@@ -1,0 +1,105 @@
+import * as THREE from 'three'
+import { describe, expect, it } from 'vitest'
+import { grabPoint, grabRotation, limitNadirAngle, lookAt, maxNadirAngleAt, nadirAngle, orbitAbout, raySphere, rotateAbout, zoomAbout } from './globeNav'
+
+const R = 1_737_400
+const centre = new THREE.Vector3(0, -R, 0) // like the site frame: the Moon's centre straight below the site
+
+function camera(pos: [number, number, number], target: THREE.Vector3) {
+  const c = new THREE.PerspectiveCamera(50, 16 / 9, 0.5, 1e9)
+  c.position.set(...pos)
+  lookAt(c, target)
+  return c
+}
+const rayAt = (c: THREE.Camera, x: number, y: number) => {
+  const r = new THREE.Raycaster()
+  r.setFromCamera(new THREE.Vector2(x, y), c)
+  return r.ray
+}
+const distanceToRay = (ray: THREE.Ray, p: THREE.Vector3) => ray.distanceToPoint(p)
+
+describe('globe navigation', () => {
+  it('finds where a ray meets the Moon', () => {
+    const c = camera([0, 6e6, 0], centre)
+    const t = raySphere(c.position, rayAt(c, 0, 0).direction, centre, R)
+    expect(t).toBeCloseTo(6e6, 0) // straight down onto the site
+    expect(raySphere(c.position, new THREE.Vector3(1, 0, 0), centre, R)).toBeNull() // looking away
+  })
+
+  it('keeps the grabbed point under the cursor while dragging (the Moon spins with it)', () => {
+    const c = camera([0, 4e6, 3e6], centre)
+    const d0 = c.position.distanceTo(centre)
+    const grabbed = grabPoint(rayAt(c, 0.1, -0.2), centre, R)
+    // Pointer positions on the Moon's disc (it spans about +-15 deg of the 50 deg view here).
+    for (const [x, y] of [[0.15, -0.05], [0.2, 0.15], [-0.1, 0.2]]) {
+      const hit = grabPoint(rayAt(c, x, y), centre, R)
+      rotateAbout(c, centre, grabRotation(centre, hit, grabbed))
+      // The grabbed surface point is under the pointer again, and still on the Moon.
+      expect(distanceToRay(rayAt(c, x, y), grabbed)).toBeLessThan(1) // metres, at millions of m
+    }
+    // Spinning, not moving: the camera stays the same distance from the Moon's centre.
+    expect(c.position.distanceTo(centre)).toBeCloseTo(d0, -1)
+  })
+
+  it('keeps spinning smoothly when the pointer leaves the Moon (past the limb)', () => {
+    const c = camera([0, 6e6, 0], centre)
+    const off = grabPoint(rayAt(c, 0.99, 0), centre, R)
+    expect(off.distanceTo(centre)).toBeCloseTo(R, 0) // pulled onto the sphere, not lost
+  })
+
+  it('zooms towards the point under the cursor without turning the view', () => {
+    const target = centre.clone()
+    const c = camera([0, 4e6, 3e6], target)
+    const ray = rayAt(c, 0.3, 0.2)
+    const focus = ray.at(raySphere(ray.origin, ray.direction, centre, R)!, new THREE.Vector3())
+    const before = c.quaternion.clone()
+    zoomAbout(c, target, focus, 0.5)
+    expect(distanceToRay(rayAt(c, 0.3, 0.2), focus)).toBeLessThan(1e-3 * focus.distanceTo(c.position))
+    expect(c.quaternion.angleTo(before)).toBeLessThan(1e-6)
+  })
+
+  it('turns and tilts around a surface point, keeping the distance and the horizon level', () => {
+    const pivot = new THREE.Vector3(0, 0, 0) // the site, on the surface
+    const c = camera([2000, 1500, 3000], pivot)
+    const d = c.position.distanceTo(pivot)
+    orbitAbout(c, pivot, centre, 0.5, 0.2)
+    expect(c.position.distanceTo(pivot)).toBeCloseTo(d, 6)
+    // Can't tilt below the horizon or past straight down.
+    orbitAbout(c, pivot, centre, 0, 10)
+    const tilt = Math.acos(c.position.clone().sub(pivot).normalize().dot(new THREE.Vector3(0, 1, 0)))
+    expect(tilt).toBeLessThanOrEqual((85 * Math.PI) / 180 + 1e-9)
+    orbitAbout(c, pivot, centre, 0, -10)
+    expect(c.position.y).toBeGreaterThan(0.99 * d)
+    // Horizon level: the camera's right vector is horizontal (no roll).
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(c.quaternion)
+    expect(Math.abs(right.y)).toBeLessThan(1e-6)
+  })
+})
+
+describe('view limit by altitude (Moon centred when zoomed out)', () => {
+  it('leaves near-ground views free and allows only about straight down from far away', () => {
+    expect(maxNadirAngleAt(5_000)).toBe(Math.PI)
+    const mid = [100e3, 300e3, 1000e3].map((a) => maxNadirAngleAt(a))
+    expect(mid[0]).toBeGreaterThan(mid[1])
+    expect(mid[1]).toBeGreaterThan(mid[2])
+    expect(maxNadirAngleAt(3_000_000)).toBeLessThan(0.02)
+  })
+
+  it('pitches a far camera that looks past the Moon back to the Moon, in place and level', () => {
+    // 5,000 km up, looking out over the limb (as after zooming out from a horizon view).
+    const c = camera([0, 5e6, 0], new THREE.Vector3(0, 5e6, -4e6))
+    const before = c.position.clone()
+    expect(limitNadirAngle(c, centre, maxNadirAngleAt(5e6))).toBe(true)
+    expect(c.position.equals(before)).toBe(true)
+    expect((nadirAngle(c, centre) * 180) / Math.PI).toBeLessThan(1.1) // the Moon in the middle
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(c.quaternion)
+    expect(Math.abs(right.dot(c.position.clone().sub(centre).normalize()))).toBeLessThan(1e-6) // horizon level
+  })
+
+  it('leaves a low view of the horizon alone', () => {
+    const c = camera([0, 50, 0], new THREE.Vector3(0, 50, -5000)) // eye level, looking level
+    const q = c.quaternion.clone()
+    expect(limitNadirAngle(c, centre, maxNadirAngleAt(50))).toBe(false)
+    expect(c.quaternion.equals(q)).toBe(true)
+  })
+})

@@ -1,5 +1,5 @@
 // Ground height under a point, from whichever terrain tiles are loaded. Used to keep the camera
-// from going through the terrain (TileTree lifts it after the orbit controls move it).
+// from going through the terrain (TileTree lifts it after the camera controls move it).
 import { MAX_ZOOM, MOON_RADIUS_M, TILE_N, vecToFaceUV, type SiteFrame, type Vec3 } from './cubeSphere'
 
 /** Above this height (m over the 1737.4 km sphere) there is no terrain anywhere (highest point ~ +10.8 km). */
