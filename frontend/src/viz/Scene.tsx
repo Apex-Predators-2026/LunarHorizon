@@ -1,6 +1,6 @@
 import { OrbitControls, Stars } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
-import { createRef, useCallback, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { createRef, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import * as THREE from 'three'
 import { useAppStore } from '../store'
 import type { SiteInfo } from '../types'
@@ -21,6 +21,7 @@ import { SunLight } from './SunLight'
 import { TimeBar } from './TimeBar'
 import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor } from './timeline'
 import { FloatingSidebar } from './FloatingSidebar'
+import { GRAPHICS, useGraphicsQuality } from './graphics'
 import { MiniMapPanel } from './MiniMapPanel'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
@@ -68,7 +69,17 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
     () => (site ? new SiteFrame(site.lat, site.lon, site.ground_height_m) : null),
     [site],
   )
-  const terrainMaterial = useMemo(() => new THREE.MeshStandardMaterial({ color: '#9a9a9a', roughness: 0.95 }), [])
+  // Graphics preset (High = full quality, the default; Low for Chromebooks and old laptops).
+  const [graphicsQuality, setGraphicsQuality] = useGraphicsQuality()
+  const gfx = GRAPHICS[graphicsQuality]
+  const terrainMaterial = useMemo(
+    () =>
+      gfx.material === 'lambert'
+        ? new THREE.MeshLambertMaterial({ color: '#9a9a9a' })
+        : new THREE.MeshStandardMaterial({ color: '#9a9a9a', roughness: 0.95 }),
+    [gfx.material],
+  )
+  useEffect(() => () => terrainMaterial.dispose(), [terrainMaterial])
   // Highest nearby terrain (from the horizon mask), so the overview camera starts above crater rims.
   const maxTerrainHeight = useMemo(() => {
     const h = horizon.data
@@ -158,10 +169,13 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
     <div className="absolute inset-0 overflow-hidden">
       {/* Renders only when something changes (camera, time, tiles arriving): an idle view costs
           nothing. Components that animate on their own must call invalidate(). */}
+      {/* A new graphics preset gets a fresh canvas: anti-aliasing is fixed when the WebGL context is made. */}
       <Canvas
+        key={graphicsQuality}
         frameloop={PERF_RENDER_ALWAYS ? 'always' : 'demand'}
-        shadows
-        gl={{ logarithmicDepthBuffer: true, antialias: true }}
+        dpr={gfx.dpr}
+        shadows={gfx.shadows}
+        gl={{ logarithmicDepthBuffer: true, antialias: gfx.antialias }}
         camera={{ position: [2600, 1400, 3400], fov: 50, near: 0.5, far: 1e9 }}
       >
         <color attach="background" args={['#000000']} />
@@ -176,6 +190,8 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             material={terrainMaterial}
             onStats={onStats}
             onPick={pin.phase === 'armed' ? onPick : undefined}
+            lodThresholdPx={gfx.lodThresholdPx}
+            maxCachedMeshes={gfx.maxCachedMeshes}
           />
         )}
         {frame && layers.sites && <SitePins frame={frame} sites={otherSites} selectedId={siteId} />}
@@ -183,11 +199,13 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         {layers.blockers && horizon.data && (
           <BlockerLines steps={timeline.data ?? []} current={blockers} horizon={horizon.data} eyeHeightM={eye} />
         )}
-        {s && <SunLight status={s} shadowHalfWidth={SHADOW_HALF_WIDTH_M} />}
+        {s && (
+          <SunLight status={s} shadowHalfWidth={SHADOW_HALF_WIDTH_M} shadows={gfx.shadows} shadowMapSize={gfx.shadowMapSize} />
+        )}
         {/* Sky (and, in the lander's-eye views, the engine skyline) stays centred on the camera,
             like a skybox: these things are effectively at infinity. */}
         <FollowCamera>
-          <Stars radius={SKY_DISTANCE_M * 0.5} depth={SKY_DISTANCE_M * 0.2} count={4000} factor={SKY_DISTANCE_M / 100} fade />
+          <Stars radius={SKY_DISTANCE_M * 0.5} depth={SKY_DISTANCE_M * 0.2} count={gfx.stars} factor={SKY_DISTANCE_M / 100} fade />
           {horizon.data && eyeView && <HorizonCurtain horizon={horizon.data} radius={CURTAIN_RADIUS_M} />}
           {s && <SkyBodies status={s} distance={SKY_DISTANCE_M} />}
         </FollowCamera>
@@ -294,6 +312,8 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             onArmPin={(armed) => setPin(armed ? { phase: 'armed' } : { phase: 'idle' })}
             siteId={siteId}
             timeUtc={timeUtc}
+            graphics={graphicsQuality}
+            onGraphics={setGraphicsQuality}
           />
           {site && win && (
             <div

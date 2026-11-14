@@ -19,7 +19,17 @@ const FAR_M = 150_000
  * can't capture, so the lander is dark exactly when the numbers say it is. Zoomed out, the light
  * blends to full sunlight, because the globe as a whole is lit regardless of the lander's horizon.
  */
-export function SunLight({ status, shadowHalfWidth }: { status: TimelineStep; shadowHalfWidth: number }) {
+export function SunLight({
+  status,
+  shadowHalfWidth,
+  shadows = true,
+  shadowMapSize = 4096,
+}: {
+  status: TimelineStep
+  shadowHalfWidth: number
+  shadows?: boolean // terrain shadows near the lander (off in the low graphics preset)
+  shadowMapSize?: number
+}) {
   const ref = useRef<DirectionalLight>(null)
   const { sun } = status
   const pos = azElToVector(sun.azimuth_deg, sun.elevation_deg, 20000)
@@ -50,8 +60,8 @@ export function SunLight({ status, shadowHalfWidth }: { status: TimelineStep; sh
       ref={ref}
       position={pos}
       intensity={MAX_INTENSITY * atLander}
-      castShadow
-      shadow-mapSize={[4096, 4096]}
+      castShadow={shadows}
+      shadow-mapSize={[shadowMapSize, shadowMapSize]}
       shadow-camera-left={-shadowHalfWidth}
       shadow-camera-right={shadowHalfWidth}
       shadow-camera-top={shadowHalfWidth}
