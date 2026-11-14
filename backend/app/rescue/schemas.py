@@ -84,9 +84,9 @@ class MetricDelta(BaseModel):
 class Robustness(BaseModel):
     checked_points: int
     passing_points: int
-    pass_rate: float
+    pass_rate: float | None = Field(description="None when no point could be checked")
     worst_score: float | None = Field(description="Lowest score among the checks; None if none was scored")
-    verdict: Literal["robust", "sensitive", "fragile"]
+    verdict: Literal["robust", "sensitive", "fragile", "unchecked"]
     note: str
 
 

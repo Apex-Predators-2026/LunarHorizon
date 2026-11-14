@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from ..models import ViabilityResult
+from ..models import ViabilityResult, Violation
 from .engine import Candidate
 from .schemas import MetricDelta
+from .viability import CHECK_BY_CONSTRAINT
 
 # (metric field, label, unit, higher_is_better)
 TRACKED = [
@@ -21,10 +22,28 @@ TRACKED = [
 SCALE = {"fraction": 1.0, "h": 100.0}
 
 
-def fmt_value(v: float | None, unit: str) -> str:
+def fmt_value(v: float | None, unit: str, digits: int = 0) -> str:
     if v is None:
         return "n/a"
-    return f"{v * 100:.0f}%" if unit == "fraction" else f"{v:.0f} h"
+    return f"{v * 100:.{digits}f}%" if unit == "fraction" else f"{v:.{digits}f} h"
+
+
+def short_label(constraint: str) -> str:
+    """Short plain-English name of a requirement; falls back to the field name if it is not in the table."""
+    check = CHECK_BY_CONSTRAINT.get(constraint)
+    return check[4] if check else constraint.replace("_", " ")
+
+
+def describe_violation(v: Violation) -> str:
+    """One sentence for a failed requirement, e.g. "Average sunlight 35% (needs at least 50%)"."""
+    if v.is_unknown:
+        return v.message
+    check = CHECK_BY_CONSTRAINT.get(v.constraint)
+    need = {"min": "needs at least ", "max": "allows at most "}.get(check[2] if check else "", "needs ")
+    actual, required = fmt_value(v.actual, v.unit), fmt_value(v.required, v.unit)
+    if actual == required and v.actual is not None and v.required is not None:  # "40% (needs at least 40%)" reads as a contradiction
+        actual, required = fmt_value(v.actual, v.unit, 1), fmt_value(v.required, v.unit, 1)
+    return f"{short_label(v.constraint).capitalize()} {actual} ({need}{required})"
 
 
 def fmt_delta(d: float, unit: str) -> str:
@@ -70,7 +89,7 @@ def reasons_for(c: Candidate, changed: ViabilityResult, deltas: list[MetricDelta
     reasons = []
     fixed = {v.constraint for v in changed.violations} - {v.constraint for v in c.result.violations}
     if fixed:
-        labels = [v.message.split(" is ")[0].lower() for v in changed.violations if v.constraint in fixed]
+        labels = [short_label(v.constraint) for v in changed.violations if v.constraint in fixed]
         reasons.append("Fixes: " + ", ".join(labels) + ".")
     metric_only = [m for m in deltas if m.metric != "score" and m.delta is not None]
     gains = sorted((m for m in metric_only if m.better), key=lambda m: -abs(m.delta) / SCALE[m.unit])
@@ -100,4 +119,4 @@ def headline_for(c: Candidate, changed: ViabilityResult) -> str:
 
 
 def why_fails(res: ViabilityResult) -> list[str]:
-    return [v.message for v in sorted(res.violations, key=lambda v: -v.relative_shortfall)]
+    return [describe_violation(v) for v in sorted(res.violations, key=lambda v: -v.relative_shortfall)]
