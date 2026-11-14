@@ -178,7 +178,7 @@ export function MeasureCard({
       ref={rootRef}
       role="region"
       aria-label="Lunar surface measurement and traverse tool"
-      className={`md-reveal lp-light pointer-events-auto relative flex flex-col overflow-hidden rounded-[18px] border border-opal-300 bg-opal-50 text-xs text-slate-200 transition-shadow ${
+      className={`md-reveal lp-light pointer-events-auto relative flex flex-col overflow-hidden rounded-[18px] bg-opal-50 text-xs text-slate-200 transition-shadow ${
         dragging ? 'shadow-2xl shadow-black/50' : 'shadow-lg shadow-black/30'
       }`}
       style={
@@ -201,7 +201,8 @@ export function MeasureCard({
         data-tip={open ? 'Drag to move anywhere · click to minimize' : 'Drag to move · click to expand'}
         {...handlers}
         onClick={onHeaderClick}
-        className="flex h-5 w-full shrink-0 cursor-grab touch-none select-none items-center justify-between bg-coral px-3 text-[10px] font-medium text-white transition-[filter] hover:brightness-95 active:cursor-grabbing"
+        data-no-ripple
+        className="no-press -mx-px flex h-5 w-[calc(100%+2px)] shrink-0 cursor-grab touch-none select-none items-center justify-between bg-coral px-3 text-[10px] font-medium text-white transition-[filter] hover:brightness-95 active:cursor-grabbing"
       >
         <InteractiveGrainGradient fill strength={1.6} patternScale={0.45} />
         <span className="relative z-10 truncate opacity-90">
