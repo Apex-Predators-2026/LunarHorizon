@@ -28,6 +28,7 @@ import { ColorKey, MapTools, type Layers, type PinState } from './MapTools'
 import type { MeasureDrawer } from './MeasureCard'
 import { HorizonCurtain } from './HorizonCurtain'
 import { BEACON_HEIGHT, BEACON_HIDE_WITHIN_M, Lander } from './Lander'
+import { RoverFlag, RoverFlagTag } from './RoverFlag'
 import { skyPositions } from './geometry'
 import { ScreenLabels } from './ScreenLabels'
 import { SkyBodies } from './SkyBodies'
@@ -207,6 +208,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   const sunLabel = useRef<HTMLDivElement>(null)
   const earthLabel = useRef<HTMLDivElement>(null)
   const landerLabel = useRef<HTMLDivElement>(null)
+  const flagRef = useRef<HTMLDivElement>(null)
   const sky = current ? skyPositions(current, SKY_DISTANCE_M, 0) : null // relative to the camera
   const s = current
   const windowLabel = win ? `${toIsoMinute(win[0]).slice(5, 10)} → ${toIsoMinute(win[1]).slice(5, 10)}` : ''
@@ -448,6 +450,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           {layers.paths && timeline.data && <SkyTrails steps={timeline.data} radius={SKY_DISTANCE_M * 0.98} />}
         </FollowCamera>
         <Lander status={s} observerHeight={eye} showBeacon={view === 'overview'} detailed={gfx.detailedModels} />
+        <RoverFlag flagRef={flagRef} status={s} frame={frame} tileHeightsRef={tileHeightsRef} />
 
         {/* Google-Earth-style: drag spins the Moon under the cursor, right-drag turns / tilts, wheel
             zooms towards the cursor. TileTree also keeps the camera itself above the ground. */}
@@ -520,6 +523,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             s.earth.visible === null ? 'unknown' : s.earth.visible ? 'in view' : 'blocked'
           } (${fmtDeg(s.earth.margin_deg, 2, true)})`}
       </div>
+      <RoverFlagTag ref={flagRef} />
       <div ref={landerLabel} className={`${labelClass} bg-orange-500/80 font-medium`}>
         {site?.name ?? 'Lander'}
       </div>
@@ -617,7 +621,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
 
       {/* Floating UI. Containers ignore the pointer so the 3D view stays interactive around them. */}
       <div
-        className="ui-chrome md-host pointer-events-none absolute inset-0 [--lp-side-w:clamp(280px,23.5vw,360px)]"
+        className="ui-chrome md-host pointer-events-none absolute inset-0 z-[2] [--lp-side-w:clamp(280px,23.5vw,360px)]"
         style={{ fontFamily: 'var(--font-inter)' }}
       >
         <SnackbarHost />
