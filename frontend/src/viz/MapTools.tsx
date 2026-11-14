@@ -5,12 +5,37 @@ import { useAppStore } from '../store'
 import type { VerifyResult } from '../types'
 import { fetchVerify } from './api'
 import { showSnackbar } from './snackbarStore'
+import { useUiPrefs } from './uiPrefs'
 import type { ViewMode } from './CameraRig'
 import { InteractiveGrainGradient } from '../ui/InteractiveGrainGradient'
+import type { MeasureAnalysis, MeasureWaypoint, ProfileSample } from './globe/measure'
 import { KIND_COLOR } from './globe/overlays'
 import { parseCoordinates } from './coordinates'
 import { GRAPHICS, type GraphicsQuality } from './graphics'
 import { toggleTopDown, useCameraTilt } from './cameraTilt'
+import { MeasureCard, type MeasureDrawer } from './MeasureCard'
+
+export interface MeasureController {
+  armed: boolean
+  onArm: (armed: boolean) => void
+  waypoints: MeasureWaypoint[]
+  selectedWaypointId: string | null
+  onSelectWaypoint: (id: string | null) => void
+  hoveredWaypointId: string | null
+  onHoverWaypoint: (id: string | null) => void
+  onRenameWaypoint: (id: string, name: string) => void
+  onDeleteWaypoint: (id: string) => void
+  analysis: MeasureAnalysis | null
+  hoveredSample: ProfileSample | null
+  onHoverSample: (s: ProfileSample | null) => void
+  onStartAtLander: () => void
+  onUndo: () => void
+  onClear: () => void
+  onClose: () => void
+  finestResM: number | null
+  drawer: MeasureDrawer
+  onDrawerChange: (d: MeasureDrawer) => void
+}
 
 export interface Layers {
   sites: boolean
@@ -50,12 +75,16 @@ const ICON = {
   topDown: 'M16 13h-3V3h-2v10H8l4 4 4-4zM4 19v2h16v-2H4z', // an arrow straight down onto the ground
   layers: 'M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z',
   pin: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+  ruler: 'M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H3V8h2v4h2V8h2v4h2V8h2v4h2V8h2v4h2V8h2v8z',
   verify: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z',
   play: 'M8 5v14l11-7z',
   pause: 'M6 19h4V5H6v14zm8-14v14h4V5h-4z',
   speed: 'M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44zm-9.79 6.84a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z',
   check: 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
   flag: 'M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z',
+  more: 'M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
+  hideUi: 'M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z',
+  dark: 'M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z',
 }
 
 function Icon({ d, size = 24 }: { d: string; size?: number }) {
@@ -290,6 +319,7 @@ export function MapTools({
   farShadowsAvailable,
   onFarShadows,
   mission,
+  measure,
 }: {
   layers: Layers
   onLayers: (l: Layers) => void
@@ -307,9 +337,13 @@ export function MapTools({
   farShadowsAvailable: boolean // not in the Low preset (no shadows at all there)
   onFarShadows: (on: boolean) => void
   mission: { available: boolean; active: boolean; reason: string; start: () => void; stop: () => void } // mission playback
+  measure: MeasureController
 }) {
   const [verify, setVerify] = useState<{ loading: boolean; result: VerifyResult | null; error: string | null } | null>(null)
   const [openMenu, setOpenMenu] = useState<string | null>(null)
+  const dark = useUiPrefs((u) => u.dark)
+  const setDark = useUiPrefs((u) => u.setDark)
+  const hideUi = useUiPrefs((u) => u.hideUi)
   const [menuH, setMenuH] = useState(0)
   const topDown = useCameraTilt((s) => s.topDown)
   const playing = useAppStore((s) => s.playing)
@@ -335,6 +369,7 @@ export function MapTools({
     showSnackbar(`${name} ${layers[k] ? 'hidden' : 'shown'}`)
   }
   const armed = pin.phase === 'armed'
+  const measureOpen = measure.armed || measure.waypoints.length > 0
 
   return (
     // Column-reverse: the toolbar is the bottom item; messages and the verify panel open upwards.
@@ -356,7 +391,7 @@ export function MapTools({
           onClick={() => (mission.active ? mission.stop() : mission.start())}
         />
         <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" hover onActivate={() => {
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" hover={!armed && !measureOpen} onActivate={() => {
             onGoToView()
             showSnackbar(`Camera: ${VIEWS.find((v) => v.id === view)?.label ?? view}`)
           }} label="Camera position" tip="Camera: click to fly to the chosen view. Hover to pick a different one (whole Moon, region, site, or a lander's-eye view of the Sun or Earth)." icon={ICON.camera}>
@@ -427,6 +462,17 @@ export function MapTools({
           onClick={() => onArmPin(!armed)}
         />
         <ToolButton
+          label={
+            measure.armed
+              ? 'Measure tool active: click points on the terrain (click again to stop adding points)'
+              : 'Measure distance & traverse: place waypoints on the Moon to measure surface distance, slope hazards, and line-of-sight'
+          }
+          icon={ICON.ruler}
+          selected={measure.armed}
+          disabled={!siteId}
+          onClick={() => measure.onArm(!measure.armed)}
+        />
+        <ToolButton
           label={verify?.loading ? 'Asking JPL…' : "Verify with JPL: compare this hour's Sun/Earth positions with JPL Horizons, live"}
           icon={ICON.verify}
           selected={verify?.loading ? true : undefined}
@@ -434,28 +480,30 @@ export function MapTools({
           onClick={runVerify}
         />
         <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="graphics" label="Graphics quality" tip="Graphics quality: High is full detail and shadows; Low is lighter for Chromebooks and older laptops" icon={ICON.speed}>
-          {(close) =>
-            (Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
-              <button
-                key={q}
-                type="button"
-                role="menuitemradio"
-                aria-checked={graphics === q}
-                data-tip={GRAPHICS[q].hint}
-                onClick={() => {
-                  if (q !== graphics) showSnackbar(`Graphics set to ${GRAPHICS[q].label}`, 'success')
-                  onGraphics(q)
-                  close()
-                }}
-                className={`flex h-12 w-full items-center gap-3 px-4 text-left text-sm transition-colors ${graphics === q ? 'bg-coral/15 font-semibold' : ''}`}
-              >
-                <span className="flex h-6 w-6 items-center justify-center text-coral">{graphics === q && <Icon d={ICON.check} size={20} />}</span>
-                {GRAPHICS[q].label}
-                {q === 'high' ? ' (default)' : ' (Chromebook)'}
-              </button>
-            )).concat(
-              <div key="divider" className="my-1 h-px bg-opal-300" aria-hidden />,
+        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="more" label="More" tip="More: graphics quality, dark mode, and hide the whole interface" icon={ICON.more}>
+          {(close) => (
+            <>
+              <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Graphics quality</p>
+              {(Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={graphics === q}
+                  data-tip={GRAPHICS[q].hint}
+                  onClick={() => {
+                    if (q !== graphics) showSnackbar(`Graphics set to ${GRAPHICS[q].label}`, 'success')
+                    onGraphics(q)
+                    close()
+                  }}
+                  className={`flex h-12 w-full items-center gap-3 px-4 text-left text-sm transition-colors ${graphics === q ? 'bg-coral/15 font-semibold' : ''}`}
+                >
+                  <span className="flex h-6 w-6 items-center justify-center text-coral">{graphics === q && <Icon d={ICON.check} size={20} />}</span>
+                  {GRAPHICS[q].label}
+                  {q === 'high' ? ' (default)' : ' (Chromebook)'}
+                </button>
+              ))}
+              <div className="my-1 h-px bg-opal-300" aria-hidden />
               <button
                 key="far-shadows"
                 type="button"
@@ -480,9 +528,43 @@ export function MapTools({
                     <Icon d={ICON.check} size={16} />
                   </span>
                 </span>
-              </button>,
-            )
-          }
+              </button>
+              <div className="my-1 h-px bg-opal-300" aria-hidden />
+              <button
+                type="button"
+                role="switch"
+                aria-checked={dark}
+                data-tip="Dark mode: dark panels instead of light ones"
+                data-no-ripple
+                onClick={() => {
+                  setDark(!dark)
+                  showSnackbar(`Dark mode ${dark ? 'off' : 'on'}`)
+                }}
+                className="md-row flex h-14 w-full items-center justify-between gap-6 px-4 text-left text-sm"
+              >
+                Dark mode
+                <span className="md-switch" aria-hidden>
+                  <span className="md-switch-handle">
+                    <Icon d={ICON.check} size={16} />
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-tip="Hide all UI: everything fades away so only the Moon is left. Press Esc to bring it back."
+                onClick={() => {
+                  close()
+                  hideUi()
+                }}
+                className="flex h-12 w-full items-center gap-3 px-4 text-left text-sm"
+              >
+                <span className="flex h-6 w-6 items-center justify-center"><Icon d={ICON.hideUi} size={20} /></span>
+                Hide all UI
+                <span className="ml-auto text-xs text-slate-400">Esc to show</span>
+              </button>
+            </>
+          )}
         </ToolMenu>
       </div>
 
@@ -490,6 +572,32 @@ export function MapTools({
       <div aria-hidden className="transition-[height] duration-300 ease-[var(--md-ease-emph-decel)]" style={{ height: openMenu ? menuH : 0 }} />
 
       {armed && <CoordinateForm onSubmit={onCoordinates} />}
+      {measureOpen && (
+        <MeasureCard
+          armed={measure.armed}
+          waypoints={measure.waypoints}
+          selectedWaypointId={measure.selectedWaypointId}
+          onSelectWaypoint={measure.onSelectWaypoint}
+          hoveredWaypointId={measure.hoveredWaypointId}
+          onHoverWaypoint={measure.onHoverWaypoint}
+          onRenameWaypoint={measure.onRenameWaypoint}
+          onDeleteWaypoint={measure.onDeleteWaypoint}
+          analysis={measure.analysis}
+          hoveredSample={measure.hoveredSample}
+          onHoverSample={measure.onHoverSample}
+          onStartAtLander={measure.onStartAtLander}
+          onUndo={measure.onUndo}
+          onClear={measure.onClear}
+          onClose={measure.onClose}
+          onAnalyseEndpoint={(lat, lon) => {
+            measure.onArm(false)
+            onCoordinates(lat, lon)
+          }}
+          finestResM={measure.finestResM}
+          drawer={measure.drawer}
+          onDrawerChange={measure.onDrawerChange}
+        />
+      )}
       {pin.phase === 'working' && (
         <p className="md-reveal pointer-events-auto rounded bg-slate-950/85 px-2 py-1 text-xs text-slate-200">
           Analysing {fmtLat(pin.lat)}, {pin.lon.toFixed(3)}°E… downloading terrain can take up to a minute in a new area.

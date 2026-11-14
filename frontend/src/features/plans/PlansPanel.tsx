@@ -87,7 +87,7 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
         aria-label={plan ? 'Edit plan' : 'New plan'}
         onSubmit={save}
         className={`lp-light relative flex max-h-[90vh] w-[min(26rem,100%)] flex-col rounded-[28px] bg-opal-50 shadow-2xl shadow-black/50 ${closing ? '' : 'md-dialog-in'}`}
-        style={{ ['--md-field-bg' as string]: '#f5f5f7' }}
+        style={{ ['--md-field-bg' as string]: 'var(--color-opal-50)' }}
       >
         <h2 className="px-6 pb-2 pt-6 text-2xl leading-8">{plan ? 'Edit plan' : 'New plan'}</h2>
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-6 pb-2 text-xs">
@@ -207,6 +207,35 @@ export function PlansPanel({ onCompare }: { onCompare: () => void }) {
   const compareIds = usePlansStore((s) => s.compareIds)
   const setActive = usePlansStore((s) => s.setActive)
   const showDialog = usePlanDialog((d) => d.show)
+
+  // Seed a default plan into the rescue store on first load if none is set yet, so Mission Playback
+  // and Rescue/Compromise tools work immediately out of the box even before a plan card is saved.
+  useEffect(() => {
+    if (useRescueStore.getState().original) return
+    const { plans: saved, activeId } = usePlansStore.getState()
+    const active = saved.find((p) => p.id === activeId) ?? saved[0]
+    if (active) {
+      useRescueStore.getState().setOriginal(active.scenario)
+      return
+    }
+    const ctl = new AbortController()
+    fetchRescueCatalog(ctl.signal)
+      .then((c) => {
+        if (useRescueStore.getState().original) return
+        const appSite = useAppStore.getState().siteId
+        const chosen = c.sites.find((s) => s.id === appSite) ?? c.sites.find((s) => s.id === 'connecting-ridge') ?? c.sites[0]
+        if (chosen) {
+          useRescueStore.getState().setOriginal({
+            site: { id: chosen.id, name: chosen.name, lat: chosen.lat, lon: chosen.lon },
+            landing_utc: '2027-10-15T00:00:00.000Z',
+            duration_days: 7,
+            requirements: DEFAULT_REQUIREMENTS,
+          })
+        }
+      })
+      .catch(() => {})
+    return () => ctl.abort()
+  }, [])
 
   const run = (p: Plan) => {
     useRescueStore.getState().setOriginal(p.scenario)
