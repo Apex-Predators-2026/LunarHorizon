@@ -17,10 +17,11 @@ npm install
 ## 2. Warm the data cache (once per machine, ~10-30 min the first time)
 ```
 cd backend
-.venv\Scripts\python.exe scripts\prefetch_tiles.py --imagery
+.venv\Scripts\python.exe scripts\prefetch_tiles.py
 ```
 - Terrain for the whole globe (coarse), the south-polar region, and the surroundings of all 24 sites down to
-  5 m; the PSR / ice overlay; with `--imagery`, the LRO photo mosaic the 3D view fades to when zoomed out.
+  5 m; the PSR / ice overlay; the LRO photo mosaic the 3D view fades to when zoomed out (`--no-imagery` skips
+  it); the JPL/NAIF kernels custom pins need.
 - Safe to re-run: it reuses what's cached, lists tiles that failed (Moon Trek is sometimes busy), and a second
   run fills them in.
 - To skip this on another machine, copy the whole `data/cache/` folder across (about 5 GB: 3.2 GB terrain, 1.8 GB imagery).
@@ -28,6 +29,29 @@ cd backend
   each) ship with the frontend as `frontend/public/terrain/base.bin` (1.1 MB) and
   `frontend/public/imagery/base.bin` (1.7 MB). Rebuild them only if the terrain or imagery sources or the tiling
   change: `.venv\Scripts\python.exe scripts\build_base_pack.py` (`--only terrain` or `--only imagery` for one).
+
+### Offline demo: warm it, then prove it
+The prefetch covers areas; the demo tour covers exactly what a demo shows. For each south-polar demo site it goes
+through every camera view, a zoom out to the whole Moon and back, the top-down toggle and the shadows across a
+real sunset, in a real browser (Chrome or Edge; set `CHROME_PATH` if it isn't found), with the app running:
+```
+cd frontend
+node scripts/demo-tour.mjs                    # online: everything it shows gets cached by the backend
+```
+Then prove nothing else is needed: restart the backend offline and run the tour again.
+```
+cd backend
+set LUNAR_OFFLINE=1                           # PowerShell: $env:LUNAR_OFFLINE=1
+.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000
+
+cd frontend
+node scripts/demo-tour.mjs --verify           # fails, listing them, if any request needed a download
+```
+With `LUNAR_OFFLINE=1` the backend serves only cached data (Moon Trek, JPL Horizons and NAIF downloads fail at
+once), so a clean `--verify` means the demo runs with no network. Options: `--sites a,b` (default: the 8 Artemis
+region sites, the Shackleton control, IM-1, IM-2), `--check-horizon` (also compares the 3D terrain's skyline with
+the engine's horizon), `--out dir` (screenshots of every stop and report.json; default `tour-output/`).
+The UI font comes from Google Fonts: offline the UI falls back to a system font (looks slightly different, works).
 
 ## 3. Run
 Two terminals:

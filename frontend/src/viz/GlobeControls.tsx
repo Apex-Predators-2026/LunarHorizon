@@ -112,7 +112,7 @@ export function GlobeControls({
     if (moonCentre) n.centre.set(...moonCentre)
     nav.current = n
     set({ controls: n })
-    if (PERF_ENABLED) (window as unknown as { __nav?: unknown }).__nav = { camera, nav: n } // dev checks (?perf)
+    if (PERF_ENABLED) (window as unknown as { __nav?: unknown }).__nav = { camera, nav: n, invalidate } // dev checks (?perf, demo tour)
     const el = gl.domElement
     const raycaster = new THREE.Raycaster()
     const pointers = new Map<number, { x: number; y: number }>()

@@ -1,14 +1,18 @@
 """Demo data pack: warm the caches so the demo doesn't wait on (or depend on) Moon Trek.
 
 Run from backend/:
-    .venv\\Scripts\\python.exe scripts\\prefetch_tiles.py [--imagery] [--globe-zoom 3] [--polar-zoom 7] [--site-zoom 13]
+    .venv\\Scripts\\python.exe scripts\\prefetch_tiles.py [--no-imagery] [--globe-zoom 3] [--polar-zoom 7] [--site-zoom 13]
 
   * terrain: the whole globe down to --globe-zoom, the south-polar region (within ~300 km of the pole)
     down to --polar-zoom, and the 3 x 3 tiles around each of the 24 curated sites down to --site-zoom.
     Tiles are warmed padded (pad=1), exactly as the 3D view requests them.
   * the PSR / surface-ice overlay (Moon Trek).
-  * with --imagery: the optional LRO imagery layer (levels 0-3 everywhere, the polar region and the
-    sites' surroundings to level 7, where imagery tiles stop).
+  * the LRO imagery the 3D view fades to when zoomed out (levels 0-3 everywhere, the polar region and the
+    sites' surroundings to level 7, where imagery tiles stop); --no-imagery skips it.
+  * the JPL/NAIF kernels for custom pins (local ephemeris, ~17 MB), so a pin dropped where the terrain is cached
+    also works offline.
+To check that a demo really needs nothing else, run the backend with LUNAR_OFFLINE=1 and go through it
+(frontend/scripts/demo-tour.mjs --verify does that automatically; see docs/demo-setup.md).
 Everything lands in data/cache/ (git-ignored; copy that folder to another machine to skip this).
 Safe to re-run: cached data is reused, and tiles that failed (e.g. Moon Trek hiccups) are listed
 so a second run can fill them in.
@@ -22,7 +26,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.engine import psr  # noqa: E402
+from app.engine import ephem_local, psr  # noqa: E402
 from app.engine.imagery import IMAGERY_MAX_ZOOM, imagery_tile  # noqa: E402
 from app.engine.net import CACHE_DIR  # noqa: E402
 from app.engine.sites import ALL_SITES  # noqa: E402
@@ -93,7 +97,7 @@ def main():
     ap.add_argument("--globe-zoom", type=int, default=3)
     ap.add_argument("--polar-zoom", type=int, default=7)
     ap.add_argument("--site-zoom", type=int, default=13)
-    ap.add_argument("--imagery", action="store_true", help="also warm the optional LRO imagery layer")
+    ap.add_argument("--no-imagery", action="store_true", help="skip the LRO imagery (the zoomed-out look of the 3D view)")
     args = ap.parse_args()
 
     failed: list[Tile] = []
@@ -107,7 +111,14 @@ def main():
     except OSError as e:
         print(f"  failed: {e}", flush=True)
 
-    if args.imagery:
+    print("Ephemeris kernels for custom pins (JPL/NAIF)", flush=True)
+    try:
+        ephem_local.setup()
+        print("  ready", flush=True)
+    except OSError as e:
+        print(f"  failed: {e}", flush=True)
+
+    if not args.no_imagery:
         zmax = IMAGERY_MAX_ZOOM
         imagery = globe(min(3, zmax)) | polar(zmax) | around_sites(zmax, respect_data=False)
         failed += warm("Imagery", imagery, lambda t: imagery_tile(*t))
