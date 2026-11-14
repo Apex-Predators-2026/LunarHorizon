@@ -157,7 +157,7 @@ series = load_site_file("data/sites/peak-near-shackleton.json")   # -> Scientifi
 | `meta.terrain[]` | `provenance.terrain_source`; `calculation_basis = terrain_aware` | an empty list is rejected |
 | `meta.step` | `sampling.nominal_interval_s`; `max_gap_s = 1.5 × step` | `1h`/`30m`/`10 min`/`1d`; samples closer than the step are rejected |
 | `meta.generated_utc` (format 1.1) | `provenance.generated_at_utc` | parsed as UTC; `null` only if absent |
-| `meta.generator_version` (1.1) | `provenance.generator`; `fraction_decimals` | documented rounding: `1.0` → 3, `1.1` → 6, `1.2` → 6 decimals (1.2 keeps `_r(sun_fraction, 6)` in `pipeline.py` and every committed 1.2 file has ≤ 6 decimals); unknown version → not declared (strict rule 6) |
+| `meta.generator_version` (1.1), `meta.fraction_decimals` / `meta.angle_decimals` (1.2) | `provenance.generator`; `fraction_decimals`; angle precision noted in `provenance.notes` | explicit `meta.fraction_decimals` (1.2+) wins; otherwise the documented rounding `1.0` → 3, `1.1` → 6; unknown version and no explicit field → not declared (strict rule 6) |
 | `meta.frame` (1.1) | `provenance.coordinate_frame` | recorded verbatim as Member 1's statement; notes say "not independently verified" |
 | `horizon.azimuth_deg`, `elevation_deg` | `horizon_profile` | step → `horizon_azimuth_step_deg` (0.5°); `distance_m` is not carried |
 | `timeline.time_utc` (`…T00:00Z`) | `samples[i].time_utc` | must be UTC; other offsets or naive times are rejected |
@@ -1270,12 +1270,11 @@ Run `python -m pytest` in `backend/` for the whole team suite; `backend/pytest.i
 **Open, with Member 1 (Andrew):**
 1. **Lunar body-fixed frame: stated by Member 1, not independently verified here.** Andrew documents (docs/data-sources.md, `meta.frame`) that sites, Horizons and LOLA are all Moon **Mean-Earth/polar-axis (ME)**. His engine refuses any Horizons response whose `Center pole/equ` header is not `MEAN_ME`. The LOLA side rests on product documentation (MOON_ME, DE421), and he notes a metre-level DE421 vs DE441 residual. That is a code-level check on the ephemeris side, which the viability engine has not repeated. We record the statement in `provenance.coordinate_frame`, label it "not independently verified", and make no stronger claim. Member 6 may want an independent check (e.g. one Horizons header plus the DEM product metadata).
 2. ~~Precision~~ **done in format 1.1** (6 decimals + `sun_visible`); sub-precision sliver hours are handled (§3a).
-   **Follow-up for generator 1.2:** Andrew planned explicit `meta.fraction_decimals` and `meta.angle_decimals`, but
-   they are **not in any committed site file or in `pipeline.py` on `origin/main`** (checked 2026-11-14), so the
-   reader still infers precision from `generator_version` (`1.2` → 6, verified against the committed files).
-   Once he publishes them, `adapters/site_file.py` should prefer `meta.fraction_decimals` (strict integer
-   0–17), keep the version table as the fallback for older files, and gain regression tests for both paths. The
-   engine does not invent this metadata.
+   **Done in generator 1.2 (origin/main `2e33678`):** every 1.2 file carries `meta.fraction_decimals` (6) and
+   `meta.angle_decimals` (3). The adapter prefers `meta.fraction_decimals` (strict integer 0–17, else
+   `SiteFileError`), falls back to the version table for older files (1.0 → 3, 1.1 → 6), and records
+   `angle_decimals` in `provenance.notes` (the input contract has no angle-precision field, so no shared
+   contract was changed). The engine never invents this metadata.
 3. ~~Angular radius / generation metadata~~ **done in format 1.1** (`sun_angular_radius_deg`, `generated_utc`, `generator_version`); all carried by the adapter.
 4. ~~Nullable shared `TimelineStep`~~ **done** (Andrew: `null` = unknown for custom sites; the adapter maps it to `unknown`). Curated sites contain no nulls.
 5. Is one observer height enough, or are separate solar-array and antenna heights needed?
