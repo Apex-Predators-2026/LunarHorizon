@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppStore } from '../store'
+import { MangoRange } from '../ui/MangoRange'
 import type { SiteInfo, TimelineStep } from '../types'
 import { HOUR_MS, longestRun, parseUtc, roundHour, runs, sunUp, toIsoMinute } from './timeline'
 
@@ -323,11 +324,9 @@ export function TimeBar({
 
       <div className="mt-1 flex items-center gap-2">
         <span className="shrink-0 text-[10px] tabular-nums text-slate-500">{site.data_start_utc.slice(0, 10)}</span>
-        <input
-          type="range"
+        <MangoRange
           aria-label="Time across the whole data range"
-          className="min-w-0 flex-1"
-          style={{ '--p': totalHours > 0 ? (now - start) / HOUR_MS / totalHours : 0 } as React.CSSProperties}
+          wrapperClassName="min-w-0 flex-1"
           min={0}
           max={totalHours}
           step={1}

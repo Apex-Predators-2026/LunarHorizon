@@ -15,7 +15,8 @@ import { groundHeightAt, liftAboveGround, type TileHeights } from './terrainHeig
 import { buildTileMesh, innerHeights, tilePadding, tileTopology } from './tileGeometry'
 import { basePack } from './basePack'
 import { advanceLoad, initialLoad, useTerrainLoad } from './terrainLoad'
-import { TileImagery } from './tileImagery'
+import { imageryMix, imageryWanted, TileImagery } from './tileImagery'
+import { useCoverage } from './coverage'
 import { MAX_TILE_ATTEMPTS, retryDelayMs, TILE_TIMEOUT_MS } from './tileRetry'
 
 /** Request start times for the loading bar (tile loads start from the frame loop, not during render). */
@@ -95,7 +96,6 @@ export function TileTree({
   cameraClearanceM = 3,
   lodThresholdPx = 4,
   maxCachedMeshes = 500,
-  imagery = false,
 }: {
   frame: SiteFrame
   material: THREE.Material
@@ -104,7 +104,6 @@ export function TileTree({
   cameraClearanceM?: number // the camera never gets closer than this to the ground below it (m)
   lodThresholdPx?: number // refine while a vertex step spans more than this on screen (graphics preset)
   maxCachedMeshes?: number // tile meshes kept in memory (graphics preset)
-  imagery?: boolean // drape the LRO WAC mosaic over the terrain (see tileImagery.ts)
 }) {
   const group = useRef<THREE.Group>(null)
   const nodes = useRef(new Map<string, TileNode>())
@@ -155,9 +154,8 @@ export function TileTree({
     }
   }, [frame, invalidate])
 
-  // Imagery layer on/off (and a fresh one per site): reapply materials on the next frame.
+  // LRO imagery when zoomed out (tileImagery.ts), a fresh one per site and terrain material.
   useEffect(() => {
-    if (!imagery) return
     const reselect = () => {
       dirty.current = true
       invalidate()
@@ -174,7 +172,7 @@ export function TileTree({
       imageryRef.current = null
       reselect()
     }
-  }, [imagery, material, frame, get, invalidate])
+  }, [material, frame, get, invalidate])
 
   // A different detail level: reselect on the next frame.
   useEffect(() => {
@@ -292,8 +290,15 @@ export function TileTree({
       c.set(...lifted)
       state.camera.updateMatrixWorld()
     }
+    // Photo mosaic by altitude: updated every frame, so the fade follows the zoom smoothly.
+    const cm = frame.toMoon([c.x, c.y, c.z])
+    const altitude = Math.hypot(cm[0], cm[1], cm[2]) - MOON_RADIUS_M
+    const mix = imageryMix(altitude)
+    if (imageryRef.current?.tick(performance.now(), mix)) invalidate() // a tile is fading in
+    const mixPct = Math.round(mix * 100)
+    if (useCoverage.getState().mixPct !== mixPct) useCoverage.setState({ mixPct }) // the coverage badge
     if (PERF_ENABLED) {
-      const m = frame.toMoon([c.x, c.y, c.z])
+      const m = cm
       const h = groundHeightAt(m, tileHeights)
       recordCameraClearance(h === null ? null : Math.hypot(m[0], m[1], m[2]) - MOON_RADIUS_M - h)
     }
@@ -392,11 +397,18 @@ export function TileTree({
       }
     }
     if (changed) state.gl.shadowMap.needsUpdate = true
-    imageryRef.current?.apply(
-      draw.map((n) => ({ key: n.key, face: n.face, z: n.z, x: n.x, y: n.y, mesh: n.mesh! })),
-      material,
-      now,
-    ) // terrain under the lander may have changed detail
+    // Imagery only when zoomed out far enough for it to show (no requests close up).
+    if (imageryWanted(altitude))
+      imageryRef.current?.apply(
+        draw.map((n) => ({ key: n.key, face: n.face, z: n.z, x: n.x, y: n.y, mesh: n.mesh! })),
+        material,
+        now,
+      )
+    else
+      imageryRef.current?.release(
+        draw.map((n) => n.mesh!),
+        material,
+      )
 
     // Forget meshes not used for a while once the cache is large.
     const ready = [...nodes.current.values()].filter((n) => n.mesh)

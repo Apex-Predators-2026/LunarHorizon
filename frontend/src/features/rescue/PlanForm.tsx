@@ -12,7 +12,7 @@ import { fromUtcInput, toUtcInput } from './format'
 import type { RescueCatalog } from './types'
 import { useRescueStore } from './useRescueStore'
 
-const REQUIREMENT_FIELDS: { key: RequirementKey; label: string; step: number; percent?: boolean }[] = [
+export const REQUIREMENT_FIELDS: { key: RequirementKey; label: string; step: number; percent?: boolean }[] = [
   { key: 'min_sunlight_fraction', label: 'Min average sunlight (%)', step: 5, percent: true },
   { key: 'battery_hours', label: 'Battery: longest dark period (h)', step: 1 },
   { key: 'panel_threshold', label: 'Panels count as dark below (% of Sun)', step: 5, percent: true },
@@ -22,7 +22,7 @@ const REQUIREMENT_FIELDS: { key: RequirementKey; label: string; step: number; pe
   { key: 'min_initial_comms_hours', label: 'Earth contact needed after landing (h)', step: 1 },
 ]
 
-const REQUIREMENT_TIPS: Record<RequirementKey, string> = {
+export const REQUIREMENT_TIPS: Record<RequirementKey, string> = {
   min_sunlight_fraction: 'The least average share of the mission the Sun must be up, for solar power.',
   battery_hours: 'The longest stretch of darkness the battery can carry the lander through.',
   panel_threshold: 'Below this share of full sunlight the solar panels count as being in the dark.',

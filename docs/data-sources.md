@@ -62,8 +62,12 @@ Since generator 1.2 the engine and the 3D terrain sample all of these through on
 - **Not used:** Moon Trek's Cesium terrain (`marshub.s3.amazonaws.com/moon_v14/`): whole Moon only to level 9
   (~165 m) and no extra detail below 80°S, coarser than the polar products.
 
-## Moon Trek: LRO WAC imagery, optional 3D layer (`backend/app/engine/imagery.py`)
-The "LRO imagery" toggle drapes Lunar Reconnaissance Orbiter Wide Angle Camera mosaics over the terrain.
+## Moon Trek: LRO WAC imagery, the zoomed-out look of the 3D view (`backend/app/engine/imagery.py`)
+Like Google Earth turning into a satellite view, zooming out cross-fades the terrain into Lunar Reconnaissance
+Orbiter Wide Angle Camera mosaics (`frontend/src/viz/globe/tileImagery.ts`): plain terrain with the live sunlight
+below 1,000 km altitude (the Site and Region views), the photo mosaic above 7,500 km (near the furthest zoom-out),
+a smooth blend in between (the Globe view, ~4,260 km up, is ~80% photo). A badge at the bottom left says which one is showing. The live sunlight still shades the mosaic, so the day/night line stays where it is at the selected time.
+Levels 0–2 (128 px) ship with the frontend (`frontend/public/imagery/base.bin`, built by `scripts/build_base_pack.py`).
 
 | Service | Resolution | Projection | Used |
 |---|---|---|---|
@@ -76,7 +80,7 @@ The "LRO imagery" toggle drapes Lunar Reconnaissance Orbiter Wide Angle Camera m
 - `/api/imagery/tile/{face}/{z}/{x}/{y}`: a 256 × 256 grayscale PNG per tile for levels 0–7 (~83 m/px at level 7,
   about the mosaics' resolution). Deeper tiles show their level-7 ancestor's image.
 - **Not the selected time:** the mosaics are photographs, so their shadows are from when they were taken. Near the
-  pole most of the mosaic is in shadow. The layer helps recognise places; nothing is calculated from it.
+  pole most of the mosaic is in shadow. That is why it only shows zoomed out, where it helps recognise places; nothing is calculated from it.
 
 ## Moon Trek: permanently shadowed regions and surface ice (`backend/app/engine/psr.py`)
 - `PSR_SP/MapServer/0`: 164 south-polar PSRs as **points** (centre, area 10–1,075 km², ID, LRO imaging notes),
