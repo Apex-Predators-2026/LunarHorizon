@@ -1,13 +1,17 @@
-"""Viability entry point used by rescue.
+"""Viability entry point used by rescue (and by the comparison service, which imports the same name).
 
-When Brandon's evaluator is ready, import his `evaluate_timeline` here instead of the
-placeholder one. It must keep the signature
+Rescue runs on the canonical viability engine (Member 2, app/viability) through its compatibility
+layer, which keeps rescue's signature
     evaluate_timeline(scenario: Scenario, timeline: Timeline) -> ViabilityResult
-and fill `violations[].constraint` with MissionRequirements field names.
+Switched after the side-by-side test (tests/test_engine_side_by_side.py) showed identical verdicts,
+metrics and violations on real data; only the score formula differs (docs/viability-engine.md §5g).
 
-Keep importing CHECKS / CHECK_BY_CONSTRAINT from the placeholder: rescue uses that table
-(requirement -> metric, min/max, label) to word and round its loosening suggestions.
+The placeholder evaluator stays in placeholder.py for reference and its own tests. Keep importing
+CHECKS / CHECK_BY_CONSTRAINT from it: rescue uses that table (requirement -> metric, min/max, label)
+to word and round its loosening suggestions.
 """
-from .placeholder import CHECK_BY_CONSTRAINT, CHECKS, evaluate_timeline
+from app.viability.compat.rescue import evaluate_timeline
+
+from .placeholder import CHECK_BY_CONSTRAINT, CHECKS
 
 __all__ = ["evaluate_timeline", "CHECKS", "CHECK_BY_CONSTRAINT"]

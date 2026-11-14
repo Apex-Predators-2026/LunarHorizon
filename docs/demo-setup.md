@@ -24,6 +24,9 @@ cd backend
 - Safe to re-run: it reuses what's cached, lists tiles that failed (Moon Trek is sometimes busy), and a second
   run fills them in.
 - To skip this on another machine, copy the whole `data/cache/` folder across (about 5 GB: 3.2 GB terrain, 1.8 GB imagery).
+- The whole-Moon first view doesn't need the cache: its coarsest terrain (levels 0-2, 126 tiles) ships with the
+  frontend as `frontend/public/terrain/base.bin` (1.1 MB). Rebuild it only if the terrain source or the tiling
+  changes: `.venv\Scripts\python.exe scripts\build_base_pack.py`.
 
 ## 3. Run
 Two terminals:
