@@ -3,6 +3,7 @@ import { useAppStore } from '../store'
 import { LoadingIndicator } from '../ui/LoadingIndicator'
 import { MangoRange } from '../ui/MangoRange'
 import type { SiteInfo, TimelineStep } from '../types'
+import { DatePopup } from './DatePopup'
 import { HOUR_MS, longestRun, parseUtc, roundHour, runs, sunUp, toIsoMinute } from './timeline'
 
 const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', dark: '#111a2e', gap: '#d03b3b', grid: '#22304d', axis: '#5b6168' }
@@ -85,15 +86,18 @@ function Strip({
   now,
   onSeek,
   mission,
+  rightSlot,
 }: {
   steps: TimelineStep[]
   win: [number, number]
   now: number
   onSeek: (ms: number) => void
   mission?: StripMission | null
+  rightSlot?: ReactNode
 }) {
   const [boxRef, width] = useWidth<HTMLDivElement>()
   const dragging = useRef(false)
+  const [hoveringStrip, setHoveringStrip] = useState(false)
   const w = Math.max(50, width - GUTTER - 4)
   const x = (t: number) => GUTTER + ((t - win[0]) / (win[1] - win[0])) * w
   const inv = (px: number) => win[0] + ((px - GUTTER) / w) * (win[1] - win[0])
@@ -168,6 +172,11 @@ function Strip({
             onSeek(win[1])
           }
         }}
+        onPointerEnter={() => setHoveringStrip(true)}
+        onPointerLeave={() => {
+          setHoveringStrip(false)
+          dragging.current = false
+        }}
         onPointerDown={(ev) => {
           dragging.current = true
           ev.currentTarget.setPointerCapture(ev.pointerId)
@@ -227,19 +236,37 @@ function Strip({
               ))}
           </g>
         )}
-        {now >= win[0] && now <= win[1] && (
-          <line x1={x(now)} x2={x(now)} y1={-2} y2={earthTop + EARTH_H + 2} stroke="#ff634a" strokeWidth={2} />
-        )}
+        {now >= win[0] && now <= win[1] && (() => {
+          const px = x(now)
+          const badgeX = Math.min(GUTTER + w - 42, Math.max(GUTTER + 42, px))
+          return (
+            <g pointerEvents="none">
+              <line x1={px} x2={px} y1={0} y2={earthTop + EARTH_H + 2} stroke="#ff634a" strokeWidth={2} />
+              <path d={`M${px - 4.5},0 L${px + 4.5},0 L${px},5.5 Z`} fill="#ff634a" />
+              {(hoveringStrip || dragging.current) && (
+                <g transform={`translate(${badgeX}, 1)`}>
+                  <rect x={-40} y={0} width={80} height={15} rx={7.5} fill="#0f172a" fillOpacity={0.9} stroke="#ff634a" strokeWidth={1} />
+                  <text x={0} y={10.5} fontSize={9} fontFamily="monospace" fontWeight={600} textAnchor="middle" fill="#ffffff">
+                    {fmtTime(now).slice(5, 16)}
+                  </text>
+                </g>
+              )}
+            </g>
+          )
+        })()}
       </svg>
-      <div className="mt-0.5 flex flex-wrap gap-x-3 text-[10px] text-slate-400">
-        <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: COLORS.sun }} />Sunlight (height = % of solar disk visible)</span>
-        <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: COLORS.earth }} />Earth in view</span>
-        <span><span className="mr-1 inline-block h-2 w-3 border align-middle" style={{ borderColor: COLORS.gap }} />
-          Longest gap in window{dark ? ` · dark ${fmtDur(dark.hours)}` : ''}{blackout ? ` · blackout ${fmtDur(blackout.hours)}` : ''}</span>
-        {mission && (
-          <span><span className="mr-1 inline-block h-2 w-3 border border-dashed align-middle" style={{ borderColor: '#ff634a' }} />
-            Mission{mission.failures.length ? <> · <span className="text-red-400">▼</span> requirement broken</> : ''}</span>
-        )}
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-[10px] text-slate-400">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+          <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: COLORS.sun }} />Sunlight (height = % of solar disk visible)</span>
+          <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: COLORS.earth }} />Earth in view</span>
+          <span><span className="mr-1 inline-block h-2 w-3 border align-middle" style={{ borderColor: COLORS.gap }} />
+            Longest gap in window{dark ? ` · dark ${fmtDur(dark.hours)}` : ''}{blackout ? ` · blackout ${fmtDur(blackout.hours)}` : ''}</span>
+          {mission && (
+            <span><span className="mr-1 inline-block h-2 w-3 border border-dashed align-middle" style={{ borderColor: '#ff634a' }} />
+              Mission{mission.failures.length ? <> · <span className="text-red-400">▼</span> requirement broken</> : ''}</span>
+          )}
+        </div>
+        {rightSlot}
       </div>
     </div>
   )
@@ -270,6 +297,7 @@ export function TimeBar({
   const timeUtc = useAppStore((s) => s.timeUtc)
   const setTime = useAppStore((s) => s.setTime)
   const [speed, setSpeed] = useState(SPEEDS[1].hoursPerSec)
+  const [calendarOpen, setCalendarOpen] = useState(false)
 
   const start = parseUtc(site.data_start_utc)
   const stop = parseUtc(site.data_stop_utc)
@@ -280,48 +308,91 @@ export function TimeBar({
   const step = (hours: number) => seek(now + hours * HOUR_MS)
   const totalHours = Math.round((stop - start) / HOUR_MS)
 
-  const btn = 'md-compact border border-opal-300 bg-white transition-colors hover:bg-calcite-peach/40 disabled:opacity-40'
-  const select = 'h-10 rounded-full border border-opal-300 bg-white px-3'
+  const stepBtn =
+    'h-7 rounded-full px-2.5 text-xs font-medium tabular-nums text-slate-200 transition-colors hover:bg-calcite-peach/40 disabled:opacity-40'
+  const selectCls =
+    'h-8 cursor-pointer appearance-none rounded-full border border-opal-300 bg-white pl-3 pr-7 text-xs font-medium text-slate-200 transition-colors hover:border-coral/50 focus:border-coral focus:outline-none'
+
+  const datePill = (
+    <div className="ml-auto flex items-center gap-2">
+      {loading && <LoadingIndicator size={22} contained={false} label="Loading timeline" />}
+      <button
+        type="button"
+        onClick={() => setCalendarOpen((o) => !o)}
+        aria-expanded={calendarOpen}
+        aria-label={`Simulation time ${fmtTime(now)}. Click to open calendar.`}
+        data-tip="Click to pick a date & time (UTC)"
+        className="inline-flex h-6 items-center gap-1.5 rounded-full border border-opal-300 bg-white px-2.5 font-mono text-[11px] font-semibold tabular-nums text-slate-100 shadow-2xs transition-colors hover:border-coral hover:bg-calcite-peach/30"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="text-coral">
+          <path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5z" />
+        </svg>
+        {fmtTime(now)}
+      </button>
+    </div>
+  )
 
   return (
-    <div className="lp-light pointer-events-auto relative max-h-[48vh] overflow-y-auto rounded-t-[24px] bg-opal-50 px-4 pb-3 pt-4 text-xs shadow-lg shadow-black/30">
-      {onHide && (
-        <button
-          type="button"
-          onClick={onHide}
-          aria-label="Hide timeline panel"
-          data-tip="Hide"
-          className="absolute right-2 top-2 z-10 flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-calcite-peach/40 hover:text-slate-100"
-        >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M2 4l4 4 4-4" />
-          </svg>
-        </button>
-      )}
-      <div className="mb-2 flex flex-wrap items-center gap-2 pr-10">
-        <button type="button" className={btn} onClick={() => step(-windowDays * 24)} aria-label={`Previous ${windowDays}-day window`} data-tip="Previous window">⏮</button>
-        <button type="button" className={btn} onClick={() => step(-24)} aria-label="Step back 1 day" data-tip="Back 1 day">−1 d</button>
-        <button type="button" className={btn} onClick={() => step(-1)} aria-label="Step back 1 hour" data-tip="Back 1 hour">−1 h</button>
-        <button type="button" className={btn} onClick={() => step(1)} aria-label="Step forward 1 hour" data-tip="Forward 1 hour">+1 h</button>
-        <button type="button" className={btn} onClick={() => step(24)} aria-label="Step forward 1 day" data-tip="Forward 1 day">+1 d</button>
-        <button type="button" className={btn} onClick={() => step(windowDays * 24)} aria-label={`Next ${windowDays}-day window`} data-tip="Next window">⏭</button>
-        <label className="ml-2 flex items-center gap-2 text-slate-400">
-          Speed
-          <select className={select} value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
-            {SPEEDS.map((s) => <option key={s.label} value={s.hoursPerSec}>{s.label}</option>)}
-          </select>
-        </label>
-        <label className="flex items-center gap-2 text-slate-400">
-          Window
-          <select className={select} value={windowDays} onChange={(e) => onWindowDays(Number(e.target.value))}>
-            {WINDOW_DAYS.map((d) => <option key={d} value={d}>{d} days</option>)}
-          </select>
-        </label>
-        <span className="ml-auto font-mono tabular-nums text-slate-100">{fmtTime(now)}</span>
-        {loading && <LoadingIndicator size={22} contained={false} label="Loading timeline" />}
+    <div className="lp-light pointer-events-auto relative max-h-[48vh] overflow-y-auto rounded-t-[24px] bg-opal-50 px-4 pb-2.5 pt-2.5 text-xs shadow-lg shadow-black/30">
+      <div className="relative mb-2 flex min-h-9 flex-wrap items-center justify-between gap-2">
+        <div className="inline-flex items-center rounded-full border border-opal-300 bg-white p-0.5 shadow-2xs">
+          <button type="button" className={stepBtn} onClick={() => step(-windowDays * 24)} aria-label={`Previous ${windowDays}-day window`} data-tip="Previous window">⏮</button>
+          <span className="mx-0.5 h-4 w-px bg-opal-300" aria-hidden />
+          <button type="button" className={stepBtn} onClick={() => step(-24)} aria-label="Step back 1 day" data-tip="Back 1 day">−1 d</button>
+          <button type="button" className={stepBtn} onClick={() => step(-1)} aria-label="Step back 1 hour" data-tip="Back 1 hour">−1 h</button>
+          <button type="button" className={stepBtn} onClick={() => step(1)} aria-label="Step forward 1 hour" data-tip="Forward 1 hour">+1 h</button>
+          <button type="button" className={stepBtn} onClick={() => step(24)} aria-label="Step forward 1 day" data-tip="Forward 1 day">+1 d</button>
+          <span className="mx-0.5 h-4 w-px bg-opal-300" aria-hidden />
+          <button type="button" className={stepBtn} onClick={() => step(windowDays * 24)} aria-label={`Next ${windowDays}-day window`} data-tip="Next window">⏭</button>
+        </div>
+
+        {onHide && (
+          <button
+            type="button"
+            onClick={onHide}
+            aria-label="Hide timeline panel"
+            data-tip="Hide timeline"
+            className="absolute left-1/2 top-1/2 z-10 flex h-9 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-calcite-peach/40 hover:text-slate-100"
+          >
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M4 8l7 7 7-7" />
+            </svg>
+          </button>
+        )}
+
+        <div className="ml-auto flex items-center gap-2.5">
+          <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+            Speed
+            <span className="relative inline-flex items-center">
+              <select className={selectCls} value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
+                {SPEEDS.map((s) => <option key={s.label} value={s.hoursPerSec}>{s.label}</option>)}
+              </select>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="pointer-events-none absolute right-2.5 text-slate-400">
+                <path d="M3 4.5l3 3 3-3" />
+              </svg>
+            </span>
+          </label>
+          <label className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+            Window
+            <span className="relative inline-flex items-center">
+              <select className={selectCls} value={windowDays} onChange={(e) => onWindowDays(Number(e.target.value))}>
+                {WINDOW_DAYS.map((d) => <option key={d} value={d}>{d} days</option>)}
+              </select>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="pointer-events-none absolute right-2.5 text-slate-400">
+                <path d="M3 4.5l3 3 3-3" />
+              </svg>
+            </span>
+          </label>
+        </div>
       </div>
 
-      {steps.length ? <Strip steps={steps} win={win} now={now} onSeek={seek} mission={mission} /> : <div style={{ height: STRIP_H + 14 }} />}
+      {steps.length ? (
+        <Strip steps={steps} win={win} now={now} onSeek={seek} mission={mission} rightSlot={datePill} />
+      ) : (
+        <div className="flex flex-col justify-end pb-1" style={{ height: STRIP_H + 14 }}>
+          <div className="flex items-center justify-end">{datePill}</div>
+        </div>
+      )}
 
       <div className="mt-1 flex items-center gap-2">
         <span className="shrink-0 text-[10px] tabular-nums text-slate-500">{site.data_start_utc.slice(0, 10)}</span>
@@ -344,6 +415,15 @@ export function TimeBar({
           ephemeris: {site.kind === 'custom' ? 'JPL DE421 (local, checked against Horizons)' : 'JPL Horizons'} · drag to spin the Moon, right-drag to turn, scroll to zoom
         </span>
       </div>
+      {calendarOpen && (
+        <DatePopup
+          timeUtc={timeUtc}
+          min={site.data_start_utc}
+          max={site.data_stop_utc}
+          onPick={setTime}
+          onClose={() => setCalendarOpen(false)}
+        />
+      )}
     </div>
   )
 }

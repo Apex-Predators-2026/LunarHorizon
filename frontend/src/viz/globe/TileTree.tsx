@@ -26,6 +26,8 @@ const MAX_IN_FLIGHT = 6
 // Start downloading the ready-made coarse globe with the page, before the first tile is wanted.
 if (typeof window !== 'undefined') void basePack()
 const UPDATE_EVERY_MS = 60 // at most this often while the camera moves
+const EDGE_MARGIN = 0.12 // tiles up to ~7 deg outside the view count as visible (see visible())
+const STICKY_EDGE_MARGIN = 0.4 // ... and up to ~22 deg for tiles that were visible at the last selection
 
 type State = 'idle' | 'loading' | 'ready' | 'error'
 
@@ -44,7 +46,18 @@ interface TileNode {
   lastUsed: number
   failures: number // failed attempts so far (reset when it loads)
   retryAt: number // performance.now() after which a failed tile may be requested again
+  refined: boolean // its children were drawn instead of it at the last selection (see MERGE_AT)
+  onScreen: boolean // it was visible at the last check (see STICKY_EDGE_MARGIN)
+  lastSse: number // its on-screen vertex step at the last selection (px), to tell zooming in from out
 }
+
+/**
+ * Hysteresis between detail levels: a tile is split into its children once a vertex step spans more
+ * than lodThresholdPx on screen, but merged back only below this fraction of it. Without it a tile
+ * near the threshold flips between levels while zooming (patches flashing sharper/blurrier), and
+ * children that finish loading just after the camera moved on would show for a moment and vanish.
+ */
+const MERGE_AT = 0.75
 
 export interface TileStats {
   visible: number
@@ -187,7 +200,7 @@ export function TileTree({
     let n = nodes.current.get(key)
     if (!n) {
       const [centre, radius] = approxBounds(frame, f, z, x, y)
-      n = { key, face: f, z, x, y, state: 'idle', leaf: z >= MAX_ZOOM, centre, radius, mesh: null, heights: null, lastUsed: 0, failures: 0, retryAt: 0 }
+      n = { key, face: f, z, x, y, state: 'idle', leaf: z >= MAX_ZOOM, centre, radius, mesh: null, heights: null, lastUsed: 0, failures: 0, retryAt: 0, refined: false, onScreen: false, lastSse: 0 }
       nodes.current.set(key, n)
     }
     return n
@@ -340,10 +353,24 @@ export function TileTree({
     const dist = (n: TileNode) => Math.max(1, Math.hypot(cam.x - n.centre[0], cam.y - n.centre[1], cam.z - n.centre[2]) - n.radius)
     const visible = (n: TileNode) => {
       sphere.center.set(...n.centre)
-      sphere.radius = n.radius
-      return frustum.intersectsSphere(sphere) && dist(n) <= horizonDist + n.radius
+      // A margin around the screen: the camera keeps moving between selections (UPDATE_EVERY_MS), so
+      // tiles just outside the view are drawn too, or the edge it uncovers would be a hole meanwhile.
+      // Tiles already on screen get a wider one, so a quick swing (e.g. levelling out while zooming
+      // out fast) doesn't drop them for a moment only to need them again at the next selection.
+      sphere.radius = n.radius + dist(n) * (n.onScreen ? STICKY_EDGE_MARGIN : EDGE_MARGIN)
+      n.onScreen = frustum.intersectsSphere(sphere) && dist(n) <= horizonDist + n.radius
+      return n.onScreen
     }
-    const wantsRefine = (n: TileNode) => !n.leaf && (vertexSpacingM(n.z) * pxPerRad) / dist(n) > lodThresholdPx
+    /** Split this tile into its children? sse = on-screen size of one vertex step (px). */
+    const wantsRefine = (n: TileNode) => {
+      if (n.leaf) return false
+      const sse = (vertexSpacingM(n.z) * pxPerRad) / dist(n)
+      // Getting smaller on screen (zooming out / moving away): don't switch to children that only
+      // just arrived, they would be merged away again a moment later (a patch flashing sharp).
+      const receding = sse < n.lastSse * 0.98
+      n.lastSse = sse
+      return n.refined ? sse > lodThresholdPx * MERGE_AT : sse > lodThresholdPx && !receding
+    }
 
     let retrying = 0
     /** A failed tile whose wait is over is requested again (until MAX_TILE_ATTEMPTS). */
@@ -361,19 +388,23 @@ export function TileTree({
       }
       if (wantsRefine(n)) {
         const kids = [0, 1].flatMap((dy) => [0, 1].map((dx) => node(n.face, n.z + 1, 2 * n.x + dx, 2 * n.y + dy)))
-        const shown = kids.filter(visible)
-        for (const k of shown) {
+        // Load all four children, also those just off screen: one that slides into view later is then
+        // ready, instead of making the whole patch fall back to this coarser tile until it loads.
+        for (const k of kids) {
           k.lastUsed = now
           due(k)
           if (k.state === 'idle') wanted.push(k)
         }
+        const shown = kids.filter(visible)
         // Switch to the children only once every visible one is ready: a child that failed keeps
         // its parent drawn (coarser, but no hole) until a retry succeeds.
         if (shown.length && shown.every((k) => k.state === 'ready')) {
+          n.refined = true
           for (const k of shown) visit(k)
           return true
         }
       }
+      n.refined = false
       draw.push(n)
       return true
     }

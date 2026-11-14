@@ -15,6 +15,7 @@ import {
   tiltAt,
   tiltTo,
   TOP_DOWN_TILT,
+  viewHeading,
   zoomAbout,
 } from './globeNav'
 
@@ -220,5 +221,44 @@ describe('fly to a point (minimap click)', () => {
     }
     expect(distanceToRay(rayAt(c, 0, 0), target)).toBeLessThan(0.5)
     expect(c.position.distanceTo(centre)).toBeCloseTo(height, 3)
+  })
+})
+
+describe('top-down toggle turns the view to north-up (tilting along north-south)', () => {
+  // The test frame is the site frame of a site near the south pole: x east, y up, z south.
+  const lat = (-89.5 * Math.PI) / 180
+  const axis = new THREE.Vector3(0, Math.sin(lat), -Math.cos(lat)) // towards the north pole, in the site frame
+
+  it('reads the heading of a view (the Site preset looks north-west)', () => {
+    const pivot = new THREE.Vector3(0, 0, 0)
+    const c = camera([2600, 1400, 3400], pivot)
+    const h = viewHeading(c, pivot, centre, axis)!
+    expect((h * 180) / Math.PI).toBeCloseTo((Math.atan2(-2600, 3400) * 180) / Math.PI, 1) // ~ -37 deg
+  })
+
+  it('turning by the heading about the vertical brings north to the top; tilting back then looks north', () => {
+    const pivot = new THREE.Vector3(0, 0, 0)
+    const c = camera([2600, 1400, 3400], pivot)
+    const tilt0 = tiltAt(c, pivot, centre)
+    const turn = viewHeading(c, pivot, centre, axis)!
+    // The swing down, in steps: turn and tilt together.
+    let turned = 0
+    for (let k = 1; k <= 20; k++) {
+      const e = k / 20
+      orbitAbout(c, pivot, centre, turn * e - turned, 0)
+      turned = turn * e
+      tiltTo(c, pivot, centre, tilt0 + (TOP_DOWN_TILT - tilt0) * e)
+    }
+    expect(nadirAngle(c, centre)).toBeLessThan(0.01)
+    expect(Math.abs(viewHeading(c, pivot, centre, axis)!)).toBeLessThan(1e-6) // north at the top of the screen
+    const screenUp = new THREE.Vector3(0, 1, 0).applyQuaternion(c.quaternion)
+    expect(screenUp.z).toBeLessThan(-0.99) // site frame north is -z
+    // Tilt back: the camera comes down on the south side, looking north.
+    for (let k = 1; k <= 20; k++) tiltTo(c, pivot, centre, TOP_DOWN_TILT + (tilt0 - TOP_DOWN_TILT) * (k / 20))
+    expect(c.position.z).toBeGreaterThan(1000) // south of the lander
+    expect(Math.abs(c.position.x)).toBeLessThan(1)
+    expect(Math.abs(viewHeading(c, pivot, centre, axis)!)).toBeLessThan(1e-6) // facing north
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(c.quaternion)
+    expect(Math.abs(right.y)).toBeLessThan(1e-6) // horizon level
   })
 })
