@@ -134,6 +134,17 @@ def test_neighbouring_tiles_share_edges():
     assert np.allclose(va, vb, atol=1e-12)
 
 
+def test_padded_tiles_carry_their_neighbours_first_vertices():
+    # A padded tile is the plain tile plus a ring of the neighbours' vertices, so a client can
+    # compute normals on a shared edge from the same points in both tiles (no lighting seams).
+    lat, lon = tile_latlon(5, 6, 20, 30)
+    plat, plon = tile_latlon(5, 6, 20, 30, pad=1)
+    assert plat.shape == (N + 2, N + 2)
+    assert np.array_equal(plat[1:-1, 1:-1], lat) and np.array_equal(plon[1:-1, 1:-1], lon)
+    nlat, nlon = tile_latlon(5, 6, 21, 30)  # right-hand neighbour
+    assert np.allclose(plat[1:-1, -1], nlat[:, 1], atol=1e-12) and np.allclose(plon[1:-1, -1], nlon[:, 1], atol=1e-12)
+
+
 def test_faces_tile_the_whole_sphere():
     rng = np.random.default_rng(0)
     p = rng.normal(size=(2000, 3))
