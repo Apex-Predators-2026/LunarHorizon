@@ -70,6 +70,7 @@ from app.viability.risk import (
 from app.viability.windows import PreparedSeries
 
 from .helpers import SunCode, at, hourly
+from .real_data import AFTER_DATA, END_SITE, REGRESSION_START, STRADDLE_START, raw_timeline
 
 H = 3600.0
 C = ConstraintId
@@ -786,7 +787,7 @@ def test_14_phase4_output_is_deterministic_and_round_trips() -> None:
 
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
-T0 = datetime(2027, 1, 1, tzinfo=UTC)
+T0 = REGRESSION_START
 # Same lander as the Phase 3 / Phase 4 real-data tests.
 TYPICAL: dict[str, Any] = {
     "dark_h": 50.0,
@@ -802,7 +803,7 @@ TYPICAL: dict[str, Any] = {
 
 @pytest.fixture(scope="module")
 def raw_timelines() -> dict[str, dict[str, Any]]:
-    return {s: json.loads((SITES_DIR / f"{s}.json").read_text(encoding="utf-8"))["timeline"] for s in SITES}
+    return {s: raw_timeline(s) for s in SITES}  # regression window, raw index 0 = T0 (real_data.py)
 
 
 @pytest.fixture(scope="module")
@@ -892,8 +893,8 @@ def test_15d_real_shackleton_floor_control(prepared: dict[str, PreparedSeries]) 
         assert ind is not None and ind.level is HIGH
 
 
-def test_15e_real_malapert_straddling_dataset_end(prepared: dict[str, PreparedSeries]) -> None:
-    r = real_run(prepared["malapert-massif"], datetime(2028, 12, 25, tzinfo=UTC), 14)
+def test_15e_real_mission_straddling_dataset_end(prepared: dict[str, PreparedSeries]) -> None:
+    r = real_run(prepared[END_SITE], STRADDLE_START, 14)
     assert r.assessment.eligibility is Eligibility.UNKNOWN
     assert r.margin(C.MAX_CONTINUOUS_DARKNESS).basis is MarginBasis.BOUNDED
     assert r.risks["sun_data_coverage"].level is MOD
@@ -901,7 +902,7 @@ def test_15e_real_malapert_straddling_dataset_end(prepared: dict[str, PreparedSe
 
 
 def test_15f_real_connecting_ridge_after_dataset(prepared: dict[str, PreparedSeries]) -> None:
-    r = real_run(prepared["connecting-ridge"], datetime(2029, 2, 1, tzinfo=UTC), 14)
+    r = real_run(prepared["connecting-ridge"], AFTER_DATA, 14)
     assert r.assessment.eligibility is Eligibility.UNKNOWN
     configured = [ma for ma in r.assessed.values() if ma.constraint_status is not NA]
     assert all(ma.basis is MarginBasis.ADMISSIBLE_RANGE for ma in configured)
@@ -909,7 +910,7 @@ def test_15f_real_connecting_ridge_after_dataset(prepared: dict[str, PreparedSer
 
 
 def test_15g_real_bounded_margins_never_exceed_physical_ranges(prepared: dict[str, PreparedSeries]) -> None:
-    r = real_run(prepared["malapert-massif"], datetime(2028, 12, 25, tzinfo=UTC), 14)
+    r = real_run(prepared[END_SITE], STRADDLE_START, 14)
     duration = r.scenario.duration_s
     for cid, ma in r.assessed.items():
         b = margin_bounds(ma.margin)

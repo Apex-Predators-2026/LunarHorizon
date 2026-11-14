@@ -12,7 +12,6 @@ The score is a relative illumination / line-of-sight index, not a power, link or
 from __future__ import annotations
 
 import hashlib
-import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -37,9 +36,11 @@ from app.viability.outputs import ScoreBreakdown
 from app.viability.scoring import score_scenario
 from app.viability.windows import PreparedSeries
 
+from .real_data import DATA_END, END_SITE, REGRESSION_START, STRADDLE_START, raw_timeline
+
 SITES_DIR = Path(__file__).resolve().parents[3] / "data" / "sites"
 SITES = ("connecting-ridge", "malapert-massif", "peak-near-shackleton", "shackleton-floor")
-T0 = datetime(2027, 1, 1, tzinfo=UTC)
+T0 = REGRESSION_START
 H = 3600.0
 DARK_LIMIT_H, BLACKOUT_LIMIT_H, THRESHOLD = 50.0, 96.0, 0.25
 REQUIREMENTS: dict[str, Any] = {
@@ -53,7 +54,7 @@ REQUIREMENTS: dict[str, Any] = {
 
 @pytest.fixture(scope="module")
 def raw() -> dict[str, dict[str, Any]]:
-    return {s: json.loads((SITES_DIR / f"{s}.json").read_text(encoding="utf-8"))["timeline"] for s in SITES}
+    return {s: raw_timeline(s) for s in SITES}  # regression window, raw index 0 = T0 (real_data.py)
 
 
 @pytest.fixture(scope="module")
@@ -180,7 +181,7 @@ def test_failed_missions_keep_a_descriptive_score_but_are_not_rank_eligible(
 
 
 def test_mission_straddling_dataset_end_is_unknown_and_unscored(prepared: dict[str, PreparedSeries]) -> None:
-    eligibility, b = run(prepared["malapert-massif"], datetime(2028, 12, 25, tzinfo=UTC), 14)
+    eligibility, b = run(prepared[END_SITE], STRADDLE_START, 14)
     assert eligibility is Eligibility.UNKNOWN
     assert b.status is ScoreStatus.ELIGIBILITY_UNKNOWN and b.score is None and b.score_bounds is None
     assert b.rank_eligible is False
@@ -193,9 +194,9 @@ def test_partial_coverage_gives_bounds_matching_independent_unknown_fraction(
     by [covered_sum / 336, covered_sum / 336 + 168 / 336]. Eligibility is UNKNOWN, so the score is
     withheld; the same pipeline with a forced FAIL (a descriptive score) exposes the bounds."""
     site = "malapert-massif"
-    start = datetime(2028, 12, 25, tzinfo=UTC)
-    first = (start - T0).days * 24
-    frac = np.asarray(raw[site]["sun_visible_fraction"][first : first + 168], dtype=float)
+    start = STRADDLE_START  # the final 168 covered hours, then 168 h beyond the data
+    covered = raw_timeline(site, start=start, end=DATA_END)["sun_visible_fraction"][:168]
+    frac = np.asarray(covered, dtype=float)
     lower = frac.sum() / 336.0
     prefs = {
         "sunlight_weight": 1.0,
