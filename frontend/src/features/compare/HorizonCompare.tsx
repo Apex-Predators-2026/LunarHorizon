@@ -74,7 +74,7 @@ export function HorizonCompare({ entries }: { entries: Entry[] }) {
         {lines.map((e) => (
           <span key={e.scenario.id} className="flex items-center gap-1.5"><ScenarioChip s={e.scenario} size="sm" />{e.scenario.site.name} horizon</span>
         ))}
-        <span>☀ Sun · ⊕ Earth at the selected time (filled = visible, hollow = hidden)</span>
+        <span>Sun (☀) and Earth (⊕) at the selected time: filled = visible, hollow = hidden</span>
       </div>
       <div style={{ height: 260 }} role="img" aria-label="Terrain horizon elevation by azimuth for each site, with Sun and Earth positions at the selected time">
         <ResponsiveContainer width="100%" height="100%">
@@ -86,9 +86,9 @@ export function HorizonCompare({ entries }: { entries: Entry[] }) {
               label={{ value: 'Azimuth (clockwise from north)', position: 'insideBottom', dy: 14, fill: STATE.muted, fontSize: 10 }} />
             <YAxis tick={{ fill: STATE.axis, fontSize: 10 }} stroke={STATE.grid} width={44} tickFormatter={(v: number) => `${v}°`}
               label={{ value: 'elevation', angle: -90, position: 'insideLeft', fill: STATE.muted, fontSize: 10, dy: 30 }} />
-            <Tooltip isAnimationActive={false} cursor={{ stroke: '#94a3b8', strokeDasharray: '2 3' }}
+            <Tooltip isAnimationActive={false} cursor={{ stroke: '#6b7076', strokeDasharray: '2 3' }}
               content={({ active, payload, label }) => active && payload?.length ? (
-                <div className="rounded-md border border-[#2a3c63] bg-[#08111f]/95 px-2.5 py-2 text-xs">
+                <div className="cmp-tip">
                   <div className="mb-1 text-slate-300">Azimuth {Number(label).toFixed(0)}°</div>
                   {lines.map((e) => {
                     const v = payload.find((p) => p.dataKey === e.scenario.id)?.value

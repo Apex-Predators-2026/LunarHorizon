@@ -14,7 +14,9 @@ import { ScenarioManager } from './ScenarioManager'
 import { SummaryPanel } from './SummaryPanel'
 import { SyncTimeline } from './SyncTimeline'
 import { TradeoffPanel } from './TradeoffPanel'
-import { Empty, Explain, Section } from './ui'
+import { SelectField } from '../../ui/MdFields'
+import './compare.css'
+import { Empty, Explain, Icon, Section } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { useView } from './useTimeAxis'
 
@@ -24,16 +26,17 @@ const NAV = [
   ['cmp-summary', 'Summary'],
 ] as const
 
+/** An M3 switch row, the same markup as the planner's layer switches (md-row + md-switch). */
 function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint: string }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300" title={hint}>
-      <span className="relative inline-flex">
-        <input type="checkbox" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-        <span className="h-4 w-7 rounded-full bg-slate-700 transition peer-checked:bg-cyan-600 peer-focus-visible:ring-2 peer-focus-visible:ring-cyan-400" />
-        <span className="absolute left-0.5 top-0.5 h-3 w-3 rounded-full bg-white transition peer-checked:translate-x-3" />
+    <button type="button" role="switch" aria-checked={checked} data-tip={hint} data-no-ripple
+      onClick={() => onChange(!checked)}
+      className="md-row flex h-10 items-center gap-3 rounded-full px-3 text-sm text-ink-2">
+      <span className="md-switch" aria-hidden="true">
+        <span className="md-switch-handle"><Icon name="check" size={16} /></span>
       </span>
       {label}
-    </label>
+    </button>
   )
 }
 
@@ -84,51 +87,48 @@ export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}
   const timelineProps = { entries, full, view, align, originMs }
 
   return (
-    <div className="min-h-full bg-[radial-gradient(ellipse_at_top,_#0f2147_0%,_#070d1c_55%,_#050912_100%)] text-slate-200">
-      <div className="mx-auto max-w-[1500px] px-4 pb-16 pt-6 sm:px-6">
-        <header className="mb-4 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-[0.25em] text-cyan-400">Lunar south pole · mission planning</div>
-            <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-50">Mission Scenario Comparison</h1>
-            <p className="text-sm text-slate-400">Evaluate landing locations, schedules, and mission conditions side by side.</p>
+    <div className="cmp-page lp-light md-host min-h-full">
+      <div className="mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8">
+        <header className="mb-6 flex flex-wrap items-end justify-between gap-6">
+          <div className="max-w-2xl">
+            <h1 className="text-[28px] font-medium leading-tight text-ink">Scenario comparison</h1>
+            <p className="mt-2 text-base text-ink-3">Sunlight, Earth contact and outages for each landing plan, side by side, from the same JPL Horizons and LOLA data</p>
           </div>
-          <div className="flex flex-wrap items-center gap-4 rounded-lg border border-[#1c2a48] bg-[#0b1426]/80 px-3 py-2">
-            <label className="flex items-center gap-2 text-xs text-slate-300">
-              Align timelines by
-              <select value={align} onChange={(e) => setAlign(e.target.value as 'met' | 'utc')}
-                className="rounded border border-[#25365a] bg-[#081124] px-1.5 py-0.5 text-xs text-slate-100">
-                <option value="met">Mission elapsed time</option>
-                <option value="utc">Calendar date (UTC)</option>
-              </select>
-            </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <SelectField label="Align timelines by" value={align} fieldClassName="w-60"
+              tip="Line the scenarios up by time since landing, or by calendar date"
+              onChange={(e) => setAlign(e.target.value as 'met' | 'utc')}>
+              <option value="met">Mission elapsed time</option>
+              <option value="utc">Calendar date (UTC)</option>
+            </SelectField>
             <Toggle checked={educational} onChange={setEducational} label="Educational mode" hint="Show short explanations of the science behind each panel" />
             <Toggle checked={allowDemo} onChange={setAllowDemo} label="Allow demonstration data"
               hint="Where no real Horizons + LOLA data exists (other dates/sites), show a clearly labelled synthetic illustration instead of nothing" />
           </div>
         </header>
 
-        <nav aria-label="Comparison sections" className="sticky top-0 z-20 -mx-4 mb-4 flex gap-1 overflow-x-auto border-b border-[#1c2a48] bg-[#070d1c]/90 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
+        <nav aria-label="Comparison sections" className="sticky top-0 z-20 -mx-6 mb-6 flex items-center gap-1 overflow-x-auto border-b border-line bg-canvas px-5 py-1 lg:-mx-8 lg:px-7">
           {NAV.map(([id, label]) => (
-            <a key={id} href={`#${id}`} className="whitespace-nowrap rounded px-2 py-1 text-xs text-slate-400 hover:bg-[#13233f] hover:text-cyan-200">{label}</a>
+            <a key={id} href={`#${id}`} className="cmp-navlink">{label}</a>
           ))}
-          <span className="ml-auto whitespace-nowrap py-1 text-[11px] text-slate-500" aria-live="polite">
-            {loading ? 'Evaluating scenarios…' : backendDown ? '⚠ Backend unavailable' : anyData ? 'Data loaded' : ''}
+          <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap pl-4 text-xs text-ink-4" aria-live="polite">
+            {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-300" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
           </span>
         </nav>
 
         {hasDemo && (
-          <div role="alert" className="mb-4 rounded-lg border border-amber-700 bg-amber-950/40 p-3 text-xs text-amber-100">
-            ⚠ <b>Demonstration data in use.</b> Scenarios tagged “Demonstration data” use a synthetic placeholder (approximate Sun/Earth motion, invented terrain). They are ranked separately and must not be used for planning.
+          <div role="alert" className="mb-6 flex gap-3 rounded-xl bg-amber-950 p-4 text-sm text-amber-200">
+            <Icon name="warning" className="mt-0.5" /><p><span className="font-medium">Demonstration data in use.</span> Scenarios tagged “Demonstration data” use a synthetic placeholder (approximate Sun/Earth motion, invented terrain). They are ranked separately and must not be used for planning.</p>
           </div>
         )}
         {backendDown && (
-          <div role="alert" className="mb-4 rounded-lg border border-red-800 bg-red-950/40 p-3 text-xs text-red-100">
+          <div role="alert" className="mb-6 rounded-xl bg-red-950 p-4 text-sm text-red-200">
             The backend is not reachable, so no scientific data can be shown. Start it with <code>uvicorn app.main:app --port 8000</code> in <code>backend/</code>. Scenarios are kept for this session.
           </div>
         )}
 
-        <div className="space-y-4">
-          <Section id="cmp-scenarios" kicker="1 · Scenarios" title="Scenario workspace">
+        <div className="space-y-6">
+          <Section id="cmp-scenarios" title="Scenario workspace">
             <ScenarioManager />
             <Explain title="How to compare">
               <p>Tick 2–4 scenarios. Use <b>Duplicate &amp; shift date</b> to see what a launch delay does at the same site, or <b>Same date, 3 sites</b> to compare locations. Set a <b>baseline</b> to see how much every other scenario improves or worsens it.</p>
@@ -139,20 +139,20 @@ export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}
             <Empty>Select at least two scenarios above to start comparing.</Empty>
           ) : (
             <>
-              <Section id="cmp-overview" kicker="2 · Overview" title={sameSite && differentDates ? 'Landing date comparison' : !differentDates && !sameSite ? 'Landing location comparison' : 'Scenario overview'}>
+              <Section id="cmp-overview" title={sameSite && differentDates ? 'Landing date comparison' : !differentDates && !sameSite ? 'Landing location comparison' : 'Scenario overview'}>
                 <OverviewCards entries={entries} />
               </Section>
 
-              <Section id="cmp-metrics" kicker="3 · Side by side" title="Scientific metrics">
+              <Section id="cmp-metrics" title="Scientific metrics">
                 {anyData ? <MetricsTable entries={entries} /> : <Empty>No scientific data for the selected scenarios yet.</Empty>}
               </Section>
 
-              <Section id="cmp-timeline" kicker="4 · 5 · Synchronized" title="Solar availability and Earth communication timeline">
+              <Section id="cmp-timeline" title="Solar availability and Earth communication timeline">
                 {anyData ? (
                   <>
                     <SyncTimeline {...timelineProps} />
-                    <div className="mt-4 border-t border-[#1c2a48] pt-3">
-                      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-cyan-300/90">Conditions at the selected time</h3>
+                    <div className="mt-6 border-t border-line pt-6">
+                      <h3 className="mb-3 text-sm font-medium text-ink">Conditions at the selected time</h3>
                       <ConditionsPanel entries={entries} align={align} originMs={originMs} onOpen3D={onOpen3D} />
                     </div>
                     <Explain title="Why can Earth disappear below the local horizon?">
@@ -162,33 +162,33 @@ export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}
                 ) : <Empty>Timelines appear once scenarios have data.</Empty>}
               </Section>
 
-              <Section id="cmp-charts" kicker="6 · Geometry" title="Solar and Earth elevation over time">
+              <Section id="cmp-charts" title="Solar and Earth elevation over time">
                 {anyData ? <ElevationCharts entries={entries} view={view} align={align} originMs={originMs} /> : <Empty>No data to chart.</Empty>}
               </Section>
 
-              <Section id="cmp-terrain" kicker="Location comparison" title="Terrain horizon and Sun/Earth position">
+              <Section id="cmp-terrain" title="Terrain horizon and Sun/Earth position">
                 <HorizonCompare entries={entries} />
               </Section>
 
-              <Section id="cmp-performance" kicker="Mission performance" title="Availability, outages and ranking">
+              <Section id="cmp-performance" title="Availability, outages and ranking">
                 <AvailabilityCharts entries={entries} />
-                <div className="mt-5 border-t border-[#1c2a48] pt-4">
+                <div className="mt-6 border-t border-line pt-6">
                   <MissionPerformance entries={entries} />
                 </div>
               </Section>
 
-              <Section id="cmp-tradeoff" kicker="7 · Science vs engineering" title="Trade-off analysis">
+              <Section id="cmp-tradeoff" title="Trade-off analysis">
                 <TradeoffPanel entries={entries} />
               </Section>
 
-              <Section id="cmp-summary" kicker="8 · Explanation" title="Comparison summary">
+              <Section id="cmp-summary" title="Comparison summary">
                 <SummaryPanel entries={entries} />
               </Section>
 
               {notes.length > 0 && (
-                <footer className="rounded-lg border border-[#1c2a48] p-3 text-[11px] leading-relaxed text-slate-500">
-                  <div className="mb-1 font-semibold uppercase tracking-wider text-slate-400">Data sources and assumptions</div>
-                  <ul className="space-y-0.5">{notes.map((n) => <li key={n}>• {n}</li>)}</ul>
+                <footer className="px-1 text-xs leading-relaxed text-ink-4">
+                  <h2 className="mb-2 text-sm font-medium text-ink-3">Data sources and assumptions</h2>
+                  <ul className="list-disc space-y-1 pl-4">{notes.map((n) => <li key={n}>{n}</li>)}</ul>
                 </footer>
               )}
             </>
