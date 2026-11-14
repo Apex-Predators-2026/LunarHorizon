@@ -18,11 +18,11 @@ sites and dates. It also answers two follow-up questions: *how fragile is this p
 | `backend/app/rescue/router.py` | FastAPI endpoints under `/api/rescue` (registered in `app/main.py`) |
 | `backend/app/rescue/schemas.py` | Rescue request/response models |
 | `backend/app/models.py` | Team's shared models; rescue added `Scenario`, `MissionRequirements`, `ViabilityResult`… |
-| `backend/app/rescue/viability/` | Viability entry point: the canonical engine (`app.viability.compat.rescue`); the old placeholder stays for reference and its loosening table |
+| `backend/app/rescue/viability/` | Viability entry point: the canonical engine (`app.viability.compat.rescue`); the old placeholder engine stays only for reference and its loosening table |
 | `backend/app/rescue/timeline/synthetic.py` | **Placeholder** Sun/Earth/terrain data for points with no real data |
 | `backend/app/rescue/timeline/precomputed.py` | Reads the data engine's real `data/sites/<id>.json` files (JPL Horizons + Moon Trek LOLA) |
 | `backend/app/rescue/catalog.py` | Candidate sites (the engine's curated list + approximate extras) and PSR science targets |
-| `backend/tests/` | pytest suite (rescue tests use synthetic data; `test_rescue_real_data.py` runs on the real files) |
+| `backend/tests/` | pytest suite (most rescue tests use synthetic data on purpose; `test_rescue_real_data.py` runs on the real files) |
 | `frontend/src/features/rescue/` | React panel: `MissionRescue` (mounted in `App.tsx`), `PlanForm`, `RescuePanel`, `CompromisePanel`, prop-only `RescueResults` / `CompromiseResults`, Zustand store, API client, types, tests |
 | `frontend/src/types.ts` | Team's shared types; rescue added the same shared models as `models.py` |
 
@@ -168,19 +168,26 @@ changing a response model, regenerate them by calling the endpoints, e.g. from t
 
 ## Limitations (say these out loud in the demo)
 
-- **Real data covers 3 landing sites from 2027-01-01 to 2029-01-01** (Peak Near Shackleton,
-  Connecting Ridge, Malapert Massif). By default rescue uses only that data. Anything it doesn't
-  fully cover (later or earlier dates, the "approx." sites, custom nearby points) is reported
-  as **unknown**, never as a pass or fail.
+- **Real data covers all 8 rescue sites from 2026-01-01 to 2031-01-01** (read from the files in
+  `data/sites/`; `backend/tests/data_range.py` reports the exact range, which the data engine
+  may extend). By default rescue uses only that data. Anything it doesn't fully cover (dates
+  outside the range, custom nearby points, or sites with no data file) is reported as
+  **unknown**, never as a pass or fail.
 - **Simulation mode** (the checkbox in the rescue panel, `include_synthetic: true`) fills those gaps
   with synthetic placeholder geometry and invented terrain. Every result's `data_source` says which
   was used, the UI shows a "real data" / "synthetic" badge, and synthetic results carry a warning.
 - The extra regions in `backend/app/rescue/catalog.py` (marked "approx.") have approximate
   coordinates.
-- Landing-position sensitivity is not checked for real sites yet (no real data around them).
+- Landing-position sensitivity needs real data at the nearby points. When no nearby point has
+  any, the robustness shows **Not checked** instead of a verdict (never "robust" by default).
+- Landing times are rounded to the whole hour of the data grid. The result shows the time that
+  was actually evaluated, which can differ from the time you typed by up to half an hour.
+- The rescue panel shows a "Rescuing: ..." line naming the plan, site, landing time and length.
+  If you edit the plan after running, it adds "This plan changed since; press Run to update."
+  so stale results are never mistaken for the current plan.
 - Ranking order: real-data options first, then scored passes, then passes the engine couldn't score
   (shown without a rank score, never ranked as 0). A mission must end by the last real-data sample
-  (2029-01-01T00:00Z); one ending even an hour later is unknown.
+  (the data's last sample, 2031-01-01T00:00Z for now); one ending even an hour later is unknown.
 - The search is a grid search: it only finds options at the tested times and points. A finer
   `date_step_hours` or more `nearby_radii_km` finds more, but takes longer.
 - Ranking weights are judgement calls, not NASA criteria. They're exposed so the team can tune them.
