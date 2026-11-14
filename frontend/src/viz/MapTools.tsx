@@ -235,10 +235,10 @@ function CoordinateForm({ onSubmit }: { onSubmit: (lat: number, lon: number) => 
   const [lat, setLat] = useState('')
   const [lon, setLon] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const field = 'w-24 rounded-lg border border-opal-300 bg-white px-1.5 py-0.5 text-xs text-slate-300'
+  const field = 'h-10 w-28 rounded-full border border-opal-300 bg-white px-3 text-xs text-slate-300'
   return (
     <form
-      className="md-reveal lp-light pointer-events-auto flex flex-wrap items-center gap-1.5 rounded-xl bg-opal-50 px-2 py-1.5 text-xs text-slate-300 shadow-lg shadow-black/30"
+      className="md-reveal lp-light pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl bg-opal-50 px-4 py-2 text-xs text-slate-300 shadow-lg shadow-black/30"
       onSubmit={(e) => {
         e.preventDefault()
         const r = parseCoordinates(lat, lon)
@@ -250,15 +250,15 @@ function CoordinateForm({ onSubmit }: { onSubmit: (lat: number, lon: number) => 
       }}
     >
       <span>Click the terrain, or enter coordinates:</span>
-      <label className="flex items-center gap-1">
+      <label className="flex items-center gap-2">
         Lat
         <input className={field} inputMode="decimal" placeholder="-89.45" value={lat} onChange={(e) => setLat(e.target.value)} aria-label="Latitude (degrees, negative = south)" />
       </label>
-      <label className="flex items-center gap-1">
+      <label className="flex items-center gap-2">
         Lon
         <input className={field} inputMode="decimal" placeholder="222.69" value={lon} onChange={(e) => setLon(e.target.value)} aria-label="Longitude (degrees east)" />
       </label>
-      <button type="submit" className="rounded-lg border border-opal-300 bg-white px-2 py-0.5 transition-colors hover:bg-calcite-peach/40">
+      <button type="submit" className="md-compact border border-opal-300 bg-white transition-colors hover:bg-calcite-peach/40">
         Analyse
       </button>
       {error && <span className="w-full text-red-300">{error}</span>}
@@ -330,8 +330,8 @@ export function MapTools({
 
   return (
     // Column-reverse: the toolbar is the bottom item; messages and the verify panel open upwards.
-    <div className="lp-light pointer-events-none mb-2 flex flex-col-reverse items-center gap-1.5">
-      <div role="toolbar" aria-label="Map tools" className="pointer-events-auto flex items-center gap-1 rounded-full bg-opal-50 p-1.5 shadow-lg shadow-black/30">
+    <div className="lp-light pointer-events-none mb-2 flex flex-col-reverse items-center gap-2">
+      <div role="toolbar" aria-label="Map tools" className="pointer-events-auto flex items-center gap-1 rounded-full bg-opal-50 p-2 shadow-lg shadow-black/30">
         <ToolButton
           label={playing ? 'Pause' : 'Play'}
           tip={playing ? 'Pause: stop the time simulation' : 'Play: run the simulation forward in time at the chosen speed'}
@@ -347,7 +347,7 @@ export function MapTools({
           disabled={!mission.active && !mission.available}
           onClick={() => (mission.active ? mission.stop() : mission.start())}
         />
-        <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
+        <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
         <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" hover onActivate={() => {
             onGoToView()
             showSnackbar(`Camera: ${VIEWS.find((v) => v.id === view)?.label ?? view}`)
@@ -411,7 +411,7 @@ export function MapTools({
           disabled={!siteId || verify?.loading}
           onClick={runVerify}
         />
-        <span className="mx-0.5 h-6 w-px bg-opal-300" aria-hidden />
+        <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
         <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="graphics" label="Graphics quality" tip="Graphics quality: High is full detail and shadows; Low is lighter for Chromebooks and older laptops" icon={ICON.speed}>
           {(close) =>
             (Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
@@ -531,9 +531,9 @@ export function ColorKey({ layers }: { layers: Layers }) {
   if (!layers.sites && !layers.psr && !layers.blockers) return null
   const dot = (c: string) => <span className="inline-block h-2 w-2 rounded-full" style={{ background: c }} />
   return (
-    <div className="md-reveal pointer-events-none mt-3 max-w-[30rem] text-[10px] leading-snug text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }} aria-label="Colour key">
+    <div className="md-reveal pointer-events-none mt-4 max-w-[30rem] text-[10px] leading-snug text-white" style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }} aria-label="Colour key">
       {layers.sites && (
-        <p className="flex flex-wrap gap-x-2.5">
+        <p className="flex flex-wrap gap-x-3">
           {(['artemis', 'apollo', 'clps', 'international', 'custom'] as const).map((k) => (
             <span key={k} className="flex items-center gap-1">
               {dot(KIND_COLOR[k])}
@@ -543,13 +543,13 @@ export function ColorKey({ layers }: { layers: Layers }) {
         </p>
       )}
       {layers.psr && (
-        <p className="flex flex-wrap gap-x-2.5">
+        <p className="flex flex-wrap gap-x-3">
           <span className="flex items-center gap-1">{dot('#7dd3fc')} PSR (approx. extent)</span>
           <span className="flex items-center gap-1">{dot('#e0f2fe')} Surface ice</span>
         </p>
       )}
       {layers.blockers && (
-        <p className="flex flex-wrap gap-x-2.5">
+        <p className="flex flex-wrap gap-x-3">
           <span className="flex items-center gap-1">{dot('#ef4444')} Terrain blocking the Sun</span>
           <span className="flex items-center gap-1">{dot('#60a5fa')} Terrain blocking Earth</span>
         </p>
