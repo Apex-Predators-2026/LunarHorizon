@@ -53,6 +53,9 @@ Definitions:
   `docs/data-sources.md`.
 - `kind`: `artemis` (landing candidates), `control` (validation), `apollo`, `clps`, `international` (past landings, for
   reference) or `custom` (user pins). `approximate: true` = a region estimate, not a published landing point.
+- `artemis_list` (`/api/sites`, Artemis sites only, else null): `"2024"` = the region is one of the 9 in NASA's October
+  2024 Artemis III update, `"2022"` = only in the original 13 (2022), `"unconfirmed"` = can't tell (de Gerlache Rim:
+  Rim 1 was dropped, Rim 2 kept). Served from `engine/sites.py`, not stored in the site files.
   Curated lists: `backend/app/engine/sites.py` (`SITES` = candidates, `REFERENCE_SITES` = past landings).
 - `meta.ephemeris`: JPL Horizons (DE441) for curated sites; for custom sites, a local Skyfield + DE421 calculation in
   the same frame, checked against Horizons to 0.00001°.
@@ -275,6 +278,19 @@ next to `changed.scenario`. `<RescueResults>` and `<CompromiseResults>` in
 `frontend/src/features/rescue` are prop-only display components you can reuse.
 
 ---
+
+## "Show me why": point the 3D view at the evidence (Andrew, for the UI)
+`frontend/src/viz/evidence.ts`. Any panel can send the 3D view to the moment that explains a result:
+```ts
+import { evidenceFromWindow, showEvidence } from '../viz/evidence'
+// a failed constraint's evidence window from the viability engine (evidence_windows[i])
+const req = evidenceFromWindow(siteId, { kind: 'darkness', start_utc, end_utc })
+if (req) showEvidence(req) // or showEvidence({ siteId, startUtc, endUtc, body: 'sun' | 'earth' })
+```
+The 3D view then pauses, selects the site, jumps to `startUtc`, looks at the Sun (sunlight / power windows) or
+Earth (communication windows) from the lander, where the blocker line and the horizon show the terrain
+responsible, and shades the window on the time strip. `unknown_data` windows have nothing to show
+(`evidenceFromWindow` returns null). `clearEvidence()` removes the shading.
 
 ## Multi-scenario comparison (Member 4)
 

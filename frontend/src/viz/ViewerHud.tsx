@@ -8,7 +8,9 @@ import { SelectField } from '../ui/MdFields'
 import { DatePopup } from './DatePopup'
 import { fmtDeg, fmtPct, sunUp } from './timeline'
 
-const fmt = (iso: string | null) => (iso ? `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC` : 'not before 2029')
+// No next event = none before the site's data ends (the backend only searches the data it has).
+const fmt = (iso: string | null, dataStop: string | null | undefined) =>
+  iso ? `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC` : `not before ${dataStop ? dataStop.slice(0, 10) : 'the end of the data'}`
 
 function hoursUntil(fromIso: string, toIso: string | null) {
   if (!toIso) return ''
@@ -16,13 +18,17 @@ function hoursUntil(fromIso: string, toIso: string | null) {
   return h < 48 ? ` (in ${Math.round(h)} h)` : ` (in ${(h / 24).toFixed(1)} d)`
 }
 
-const SITE_GROUPS: [string, string][] = [
-  ['artemis', 'Artemis III candidates (south pole)'],
-  ['clps', 'Commercial landers (CLPS)'],
-  ['international', 'Other countries'],
-  ['apollo', 'Apollo'],
-  ['custom', 'Your pins'],
-  ['control', 'Validation control'],
+// Artemis sites are split by NASA's list naming their region (backend engine/sites.py): the 9 regions of the
+// October 2024 update vs the original 13 of 2022 (or a point that can't be placed in either).
+const isKind = (kind: string) => (s: SiteInfo) => (s.kind ?? 'custom') === kind
+const SITE_GROUPS: [string, string, (s: SiteInfo) => boolean][] = [
+  ['artemis', "Artemis III regions (NASA's 2024 list)", (s) => s.kind === 'artemis' && (s.artemis_list ?? '2024') === '2024'],
+  ['artemis-2022', 'Earlier Artemis III candidates (2022 list)', (s) => s.kind === 'artemis' && !!s.artemis_list && s.artemis_list !== '2024'],
+  ['clps', 'Commercial landers (CLPS)', isKind('clps')],
+  ['international', 'Other countries', isKind('international')],
+  ['apollo', 'Apollo', isKind('apollo')],
+  ['custom', 'Your pins', isKind('custom')],
+  ['control', 'Validation control', isKind('control')],
 ]
 
 /** Default site + keep the selected time inside the site's data range. Call once. */
@@ -43,14 +49,15 @@ export function SiteSelect({ sites, error, loading }: { sites: SiteInfo[] | null
   return (
     <div className="space-y-2 text-xs">
       <SelectField label="Site" tip="The landing site shown in the 3D view and used for the timeline." value={siteId ?? ''} onChange={(e) => setSite(e.target.value)}>
-        {SITE_GROUPS.map(([kind, label]) => {
-          const group = sites?.filter((s) => (s.kind ?? 'custom') === kind) ?? []
+        {SITE_GROUPS.map(([kind, label, inGroup]) => {
+          const group = sites?.filter(inGroup) ?? []
           return group.length ? (
             <optgroup key={kind} label={label}>
               {group.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                   {s.approximate ? ' (approx.)' : ''}
+                  {s.artemis_list === 'unconfirmed' ? ' (Rim 1 or 2?)' : ''}
                 </option>
               ))}
             </optgroup>
@@ -128,16 +135,16 @@ export function TopInfo({
             {!events
               ? pending
               : sunUp(current.sun)
-                ? fmt(events.next_sunset_utc) + hoursUntil(events.time_utc, events.next_sunset_utc)
-                : fmt(events.next_sunrise_utc) + hoursUntil(events.time_utc, events.next_sunrise_utc)}
+                ? fmt(events.next_sunset_utc, site?.data_stop_utc) + hoursUntil(events.time_utc, events.next_sunset_utc)
+                : fmt(events.next_sunrise_utc, site?.data_stop_utc) + hoursUntil(events.time_utc, events.next_sunrise_utc)}
           </dd>
           <dt className="text-white/70">{current.earth.visible ? 'Next Earthset' : 'Next Earthrise'}</dt>
           <dd className={events ? '' : 'text-white/60'}>
             {!events
               ? pending
               : current.earth.visible
-                ? fmt(events.next_earthset_utc) + hoursUntil(events.time_utc, events.next_earthset_utc)
-                : fmt(events.next_earthrise_utc) + hoursUntil(events.time_utc, events.next_earthrise_utc)}
+                ? fmt(events.next_earthset_utc, site?.data_stop_utc) + hoursUntil(events.time_utc, events.next_earthset_utc)
+                : fmt(events.next_earthrise_utc, site?.data_stop_utc) + hoursUntil(events.time_utc, events.next_earthrise_utc)}
           </dd>
         </dl>
       )}
