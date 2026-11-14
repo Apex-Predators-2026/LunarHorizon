@@ -187,6 +187,7 @@ export function TimeBar({
   onWindowDays,
   loading,
   views,
+  onHide,
 }: {
   site: SiteInfo
   steps: TimelineStep[]
@@ -194,6 +195,7 @@ export function TimeBar({
   windowDays: number
   onWindowDays: (d: number) => void
   loading: boolean
+  onHide?: () => void // slides the panel off screen
   views?: ReactNode // camera view buttons, shown under the slider
 }) {
   const timeUtc = useAppStore((s) => s.timeUtc)
@@ -215,8 +217,21 @@ export function TimeBar({
   const select = 'rounded-lg border border-opal-300 bg-white px-1 py-0.5'
 
   return (
-    <div className="lp-light pointer-events-auto max-h-[48vh] overflow-y-auto rounded-t-[20px] bg-opal-50 px-4 pb-2 pt-3 text-xs shadow-lg shadow-black/30">
-      <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+    <div className="lp-light pointer-events-auto relative max-h-[48vh] overflow-y-auto rounded-t-[20px] bg-opal-50 px-4 pb-2 pt-3 text-xs shadow-lg shadow-black/30">
+      {onHide && (
+        <button
+          type="button"
+          onClick={onHide}
+          aria-label="Hide timeline panel"
+          title="Hide"
+          className="absolute right-2.5 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-calcite-peach/40 hover:text-slate-100"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M2 4l4 4 4-4" />
+          </svg>
+        </button>
+      )}
+      <div className="mb-1.5 flex flex-wrap items-center gap-1.5 pr-7">
         <button type="button" className={btn} onClick={() => step(-windowDays * 24)} title="Previous window">⏮</button>
         <button type="button" className={btn} onClick={() => step(-24)}>−1 d</button>
         <button type="button" className={btn} onClick={() => step(-1)}>−1 h</button>
@@ -254,7 +269,7 @@ export function TimeBar({
         <input
           type="range"
           aria-label="Time across the whole data range"
-          className="min-w-0 flex-1 accent-coral"
+          className="min-w-0 flex-1"
           min={0}
           max={totalHours}
           step={1}
