@@ -49,7 +49,7 @@ const labelClass =
  * sky plot. Everything shown comes from the backend (terrain tiles, horizon mask, hourly timeline),
  * so the 3D view and the charts always show the same numbers.
  */
-export function Scene({ sidebar }: { sidebar?: ReactNode }) {
+export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }) {
   const siteId = useAppStore((s) => s.siteId)
   const timeUtc = useAppStore((s) => s.timeUtc)
   const playing = useAppStore((s) => s.playing)
@@ -85,6 +85,8 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const readoutRef = useRef<HTMLDivElement>(null)
   const scaleBarRef = useRef<HTMLDivElement>(null)
   const scaleLabelRef = useRef<HTMLDivElement>(null)
+  const compassRingRef = useRef<SVGGElement>(null)
+  const compassNorthRef = useRef<SVGTextElement>(null)
   const [viewShiftPx, setViewShiftPx] = useState(0)
   useEffect(() => {
     const side = sideRef.current
@@ -143,6 +145,14 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
     ? windowFor(now, parseUtc(site.data_start_utc), parseUtc(site.data_stop_utc), windowDays)
     : null
   const winKey = site && win && inRange ? `${site.id}|${win[0]}|${win[1]}` : null
+  const haveBar = !!(site && win)
+  useEffect(() => {
+    const el = barRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => setBarNow(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [haveBar])
   const timeline = useAsync(winKey, (sig) =>
     fetchTimeline(site!.id, toIsoMinute(win![0]), toIsoMinute(win![1] + HOUR_MS), 1, sig),
   )
@@ -166,6 +176,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const barRef = useRef<HTMLDivElement>(null)
   const [barHidden, setBarHidden] = useState(false)
   const [barH, setBarH] = useState(0)
+  const [barNow, setBarNow] = useState(0) // live height of the timeline panel, so the + button sits just above it
 
   const sunLabel = useRef<HTMLDivElement>(null)
   const earthLabel = useRef<HTMLDivElement>(null)
@@ -230,7 +241,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
       >
         <color attach="background" args={['#000000']} />
         <ViewCentre shiftLeftPx={viewShiftPx} />
-        <CameraReadout frame={frame} target={readoutRef} scaleBar={scaleBarRef} scaleLabel={scaleLabelRef} />
+        <CameraReadout frame={frame} target={readoutRef} scaleBar={scaleBarRef} scaleLabel={scaleLabelRef} compassRing={compassRingRef} compassNorth={compassNorthRef} />
         {/* Display aid, not real light: a dim overhead fill so terrain in shadow still shows its
             shape. Sunlight (intensity 3 x visible fraction near the lander) stays >10x brighter. */}
         <ambientLight intensity={0.03} />
@@ -360,21 +371,43 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
         <SnackbarHost />
         <TooltipHost />
         <div
-          className="pointer-events-none absolute bottom-2 right-[4vw] flex flex-col items-end gap-1 text-[10px] tabular-nums text-white"
+          className="pointer-events-none absolute bottom-2 right-[4vw] flex flex-col items-end gap-2 text-[10px] tabular-nums text-white"
           style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
         >
+          {/* Compass: white lines only. The ring turns so N points at lunar north; the notch at the top is where the camera faces. */}
+          <div
+            aria-label="Compass"
+            role="img"
+            data-tip="Compass: the ring turns as you orbit so N always points to lunar north (the Moon has no magnetic field, so this is the direction of the pole). The notch at the top is the way the camera faces; E is east, to the right when you face north."
+            className="pointer-events-auto h-14 w-14 shrink-0"
+          >
+            <svg viewBox="0 0 56 56" width="56" height="56" fill="none" stroke="white" strokeWidth="1.25" strokeLinecap="round" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.9))' }}>
+              <path d="M28 1v5" />
+              <g ref={compassRingRef}>
+                <circle cx="28" cy="28" r="20" />
+                <path d="M28 41v7M8 28h7M41 28h7" />
+                <path d="M14 14l2 2M42 14l-2 2M14 42l2-2M42 42l-2-2" strokeWidth="0.75" />
+                <path d="M25 26l3-8 3 8" />
+                <text ref={compassNorthRef} x="28" y="16" textAnchor="middle" fill="white" stroke="none" fontSize="9" fontWeight="600" style={{ fontFamily: 'var(--font-inter)' }}>
+                  N
+                </text>
+              </g>
+            </svg>
+          </div>
+          <div className="flex flex-col items-end gap-1">
           {/* Scale bar: its width is the on-screen length of the distance in its label. */}
           <div aria-label="Map scale" className="flex flex-col items-end">
             <div ref={scaleLabelRef} />
             <div ref={scaleBarRef} className="h-1.5 border-x-2 border-b-2 border-white" style={{ width: 60 }} />
           </div>
           <div ref={readoutRef} aria-label="Camera position" className="whitespace-nowrap" />
+          </div>
         </div>
         <div className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(60px,6.2vw,92px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))]">
           <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
           <ColorKey layers={layers} />
         </div>
-        <div ref={sideRef} className="absolute bottom-16 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4">
+        <div ref={sideRef} className="absolute bottom-32 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4">
           {site && <MiniMapPanel horizon={horizon.data} steps={timeline.data ?? []} current={s} windowLabel={windowLabel} />}
           <FloatingSidebar>
             <div className="space-y-4">
@@ -383,6 +416,15 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             </div>
           </FloatingSidebar>
         </div>
+        {/* Floating + (new plan): 32 px above the timeline panel, near its right edge; drops to the corner when the panel is hidden. */}
+        {fab && (
+          <div
+            className="md-slide pointer-events-auto absolute right-[calc(4vw+var(--lp-side-w)+16px+1vw)] transition-[bottom] duration-[400ms] ease-[var(--md-ease-emph-decel)] max-md:right-3"
+            style={{ bottom: barHidden ? 24 : barNow + 32 }}
+          >
+            {fab}
+          </div>
+        )}
         {/* Bottom stack: map tools (pin / layers / JPL check) sit just above the timeline panel. */}
         <div className="absolute bottom-0 left-3 right-3 flex flex-col md:left-[3.6vw] md:right-[calc(4vw+var(--lp-side-w)+16px)]">
           <MissionPanel mission={mission} />

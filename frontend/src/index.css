@@ -250,6 +250,7 @@
   --md-dur-medium1: 250ms;
   --md-dur-medium2: 300ms;
   --md-dur-medium4: 400ms;
+  --mango-img: linear-gradient(90deg, #ffb08c, #ff634a); /* replaced by a rendered still of the mango mesh at start-up */
   interpolate-size: allow-keywords; /* lets <details> animate its height (progressive enhancement) */
 }
 @property --p {
@@ -326,10 +327,10 @@
 
 /* Sliders: active track fill, halo on hover / press, handle shrinks slightly while pressed. */
 .lp-light input[type='range']::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0), var(--mango-img) center / cover;
 }
 .lp-light input[type='range']::-moz-range-track {
-  background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0), var(--mango-img) center / cover;
 }
 .lp-light input[type='range']::-webkit-slider-thumb {
   transition: transform var(--md-dur-short4) var(--md-ease-standard), box-shadow var(--md-dur-short4) var(--md-ease-standard);
@@ -709,4 +710,19 @@
   padding: 0 12px;
   border-radius: 20px;
   font-size: 13px;
+}
+
+/* FAB enters scaled up from its corner (M3 emphasized decelerate). */
+@keyframes md-fab-in {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: none; }
+}
+.md-pop-fab { animation: md-fab-in var(--md-dur-medium2) var(--md-ease-emph-decel) both; }
+
+/* MangoRange: the live gradient sits under the input, so the filled part of the track is left transparent. */
+.lp-light input[type='range'].mango-range::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+}
+.lp-light input[type='range'].mango-range::-moz-range-track {
+  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
 }
