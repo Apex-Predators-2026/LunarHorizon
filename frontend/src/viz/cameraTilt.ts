@@ -11,3 +11,10 @@ export const useCameraTilt = create<{ topDown: boolean; requests: number }>(() =
 
 /** Ask GlobeControls to switch between top-down and tilted. */
 export const toggleTopDown = () => useCameraTilt.setState((s) => ({ requests: s.requests + 1 }))
+
+/**
+ * Fly-to requests (a click on the minimap): GlobeControls spins the Moon so this point (site frame,
+ * metres) comes to the middle of the view, at the same height and tilt.
+ */
+export const useFlyTo = create<{ target: [number, number, number] | null; id: number }>(() => ({ target: null, id: 0 }))
+export const flyTo = (target: [number, number, number]) => useFlyTo.setState((s) => ({ target, id: s.id + 1 }))
