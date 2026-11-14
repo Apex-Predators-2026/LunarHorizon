@@ -6,7 +6,7 @@ import * as THREE from 'three'
 import type { Horizon, PsrData, SiteInfo, TimelineStep } from '../../types'
 import { SiteFrame } from './cubeSphere'
 import type { MeasureAnalysis, MeasureWaypoint, ProfileSample } from './measure'
-import { blockerLine, horizonAt, KIND_COLOR, surfacePoint, type Blocker } from './overlays'
+import { blockerLine, horizonAt, siteColor, surfacePoint, type Blocker } from './overlays'
 
 function useDisposable<T extends THREE.BufferGeometry | THREE.Material>(make: () => T, deps: unknown[]): T {
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -26,7 +26,7 @@ export function SitePins({ frame, sites, selectedId }: { frame: SiteFrame; sites
       const base = surfacePoint(frame, s.lat, s.lon, s.ground_height_m, 0)
       const top = surfacePoint(frame, s.lat, s.lon, s.ground_height_m, 3000)
       pos.push(...base, ...top)
-      c.set(KIND_COLOR[s.kind ?? 'custom'] ?? KIND_COLOR.custom)
+      c.set(siteColor(s))
       col.push(c.r, c.g, c.b, c.r, c.g, c.b)
     }
     const g = new THREE.BufferGeometry()

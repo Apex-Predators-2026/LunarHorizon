@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# demo tour screenshots and report (scripts/demo-tour.mjs)
+tour-output/
