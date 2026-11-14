@@ -1,13 +1,16 @@
+import { useFrame } from '@react-three/fiber'
+import { useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { SiteStatus } from '../types'
 
 const DEG = Math.PI / 180
 export const BEACON_HEIGHT = 120
+export const BEACON_HIDE_WITHIN_M = 400 // closer than this, the lander itself is visible
 
 /**
  * Simple lander built from primitives (~4 m tall). The vertical solar panel turns to face the
  * Sun's azimuth and the dish points at Earth, so their aim matches the computed positions.
- * A thin beacon makes the landing spot findable from kilometres away.
+ * A thin beacon line makes the landing spot findable from kilometres away.
  */
 export function Lander({
   status,
@@ -59,13 +62,30 @@ export function Lander({
           </mesh>
         </group>
       </group>
-      {/* Beacon so the site is visible from far away (no shadow); hidden in close-up views */}
-      {showBeacon && (
-        <mesh position={[0, BEACON_HEIGHT / 2, 0]}>
-          <cylinderGeometry args={[1.5, 1.5, BEACON_HEIGHT]} />
-          <meshBasicMaterial color="#f97316" transparent opacity={0.35} />
-        </mesh>
-      )}
+      {showBeacon && <Beacon />}
     </group>
   )
+}
+
+/**
+ * Marks the landing spot from kilometres away. A 1-pixel line (not a solid column), so it can
+ * never cover the view, and hidden once the camera is close enough to see the lander itself.
+ */
+function Beacon() {
+  const line = useMemo(() => {
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 5, 0),
+      new THREE.Vector3(0, BEACON_HEIGHT, 0),
+    ])
+    return new THREE.Line(geometry, new THREE.LineBasicMaterial({ color: '#f97316' }))
+  }, [])
+  useEffect(() => () => {
+    line.geometry.dispose()
+    ;(line.material as THREE.Material).dispose()
+  }, [line])
+  const ref = useRef<THREE.Line>(null)
+  useFrame(({ camera }) => {
+    if (ref.current) ref.current.visible = camera.position.length() > BEACON_HIDE_WITHIN_M
+  })
+  return <primitive ref={ref} object={line} />
 }

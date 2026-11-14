@@ -5,6 +5,8 @@ import * as THREE from 'three'
 export interface ScreenLabel {
   ref: RefObject<HTMLDivElement | null>
   position: [number, number, number] | null // world position, or null to hide
+  hideWithinM?: number // hide while the camera is closer than this to the scene origin (the lander)
+  followCamera?: boolean // position is relative to the camera (for things inside <FollowCamera>)
 }
 
 const v = new THREE.Vector3()
@@ -16,14 +18,16 @@ const v = new THREE.Vector3()
  */
 export function ScreenLabels({ labels }: { labels: ScreenLabel[] }) {
   useFrame(({ camera, size }) => {
-    for (const { ref, position } of labels) {
+    for (const { ref, position, hideWithinM, followCamera } of labels) {
       const el = ref.current
       if (!el) continue
-      if (!position) {
+      if (!position || (hideWithinM !== undefined && camera.position.length() < hideWithinM)) {
         el.style.display = 'none'
         continue
       }
-      v.set(...position).project(camera)
+      v.set(...position)
+      if (followCamera) v.add(camera.position)
+      v.project(camera)
       const visible = v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2 // in front of the camera, on screen
       el.style.display = visible ? 'block' : 'none'
       if (visible) {

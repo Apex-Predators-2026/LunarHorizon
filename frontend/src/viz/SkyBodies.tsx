@@ -8,9 +8,12 @@ function radiusAt(distance: number, angularRadiusDeg: number) {
   return distance * Math.tan((angularRadiusDeg * Math.PI) / 180)
 }
 
-/** Sun and Earth at their true angular size and position, just beyond the horizon curtain. */
-export function SkyBodies({ status, distance, eyeHeight }: { status: SiteStatus; distance: number; eyeHeight: number }) {
-  const pos = skyPositions(status, distance, eyeHeight)
+/**
+ * Sun and Earth at their true angular size and position, just beyond the horizon curtain.
+ * Render inside <FollowCamera> (positions are relative to the viewer).
+ */
+export function SkyBodies({ status, distance }: { status: SiteStatus; distance: number }) {
+  const pos = skyPositions(status, distance, 0)
   return (
     <>
       <mesh position={pos.sun}>

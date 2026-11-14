@@ -4,8 +4,9 @@ import { useRef, useState } from 'react'
 import { useAppStore } from '../store'
 import { fetchHorizon, fetchSites, fetchStatus, fetchTerrain, useAsync } from './api'
 import { CameraRig, type ViewMode } from './CameraRig'
+import { FollowCamera } from './FollowCamera'
 import { HorizonCurtain } from './HorizonCurtain'
-import { BEACON_HEIGHT, Lander } from './Lander'
+import { BEACON_HEIGHT, BEACON_HIDE_WITHIN_M, Lander } from './Lander'
 import { skyPositions } from './geometry'
 import { ScreenLabels } from './ScreenLabels'
 import { SkyBodies } from './SkyBodies'
@@ -44,7 +45,7 @@ export function Scene() {
   const sunLabel = useRef<HTMLDivElement>(null)
   const earthLabel = useRef<HTMLDivElement>(null)
   const landerLabel = useRef<HTMLDivElement>(null)
-  const sky = status.data ? skyPositions(status.data, SKY_DISTANCE_M, eye) : null
+  const sky = status.data ? skyPositions(status.data, SKY_DISTANCE_M, 0) : null // relative to the camera
   const s = status.data
 
   return (
@@ -62,13 +63,14 @@ export function Scene() {
         <directionalLight position={[0, 10000, 0]} intensity={0.25} />
 
         {terrain.data && <Terrain grid={terrain.data} />}
-        {horizon.data && <HorizonCurtain horizon={horizon.data} radius={CURTAIN_RADIUS_M} eyeHeight={eye} />}
-        {s && (
-          <>
-            <SunLight status={s} shadowHalfWidth={TERRAIN_HALF_WIDTH_M * 1.2} />
-            <SkyBodies status={s} distance={SKY_DISTANCE_M} eyeHeight={eye} />
-          </>
-        )}
+        {s && <SunLight status={s} shadowHalfWidth={TERRAIN_HALF_WIDTH_M * 1.2} />}
+        {/* Distant horizon + Sun/Earth stay centred on the camera, like a skybox. Exact from the
+            lander views; from a high overview camera the skyline is approximate (it was computed
+            from the lander's eye). */}
+        <FollowCamera>
+          {horizon.data && <HorizonCurtain horizon={horizon.data} radius={CURTAIN_RADIUS_M} />}
+          {s && <SkyBodies status={s} distance={SKY_DISTANCE_M} />}
+        </FollowCamera>
         <Lander status={s} observerHeight={eye} showBeacon={view === 'overview'} />
 
         <OrbitControls minDistance={5} maxDistance={CURTAIN_RADIUS_M * 0.5} makeDefault />
@@ -80,9 +82,13 @@ export function Scene() {
         />
         <ScreenLabels
           labels={[
-            { ref: sunLabel, position: sky?.sun ?? null },
-            { ref: earthLabel, position: sky?.earth ?? null },
-            { ref: landerLabel, position: view === 'overview' ? [0, BEACON_HEIGHT + 10, 0] : null },
+            { ref: sunLabel, position: sky?.sun ?? null, followCamera: true },
+            { ref: earthLabel, position: sky?.earth ?? null, followCamera: true },
+            {
+              ref: landerLabel,
+              position: view === 'overview' ? [0, BEACON_HEIGHT + 10, 0] : null,
+              hideWithinM: BEACON_HIDE_WITHIN_M,
+            },
           ]}
         />
       </Canvas>
