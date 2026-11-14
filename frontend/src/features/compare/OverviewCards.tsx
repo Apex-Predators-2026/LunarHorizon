@@ -1,8 +1,8 @@
 // Section 2: one card per compared scenario with its data status and headline numbers.
 import { fmtUtc } from '../rescue/format'
-import { fmtMetric, type Entry } from './analysis'
+import { eligibilityOf, fmtMetric, groupCountOf, rankText, scoreText, type Entry } from './analysis'
 import { seriesColor } from './palette'
-import { DataKindBadge, PassBadge, ScenarioChip } from './ui'
+import { DataKindBadge, EligibilityBadge, RankBadge, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
 
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
@@ -15,6 +15,7 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
 }
 
 export function OverviewCards({ entries }: { entries: Entry[] }) {
+  const groupCount = groupCountOf(entries)
   const setActive = useCompareStore((s) => s.setActive)
   const activeId = useCompareStore((s) => s.activeId)
   const baselineId = useCompareStore((s) => s.baselineId)
@@ -41,14 +42,15 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
               {e.state?.state === 'loading' && <span className="animate-pulse text-[11px] text-cyan-300">Evaluating…</span>}
               {e.state?.state === 'error' && <span className="text-[11px] text-red-300">Error</span>}
               {e.state?.state === 'done' && <DataKindBadge kind={e.state.result.data_kind} />}
-              {v && <PassBadge passes={v.passes} />}
+              {eligibilityOf(e) && <EligibilityBadge eligibility={eligibilityOf(e)!} />}
+              {rankText(e.ranking, groupCount) && <RankBadge text={rankText(e.ranking, groupCount)!} />}
               {baselineId === s.id && <span className="rounded bg-cyan-900/70 px-1.5 py-0.5 text-[11px] text-cyan-200">baseline</span>}
             </div>
             {r?.solar && r.earth && v ? (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <Stat label="Sunlit" value={fmtMetric(r.solar.sunlit_fraction * 100, '%')} />
                 <Stat label="Earth in view" value={fmtMetric(r.earth.visible_fraction * 100, '%')} />
-                <Stat label="Viability" value={v.score?.toFixed(0) ?? '—'} />
+                <Stat label="Score" value={scoreText(e.ranking, v.score)} />
                 <Stat label="Longest dark" value={fmtMetric(r.solar.longest_dark_hours, 'h')} warn={v.metrics.longest_dark_gap_hours > s.requirements.battery_hours} />
                 <Stat label="Longest blackout" value={fmtMetric(r.earth.longest_blackout_hours, 'h')} warn={r.earth.longest_blackout_hours > s.requirements.max_comms_gap_hours} />
                 <Stat label="Mean Sun el." value={fmtMetric(r.solar.mean_elevation_deg, 'deg')} />

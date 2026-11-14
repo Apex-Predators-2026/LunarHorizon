@@ -13,7 +13,8 @@ from .sensitivity import analyse
 
 router = APIRouter(prefix="/api/rescue", tags=["rescue"])
 
-# One evaluator per process; it is stateless apart from a call counter.
+# One evaluator per process, shared by the request thread pool. It keeps a bounded, lock-guarded
+# cache of finished evaluations (see Evaluator) plus call counters.
 _evaluator = Evaluator()
 
 

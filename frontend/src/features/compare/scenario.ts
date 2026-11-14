@@ -130,6 +130,10 @@ export const fromTeamScenario = (
 export const resultKey = (s: ComparisonScenario, allowDemo: boolean) =>
   JSON.stringify([s.site.id, s.site.lat, s.site.lon, s.landing_utc, s.duration_days, s.requirements, s.spacecraft, allowDemo])
 
+/** Identifies a selected set (in selection order). A canonical ranking belongs to exactly one set. */
+export const selectionKey = (selected: ComparisonScenario[], allowDemo: boolean) =>
+  JSON.stringify(selected.map((s) => resultKey(s, allowDemo)))
+
 /** Problems that would make the backend reject the scenario (checked before sending). */
 export function validateScenario(s: ComparisonScenario): string[] {
   const out: string[] = []

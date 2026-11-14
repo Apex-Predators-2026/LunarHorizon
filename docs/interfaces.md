@@ -297,5 +297,6 @@ responsible, and shades the window on the time strip. `unknown_data` windows hav
 `POST /api/compare` evaluates 1–6 `{ key, scenario: Scenario, spacecraft }` items with the data
 engine's timelines and the team viability entry point, and returns windows, statistics, events and
 a decimated timeline per scenario. Scenarios without real data return `status: "unavailable"` unless
-`allow_demo_data` is set. Frontend integration: `sendToComparison(scenarios)` from
+`allow_demo_data` is set. Additive since the ranking fix: `results[].ranking` and `ranking_groups` carry the
+canonical viability engine's ranking (only PASS scenarios ranked, per comparable group; `score: null` is never 0). Frontend integration: `sendToComparison(scenarios)` from
 `frontend/src/features/compare`. Details: `docs/comparison.md`.
