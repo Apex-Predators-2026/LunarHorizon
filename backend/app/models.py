@@ -37,6 +37,9 @@ class SiteInfo(Site):
     source: str = ""
     kind: str = "custom"  # artemis | control | apollo | clps | international | custom
     approximate: bool = False  # coordinates are a region estimate, not a published point
+    # Artemis sites: NASA's list naming the region, "2024" (current 9), "2022" (original 13 only) or
+    # "unconfirmed" (see engine/sites.py). None for other sites.
+    artemis_list: str | None = None
     ground_height_m: float  # relative to the 1737.4 km reference sphere
     observer_height_m: float
     summary: SiteSummaryStats
