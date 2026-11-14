@@ -14,9 +14,12 @@ import { MAX_ZOOM, MOON_RADIUS_M, SiteFrame, TILE_N, tileVertexUV, uvToVec, vert
 import { groundHeightAt, liftAboveGround, type TileHeights } from './terrainHeight'
 import { buildTileMesh, innerHeights, tilePadding, tileTopology } from './tileGeometry'
 import { basePack } from './basePack'
-import { useTerrainLoad } from './terrainLoad'
+import { advanceLoad, initialLoad, useTerrainLoad } from './terrainLoad'
 import { TileImagery } from './tileImagery'
 import { MAX_TILE_ATTEMPTS, retryDelayMs, TILE_TIMEOUT_MS } from './tileRetry'
+
+/** Request start times for the loading bar (tile loads start from the frame loop, not during render). */
+const clockMs = () => performance.now()
 
 const MAX_IN_FLIGHT = 6
 // Start downloading the ready-made coarse globe with the page, before the first tile is wanted.
@@ -110,17 +113,18 @@ export function TileTree({
   const lastUpdate = useRef(0)
   const dirty = useRef(true) // a tile arrived (or the site changed) since the last selection
   const warned = useRef(false) // a tile failure has been reported (once per site)
-  const requests = useRef(new Set<AbortController>()) // in flight, cancelled when the site changes
+  const requests = useRef(new Map<AbortController, number>()) // in flight (-> start time), cancelled when the site changes
   const retryTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
-  // Loading bar: tiles finished in the current burst (since tiles started being needed again).
-  const burstDone = useRef(0)
+  // Loading indicators (terrainLoad.ts): finished loads, tiles on screen, oldest request in flight.
+  const finished = useRef(0) // tile loads finished for this site
   const drawnCount = useRef(0)
   const publish = () => {
     const pending = inFlight.current + queue.current.filter((q) => q.state === 'idle').length
     const s = useTerrainLoad.getState()
-    if (s.pending === 0 && pending > 0) burstDone.current = 0 // a new burst
-    const next = { drawn: drawnCount.current, pending, done: burstDone.current, total: burstDone.current + pending }
-    if (next.drawn !== s.drawn || next.pending !== s.pending || next.done !== s.done || next.total !== s.total) useTerrainLoad.setState(next)
+    let waitingSince: number | null = null
+    for (const t of requests.current.values()) waitingSince = Math.min(waitingSince ?? t, t)
+    const next = advanceLoad(s, { drawn: drawnCount.current, pending, finished: finished.current, waitingSince }, performance.now())
+    if (next !== s) useTerrainLoad.setState(next, true)
   }
   const lastSize = useRef('')
   const camera = useThree((s) => s.camera)
@@ -135,12 +139,13 @@ export function TileTree({
     dirty.current = true
     warned.current = false
     drawnCount.current = 0
-    useTerrainLoad.setState({ drawn: 0 }) // a new site: "Loading the Moon" until its first tiles draw
+    finished.current = 0
+    useTerrainLoad.setState(initialLoad, true) // a new site: "Loading the Moon" until its first tiles draw
     invalidate()
     const pending = requests.current
     const timers = retryTimers.current
     return () => {
-      for (const c of pending) c.abort() // don't keep the connections busy with the old site's tiles
+      for (const c of pending.keys()) c.abort() // don't keep the connections busy with the old site's tiles
       pending.clear()
       for (const t of timers) clearTimeout(t)
       timers.clear()
@@ -192,7 +197,7 @@ export function TileTree({
     n.state = 'loading'
     inFlight.current++
     const ctl = new AbortController()
-    requests.current.add(ctl)
+    requests.current.set(ctl, clockMs())
     const timeout = setTimeout(() => ctl.abort(new Error(`tile ${n.key}: no answer in ${TILE_TIMEOUT_MS / 1000} s`)), TILE_TIMEOUT_MS)
     basePack()
       .then(async (pack): Promise<Float32Array> => {
@@ -261,7 +266,7 @@ export function TileTree({
         clearTimeout(timeout)
         requests.current.delete(ctl)
         inFlight.current--
-        burstDone.current++
+        finished.current++
         pump() // keep the connections busy between selections
         publish()
         dirty.current = true // reselect on the next frame
