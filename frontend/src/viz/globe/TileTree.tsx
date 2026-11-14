@@ -12,7 +12,8 @@ import { API_URL } from '../api'
 import { PERF_ENABLED, recordCameraClearance, recordTileBuild, recordTileLevels } from '../perf'
 import { MAX_ZOOM, MOON_RADIUS_M, SiteFrame, TILE_N, tileVertexUV, uvToVec, vertexSpacingM, type Vec3 } from './cubeSphere'
 import { groundHeightAt, liftAboveGround, type TileHeights } from './terrainHeight'
-import { buildTileMesh, innerHeights, tileTopology } from './tileGeometry'
+import { buildTileMesh, innerHeights, tilePadding, tileTopology } from './tileGeometry'
+import { TileImagery } from './tileImagery'
 
 const MAX_IN_FLIGHT = 6
 const UPDATE_EVERY_MS = 60 // at most this often while the camera moves
@@ -50,14 +51,18 @@ const sphere = new THREE.Sphere()
 const lastView = new THREE.Matrix4() // camera at the last selection
 const lastProj = new THREE.Matrix4()
 
-// Every tile has the same triangles, so all tiles share one index buffer (uploaded to the GPU once).
+// Every tile has the same triangles and texture coordinates, so all tiles share one index buffer
+// and one uv buffer (each uploaded to the GPU once).
 let sharedIndex: THREE.BufferAttribute | null = null
+let sharedUv: THREE.BufferAttribute | null = null
 const tileIndex = () => (sharedIndex ??= new THREE.BufferAttribute(tileTopology(TILE_N).indices, 1))
+const tileUv = () => (sharedUv ??= new THREE.BufferAttribute(tileTopology(TILE_N).uvs, 2))
 const PAD = 1 // tiles come with a ring of their neighbours' vertices, for seamless normals
 
-/** Free a tile's GPU buffers, but not the shared index (other tiles still draw with it). */
+/** Free a tile's GPU buffers, but not the shared index and uvs (other tiles still draw with them). */
 function disposeTile(mesh: THREE.Mesh) {
   mesh.geometry.setIndex(null)
+  mesh.geometry.deleteAttribute('uv')
   mesh.geometry.dispose()
 }
 
@@ -79,6 +84,7 @@ export function TileTree({
   cameraClearanceM = 3,
   lodThresholdPx = 4,
   maxCachedMeshes = 500,
+  imagery = false,
 }: {
   frame: SiteFrame
   material: THREE.Material
@@ -87,6 +93,7 @@ export function TileTree({
   cameraClearanceM?: number // the camera never gets closer than this to the ground below it (m)
   lodThresholdPx?: number // refine while a vertex step spans more than this on screen (graphics preset)
   maxCachedMeshes?: number // tile meshes kept in memory (graphics preset)
+  imagery?: boolean // drape the LRO WAC mosaic over the terrain (see tileImagery.ts)
 }) {
   const group = useRef<THREE.Group>(null)
   const nodes = useRef(new Map<string, TileNode>())
@@ -94,15 +101,19 @@ export function TileTree({
   const queue = useRef<TileNode[]>([])
   const lastUpdate = useRef(0)
   const dirty = useRef(true) // a tile arrived (or the site changed) since the last selection
+  const warned = useRef(false) // a tile failure has been reported (once per site)
   const lastSize = useRef('')
   const camera = useThree((s) => s.camera)
   const size = useThree((s) => s.size)
   const invalidate = useThree((s) => s.invalidate)
+  const get = useThree((s) => s.get)
+  const imageryRef = useRef<TileImagery | null>(null)
 
   // A different site means a different frame: drop everything.
   useEffect(() => {
     const map = nodes.current
     dirty.current = true
+    warned.current = false
     invalidate()
     return () => {
       for (const n of map.values()) if (n.mesh) disposeTile(n.mesh)
@@ -110,6 +121,27 @@ export function TileTree({
       queue.current = []
     }
   }, [frame, invalidate])
+
+  // Imagery layer on/off (and a fresh one per site): reapply materials on the next frame.
+  useEffect(() => {
+    if (!imagery) return
+    const reselect = () => {
+      dirty.current = true
+      invalidate()
+    }
+    const im = new TileImagery(reselect, Math.min(8, get().gl.capabilities.getMaxAnisotropy()))
+    imageryRef.current = im
+    reselect()
+    const map = nodes.current
+    return () => {
+      im.dispose(
+        [...map.values()].flatMap((n) => (n.mesh ? [n.mesh] : [])),
+        material,
+      )
+      imageryRef.current = null
+      reselect()
+    }
+  }, [imagery, material, frame, get, invalidate])
 
   // A different detail level: reselect on the next frame.
   useEffect(() => {
@@ -136,13 +168,18 @@ export function TileTree({
         if (!res.ok) throw new Error(`tile ${n.key}: HTTP ${res.status}`)
         n.leaf = res.headers.get('X-Tile-Leaf') === '1' || n.z >= MAX_ZOOM
         const heights = new Float32Array(await res.arrayBuffer())
+        // A backend from before padding ignores ?pad=1 and sends the plain tile: draw that too
+        // (its edges get one-sided normals) rather than no terrain at all.
+        const pad = tilePadding(heights.length)
+        if (pad === null) throw new Error(`tile ${n.key}: ${heights.length} heights, expected ${(TILE_N + 2) ** 2} or ${TILE_N ** 2}`)
         if (!nodes.current.has(n.key)) return // site changed meanwhile
         const t0 = performance.now()
-        const m = buildTileMesh(n.face, n.z, n.x, n.y, heights, frame, TILE_N, PAD)
+        const m = buildTileMesh(n.face, n.z, n.x, n.y, heights, frame, TILE_N, pad)
         const geom = new THREE.BufferGeometry()
         geom.setAttribute('position', new THREE.BufferAttribute(m.positions, 3))
         geom.setAttribute('normal', new THREE.BufferAttribute(m.normals, 3))
         geom.setIndex(tileIndex())
+        geom.setAttribute('uv', tileUv())
         geom.boundingSphere = new THREE.Sphere(new THREE.Vector3(), m.radius) // known: skip three's pass
         recordTileBuild(performance.now() - t0)
         const mesh = new THREE.Mesh(geom, material)
@@ -155,11 +192,16 @@ export function TileTree({
         n.centre = m.centre
         n.radius = m.radius
         n.mesh = mesh
-        n.heights = innerHeights(heights, TILE_N, PAD)
+        n.heights = innerHeights(heights, TILE_N, pad)
         n.state = 'ready'
       })
-      .catch(() => {
+      .catch((e: unknown) => {
         n.state = 'error'
+        // Say why once per site (a silent failure here means no terrain and no clue).
+        if (!warned.current) {
+          warned.current = true
+          console.warn('Terrain tile failed to load; the terrain may be incomplete.', e)
+        }
       })
       .finally(() => {
         inFlight.current--
@@ -276,7 +318,12 @@ export function TileTree({
         changed = true
       }
     }
-    if (changed) state.gl.shadowMap.needsUpdate = true // terrain under the lander may have changed detail
+    if (changed) state.gl.shadowMap.needsUpdate = true
+    imageryRef.current?.apply(
+      draw.map((n) => ({ key: n.key, face: n.face, z: n.z, x: n.x, y: n.y, mesh: n.mesh! })),
+      material,
+      now,
+    ) // terrain under the lander may have changed detail
 
     // Forget meshes not used for a while once the cache is large.
     const ready = [...nodes.current.values()].filter((n) => n.mesh)
@@ -286,6 +333,7 @@ export function TileTree({
         .sort((a, b) => a.lastUsed - b.lastUsed)
         .slice(0, ready.length - maxCachedMeshes)
         .forEach((n) => {
+          imageryRef.current?.forget(n.key)
           disposeTile(n.mesh!)
           n.mesh = null
           n.heights = null

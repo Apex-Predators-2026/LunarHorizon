@@ -22,7 +22,7 @@ import { TimeBar } from './TimeBar'
 import { ViewCentre } from './ViewCentre'
 import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor } from './timeline'
 import { FloatingSidebar } from './FloatingSidebar'
-import { GRAPHICS, useGraphicsQuality } from './graphics'
+import { GRAPHICS, useGraphicsQuality, useStoredFlag } from './graphics'
 import { MiniMapPanel } from './MiniMapPanel'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
@@ -48,7 +48,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   const [view, setView] = useState<ViewMode>('overview')
   const [windowDays, setWindowDays] = useState(14)
   const [terrainStats, setTerrainStats] = useState<TileStats | null>(null)
-  const [layers, setLayers] = useState<Layers>({ sites: true, psr: true, blockers: true })
+  const [layers, setLayers] = useState<Layers>({ sites: true, psr: true, blockers: true, imagery: false })
   const [pin, setPin] = useState<PinState>({ phase: 'idle' })
   const [createdSites, setCreatedSites] = useState<SiteInfo[]>([]) // pins dropped this session
   const setSite = useAppStore((s) => s.setSite)
@@ -94,6 +94,8 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
   // Graphics preset (High = full quality, the default; Low for Chromebooks and old laptops).
   const [graphicsQuality, setGraphicsQuality] = useGraphicsQuality()
   const gfx = GRAPHICS[graphicsQuality]
+  // Cascaded shadows across the whole view (off by default; needs a preset with shadows).
+  const [farShadows, setFarShadows] = useStoredFlag('lunar-navigator.farShadows', false)
   const terrainMaterial = useMemo(
     () =>
       gfx.material === 'lambert'
@@ -219,6 +221,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             onStats={onStats}
             onPick={pin.phase === 'armed' ? onPick : undefined}
             lodThresholdPx={gfx.lodThresholdPx}
+            imagery={layers.imagery}
             maxCachedMeshes={gfx.maxCachedMeshes}
           />
         )}
@@ -228,7 +231,13 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           <BlockerLines steps={timeline.data ?? []} current={blockers} horizon={horizon.data} eyeHeightM={eye} />
         )}
         {s && (
-          <SunLight status={s} shadowHalfWidth={SHADOW_HALF_WIDTH_M} shadows={gfx.shadows} shadowMapSize={gfx.shadowMapSize} />
+          <SunLight
+            status={s}
+            shadowHalfWidth={SHADOW_HALF_WIDTH_M}
+            shadows={gfx.shadows}
+            shadowMapSize={gfx.shadowMapSize}
+            far={farShadows}
+          />
         )}
         {/* Sky (and, in the lander's-eye views, the engine skyline) stays centred on the camera,
             like a skybox: these things are effectively at infinity. */}
@@ -237,7 +246,7 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
           {horizon.data && eyeView && <HorizonCurtain horizon={horizon.data} radius={CURTAIN_RADIUS_M} />}
           {s && <SkyBodies status={s} distance={SKY_DISTANCE_M} />}
         </FollowCamera>
-        <Lander status={s} observerHeight={eye} showBeacon={view === 'overview'} />
+        <Lander status={s} observerHeight={eye} showBeacon={view === 'overview'} detailed={gfx.detailedModels} />
 
         {/* Pan along the ground (like a map), not in the screen plane, which would drag the view down
             into the terrain. TileTree also keeps the camera itself above the ground. */}
@@ -346,6 +355,9 @@ export function Scene({ sidebar }: { sidebar?: ReactNode }) {
             onView={setView}
             graphics={graphicsQuality}
             onGraphics={setGraphicsQuality}
+            farShadows={farShadows && gfx.shadows}
+            farShadowsAvailable={gfx.shadows}
+            onFarShadows={setFarShadows}
           />
           {site && win && (
             <div
