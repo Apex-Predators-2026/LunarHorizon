@@ -43,9 +43,9 @@ This is just as important as your own work.
 
 | Owner | Highest-value task |
 | ----- | ----- |
-| Member 4 — Comparison | Correct FAIL/UNKNOWN rankings and status displays |
-| Arush — Rescue | Coordinate performance integration and ensure UNKNOWN sensitivity points display correctly |
-| Andrew — Data/3D | Fix stale dates, check Artemis labels, and prepare offline demo terrain data |
+| Member 4 - Comparison | Correct FAIL/UNKNOWN rankings and status displays |
+| Arush - Rescue | Coordinate performance integration and ensure UNKNOWN sensitivity points display correctly |
+| Andrew - Data/3D | Fix stale dates, check Artemis labels, and prepare offline demo terrain data |
 | UI owner | Display your viability explanations and create a guided judge-facing workflow |
 | Validation member | Make scientific evidence accessible through a methodology/validation panel |
 | Whole team | Complete README, licensing, asset provenance and submission materials |
@@ -110,25 +110,25 @@ I would make the product tell one scientific story:
 
 Suggested 30-second submission video
 
-[Фото дня. Деталізована мозаїка кратера Шеклтон на Південному полюсі Місяця — Тексти.org.ua](https://images.openai.com/static-rsc-4/lmJ_xDfDCRLAcoScoSDXAmjlh2FeUi1XjKjZe9KrJwMhqB2Y3J3dl8irA2QjVNO-GcVEP4gJE5mKGHd1TKUxx8az-CppkKHs6wIV2FBpBaM7S_NHsQOUAuNPhJDW8omFpEVIOF4DCmyHfrqB8U3VQjqHDuzKzHnHDN8SpSNx-Bo?purpose=inline)
+[Фото дня. Деталізована мозаїка кратера Шеклтон на Південному полюсі Місяця - Тексти.org.ua](https://images.openai.com/static-rsc-4/lmJ_xDfDCRLAcoScoSDXAmjlh2FeUi1XjKjZe9KrJwMhqB2Y3J3dl8irA2QjVNO-GcVEP4gJE5mKGHd1TKUxx8az-CppkKHs6wIV2FBpBaM7S_NHsQOUAuNPhJDW8omFpEVIOF4DCmyHfrqB8U3VQjqHDuzKzHnHDN8SpSNx-Bo?purpose=inline)
 
-**0–6 seconds — Establish the problem**
+**0–6 seconds - Establish the problem**
 
 “At the Moon's south pole, choosing the wrong landing date can leave a mission without sunlight or direct Earth visibility.”
 
 [The Lunar South Pole Is a Rich Target for NASA's 2024 Moon Goal \| Space](https://images.openai.com/static-rsc-4/AJf-hojcQC21tF1s8I7oevfsfbmv2l-CR1v3ghfBBBH3CjTO9nO5W_mzgjFQsR3G5Je1cfbdo_m9jWx37oEcuUPfd8QnLD68g3LHwXBxwoVWNrP8g0djFvwrpCx40zK6-asonrbCExlR1nSS5xcxV32zvRqM-Mcyzdk87g97-cw?purpose=inline)
 
-**6–14 seconds — Demonstrate the science**
+**6–14 seconds - Demonstrate the science**
 
 Show the 3D terrain, changing shadows, timeline, and the specific constraint that makes a tested mission fail.
 
 [Lunar Orbiter Captures Stunning View of Possible Artemis 3 Landing Site](https://images.openai.com/static-rsc-4/ZXn9w7ncO6pF54xg8WZ94PyTT7c7P27Wf4oO2r8Fpdrp0aI1rq_LPb9SStpRE4X2IRTt3x-KV_EnRBgKDZoDpbSGQ_fgc7v6tyCoVp50gWre9eTojwh_-WSraC_Zu2hRWDjKqJ1xTxYgu_JQYALjtVrKBycCM-a2jJyjR0kutj4?purpose=inline)
 
-**14–24 seconds — Show the innovation**
+**14–24 seconds - Show the innovation**
 
 Use Rescue to compare an alternative landing opportunity and explain why it satisfies the spacecraft's requirements.
 
-**24–30 seconds — Establish credibility and value**
+**24–30 seconds - Establish credibility and value**
 
 Show the NASA/JPL data attribution and validation evidence, and finish with the tool's ability to support faster, clearer mission trade-off decisions.
 
@@ -140,9 +140,9 @@ This would demonstrate the project's scientific relevance, novelty and functiona
 
 | Team responsibility | Focus |
 | ----- | ----- |
-| You — Member 2 | Viability API, Rescue performance, evidence-backed results, and potentially a minimal Atlas calendar |
-| Arush — Rescue | Make the failure-to-recovery workflow convincing and reliable |
-| Member 4 — Comparison | Accurate rankings and visually clear trade-offs |
+| You - Member 2 | Viability API, Rescue performance, evidence-backed results, and potentially a minimal Atlas calendar |
+| Arush - Rescue | Make the failure-to-recovery workflow convincing and reliable |
+| Member 4 - Comparison | Accurate rankings and visually clear trade-offs |
 | UI/visualization owners | Guided demonstration, timeline synchronization and polished interactions |
 | Data/validation owners | Scientific evidence, correct source attribution and limitations |
 | Team lead/submission owner | Video, submission materials, README, public deployment and deadline |
@@ -171,7 +171,7 @@ You already have much of the underlying functionality. Making it easy for a judg
 
 **2\. Exact assignments for each team member**
 
-**You — Member 2: Viability, scientific reasoning and performance**
+**You - Member 2: Viability, scientific reasoning and performance**
 
 Your existing post-audit assignment remains the right starting point.
 
@@ -184,7 +184,7 @@ Your existing post-audit assignment remains the right starting point.
 
 Once that's complete, your next worthwhile feature is a **small Atlas heatmap**, not the entire multi-phase Atlas plan.
 
-**Arush — Mission Rescue and recovery workflow**
+**Arush - Mission Rescue and recovery workflow**
 
 1. Coordinate the performance improvement with you.  
 2. Correct UNKNOWN displays in Rescue sensitivity views.  
@@ -195,7 +195,7 @@ Once that's complete, your next worthwhile feature is a **small Atlas heatmap**,
 
 This is your team's most promising differentiator against the competitors reviewed.
 
-**Andrew — Scientific data, 3D terrain and factual accuracy**
+**Andrew - Scientific data, 3D terrain and factual accuracy**
 
 1. Verify Artemis landing-region labels and correct outdated or misleading names.  
 2. Correct inconsistent date-range descriptions and ensure displayed coverage reflects the actual data.  
@@ -206,7 +206,7 @@ This is your team's most promising differentiator against the competitors review
 
 Don't replace existing site data with new coordinates immediately before submission unless the team can regenerate and validate all affected outputs.
 
-**Member 4 — Comparison and decision-making interface**
+**Member 4 - Comparison and decision-making interface**
 
 1. Fix the comparison ranking bug: only eligible PASS scenarios receive canonical ranks.  
 2. Show UNKNOWN as unknown, not failed; do not convert missing scores into zero.  
@@ -217,7 +217,7 @@ Don't replace existing site data with new coordinates immediately before submiss
 
 The export/share feature is competitive parity, not a prerequisite.
 
-**UI / frontend owner — Presentation and guided experience**
+**UI / frontend owner - Presentation and guided experience**
 
 1. Add a **Try a Mission** entry point that loads a known, tested scenario.  
 2. Show the viability assessment in an understandable panel.  
@@ -229,7 +229,7 @@ The export/share feature is competitive parity, not a prerequisite.
 
 The competitor report specifically indicates that several rival applications already have guided tours. Your tour should be more useful than a sequence of tooltips: it should demonstrate a meaningful mission-planning decision.
 
-**Validation / submission owner — Evidence, credibility and submission**
+**Validation / submission owner - Evidence, credibility and submission**
 
 1. Build or supply content for the Validation & Methodology panel using your existing scientific reports.  
 2. Check that every numerical accuracy claim is backed by the correct experiment.  
