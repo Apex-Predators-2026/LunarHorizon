@@ -30,6 +30,15 @@ function OpenNavigatorButton({ onOpen }: { onOpen: () => void }) {
   )
 }
 
+/** Second action beside "Open the navigator": opens the app and starts the guided tour from its first step. */
+function GuidedTourButton({ onTour, style }: { onTour: () => void; style?: React.CSSProperties }) {
+  return (
+    <button type="button" className="lnd-btn lnd-btn-nav" style={style} onClick={onTour}>
+      Take the guided tour
+    </button>
+  )
+}
+
 function Nav({ onOpen }: { onOpen: () => void }) {
   const [scrolled, setScrolled] = useState(false)
   const [tone, setTone] = useState<'dark' | 'light'>('dark')
@@ -203,13 +212,14 @@ function Data() {
   )
 }
 
-function Close({ onOpen }: { onOpen: () => void }) {
+function Close({ onOpen, onTour }: { onOpen: () => void; onTour?: () => void }) {
   return (
     <section className="lnd-close" aria-labelledby="close-h">
       <div className="lnd-wrap">
         <div className="lnd-close-cta" data-reveal>
           <h2 id="close-h">Plan a landing that survives the night</h2>
           <OpenNavigatorButton onOpen={onOpen} />
+          {onTour && <GuidedTourButton onTour={onTour} />}
         </div>
         <p className="lnd-close-credit">
           Image source{' '}
@@ -240,7 +250,7 @@ function Footer() {
 }
 
 /** The opening picture: the Moon with Earth rising behind it, with the project's headline over it. */
-function Hero({ onOpen }: { onOpen: () => void }) {
+function Hero({ onOpen, onTour }: { onOpen: () => void; onTour?: () => void }) {
   // The Moon settles into place once its pixels exist, so the move never plays over an empty frame.
   const moon = useRef<HTMLImageElement>(null)
   const [moonReady, setMoonReady] = useState(false)
@@ -271,6 +281,7 @@ function Hero({ onOpen }: { onOpen: () => void }) {
           <p className="lnd-hero-lead">{HERO.lead}</p>
           <div className="lnd-hero-actions">
             <OpenNavigatorButton onOpen={onOpen} />
+            {onTour && <GuidedTourButton onTour={onTour} style={{ alignSelf: 'center' }} />}
           </div>
           <div className="lnd-live-inline">
             <LiveNow idPrefix="lnd-live-inline" />
@@ -287,18 +298,18 @@ function Hero({ onOpen }: { onOpen: () => void }) {
   )
 }
 
-export default function Landing({ onOpen }: { onOpen: () => void }) {
+export default function Landing({ onOpen, onTour }: { onOpen: () => void; onTour?: () => void }) {
   const root = useRef<HTMLDivElement>(null)
   return (
     <div ref={root} id="top" className="lnd md-host">
       <GlassDefs />
       <Nav onOpen={onOpen} />
       <main>
-        <Hero onOpen={onOpen} />
+        <Hero onOpen={onOpen} onTour={onTour} />
         <FeatureCarousel />
         <MeetRover />
         <Data />
-        <Close onOpen={onOpen} />
+        <Close onOpen={onOpen} onTour={onTour} />
       </main>
       <Footer />
     </div>

@@ -1,24 +1,20 @@
 // "Try a mission": the orchestration drives the shared stores (running plan, Rescue, assessment, evidence, comparison)
 // and every stage reads the live result. Backend responses are the real API responses for the mission definition
 // (captured by backend/scripts/make_mission_fixtures.py), served through a mocked fetch.
-import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useNav } from './nav'
-import { markEvidenceShown, takeEvidence, useEvidence } from '../../viz/evidence'
+import { useEvidence } from '../../viz/evidence'
 import type { AssessResponse } from '../assessment/types'
 import { scenarioKey, useAssessmentStore } from '../assessment/useAssessmentStore'
 import { useCompareStore } from '../compare/useCompareStore'
 import { usePlansStore } from '../plans/usePlansStore'
 import type { RescueResponse } from '../rescue/types'
 import { useRescueStore } from '../rescue/useRescueStore'
-import { useTutorialStore } from '../tutorial/useTutorialStore'
 import assessDisrupted from './__fixtures__/assess-disrupted.json'
 import assessOriginal from './__fixtures__/assess-original.json'
-import assessRecovery from './__fixtures__/assess-recovery.json'
-import compareRes from './__fixtures__/compare.json'
+import { flush, resetMissionStores, stubMissionFetch, viewerShows, type MissionApiControls } from './__fixtures__/mockApi'
 import rescueRes from './__fixtures__/rescue.json'
-import { GuideCard } from './GuideCard'
 import {
   checkDisrupted,
   checkOriginal,
@@ -31,60 +27,20 @@ import {
 } from './missionDefinition'
 import { snapshot, stageIndex, stageModel, STAGES, useGuide } from './mission'
 
-const json = (body: unknown) => ({ ok: true, status: 200, json: async () => body }) as Response
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 
-let rescueBody: unknown = rescueRes
-let rescueGate: Promise<void> | null = null
-let failRescue = false
-
-/** The compare fixture answers under the keys of whatever the store sends (same order: original, disrupted, recovery). */
-function compareFor(body: { scenarios: { key: string }[] }) {
-  let text = JSON.stringify(compareRes)
-  for (const [i, k] of ['original', 'disrupted', 'recovery'].entries()) text = text.split(`"${k}"`).join(JSON.stringify(body.scenarios[i].key))
-  return JSON.parse(text)
-}
+let api: MissionApiControls
 
 beforeEach(() => {
-  usePlansStore.setState({ plans: [], activeId: null, compareIds: [] })
-  useAssessmentStore.setState({ results: {}, showing: null, target: 'original' })
-  useCompareStore.setState({ scenarios: [], selectedIds: [], results: {}, rescueContext: null, rankingSetKey: null, rankingGroups: [], rankingPairs: [], allowDemo: false })
-  useRescueStore.getState().reset()
-  useRescueStore.setState({ original: null, change: { launch_delay_days: 0, requirement_overrides: {} } })
-  rescueBody = rescueRes
-  rescueGate = null
-  failRescue = false
-  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
-    const body = init?.body ? JSON.parse(String(init.body)) : null
-    if (url.includes('/api/viability/assess-scenario')) {
-      const k = scenarioKey(body.scenario)
-      if (k === scenarioKey(originalScenario())) return json(assessOriginal)
-      if (k === scenarioKey(disruptedScenario())) return json(assessDisrupted)
-      return json(assessRecovery)
-    }
-    if (url.includes('/api/rescue')) {
-      if (rescueGate) await rescueGate
-      if (failRescue) throw new TypeError('Failed to fetch')
-      return json(rescueBody)
-    }
-    if (url.includes('/api/compare')) return json(compareFor(body))
-    return json([])
-  }))
+  resetMissionStores()
+  api = stubMissionFetch()
 })
 afterEach(() => {
   useGuide.getState().exit()
   vi.unstubAllGlobals()
 })
 
-const flush = async (n = 6) => {
-  for (let i = 0; i < n; i++) await new Promise((r) => setTimeout(r, 0))
-}
 const model = () => stageModel(snapshot())
-/** Stand in for the 3D view: take the pending evidence request and mark it shown. */
-const viewerShows = () => {
-  const r = takeEvidence()
-  if (r) markEvidenceShown(r)
-}
 
 async function advanceTo(id: (typeof STAGES)[number]['id']) {
   const target = stageIndex(id)
@@ -202,7 +158,7 @@ describe('guided mission flow', () => {
     await flush()
     await advanceTo('evidence')
     let release!: () => void
-    rescueGate = new Promise((r) => (release = r))
+    api.setRescueGate(new Promise((r) => (release = r)))
     useGuide.getState().next() // rescue starts, then the user goes back before it answers
     await flush()
     useGuide.getState().back()
@@ -216,11 +172,11 @@ describe('guided mission flow', () => {
     useGuide.getState().start()
     await flush()
     await advanceTo('evidence')
-    failRescue = true
+    api.setFailRescue(true)
     useGuide.getState().next()
     await flush(12)
     expect(model()).toMatchObject({ status: 'error', primary: { action: 'retry' } })
-    failRescue = false
+    api.setFailRescue(false)
     useGuide.getState().retry()
     await flush(12)
     expect(model().status).toBe('ready')
@@ -229,7 +185,7 @@ describe('guided mission flow', () => {
   it('Rescue without a qualifying recovery is reported as outdated, not narrated', async () => {
     const r = clone(rescueRes) as unknown as RescueResponse
     r.alternatives = []
-    rescueBody = r
+    api.setRescueBody(r)
     useGuide.getState().start()
     await flush()
     await advanceTo('rescue')
@@ -237,34 +193,17 @@ describe('guided mission flow', () => {
     expect(model().status).toBe('outdated')
   })
 
-  it('opening the feature tutorial stops the story; exit leaves the user’s tools as they are', async () => {
-    useGuide.getState().start()
-    await flush()
-    useTutorialStore.getState().startTour(0)
-    expect(useGuide.getState().active).toBe(false)
-    useTutorialStore.getState().skipTour()
-    useGuide.getState().start()
-    await flush()
-    await advanceTo('delay')
-    useGuide.getState().exit()
-    expect(useGuide.getState().active).toBe(false)
-    expect(useRescueStore.getState().change.launch_delay_days).toBe(MISSION.disruption.launch_delay_days)
+  it('begin() activates the story without entering a stage or navigating', () => {
+    useNav.setState({ view: 'atlas' })
+    useGuide.getState().begin()
+    expect(useGuide.getState()).toMatchObject({ active: true, stage: 0, planId: null })
+    expect(useNav.getState().view).toBe('atlas')
   })
 
-  it('the card renders progress, the stage and one primary action', async () => {
+  it('go() resolves once the stage has its live result', async () => {
     useGuide.getState().start()
     await flush()
-    // Server rendering reads a store's initial state: render the card for the running story.
-    const init = useGuide.getInitialState()
-    const saved = { active: init.active, stage: init.stage }
-    Object.assign(init, { active: true, stage: 0 })
-    const html = renderToString(<GuideCard />).replace(/<!-- -->/g, "")
-    Object.assign(init, saved)
-    expect(html).toContain('step 1 of 8')
-    expect(html).toContain('Your mission')
-    expect(html).toContain('aria-current="step"')
-    expect(html).toContain('Assess the original plan')
-    expect(html).toContain('Restart')
-    expect(html).toContain('Exit and explore')
+    await useGuide.getState().go(stageIndex('original'))
+    expect(model().status).toBe('ready')
   })
 })
