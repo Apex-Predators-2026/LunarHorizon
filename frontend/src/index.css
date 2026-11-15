@@ -933,3 +933,21 @@
 .glass-on:not(.absolute):not(.fixed):not(.sticky) {
   position: relative;
 }
+
+@keyframes md-tour-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-coral) 28%, transparent), 0 0 18px color-mix(in srgb, var(--color-coral) 35%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-coral) 14%, transparent), 0 0 24px color-mix(in srgb, var(--color-coral) 50%, transparent);
+  }
+}
+.md-tour-ring {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-coral) 24%, transparent), 0 0 20px color-mix(in srgb, var(--color-coral) 40%, transparent);
+  animation: md-tour-pulse 2s var(--md-ease-standard) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-tour-ring {
+    animation: none;
+  }
+}

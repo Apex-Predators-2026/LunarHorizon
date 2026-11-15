@@ -95,7 +95,7 @@ export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}
   const timelineProps = { entries, full, view, align, originMs }
 
   return (
-    <div className="cmp-page lp-light md-host min-h-full">
+    <div data-tour="compare-dashboard" className="cmp-page lp-light md-host min-h-full">
       <div className="mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8">
         <header className="mb-6 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">

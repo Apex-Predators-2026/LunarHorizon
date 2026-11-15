@@ -3,6 +3,13 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 're
 import { ComparisonDashboard } from './features/compare'
 import { PlanDialogHost, PlanFab, PlansPanel } from './features/plans/PlansPanel'
 import { MissionRescue } from './features/rescue'
+import {
+  TUTORIAL_STEPS,
+  TutorialOfferChip,
+  TutorialSpotlight,
+  initTutorialFromSearch,
+  useTutorialStore,
+} from './features/tutorial'
 import { GlassDemo } from './ui/GlassDemo'
 import { GlassDefs } from './ui/GlassSurface'
 import { GradientPreview } from './ui/GradientPreview'
@@ -70,8 +77,12 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
               refs.current[v.id] = el
             }}
             type="button"
+            data-tour={v.id === 'compare' ? 'nav-compare' : undefined}
             aria-current={view === v.id ? 'page' : undefined}
-            onClick={() => onView(v.id)}
+            onClick={() => {
+              if (v.id === 'compare') useTutorialStore.getState().recordInteraction('compare-open')
+              onView(v.id)
+            }}
             className="flex min-h-10 cursor-pointer items-center font-[var(--font-inter)] text-[clamp(15px,1.9vw,28px)] font-bold leading-tight tracking-[-0.06em] text-opal-50 transition-colors duration-200 hover:text-opal-300"
           >
             {v.label}
@@ -101,6 +112,31 @@ export default function App() {
   }, [dark])
 
   const hash = useHash()
+  const tourLaunchedRef = useRef(false)
+
+  useEffect(() => {
+    if (!tourLaunchedRef.current && hash.startsWith('#app')) {
+      tourLaunchedRef.current = true
+      initTutorialFromSearch()
+    }
+  }, [hash])
+
+  useEffect(() => {
+    let lastNonce = -1
+    const sync = () => {
+      const st = useTutorialStore.getState()
+      if (!st.open || st.prepNonce === lastNonce) return
+      lastNonce = st.prepNonce
+      const nextView = TUTORIAL_STEPS[st.stepIndex]?.prep?.appView
+      if (nextView) setView((cur) => (cur === nextView ? cur : nextView))
+    }
+    const id = setTimeout(sync, 0)
+    const unsub = useTutorialStore.subscribe(sync)
+    return () => {
+      clearTimeout(id)
+      unsub()
+    }
+  }, [])
   if (hash === '#mango') return <GradientPreview />
   if (hash === '#glass') return (
     <>
@@ -141,6 +177,13 @@ export default function App() {
           />
         </main>
       )}
+      <TutorialOfferChip uiHidden={uiHidden && !compare} compareActive={compare} />
+      <TutorialSpotlight
+        uiHidden={uiHidden && !compare}
+        appView={view}
+        onOpenCompare={() => setView('compare')}
+        onResetTourView={() => setView('planner')}
+      />
     </div>
   )
 }
