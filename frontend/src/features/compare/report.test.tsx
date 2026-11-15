@@ -5,6 +5,7 @@ import { renderToString } from 'react-dom/server'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import fixture from './__fixtures__/compare-response.json'
+import { toCsv } from './export'
 import { cannotGenerate, REPORT_FORMAT, selectionKeyOf, useReportStore } from './report'
 import { ReportDocument } from './ReportPreview'
 import { makeScenario, resultKey, selectionKey } from './scenario'
@@ -24,6 +25,22 @@ const INPUT: Record<string, { site: typeof MAL; landing_utc: string; duration_da
   E: { site: MAL, landing_utc: '2027-01-15T00:00:00Z', duration_days: 3 },
 }
 const plain = (h: string) => h.replace(/<!-- -->/g, '')
+/** A small RFC 4180 reader (quoted cells may contain commas, quotes and line breaks). */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = []
+  let row: string[] = [], cur = '', q = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (q) {
+      if (ch === '"' && text[i + 1] === '"') { cur += '"'; i++ } else if (ch === '"') q = false; else cur += ch
+    } else if (ch === '"') q = true
+    else if (ch === ',') { row.push(cur); cur = '' }
+    else if (ch === String.fromCharCode(13)) continue
+    else if (ch === String.fromCharCode(10)) { row.push(cur); rows.push(row); row = []; cur = '' }
+    else cur += ch
+  }
+  return rows
+}
 
 /** Put fixture results into the live comparison store under the keys the store itself would use. */
 function load(keys: string[], over: Partial<Record<string, Partial<ComparisonScenario>>> = {}) {
@@ -100,6 +117,31 @@ describe('summary report snapshot', () => {
     const html = plain(renderToString(<ReportDocument s={s} />))
     expect(html).toContain('NOT ASSESSED')
     expect(html).not.toContain('NaN')
+  })
+
+  it('the CSV and the JSON of a frozen snapshot are two views of the same evaluated results', () => {
+    load(['A', 'B', 'C', 'D'])
+    useReportStore.getState().generate()
+    const s = useReportStore.getState().snapshot!
+    const json = JSON.parse(JSON.stringify(s.export)) // what the report's JSON download contains
+    // Serialising and parsing the snapshot loses nothing the CSV shows: the CSV of the parsed JSON is identical.
+    expect(toCsv(json)).toBe(toCsv(s.export))
+    const [head, ...rows] = parseCsv(toCsv(json))
+    const col = (name: string) => head.indexOf(name)
+    expect(rows).toHaveLength(json.scenarios.length)
+    for (const [i, x] of json.scenarios.entries()) {
+      expect(rows[i][col('label')]).toBe(x.label)
+      expect(rows[i][col('eligibility')]).toBe(x.eligibility ?? 'not_assessed')
+      expect(rows[i][col('canonical_rank')]).toBe(x.canonical_rank === null ? '' : String(x.canonical_rank))
+      // The requested time and the evaluated time stay separate columns and carry the snapshot's own values.
+      expect(rows[i][col('requested_landing_utc')]).toBe(x.mission_time.requested_landing_utc ?? '')
+      expect(rows[i][col('evaluated_landing_utc')]).toBe(x.mission_time.evaluated_landing_utc ?? '')
+      expect(rows[i][col('evaluation_status')]).toBe(x.mission_time.evaluation_status)
+    }
+    // UNKNOWN / unassessed D is still not a PASS or a FAIL, and has no rank, in both files.
+    const d = rows[json.scenarios.findIndex((x: { label: string }) => x.label === 'D')]
+    expect(d[col('eligibility')]).toBe('unknown')
+    expect(d[col('canonical_rank')]).toBe('')
   })
 
   it('the printed sources say Gracy & Lee located two sites and validated nothing', () => {
