@@ -164,10 +164,10 @@ function Provenance({ r }: { r: AssessResponse }) {
         </p>
       )}
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-        <Field k="Ephemeris" v={p.ephemeris_source ?? '—'} />
-        <Field k="Terrain" v={p.terrain_source ?? '—'} />
+        <Field k="Ephemeris" v={p.ephemeris_source ?? '-'} />
+        <Field k="Terrain" v={p.terrain_source ?? '-'} />
         {p.horizon_azimuth_step_deg !== null && <Field k="Horizon mask" v={`every ${p.horizon_azimuth_step_deg}° of azimuth`} />}
-        <Field k="Frame" v={p.coordinate_frame ?? '—'} />
+        <Field k="Frame" v={p.coordinate_frame ?? '-'} />
         <Field k="Criteria" v={`Sun: ${ds.sun_criterion.replace(/_/g, ' ')} · Earth: ${ds.earth_criterion.replace(/_/g, ' ')} · ${ds.calculation_basis.replace(/_/g, ' ')}`} />
         {ds.observer_height_m !== null && <Field k="Observer" v={`${ds.observer_height_m} m above the ground`} />}
         <Field k="Dataset" v={ds.dataset_id} />

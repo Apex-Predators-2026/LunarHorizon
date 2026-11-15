@@ -407,7 +407,7 @@ export function AtlasView() {
                                 <td className="py-1 pr-2">{deciding && <span className="mr-1" aria-label="deciding requirement">▶</span>}{q.name ?? c.id}</td>
                                 <td className="pr-2 tabular-nums">{limitText(q)}</td>
                                 <td className="pr-2 tabular-nums">{measuredText(c, q.unit)}</td>
-                                <td className="pr-2 tabular-nums">{c.margin === null || c.margin === undefined ? '—' : `${c.margin >= 0 ? '+' : '−'}${measuredText({ ...c, measured: 'known', value: Math.abs(c.margin) }, q.unit)}`}</td>
+                                <td className="pr-2 tabular-nums">{c.margin === null || c.margin === undefined ? '-' : `${c.margin >= 0 ? '+' : '−'}${measuredText({ ...c, measured: 'known', value: Math.abs(c.margin) }, q.unit)}`}</td>
                                 <td>{c.status === 'pass' ? '✓ passes' : c.status === 'fail' ? '✕ fails' : c.status === 'unknown' ? `? undecided${c.note ? ` (${c.note})` : ''}` : 'n/a'}</td>
                               </tr>
                             )

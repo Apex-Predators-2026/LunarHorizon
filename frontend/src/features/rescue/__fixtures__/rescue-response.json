@@ -1,6 +1,6 @@
 {
  "status": "rescued",
- "summary": "The changed plan fails: Minimum Earth line-of-sight time: share of mission time with Earth line of sight is 0 %; required >= 40 %. Requirement violated; Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 168 h; required <= 96 h. Requirement violated; Minimum continuous Earth line of sight after landing: continuous Earth line-of-sight time from mission start is 0 h; required >= 12 h. Requirement violated. Best rescue: Land at Peak Near Shackleton on 2027-11-08 12:00 UTC (14.5 days later than the delayed date) — passes all requirements, score 100 (delayed plan: 42).",
+ "summary": "The changed plan fails: Minimum Earth line-of-sight time: share of mission time with Earth line of sight is 0 %; required >= 40 %. Requirement violated; Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 168 h; required <= 96 h. Requirement violated; Minimum continuous Earth line of sight after landing: continuous Earth line-of-sight time from mission start is 0 h; required >= 12 h. Requirement violated. Best rescue: Land at Peak Near Shackleton on 2027-11-08 12:00 UTC (14.5 days later than the delayed date) - passes all requirements, score 100 (delayed plan: 42).",
  "original": {
   "scenario": {
    "site": {
@@ -255,7 +255,7 @@
     "verdict": "robust",
     "note": "Still passes with a ±1 day slip. (Landing-position error not checked: no real data around the site.)"
    },
-   "headline": "Land at Peak Near Shackleton on 2027-11-08 12:00 UTC (14.5 days later than the delayed date) — passes all requirements, score 100 (delayed plan: 42).",
+   "headline": "Land at Peak Near Shackleton on 2027-11-08 12:00 UTC (14.5 days later than the delayed date) - passes all requirements, score 100 (delayed plan: 42).",
    "reasons": [
     "Fixes: minimum earth line-of-sight time: share of mission time with earth line of sight, maximum direct-to-earth line-of-sight blackout: longest earth line-of-sight blackout, minimum continuous earth line of sight after landing: continuous earth line-of-sight time from mission start.",
     "Longest comms blackout: 168 h → 0 h (−168 h)",
@@ -404,7 +404,7 @@
     "verdict": "robust",
     "note": "Still passes with a ±1 day slip. (Landing-position error not checked: no real data around the site.)"
    },
-   "headline": "Land at Malapert Massif on 2027-10-25 00:00 UTC (142.9 km from the original site) — passes all requirements, score 100 (delayed plan: 42).",
+   "headline": "Land at Malapert Massif on 2027-10-25 00:00 UTC (142.9 km from the original site) - passes all requirements, score 100 (delayed plan: 42).",
    "reasons": [
     "Fixes: minimum earth line-of-sight time: share of mission time with earth line of sight, maximum direct-to-earth line-of-sight blackout: longest earth line-of-sight blackout, minimum continuous earth line of sight after landing: continuous earth line-of-sight time from mission start.",
     "Longest comms blackout: 168 h → 0 h (−168 h)",

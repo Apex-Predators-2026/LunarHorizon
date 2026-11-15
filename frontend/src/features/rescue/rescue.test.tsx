@@ -836,7 +836,7 @@ describe('operational headroom in rescue UI', () => {
       base: makePass(47),
       tightest_passing_headroom: '+1 h darkness headroom at +12h slip',
       date_limited_offsets_hours: [12],
-      screening_note: 'Model screening across discrete tested offsets only — narrow margins or gaps remain sensitive and are not a guarantee of mission success.',
+      screening_note: 'Model screening across discrete tested offsets only - narrow margins or gaps remain sensitive and are not a guarantee of mission success.',
       points: sensitivity.points.map((p) =>
         p.distance_km === 0 && p.date_offset_hours === 12
           ? { ...p, status: 'pass', passes: true, darkness_headroom_h: 1, closest_headroom_text: '+1 h', headroom_status: 'limited' }
