@@ -5,6 +5,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { createPortal } from 'react-dom'
 
 import { computeCoachmarkPosition, type RectBox } from '../../tutorial/utils'
+import { useReveal } from '../disclosure'
+import { tabOfSection, useCompareView } from '../sections'
 import { COMPARE_TOUR_STEPS, availableSteps, type CompareTourStep } from './steps'
 import { useCompareTour } from './useCompareTour'
 
@@ -45,6 +47,15 @@ export function CompareTour() {
   const cardRef = useRef<HTMLDivElement>(null)
   const step = steps[Math.min(index, steps.length - 1)]
 
+  // A step that shows a section opens the view and block holding it first (they lay out before the scroll below).
+  useLayoutEffect(() => {
+    if (!open || !step?.reveal) return
+    const t = tabOfSection(step.reveal)
+    if (t) useCompareView.getState().setTab(t)
+    useReveal.getState().reveal(step.reveal)
+  }, [open, step])
+  const tab = useCompareView((s) => s.tab)
+
   // Bring the highlighted element into view on each step, and focus the card for keyboard users.
   useEffect(() => {
     if (!open || !step) return
@@ -56,7 +67,7 @@ export function CompareTour() {
       scrollParent(el)?.scrollBy({ top: -TOP_CLEARANCE, behavior: 'auto' })
     }
     cardRef.current?.focus({ preventScroll: true })
-  }, [open, step])
+  }, [open, step, tab])
 
   // Follow the target while the page scrolls, resizes or re-renders.
   const measure = useCallback(() => {

@@ -98,14 +98,42 @@ describe('viability-engine verification (software, not scientific validation)', 
 })
 
 describe('methodology page', () => {
-  it('has the layers, a reproducible mission and the sources', () => {
-    const html = renderToString(<MethodologyView />)
-    for (const t of ['Where an answer comes from', 'How it was checked', 'How the viability engine was verified', 'What it can and cannot establish', 'A mission you can reproduce', 'Sources'])
-      expect(html).toContain(t)
-    expect(html).toContain('Software verification, not scientific validation')
+  it('opens on a credibility overview with the limitations visible, and offers three views', () => {
+    const html = renderToString(<MethodologyView />).replace(/<!-- -->/g, '')
+    expect(html).toContain('What was checked')
+    for (const t of ['Scientific validation', 'Engine verification', 'Methods &amp; sources']) expect(html).toContain(t)
+    expect(html).toContain('Material limitations')
+    expect(html).toContain('not a physical certainty') // the limitations are on the first screen, not only in a tab
     expect(html).toContain('Independent scientific validation')
+    // The overview never claims a result before a report has loaded.
+    expect(html).toContain('Loading the stored report')
+    expect(html).not.toContain('recorded checks passed')
+  })
+
+  it('marks the active view and keeps the others closed, with the tab semantics', () => {
+    const html = renderToString(<MethodologyView />)
+    expect(html.match(/role="tab"/g)).toHaveLength(3)
+    expect(html).toMatch(/role="tab"[^>]*aria-selected="true"[^>]*tabindex="0"/)
+    expect(html.match(/aria-selected="false"/g)).toHaveLength(2)
+    expect(html).toMatch(/id="meth-panel-engine"[^>]*hidden/)
+    expect(html).toMatch(/id="meth-panel-science"(?![^>]*hidden)/)
+  })
+
+  it('keeps the engine verification distinct from the scientific validation', () => {
+    const html = renderToString(<MethodologyView initialTab="engine" />)
+    expect(html).toContain('Software verification, not scientific validation')
+    expect(html).toContain('Loading the stored viability-engine report')
+  })
+
+  it('has the pipeline, the limits, a reproducible mission and the sources in Methods & sources', () => {
+    const html = renderToString(<MethodologyView initialTab="methods" />)
+    for (const t of ['Where an answer comes from', 'What it can and cannot establish', 'A mission you can reproduce', 'Sources'])
+      expect(html).toContain(t)
     expect(html).toContain('not a physical certainty')
     expect(html).toContain('https://ssd.jpl.nasa.gov/horizons/')
+    // Collapsed blocks are still in the page (hidden), so nothing is lost: the reproducible mission is one.
+    expect(html).toMatch(/id="meth-repro-body"[^>]*hidden/)
+    expect(html).toContain('test_rescue_real_data.py')
   })
 
   it('is reachable at #app/method', () => {
