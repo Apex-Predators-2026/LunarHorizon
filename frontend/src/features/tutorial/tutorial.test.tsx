@@ -307,7 +307,7 @@ describe('Guided Mission Briefing Tutorial', () => {
     it('shows the three act tabs with the current act selected, and only this act’s step dots', () => {
       const html = renderToString(<TutorialSpotlightView {...base} stepIndex={actStart(2)} step={TUTORIAL_STEPS[actStart(2)]} story={null} />)
       for (const a of TOUR_ACTS) expect(html).toContain(`Act ${a.act}: ${a.title}`)
-      expect(html).toMatch(/aria-current="true"[^>]*aria-label="Act 2: Make the decision"/)
+      expect(html).toMatch(/aria-current="true"[^>]*aria-label="Act 2: Compare the options"/)
       const actTwo = TUTORIAL_STEPS.filter((s) => s.act === 2).length
       expect((html.match(/aria-label="Jump to step /g) ?? []).length).toBe(actTwo)
     })

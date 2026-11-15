@@ -9,6 +9,7 @@ import { METRICS, bestIds, bestPool, deltaVsBaseline, eligibilityOf, fmtDeltaVal
 import { DataKindBadge, EligibilityBadge, Explain, ProvenanceTag, RankBadge, ReqIcon, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { AskButton } from './assistant/AskButton'
+import { ShowWhy } from './ShowWhy'
 
 function marginBadgeClass(cls: MarginStatus): string {
   if (cls === 'narrow' || cls === 'at_threshold') return 'border-warn/45 bg-inset text-warn'
@@ -158,6 +159,9 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                           <span>
                             <span className={c.status === 'fail' ? 'text-red-300' : isNarrow ? 'text-warn' : 'text-slate-200'}>{c.measured}</span>
                             {c.threshold && <span className="text-slate-500"> (required {c.threshold})</span>}
+                            {(c.status === 'fail' || c.status === 'unknown') && (
+                              <span className="mt-1 block"><ShowWhy entry={e} constraintId={row.id} section="cmp-metrics" /></span>
+                            )}
                             {marginText && marginText !== 'unavailable' && (
                               <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]">
                                 <span className={c.marginClass === 'negative' ? 'text-red-300' : isNarrow ? 'text-warn' : c.marginClass === 'comfortable' ? 'text-emerald-300' : 'text-slate-400'}>

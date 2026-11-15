@@ -34,11 +34,13 @@ import {
   type Entry,
 } from './analysis'
 import fixture from './__fixtures__/compare-response.json'
+import evidenceFixture from './__fixtures__/compare-response-current.json'
 import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
 import { duplicateShifted, makeScenario, nextLabel, resultKey, toTeamScenario, validateScenario } from './scenario'
 import { SummaryPanel } from './SummaryPanel'
+import { RequirementEvidence } from './ShowWhy'
 import { TradeoffPanel } from './TradeoffPanel'
 import type { CanonicalMetric, CompareResponse, CompareResult, ComparisonScenario, RankingInfo } from './types'
 import { selectSavedPlans, sendToComparison, useCompareStore } from './useCompareStore'
@@ -847,3 +849,13 @@ describe('operational headroom & margin distinction', () => {
     expect(chartsHtml).toContain('between 42 h and 49 h. Not plotted')
   })
 })
+it('shows the evidence action for a failing plan in each comparison view', () => {
+  const [entry] = entries(['A'])
+  const result = (evidenceFixture as unknown as CompareResponse).results.find((item) => item.key === 'A')!
+  const failing = [{ ...entry, result, state: { state: 'done' as const, result } }]
+  for (const View of [OverviewCards, MetricsTable, RequirementEvidence]) {
+    const html = renderToString(<View entries={failing} />)
+    expect(html).toContain('aria-label="Show me why:')
+  }
+})
+
