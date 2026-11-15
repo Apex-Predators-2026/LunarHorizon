@@ -4,15 +4,23 @@
 //   - a missing value stays missing (JSON null, empty CSV cell with its status in a *_status column), never 0;
 //   - UNKNOWN stays "unknown";
 //   - a canonical rank is only exported for an eligible PASS scenario, inside its comparable group;
-//   - "recommended" is only true for the scenario the decision panel actually recommends.
+//   - "recommended" is only true for the scenario the decision panel actually recommends;
+//   - the mission window is the one the backend evaluated (missionTime.ts); the user's request is kept under
+//     requested_*, and an evaluated field is null when nothing was evaluated (never the request, never 0).
+//
+// Rev. 2 (format still comparison-export-v1): landing_utc / duration_days are UNCHANGED and are the *requested* values
+// (they are not the assessed window). The evaluated window is added as mission_time (JSON) and evaluated_* columns (CSV).
 import { SCREENING_NOTE, formatMarginMetric } from '../../lib/headroom'
 import type { ClosestRequirementInfo, Eligibility, HeadroomStatus, MarginMetricValue, MarginStatus, MissionRequirements, OperationalHeadroom } from '../../types'
 import { eligibilityOf, headroomOfEntry, requirementSummary, type Entry } from './analysis'
 import { buildDecision, withLabels } from './decision'
 import { METRIC_FIELDS_ORDER } from './exportFields'
+import { missionTime, type EvaluationStatus } from './missionTime'
 import type { CanonicalMetric, PairEvidence, RankingGroup, SpacecraftConfig } from './types'
 
-export const EXPORT_VERSION = 'comparison-export-v1'
+export const EXPORT_VERSION = 'comparison-export-v1' // format name unchanged: every v1 field keeps its meaning
+/** Additive revision within v1. Rev. 2 adds mission_time and the evaluated_* / requested_* CSV columns; nothing is removed. */
+export const EXPORT_REVISION = 2
 
 export interface ExportedMetric {
   status: CanonicalMetric['status'] | 'missing'
@@ -36,8 +44,9 @@ export interface ExportedScenario {
   name: string
   origin: string
   site: { id: string; name: string; lat: number; lon: number }
-  landing_utc: string
-  duration_days: number
+  landing_utc: string // REQUESTED landing (v1 field, unchanged)
+  duration_days: number // REQUESTED duration (v1 field, unchanged)
+  mission_time: ExportedMissionTime
   requirements: MissionRequirements
   spacecraft: SpacecraftConfig
   data: {
@@ -67,6 +76,21 @@ export interface ExportedScenario {
   message: string | null
 }
 
+/** The mission window: what the backend evaluated (null when nothing was) and what the user requested. */
+export interface ExportedMissionTime {
+  evaluation_status: EvaluationStatus
+  evaluated_landing_utc: string | null
+  evaluated_duration_days: number | null
+  evaluated_duration_hours: number | null
+  evaluated_end_utc: string | null
+  requested_landing_utc: string
+  requested_duration_days: number
+  requested_duration_hours: number
+  requested_end_utc: string
+  time_adjusted: boolean | null // null = nothing evaluated
+  time_note: string | null // the backend's explanation when it adjusted the request
+}
+
 export interface ExportedMargin {
   id: string
   name: string
@@ -91,6 +115,7 @@ export interface ExportedHeadroom {
 
 export interface ComparisonExport {
   format: typeof EXPORT_VERSION
+  export_revision: number // additive revision inside v1 (2 = mission_time, evaluated window)
   generated_at: string
   ranking_method: string | null
   ranking_groups: { id: string; primary: boolean; ranked: string[]; members: string[]; separate_reason: string | null; data_basis: string | null }[]
@@ -112,6 +137,23 @@ const exportMarginValue = (m: MarginMetricValue): ExportedMetric => ({
   lower: m.status === 'bounded' ? (m.lower ?? null) : null,
   upper: m.status === 'bounded' ? (m.upper ?? null) : null,
 })
+
+export function exportMissionTime(e: Pick<Entry, 'scenario' | 'state'>): ExportedMissionTime {
+  const t = missionTime(e)
+  return {
+    evaluation_status: t.status,
+    evaluated_landing_utc: t.evaluated?.landing_utc ?? null,
+    evaluated_duration_days: t.evaluated?.duration_days ?? null,
+    evaluated_duration_hours: t.evaluated?.duration_hours ?? null,
+    evaluated_end_utc: t.evaluated?.end_utc ?? null,
+    requested_landing_utc: t.requested.landing_utc,
+    requested_duration_days: t.requested.duration_days,
+    requested_duration_hours: t.requested.duration_hours,
+    requested_end_utc: t.requested.end_utc,
+    time_adjusted: t.adjusted,
+    time_note: t.time_note,
+  }
+}
 
 export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: PairEvidence[], notes: string[], now = new Date()): ComparisonExport {
   const decision = buildDecision(entries, groups, pairs)
@@ -155,6 +197,7 @@ export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: Pai
       site: { ...e.scenario.site },
       landing_utc: e.scenario.landing_utc,
       duration_days: e.scenario.duration_days,
+      mission_time: exportMissionTime(e),
       requirements: { ...e.scenario.requirements },
       spacecraft: { ...e.scenario.spacecraft },
       data: {
@@ -213,6 +256,7 @@ export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: Pai
   const lbl = (k: string) => labelOfKey.get(k) ?? k
   return {
     format: EXPORT_VERSION,
+    export_revision: EXPORT_REVISION,
     generated_at: now.toISOString(),
     ranking_method: groups[0]?.method_version ?? null,
     ranking_groups: groups.map((g) => ({ id: g.id, primary: g.primary, ranked: g.ranked_keys.map(lbl), members: g.keys.map(lbl),
@@ -251,6 +295,9 @@ export function toCsv(x: ComparisonExport): string {
     'comms_blackout_headroom', 'comms_blackout_headroom_lower', 'comms_blackout_headroom_upper', 'comms_blackout_headroom_status',
     'initial_sunlight_hours', 'time_to_first_sunset_hours', 'initial_earth_hours', 'time_to_first_earthset_hours',
     'margins_summary', 'screening_note',
+    // rev. 2 additions (appended, so every v1 column keeps its position)
+    'evaluation_status', 'evaluated_landing_utc', 'evaluated_duration_hours', 'evaluated_end_utc',
+    'requested_landing_utc', 'requested_duration_days', 'requested_end_utc', 'time_adjusted', 'time_note',
   ]
   const rows = x.scenarios.map((s) => [
     s.label, s.name, s.site.id, s.site.name, s.site.lat, s.site.lon, s.landing_utc, s.duration_days,
@@ -290,6 +337,9 @@ export function toCsv(x: ComparisonExport): string {
       return `${m.id}:${formatMarginMetric(mv, true)}(${m.margin_class})`
     }).join('; '),
     s.headroom?.screening_note ?? SCREENING_NOTE,
+    s.mission_time.evaluation_status, s.mission_time.evaluated_landing_utc, s.mission_time.evaluated_duration_hours,
+    s.mission_time.evaluated_end_utc, s.mission_time.requested_landing_utc, s.mission_time.requested_duration_days,
+    s.mission_time.requested_end_utc, s.mission_time.time_adjusted, s.mission_time.time_note,
   ].map(cell).join(','))
   return [head.join(','), ...rows].join('\r\n') + '\r\n'
 }
