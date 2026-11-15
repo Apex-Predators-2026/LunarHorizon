@@ -21,7 +21,7 @@ from ..rescue.timeline import SyntheticTimelineProvider, Timeline
 from ..rescue.timeline.base import to_np_utc
 from ..viability.compat.rescue import RescueCompatError, evaluate_timeline_detailed
 from .evidence import assessment_info, unassessed_ranking
-from .ranking import Assessed, rank_comparison
+from .ranking import Assessed, pairwise_evidence, rank_comparison
 from .schemas import (CompareRequest, CompareResponse, CompareResult, CompareScenarioIn, EarthStats, MissionEvent,
                       PowerStats, ScienceContext, SiteContext, SolarStats, SpacecraftConfig, TimelineColumns, Window)
 
@@ -316,7 +316,9 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
 def compare(req: CompareRequest) -> CompareResponse:
     pairs = [evaluate_one(s, req.allow_demo_data, req.max_points) for s in req.scenarios]
     results = [r for r, _ in pairs]
-    ranking, groups, method = rank_comparison([a for _, a in pairs if a is not None])
+    assessed = [a for _, a in pairs if a is not None]
+    ranking, groups, method = rank_comparison(assessed)
+    evidence = pairwise_evidence(assessed)
     for r in results:
         r.ranking = ranking.get(r.key, r.ranking)  # unassessed results keep their UNKNOWN entry
     sources = sorted({r.viability.source for r in results if r.viability})
@@ -327,4 +329,4 @@ def compare(req: CompareRequest) -> CompareResponse:
         notes.append(f"The scenarios form {len(groups)} separate ranking groups (different data basis, requirements "
                      "or mission duration). Ranks are only meaningful inside a group.")
     return CompareResponse(results=results, viability_source=", ".join(sources) or "n/a", notes=notes,
-                           ranking_groups=groups, ranking_method=method)
+                           ranking_groups=groups, ranking_method=method, pairwise=evidence)

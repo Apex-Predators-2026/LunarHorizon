@@ -210,6 +210,44 @@ class RankingInfo(BaseModel):
     data_basis: str
 
 
+class ScoreDifferenceInfo(BaseModel):
+    """Conservative interval of (higher - lower) score, as the engine computed it."""
+
+    status: Literal["selected_higher", "competitor_higher", "not_established", "unavailable", "not_comparable"]
+    lower: float | None = None
+    upper: float | None = None
+    both_exact: bool
+    statement: str
+
+
+class ComponentAdvantage(BaseModel):
+    component: str
+    label: str
+    advantage: Literal["selected", "competitor", "equal", "not_established", "inactive", "unavailable"]
+
+
+class PairEvidence(BaseModel):
+    """The viability engine's own evidence for the order of two scenarios (app/viability/ranking_evidence.py).
+
+    ``selected`` is the scenario the engine places first when they are comparable (else the earlier one in
+    canonical order). Nothing here is recomputed: it restates ``compare_scenarios``."""
+
+    selected: str
+    competitor: str
+    selected_id: str = Field(description="Engine scenario id of `selected` as it appears in the texts")
+    competitor_id: str
+    comparable: bool
+    comparability_issues: list[str]
+    higher: str | None = Field(None, description="Key placed first by the ranking policy; None when not comparable")
+    deciding_criterion: str | None
+    deciding_detail: str
+    policy_tie_break: bool = Field(description="True when the order is decided by a policy tie-break, not a measured difference")
+    score_difference: ScoreDifferenceInfo
+    components: list[ComponentAdvantage]
+    limitations: list[str]
+    explanation: str
+
+
 class RankingGroup(BaseModel):
     """One set of scenarios that may share a ranking, in the engine's canonical order."""
 
@@ -249,5 +287,6 @@ class CompareResponse(BaseModel):
     results: list[CompareResult]
     ranking_groups: list[RankingGroup] = []
     ranking_method: str | None = None
+    pairwise: list[PairEvidence] = Field(default_factory=list, description="Engine evidence for every pair of assessed scenarios")
     viability_source: str
     notes: list[str]
