@@ -9,12 +9,21 @@ import { COMPARE_TOUR_KEY, readTourPrefs, useCompareTour } from './useCompareTou
 beforeEach(() => useCompareTour.setState({ open: false, index: 0, completed: false, dismissed: false }))
 
 describe('tour content', () => {
-  it('has the five stops in order, each on a real page element', () => {
-    expect(COMPARE_TOUR_STEPS.map((s) => s.id)).toEqual(['select', 'viability', 'conditions', 'tradeoffs', 'assistant'])
+  it('has the six stops in order, each on a real page element', () => {
+    expect(COMPARE_TOUR_STEPS.map((s) => s.id)).toEqual(['select', 'viability', 'conditions', 'tradeoffs', 'report', 'assistant'])
     expect(COMPARE_TOUR_STEPS[0].targets).toContain('#cmp-scenarios')
     expect(COMPARE_TOUR_STEPS[1].targets).toContain('[data-tour="compare-verdict"]')
     expect(COMPARE_TOUR_STEPS[2].targets).toContain('[data-tour="compare-headlines"]')
-    expect(COMPARE_TOUR_STEPS[3].targets).toContain('#cmp-summary')
+    expect(COMPARE_TOUR_STEPS[3].targets).toEqual(['[data-tour="compare-tradeoffs"]', '#cmp-summary'])
+    expect(COMPARE_TOUR_STEPS[4].targets).toEqual(['[data-tour="compare-report"]'])
+  })
+
+  it('explains the report: generate, preview, PDF, and out of date after changes', () => {
+    const text = COMPARE_TOUR_STEPS[4].body.join(' ')
+    expect(text).toMatch(/Generate Mission Report/)
+    expect(text).toMatch(/Preview/)
+    expect(text).toMatch(/PDF/)
+    expect(text).toMatch(/out of date/)
   })
 
   it('explains PASS / FAIL / UNKNOWN, and that eligibility and ranking are separate', () => {
@@ -27,9 +36,9 @@ describe('tour content', () => {
 
   it('leaves out the assistant stop until the assistant is on the page', () => {
     const none = availableSteps(() => null)
-    expect(none.map((s) => s.id)).toEqual(['select', 'viability', 'conditions', 'tradeoffs'])
+    expect(none.map((s) => s.id)).toEqual(['select', 'viability', 'conditions', 'tradeoffs', 'report'])
     const all = availableSteps(() => ({}) as Element)
-    expect(all).toHaveLength(5)
+    expect(all).toHaveLength(6)
   })
 })
 

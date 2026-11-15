@@ -1,9 +1,9 @@
-// The Scenario Comparison tour: five short stops on the real interface (~30-45 s). Separate from the Mission
+// The Scenario Comparison tour: six short stops on the real interface (~30-45 s). Separate from the Mission
 // Planner's tour (features/tutorial), which it does not touch.
 import type { TutorialPlacement } from '../../tutorial/steps'
 
 export interface CompareTourStep {
-  id: 'select' | 'viability' | 'conditions' | 'tradeoffs' | 'assistant'
+  id: 'select' | 'viability' | 'conditions' | 'tradeoffs' | 'report' | 'assistant'
   title: string
   body: string[]
   /** Selectors tried in order; the first visible match is highlighted. */
@@ -50,8 +50,18 @@ export const COMPARE_TOUR_STEPS: CompareTourStep[] = [
     body: [
       'Two missions can do better on different things. This panel explains which option is more suitable, the evidence behind it, and what is still uncertain.',
     ],
-    targets: ['[data-tour="compare-decision"]', '#cmp-summary'],
+    targets: ['[data-tour="compare-tradeoffs"]', '#cmp-summary'],
     placement: 'top',
+  },
+  {
+    id: 'report',
+    title: 'Generate your mission report',
+    body: [
+      'Generate Mission Report freezes the comparison into a report: the decision, every requirement, the measured differences and the data sources.',
+      'Preview it here, then save it as a PDF. If you change the scenarios afterwards, the report is marked out of date and you can generate a new one.',
+    ],
+    targets: ['[data-tour="compare-report"]'],
+    placement: 'bottom',
   },
   {
     id: 'assistant',

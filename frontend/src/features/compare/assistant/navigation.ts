@@ -167,7 +167,7 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
   {
     id: 'tour', title: 'Restart the tutorial',
     keywords: /\b(tutorial|tour|walkthrough|guide|how does this page work|how to use)\b/i,
-    steps: ['Click **How to compare missions** at the top of the page: the five-step guided tour starts again.'],
+    steps: ['Click **How to compare missions** at the top of the page: the short guided tour starts again from the first step.'],
     go: ['tour'],
   },
   {
