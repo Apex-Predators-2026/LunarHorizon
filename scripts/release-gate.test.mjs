@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
-  GUIDED_ESSENTIAL, SMOKE_STEPS, TIME_MISSING_API, TIME_MISSING_UI, VIEWPORTS,
+  EVIDENCE_STEPS, GUIDED_ESSENTIAL, SMOKE_STEPS, TIME_MISSING_API, TIME_MISSING_UI, VIEWPORTS,
   combine, judgeCounted, oxlintCounts, pytestCounts, stepResults, verdictOf, vitestCounts, wholeRunResult,
 } from './release-gate-lib.mjs'
 
@@ -68,6 +68,16 @@ const guidedReport = (drop = []) => ({
 const smokeReport = (over = {}) => ({ run_id: 'r', strict: true, steps: SMOKE_STEPS.map((name) => ({ name, status: 'pass' })), page_errors: [], api_failures: [], ...over })
 const tmReport = (drop = []) => ({
   run_id: 'r', results: [...TIME_MISSING_API, ...VIEWPORTS.flatMap((vp) => TIME_MISSING_UI.map((n) => `${vp} ${n}`))].map((name) => ({ name, ok: true })).filter((x) => !drop.includes(x.name)),
+})
+
+const evReport = (drop = []) => ({
+  run_id: 'r', results: VIEWPORTS.flatMap((vp) => EVIDENCE_STEPS.map((n) => ({ name: `${vp} ${n}`, ok: true }))).filter((x) => !drop.includes(x.name)),
+})
+
+test('the cross-screen Show-why journey needs every step at both viewports', () => {
+  assert.equal(wholeRunResult({ evidence: { ok: true, report: evReport() } }, 'evidence').ok, true)
+  assert.equal(wholeRunResult({ evidence: { ok: true, report: evReport(['1920x1080 scene paused']) } }, 'evidence').ok, false)
+  assert.equal(wholeRunResult({}, 'evidence').ok, null)
 })
 
 test('stepResults: not executed is incomplete, a missing step fails, guided steps are required at both viewports', () => {

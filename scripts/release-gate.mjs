@@ -110,6 +110,7 @@ const CHECKS = [
     id: 'evidence', name: 'Show why: evidence in the 3D view', outcome: 'The canonical window, at the right site and time, with the way back',
     vitest: ['src/viz/evidence.test.tsx', 'src/features/assessment/sharedState.test.tsx', 'src/features/assessment/evidenceReturn.test.tsx'],
     browser: [...g('5 evidence opens the blackout window in 3D'), ...sm('Plan assessment dialog: Show in 3D, then Back returns to the same dialog')],
+    wholeRun: ['evidence'],
   },
   {
     id: 'planner', name: "Planner and Playback show the canonical assessment", outcome: 'Verdict from the viability engine on the plan card, tied to the plan; Playback never invents a PASS',
@@ -295,7 +296,7 @@ const runs = {}
 const needs = (id) => CHECKS.some((c) => wanted(c.id) && ((c.browser ?? []).some((b) => b.run === id) || (c.wholeRun ?? []).includes(id)))
 const probes = {}
 if (needBrowser) {
-  const ids = ['production', 'guided', 'time-missing', 'offline'].filter(needs)
+  const ids = ['production', 'guided', 'time-missing', 'evidence', 'offline'].filter(needs)
   if (!buildOk) {
     for (const id of ids) runs[id] = { ok: false, tail: 'the production build failed: nothing to test', report: null }
   } else {
@@ -313,6 +314,10 @@ if (needBrowser) {
         if (needs('guided')) {
           console.log('Guided mission journey (e2e-guided.mjs, 1366x768 and 1920x1080)...')
           await guard('guided', () => { runs.guided = browserRun('scripts/e2e-guided.mjs', ['--serve-dist', '--api', api], join(OUT, 'guided-production'), mode) })
+        }
+        if (needs('evidence')) {
+          console.log('Show-why journey from the Comparison (e2e-evidence.mjs, 1366x768 and 1920x1080)...')
+          await guard('evidence', () => { runs.evidence = browserRun('scripts/e2e-evidence.mjs', ['--serve-dist', '--api', api], join(OUT, 'evidence-production'), mode) })
         }
         if (needs('time-missing')) {
           console.log('Hourly-grid and missing-data journey (e2e-time-missing.mjs, 1366x768 and 1920x1080)...')
