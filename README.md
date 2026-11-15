@@ -160,9 +160,9 @@ handful of older findings in `app/viability/compat/headroom.py` and two test fil
 
 | Source | Used for |
 |---|---|
-| [NASA JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) (`CENTER='coord@301'`, Moon ME frame) | Sun and Earth azimuth, elevation and angular size from each site, hourly 2026–2031 |
-| [NASA Moon Trek](https://trek.nasa.gov/moon/): LRO LOLA DEMs (south / north polar 5–100 m, global 118 m), LRO WAC mosaics, PSR and surface-ice layers | Horizon masks, 3D terrain, zoomed-out imagery, PSR overlay |
-| [LROC](https://data.lroc.im-ldi.com/lroc/view_rdr/WAC_POLE_ILL_TWI_SOUTH) `WAC_POLE_ILL_TWI_SOUTH` (Speyerer & Robinson 2013, *Icarus* 222, 122–136) | Observed-illumination cross-check |
+| [NASA JPL Horizons](https://ssd.jpl.nasa.gov/horizons/) (`CENTER='coord@301'`, Moon ME frame) | Sun and Earth azimuth, elevation and angular size from each site, hourly 2026-2031 |
+| [NASA Moon Trek](https://trek.nasa.gov/moon/): LRO LOLA DEMs (south / north polar 5-100 m, global 118 m), LRO WAC mosaics, PSR and surface-ice layers | Horizon masks, 3D terrain, zoomed-out imagery, PSR overlay |
+| [LROC](https://data.lroc.im-ldi.com/lroc/view_rdr/WAC_POLE_ILL_TWI_SOUTH) `WAC_POLE_ILL_TWI_SOUTH` (Speyerer & Robinson 2013, *Icarus* 222, 122-136) | Observed-illumination cross-check |
 | [LROC QuickMap](https://quickmap.lroc.asu.edu/) | Manual cross-checks during development (no API used) |
 | JPL DE421 + NAIF Moon frame kernels, via Skyfield | Independent ephemeris check; local ephemeris for custom pins |
 | NASA, "NASA Provides Update on Artemis III Moon Landing Regions" (2024-10-28); George et al., LPSC 2026 | Artemis III candidate-region labels |
