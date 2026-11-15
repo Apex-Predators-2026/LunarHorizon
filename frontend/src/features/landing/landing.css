@@ -1,16 +1,15 @@
 /*
  * Landing page (features/landing). Same tokens as the app: Opaline / charcoal surfaces, one coral accent,
  * Inter for text, the Helvetica display face of the app's title, the team's GlassSurface frosting and the
- * M3 easing/duration tokens from index.css. Everything is scoped to .lnd. Light sections follow the app's
- * dark mode (html.lp-dark); the hero and the close are dark in both.
+ * M3 easing/duration tokens from index.css. Everything is scoped to .lnd.
  *
  * Type scale: 14 small, 17 body, 20 lead, then display sizes. Note: ui/GlassSurface's CSS forces
  * position: relative on glass panels, so anything that must be absolute is wrapped in a positioned slot.
  */
 .lnd {
   --lnd-space: #050607;
-  --lnd-bg: #f5f5f7;
-  --lnd-surface: #ffffff;
+  --lnd-bg: #ffffff;
+  --lnd-surface: #f5f5f7;
   --lnd-ink: #1f2326;
   --lnd-ink-2: #3c4044;
   --lnd-ink-3: #5b6168;
@@ -31,14 +30,6 @@
   font-size: 17px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
-}
-html.lp-dark .lnd {
-  --lnd-bg: #141517;
-  --lnd-surface: #1d1f22;
-  --lnd-ink: #ecedee;
-  --lnd-ink-2: #cfd0d3;
-  --lnd-ink-3: #a8abb0;
-  --lnd-step: rgba(236, 237, 238, 0.06);
 }
 @media (max-width: 640px) {
   .lnd { --lnd-pad: 20px; }
@@ -151,7 +142,6 @@ html.lp-dark .lnd {
 .lnd-nav-links a:hover { background: rgba(255, 255, 255, 0.08); color: var(--lnd-on-dark); }
 .lnd-nav-links a[aria-current='step'] { background: rgba(255, 255, 255, 0.14); color: var(--lnd-on-dark); }
 .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { background: rgba(245, 245, 247, 0.72); border-color: rgba(60, 64, 68, 0.1); color: var(--lnd-ink); }
-html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { background: rgba(20, 21, 23, 0.72); border-color: rgba(236, 237, 238, 0.1); }
 .lnd .lnd-nav[data-tone='light'] .lnd-wordmark { color: var(--lnd-ink); }
 .lnd .lnd-nav[data-tone='light'] .lnd-nav-links a { color: var(--lnd-ink-2); }
 .lnd .lnd-nav[data-tone='light'] .lnd-nav-links a:hover { background: var(--lnd-step); color: var(--lnd-ink); }
@@ -264,10 +254,24 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 .lnd-rover-stage {
   display: grid;
   place-items: center;
-  min-height: clamp(240px, 32vw, 380px);
-  padding: 32px;
-  border-radius: 28px;
-  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--lnd-coral) 17%, var(--lnd-surface)), var(--lnd-surface) 74%);
+}
+.lnd-rover-pop {
+  max-width: 100%;
+  opacity: 0;
+  transform: scale(0.76);
+  transform-origin: bottom center;
+}
+.lnd-rover-pop[data-visible='true'] {
+  opacity: 1;
+  transform: scale(1);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lnd-rover-pop {
+    transition: opacity var(--md-dur-short3) var(--md-ease-standard);
+  }
+  .lnd-rover-pop[data-visible='true'] {
+    transition: opacity var(--md-dur-short3) var(--md-ease-standard), transform 380ms cubic-bezier(0.2, 0.8, 0.3, 1.25);
+  }
 }
 .lnd-rover-copy { max-width: 540px; }
 .lnd-light .lnd-rover-lead { margin-top: 16px; }
@@ -280,7 +284,7 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 .lnd .lnd-rover-link:hover { background: #ff7a64; }
 @media (max-width: 760px) {
   .lnd-rover-grid { grid-template-columns: 1fr; }
-  .lnd-rover-stage .rover-mascot { max-width: 180px; }
+  .lnd-rover-pop { width: min(216px, 100%); }
 }
 .lnd-data-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 64px; align-items: start; }
 .lnd-sources { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
@@ -303,6 +307,7 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 
 /* ---- Closing call to action and footer ---- */
 .lnd-close {
+  display: grid;
   min-height: clamp(500px, 54vw, 820px);
   padding: clamp(112px, 14vw, 224px) 0 48px;
   color: var(--lnd-on-dark);
@@ -311,7 +316,10 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
     linear-gradient(110deg, rgb(0 0 0 / 74%), rgb(0 0 0 / 42%) 45%, transparent 75%),
     var(--lnd-space) url('/landing/rocket-launch.webp') 60% center / cover no-repeat;
 }
+.lnd-close > .lnd-wrap { display: flex; width: 100%; flex-direction: column; }
 .lnd-close-cta { display: flex; flex-direction: column; align-items: flex-start; gap: 32px; }
+.lnd-close-credit { margin-top: auto; padding-top: 24px; font-size: 14px; color: var(--lnd-on-dark-2); }
+.lnd-close-credit a { color: var(--lnd-on-dark); text-decoration: underline; text-underline-offset: 3px; }
 .lnd .lnd-close-cta .lnd-btn-filled {
   width: min(100%, 384px);
   min-height: 144px;
