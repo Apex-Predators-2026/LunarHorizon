@@ -20,6 +20,7 @@ import { MeasureCard, type MeasureDrawer } from './MeasureCard'
 import { SiteMenuRows } from './ViewerHud'
 import type { SiteInfo } from '../types'
 import { useTutorialStore } from '../features/tutorial'
+import { TextField } from '../ui/MdFields'
 
 export interface MeasureController {
   armed: boolean
@@ -280,10 +281,10 @@ function CoordinateForm({ onSubmit }: { onSubmit: (lat: number, lon: number) => 
   const [lat, setLat] = useState('')
   const [lon, setLon] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const field = 'h-10 w-28 rounded-full border border-opal-300 bg-white px-3 text-xs text-slate-300'
   return (
     <form
       className="recede-behind-menu md-reveal lp-light pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl bg-opal-50 px-4 py-2 text-xs text-slate-300 shadow-lg shadow-black/30"
+      style={{ ['--md-field-surface' as string]: 'var(--color-opal-50)' }}
       onSubmit={(e) => {
         e.preventDefault()
         const r = parseCoordinates(lat, lon)
@@ -295,18 +296,30 @@ function CoordinateForm({ onSubmit }: { onSubmit: (lat: number, lon: number) => 
       }}
     >
       <span>Click the terrain, or enter coordinates:</span>
-      <label className="flex items-center gap-2">
-        Lat
-        <input className={field} inputMode="decimal" placeholder="-89.45" value={lat} onChange={(e) => setLat(e.target.value)} aria-label="Latitude (degrees, negative = south)" />
-      </label>
-      <label className="flex items-center gap-2">
-        Lon
-        <input className={field} inputMode="decimal" placeholder="222.69" value={lon} onChange={(e) => setLon(e.target.value)} aria-label="Longitude (degrees east)" />
-      </label>
+      <TextField
+        label="Lat (°)"
+        tip="Latitude in degrees; negative is south (the south pole is -90)."
+        fieldClassName="w-32"
+        inputMode="decimal"
+        placeholder="-89.45"
+        value={lat}
+        onChange={(e) => setLat(e.target.value)}
+        aria-label="Latitude (degrees, negative = south)"
+      />
+      <TextField
+        label="Lon (°E)"
+        tip="Longitude in degrees east; -180 to 360 is accepted."
+        fieldClassName="w-32"
+        inputMode="decimal"
+        placeholder="222.69"
+        value={lon}
+        onChange={(e) => setLon(e.target.value)}
+        aria-label="Longitude (degrees east)"
+      />
       <button type="submit" className="md-compact border border-opal-300 bg-white transition-colors hover:bg-calcite-peach/40">
         Analyse
       </button>
-      {error && <span className="w-full text-red-300">{error}</span>}
+      {error && <span role="alert" className="w-full text-red-300">{error}</span>}
     </form>
   )
 }
