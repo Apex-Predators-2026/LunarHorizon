@@ -4,6 +4,7 @@ import type { SiteInfo, SiteStatus, TimelineStep } from '../types'
 import { vertexSpacingM } from './globe/cubeSphere'
 import type { TileStats } from './globe/TileTree'
 import { LoadingIndicator } from '../ui/LoadingIndicator'
+import { CrossIcon } from '../ui/icons'
 import { DatePopup } from './DatePopup'
 import { fmtDeg, fmtPct, sunUp } from './timeline'
 import { useTutorialStore } from '../features/tutorial'
@@ -48,12 +49,35 @@ export function useViewerSetup(sites: SiteInfo[] | null) {
   }, [sites, site, timeUtc, setTime])
 }
 
+export function DeletePinButton({ site, onDelete, inMenu = false }: {
+  site: SiteInfo
+  onDelete: (site: SiteInfo) => void
+  inMenu?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      role={inMenu ? 'menuitem' : undefined}
+      aria-label={`Delete ${site.name}`}
+      data-tip={`Delete ${site.name}`}
+      onClick={() => onDelete(site)}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full transition-colors ${inMenu
+        ? 'mr-2 size-8 text-slate-400 hover:bg-red-950 hover:text-red-300'
+        : 'size-6 border border-white/40 bg-black/80 text-white hover:bg-red-700'}`}
+    >
+      <CrossIcon size={14} />
+    </button>
+  )
+}
+
 /** The rows of the toolbar's "Select site" menu: every site, grouped, with the current one ticked. */
-export function SiteMenuRows({ sites, error, loading, onPicked }: {
+export function SiteMenuRows({ sites, error, loading, onPicked, pinIds, onDeletePin }: {
   sites: SiteInfo[] | null
   error: string | null
   loading: boolean
   onPicked: () => void // called after a site is chosen (closes the menu)
+  pinIds: ReadonlySet<string>
+  onDeletePin: (site: SiteInfo) => void
 }) {
   const { siteId, setSite } = useAppStore()
   return (
@@ -73,27 +97,29 @@ export function SiteMenuRows({ sites, error, loading, onPicked }: {
             {group.map((s) => {
               const on = s.id === siteId
               return (
-                <button
-                  key={s.id}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={on}
-                  onClick={() => {
-                    setSite(s.id)
-                    useTutorialStore.getState().recordInteraction('site-select')
-                    onPicked()
-                  }}
-                  className={`flex min-h-10 w-full items-center gap-3 px-4 py-1.5 text-left transition-colors ${on ? 'bg-coral/15 font-semibold' : ''}`}
-                >
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center text-coral">
-                    {on && <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>}
-                  </span>
-                  <span className="min-w-0">
-                    {s.name}
-                    {s.approximate ? ' (approx.)' : ''}
-                    {s.artemis_list === 'unconfirmed' ? ' (Rim 1 or 2?)' : ''}
-                  </span>
-                </button>
+                <div key={s.id} className={`flex items-center ${on ? 'bg-coral/15' : ''}`}>
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={on}
+                    onClick={() => {
+                      setSite(s.id)
+                      useTutorialStore.getState().recordInteraction('site-select')
+                      onPicked()
+                    }}
+                    className={`flex min-h-10 min-w-0 flex-1 items-center gap-3 px-4 py-1.5 text-left transition-colors ${on ? 'font-semibold' : ''}`}
+                  >
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center text-coral">
+                      {on && <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>}
+                    </span>
+                    <span className="min-w-0">
+                      {s.name}
+                      {s.approximate ? ' (approx.)' : ''}
+                      {s.artemis_list === 'unconfirmed' ? ' (Rim 1 or 2?)' : ''}
+                    </span>
+                  </button>
+                  {pinIds.has(s.id) && <DeletePinButton site={s} onDelete={onDeletePin} inMenu />}
+                </div>
               )
             })}
           </div>
