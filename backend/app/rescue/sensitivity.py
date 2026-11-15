@@ -16,7 +16,7 @@ from datetime import timedelta
 
 from ..models import Scenario
 from .catalog import custom_site
-from .engine import Evaluator, resolve_simulation
+from .engine import NO_DATA_SOURCE, Evaluator, resolve_simulation
 from .explain import short_label
 from .geo import destination
 from .schemas import DateSlipCheck, Robustness, SensitivityCounts, SensitivityPoint, SensitivityRequest, SensitivityResponse
@@ -56,27 +56,58 @@ def _headroom_fields(r) -> tuple[float | None, float | None, str | None, str | N
     return (dark_h, comms_h, closest_label, closest_text, hr.status)
 
 
-def _point(r, h: float, dist: float, bearing: float | None, lat: float, lon: float) -> SensitivityPoint:
+def _undecided_reason(r, has_coverage: bool) -> str:
+    """Why an UNKNOWN result has no answer: no real data at all, real data but not for these dates, or real
+    data with missing samples (a gap, or the mission runs past the end of the data)."""
+    if r.data_source == NO_DATA_SOURCE:
+        return "outside_coverage" if has_coverage else "no_real_data"
+    return "incomplete_data"
+
+
+def _point(r, h: float, dist: float, bearing: float | None, lat: float, lon: float,
+           has_coverage: bool = True) -> SensitivityPoint:
     status = r.verdict if r.verdict in ("pass", "fail", "unknown") else ("pass" if r.passes else "fail")
     dark_h, comms_h, closest_label, closest_text, hr_status = _headroom_fields(r)
+    undecided = [v.constraint for v in r.violations if v.is_unknown] if status in ("fail", "unknown") else []
     return SensitivityPoint(date_offset_hours=h, distance_km=dist, bearing_deg=bearing, lat=lat, lon=lon,
                             passes=status == "pass", score=r.score, status=status,
                             failing_constraints=[v.constraint for v in r.violations] if status == "fail" else [],
                             darkness_headroom_h=dark_h, comms_headroom_h=comms_h,
                             closest_label=closest_label, closest_headroom_text=closest_text,
-                            headroom_status=hr_status)
+                            headroom_status=hr_status,
+                            reason=_undecided_reason(r, has_coverage) if status == "unknown" else None,
+                            undecided_constraints=undecided)
 
 
-def _skipped(h: float, dist: float, bearing: float | None, lat: float, lon: float) -> SensitivityPoint:
+def _skipped(h: float, dist: float, bearing: float | None, lat: float, lon: float,
+             reason: str = "position_unsupported") -> SensitivityPoint:
     return SensitivityPoint(date_offset_hours=h, distance_km=dist, bearing_deg=bearing, lat=lat, lon=lon,
-                            passes=False, score=None, failing_constraints=[], status="not_evaluated")
+                            passes=False, score=None, failing_constraints=[], status="not_evaluated", reason=reason)
 
 
 def _counts(points: list[SensitivityPoint]) -> SensitivityCounts:
     n = Counter(p.status for p in points)
     skipped = n["not_evaluated"]
+    reasons = Counter(p.reason for p in points if p.status in ("unknown", "not_evaluated") and p.reason)
     return SensitivityCounts(requested=len(points), evaluated=len(points) - skipped, skipped=skipped,
-                             passed=n["pass"], failed=n["fail"], unknown=n["unknown"])
+                             passed=n["pass"], failed=n["fail"], unknown=n["unknown"], by_reason=dict(reasons))
+
+
+_REASON_TEXT = {
+    "incomplete_data": "real data has missing samples (a gap, or the mission runs past the end of the data)",
+    "outside_coverage": "the site's real data does not cover those dates",
+    "no_real_data": "the site has no real data",
+}
+
+
+def _unknown_sentence(counts: SensitivityCounts) -> str:
+    """One sentence per undecided reason, e.g. '2 point(s) could not be judged: the site's real data ...'."""
+    out = []
+    for reason in ("incomplete_data", "outside_coverage", "no_real_data"):
+        k = counts.by_reason.get(reason, 0)
+        if k:
+            out.append(f" {k} point(s) could not be judged: {_REASON_TEXT[reason]}.")
+    return "".join(out)
 
 
 def _position_sites(sc: Scenario, req: SensitivityRequest):
@@ -100,23 +131,18 @@ def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
     sc = req.scenario
     sim = resolve_simulation(req.include_synthetic, ev)
     base = ev.evaluate(sc, simulation=sim)
+    base_unknown = base.verdict == "unknown"
+    has_cov = sim or ev.coverage(sc.site) is not None
     offsets = sorted(set(req.date_offsets_hours) - {0.0})
-    if base.verdict == "unknown":
-        pts = [_skipped(h, 0.0, None, sc.site.lat, sc.site.lon) for h in offsets]
-        pts += [_skipped(0.0, d, b, lat, lon) for d, b, lat, lon in _position_sites(sc, req)]
-        return SensitivityResponse(
-            base=base, points=pts, counts=_counts(pts), date_pass_rate=None, position_pass_rate=None,
-            safe_date_window_hours=None, score_min=None, score_max=None, most_sensitive_constraint=None,
-            skipped_points=len(pts), verdict="unknown",
-            explanation="No real data covers this plan, so its sensitivity can't be checked. "
-                        + _sentence(base.violations[0].message.removeprefix("UNKNOWN: ")))
     points: list[SensitivityPoint] = []
 
-    # Date slips at the same spot (one timeline fetch for all of them). Slips outside the real data come
-    # back unknown: they stay in the list with that status.
+    # Date slips at the same spot (one timeline fetch for all of them). Each slip is its own mission and is
+    # judged on its own data, also when the planned date itself is UNKNOWN: a gap or the end of the data
+    # can leave the planned date undecided while earlier slips are fully covered. Slips outside the real
+    # data come back unknown and stay in the list with that status and the reason.
     times = [sc.landing_utc + timedelta(hours=h) for h in offsets]
     for h, r in zip(offsets, ev.evaluate_many(sc.site, times, sc.duration_days, sc.requirements, simulation=sim)):
-        points.append(_point(r, h, 0.0, None, sc.site.lat, sc.site.lon))
+        points.append(_point(r, h, 0.0, None, sc.site.lat, sc.site.lon, has_cov))
 
     # Landing-position errors at the planned time (custom points: synthetic data only, for now).
     for dist, b, lat, lon in _position_sites(sc, req):
@@ -164,7 +190,26 @@ def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
         parts.append(f"{sum(p.passes for p in pos_pts)} of {len(_decided(pos_pts))} tested landing-position "
                      f"errors ({pos_rate:.0%})")
 
-    if not base.passes:
+    if base_unknown:
+        # The planned mission itself is undecided, so there is no robustness verdict around it. Neighbouring
+        # slips are reported as what they are: separate missions, decided or not on their own data.
+        verdict = "unknown"
+        base_reason = _undecided_reason(base, has_cov)
+        detail = next((v.message for v in base.violations if v.is_unknown and v.message), "")
+        expl = f"The planned date can't be judged: {_REASON_TEXT[base_reason]}."
+        if detail:
+            expl += " " + _sentence(detail.removeprefix("UNKNOWN: ")).rstrip()
+            if not expl.endswith("."):
+                expl += "."
+        decided_dates = _decided(date_pts)
+        if decided_dates:
+            n_pass = sum(p.passes for p in decided_dates)
+            expl += (f" Of the {len(decided_dates)} neighbouring date slip(s) that could be judged, {n_pass} pass and "
+                     f"{len(decided_dates) - n_pass} fail. Each slip is a separate mission: this says nothing "
+                     "about whether the planned date passes.")
+        elif date_pts:
+            expl += " No neighbouring date slip could be judged either."
+    elif not base.passes:
         verdict = "fails"
         expl = f"The plan itself fails ({', '.join(short_label(v.constraint) for v in base.violations)}). "
         if overall is not None:
@@ -188,12 +233,12 @@ def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
     if pos_pts and not _decided(pos_pts):
         expl += (f" Landing-position error was not checked ({len(pos_pts)} points skipped: no real terrain data "
                  "around the site), so passing date slips does not show robustness to landing-position error.")
-    elif not pos_pts and verdict != "fails":
+    elif not pos_pts and verdict not in ("fails", "unknown"):
         expl += " Landing-position error was not requested, so these date results do not show robustness to it."
     elif counts.skipped:
         expl += f" {counts.skipped} landing-position point(s) were skipped."
     if counts.unknown:
-        expl += f" {counts.unknown} point(s) could not be judged because real data does not fully cover them."
+        expl += _unknown_sentence(counts)
 
     limited_date_offsets = sorted(
         p.date_offset_hours for p in date_pts if p.passes and p.headroom_status in ("limited", "at_threshold")
@@ -240,6 +285,7 @@ def quick_robustness(sc: Scenario, ev: Evaluator, include_synthetic: bool | None
             closest_headroom_text=p.closest_headroom_text,
             headroom_status=p.headroom_status,
             failing_constraints=p.failing_constraints,
+            reason=p.reason if p.status == "unknown" else None,
         )
         for p in sorted(date_pts, key=lambda x: x.date_offset_hours)
     ]
