@@ -187,3 +187,45 @@ def test_verify_rejects_out_of_range_and_reports_outages(monkeypatch):
 def test_validation_report_is_served():
     r = client.get("/api/validation")
     assert r.status_code == 200 and "sites" in r.json()
+
+
+# ---------- Member 2 canonical viability API (registered in app.main) ----------
+
+_VIAB_LANDER = {
+    "name": "Solar direct-to-Earth lander",
+    "power_source": "solar",
+    "communication_mode": "direct_to_earth",
+    "max_continuous_darkness_s": 180000.0,
+    "max_communication_blackout_s": 345600.0,
+    "solar_power_min_disk_fraction": 0.25,
+}
+
+
+def test_viability_endpoints_are_registered():
+    r = client.post(
+        "/api/viability/assess",
+        json={
+            "site_id": "malapert-massif",
+            "mission_start_utc": "2027-07-20T00:00:00Z",
+            "mission_end_utc": "2027-08-03T00:00:00Z",
+            "spacecraft": _VIAB_LANDER,
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["assessment"]["eligibility"] in ("pass", "fail", "unknown")
+    assert body["ranking_status"]["score_status"] in (
+        "known",
+        "bounded",
+        "eligibility_unknown",
+        "no_scorable_components",
+    )
+    s = client.get("/api/viability/validation-summary")
+    assert s.status_code == 200, s.text
+    assert s.json()["status"] in ("passed", "failed")
+    paths = client.get("/openapi.json").json()["paths"]
+    assert {"/api/viability/assess", "/api/viability/validation-summary"} <= set(paths)
+    # Existing routers stay registered alongside it.
+    assert {"/api/compare", "/api/sites"} <= set(paths)
+    assert any(p.startswith("/api/rescue") for p in paths)
+    assert any(p.startswith("/api/terrain") for p in paths)

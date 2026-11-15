@@ -31,6 +31,7 @@ from .atlas.router import router as atlas_router
 from .compare.router import router as compare_router
 from .rescue.router import router as rescue_router
 from .terrain_router import router as terrain_router
+from .viability.api import router as viability_router
 
 app = FastAPI(title="Lunar Landing Site Navigator API")
 app.add_middleware(
@@ -43,6 +44,7 @@ app.include_router(rescue_router)  # Member 5: /api/rescue/*
 app.include_router(compare_router)  # Member 4: /api/compare
 app.include_router(assistant_router)  # Member 4: /api/assistant/* (Mission Assistant)
 app.include_router(terrain_router)  # Andrew: /api/terrain/*, /api/psr
+app.include_router(viability_router)  # Member 2: /api/viability/assess, /assess-scenario, /validation-summary
 app.include_router(atlas_router)  # Feasibility Atlas: /api/atlas
 
 
