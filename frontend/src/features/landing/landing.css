@@ -2,7 +2,7 @@
  * Landing page (features/landing). Same tokens as the app: Opaline / charcoal surfaces, one coral accent,
  * Inter for text, the Helvetica display face of the app's title, the team's GlassSurface frosting and the
  * M3 easing/duration tokens from index.css. Everything is scoped to .lnd. Light sections follow the app's
- * dark mode (html.lp-dark); the scroll film is dark in both.
+ * dark mode (html.lp-dark); the hero and the close are dark in both.
  *
  * Type scale: 14 small, 17 body, 20 lead, then display sizes. Note: ui/GlassSurface's CSS forces
  * position: relative on glass panels, so anything that must be absolute is wrapped in a positioned slot.
@@ -55,7 +55,7 @@ html.lp-dark .lnd {
 }
 .lnd :focus-visible { outline: 2px solid var(--lnd-coral); outline-offset: 3px; border-radius: 8px; }
 
-/* ---- Frosted glass, dark variant (over the film and the dark bars). Builds on ui/GlassSurface. ---- */
+/* ---- Frosted glass, dark variant (over the hero and the dark bars). Builds on ui/GlassSurface. ---- */
 .lnd .glass-on.lnd-glass-dark {
   background: rgba(22, 24, 27, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -78,7 +78,7 @@ html.lp-dark .lnd {
   gap: 8px;
   height: 48px;
   padding: 0 24px;
-  border-radius: 24px;
+  border-radius: 12px;
   border: 0;
   font: 500 14px/1 var(--font-inter);
   letter-spacing: 0.1px;
@@ -94,7 +94,6 @@ html.lp-dark .lnd {
 .lnd .lnd-btn-filled {
   height: 72px;
   padding-inline: 36px;
-  border-radius: 4px;
   font-size: 21px;
   font-weight: 600;
   color: #1f2326;
@@ -117,13 +116,13 @@ html.lp-dark .lnd {
 .lnd .lnd-btn-nav {
   height: 40px;
   padding-inline: 20px;
-  border-radius: 4px;
-  background: #d9472f;
-  color: #fff;
+  border-radius: 8px;
+  background: var(--lnd-coral);
+  color: #1f2326;
 }
-.lnd .lnd-btn-nav:hover { background: #c23a23; }
+.lnd .lnd-btn-nav:hover { background: #ff7a64; }
 
-/* ---- Header: transparent over the film's first screen, frosted once the page scrolls. ---- */
+/* ---- Header: transparent over the hero photograph, frosted once the page scrolls. ---- */
 .lnd-nav { position: fixed; inset: 0 0 auto; z-index: 40; }
 .lnd .lnd-nav-bar {
   display: flex;
@@ -164,14 +163,8 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
   .lnd .lnd-nav-bar { gap: 12px; }
 }
 
-/* ---- The scroll film ---- */
-.lnd-film { position: relative; }
-.lnd-anchor { position: absolute; left: 0; width: 1px; height: 1px; pointer-events: none; }
-.lnd { --lnd-rail-w: 360px; }
-.lnd-stage { position: sticky; top: 0; height: 100svh; overflow: hidden; }
-.lnd-stage-main { position: absolute; inset: 0; }
-.lnd-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-/* Neutral scrim so text over the scene keeps its contrast. */
+/* ---- Hero ---- */
+/* Neutral scrim so the headline keeps its contrast over the photograph. */
 .lnd-scrim {
   position: absolute;
   inset: 0;
@@ -180,125 +173,30 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
     linear-gradient(90deg, rgba(5, 6, 7, 0.85) 0%, rgba(5, 6, 7, 0.45) 36%, rgba(5, 6, 7, 0) 62%),
     linear-gradient(0deg, rgba(5, 6, 7, 0.7) 0%, rgba(5, 6, 7, 0) 30%);
 }
-.lnd-beats {
-  position: absolute;
-  inset: calc(var(--lnd-nav-h) + 32px) calc(var(--lnd-rail-w) + 32px + var(--lnd-pad)) 104px var(--lnd-pad);
-  display: grid;
-  align-items: end;
-  pointer-events: none;
-}
-.lnd-beat { grid-area: 1 / 1; max-width: 560px; visibility: hidden; will-change: opacity, transform; }
-.lnd-beat-hero { max-width: 780px; align-self: center; }
-.lnd-beat[aria-hidden='false'] { pointer-events: auto; }
 
-.lnd-hero-team { font-size: 14px; color: var(--lnd-on-dark-2); }
-.lnd h1 { margin-top: 16px; font-size: clamp(44px, 6vw, 92px); line-height: 0.98; letter-spacing: -0.045em; color: var(--lnd-on-dark); }
+.lnd h1 { font-size: clamp(44px, 6vw, 92px); line-height: 0.98; letter-spacing: -0.045em; color: var(--lnd-on-dark); }
 .lnd-hero-lead { margin-top: 28px; max-width: 560px; font-size: 20px; color: var(--lnd-on-dark-2); }
 .lnd-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
-/* One entrance on load: the hero rises in, line by line. */
-.lnd-hero-copy > * { animation: lnd-rise 900ms var(--md-ease-emph-decel) both; }
-.lnd-hero-copy > :nth-child(2) { animation-delay: 80ms; }
-.lnd-hero-copy > :nth-child(3) { animation-delay: 160ms; }
-.lnd-hero-copy > :nth-child(4) { animation-delay: 240ms; }
-.lnd-hero-copy > :nth-child(5) { animation-delay: 360ms; }
-@keyframes lnd-rise {
-  from { opacity: 0; transform: translate3d(0, 24px, 0); filter: blur(8px); }
-  to { opacity: 1; transform: none; filter: none; }
-}
 
-.lnd .lnd-beat-card { padding: 28px 32px; }
-.lnd-beat-src { font-size: 14px; color: var(--lnd-on-dark-3); }
-.lnd .lnd-beat-card h2 { margin-top: 10px; font-size: clamp(28px, 2.6vw, 38px); line-height: 1.04; letter-spacing: -0.035em; color: var(--lnd-on-dark); }
-.lnd-beat-body { margin-top: 14px; color: var(--lnd-on-dark-2); }
-.lnd-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 20px 0 0; padding-top: 18px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1); }
-.lnd-facts dt { font-size: 14px; color: var(--lnd-on-dark-3); }
-.lnd-facts dd { margin: 4px 0 0; font-size: 17px; font-weight: 500; color: var(--lnd-on-dark); font-variant-numeric: tabular-nums; }
-.lnd-beat-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
-
-/* Step bar: ten beats as an M3 page indicator; the current one stretches into a pill. */
-.lnd-stepbar-slot { position: absolute; left: var(--lnd-pad); right: calc(var(--lnd-rail-w) + 32px + var(--lnd-pad)); bottom: 24px; display: flex; justify-content: center; }
-.lnd .lnd-stepbar { display: flex; align-items: center; gap: 16px; padding: 8px 8px 8px 16px; }
-.lnd-steps { display: flex; align-items: center; gap: 2px; }
-.lnd-steps button {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
+/*
+ * The one entrance on load. Each headline line rises from behind its own mask (the padding keeps descenders
+ * inside the clip), then the lead and the actions fade up after it. Meanwhile the Moon settles into frame.
+ */
+.lnd-line { display: block; overflow: clip; padding-block: 0.04em 0.14em; margin-block: -0.04em -0.14em; }
+.lnd-line > span { display: block; animation: lnd-line-up 1100ms var(--md-ease-emph-decel) both; }
+.lnd-line + .lnd-line > span { animation-delay: 110ms; }
+@keyframes lnd-line-up {
+  from { transform: translate3d(0, 120%, 0); }
+  to { transform: none; }
 }
-.lnd-steps button span {
-  width: 8px;
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(245, 245, 247, 0.32);
-  transition: width var(--md-dur-medium2) var(--md-ease-emph-decel), background-color var(--md-dur-short4) var(--md-ease-standard);
+.lnd-hero-copy > :not(h1) { animation: lnd-fade-up 800ms var(--md-ease-emph-decel) both; }
+.lnd-hero-copy > :nth-child(2) { animation-delay: 420ms; }
+.lnd-hero-copy > :nth-child(3) { animation-delay: 520ms; }
+.lnd-hero-copy > :nth-child(4) { animation-delay: 620ms; }
+@keyframes lnd-fade-up {
+  from { opacity: 0; transform: translate3d(0, 12px, 0); }
+  to { opacity: 1; transform: none; }
 }
-.lnd-steps button:hover span { background: rgba(245, 245, 247, 0.6); }
-.lnd-steps button[aria-selected='true'] { width: 40px; }
-.lnd-steps button[aria-selected='true'] span { width: 28px; background: var(--lnd-coral); }
-.lnd .lnd-step-name { min-width: 64px; font-size: 14px; font-weight: 500; color: var(--lnd-on-dark); }
-.lnd-step-track { width: 120px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
-.lnd-step-fill { height: 100%; background: var(--lnd-on-dark-2); transform-origin: left; transform: scaleX(0); }
-.lnd-step-pics {
-  display: none;
-  height: 32px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--lnd-on-dark);
-  font: 500 14px/1 var(--font-inter);
-  cursor: pointer;
-}
-
-/* Right rail: live conditions, then the app's pictures (frosted glass over the film's edge). */
-.lnd-rail {
-  position: absolute;
-  z-index: 2;
-  top: calc(var(--lnd-nav-h) + 12px);
-  right: 16px;
-  bottom: 16px;
-  width: var(--lnd-rail-w);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.lnd .lnd-pics { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 20px 8px 8px; }
-.lnd .lnd-pics-h { padding: 0 12px; font: 500 17px/1.3 var(--font-inter); letter-spacing: 0; color: var(--lnd-on-dark); }
-.lnd-pics-list { list-style: none; margin: 12px 0 0; padding: 0; overflow-y: auto; scrollbar-width: thin; display: grid; gap: 4px; }
-.lnd-pics-list button {
-  display: grid;
-  grid-template-columns: 112px 1fr;
-  grid-template-rows: auto 1fr;
-  column-gap: 12px;
-  width: 100%;
-  padding: 8px;
-  border: 0;
-  border-radius: 16px;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color var(--md-dur-medium2) var(--md-ease-standard);
-}
-.lnd-pics-list button:hover { background: rgba(255, 255, 255, 0.06); }
-.lnd-pics-list button.is-active { background: rgba(255, 255, 255, 0.12); }
-.lnd-pics-list img {
-  grid-row: 1 / 3;
-  width: 112px;
-  aspect-ratio: 16 / 10;
-  object-fit: cover;
-  object-position: left top;
-  border-radius: 8px;
-  opacity: 0.7;
-  transition: opacity var(--md-dur-medium2) var(--md-ease-standard);
-}
-.lnd-pics-list button.is-active img, .lnd-pics-list button:hover img { opacity: 1; }
-.lnd-pic-title { font-size: 14px; font-weight: 500; color: var(--lnd-on-dark); }
-.lnd-pic-caption { font-size: 14px; line-height: 1.4; color: var(--lnd-on-dark-3); }
 
 /* Live conditions card. */
 .lnd .lnd-live { padding: 20px 24px; }
@@ -329,36 +227,8 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 .lnd-live-src { margin-top: 14px; font-size: 14px; color: var(--lnd-on-dark-3); }
 .lnd-live-inline { display: none; margin-top: 28px; max-width: 420px; }
 
-/* Lightbox (native dialog). */
-.lnd-lightbox {
-  width: min(1200px, calc(100vw - 48px));
-  max-height: calc(100vh - 48px);
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 24px;
-  background: rgba(22, 24, 27, 0.72);
-  -webkit-backdrop-filter: blur(24px) saturate(1.6);
-  backdrop-filter: blur(24px) saturate(1.6);
-  color: var(--lnd-on-dark);
-  overflow: hidden;
-}
-.lnd-lightbox[open] { animation: lnd-pop var(--md-dur-medium2) var(--md-ease-emph-decel); }
-.lnd-lightbox::backdrop { background: rgba(5, 6, 7, 0.6); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-.lnd-lightbox img { display: block; width: 100%; max-height: calc(100vh - 160px); object-fit: contain; background: #000; }
-.lnd-lightbox figcaption { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 16px 20px; font-size: 14px; color: var(--lnd-on-dark-2); }
-.lnd-lightbox figcaption strong { color: var(--lnd-on-dark); font-weight: 500; margin-right: 6px; }
-.lnd-lightbox-actions { display: flex; gap: 8px; }
-@keyframes lnd-pop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
-
 @media (max-width: 1099px) {
-  .lnd { --lnd-rail-w: -32px; }
-  .lnd-rail { display: none; }
   .lnd-live-inline { display: block; }
-  .lnd-step-pics { display: inline-flex; align-items: center; }
-}
-@media (max-width: 1099px) {
-  .lnd-beat { max-width: none; }
-  .lnd-beat-hero { max-width: 720px; }
 }
 @media (max-width: 760px) {
   .lnd h1 { font-size: clamp(38px, 11vw, 52px); }
@@ -368,18 +238,6 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
   .lnd .lnd-live { padding: 16px; }
   .lnd-live-src { display: none; }
   .lnd-scrim { background: linear-gradient(180deg, rgba(5, 6, 7, 0.82) 0%, rgba(5, 6, 7, 0.35) 45%, rgba(5, 6, 7, 0.8) 100%); }
-  .lnd-beats { inset: calc(var(--lnd-nav-h) + 16px) var(--lnd-pad) 88px; }
-  .lnd-beat-hero { align-self: start; }
-  .lnd .lnd-beat-card { padding: 22px; }
-  .lnd .lnd-beat-card h2 { font-size: 26px; }
-  .lnd-beat-body { font-size: 15px; }
-  .lnd-facts { gap: 12px; }
-  .lnd-facts dd { font-size: 14px; }
-  .lnd-step-track, .lnd-step-name { display: none; }
-  .lnd .lnd-stepbar { gap: 8px; padding: 6px 6px 6px 10px; }
-  .lnd-steps button { width: 18px; }
-  .lnd-steps button[aria-selected='true'] { width: 30px; }
-  .lnd-steps button[aria-selected='true'] span { width: 20px; }
 }
 /* Short phones: the live card leaves the first screen. */
 @media (max-height: 740px) and (max-width: 760px) {
@@ -440,12 +298,11 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 .lnd-close-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 32px; }
 .lnd .lnd-close-cta .lnd-btn-filled {
   flex: 1 1 384px;
-  left: -12px;
-  min-height: 148px;
+  min-height: 144px;
   height: auto;
   border-radius: 24px;
-  padding-inline: clamp(16px, 4vw, 43.2px);
-  font-size: clamp(25.2px, 3.6vw, 38.4px);
+  padding-inline: clamp(16px, 4vw, 48px);
+  font-size: clamp(24px, 3.6vw, 40px);
   white-space: normal;
 }
 .lnd-close-cta > h2 { flex: 1 1 min(100%, 560px); }
@@ -459,8 +316,8 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 /* ---- Entrances: each block rises in as it scrolls into view (pure CSS scroll-driven animation, staggered
    with --i). Browsers without view timelines simply show the content; nothing waits on a script. ---- */
 @keyframes lnd-reveal {
-  from { opacity: 0; transform: translate3d(0, 32px, 0); filter: blur(6px); }
-  to { opacity: 1; transform: none; filter: none; }
+  from { opacity: 0; transform: translate3d(0, 24px, 0); }
+  to { opacity: 1; transform: none; }
 }
 @supports (animation-timeline: view()) {
   .lnd [data-reveal] {
@@ -473,15 +330,22 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 
 @media (prefers-reduced-motion: reduce) {
   .lnd [data-reveal] { animation: none; }
-  .lnd-hero-copy > * { animation: none; }
+  .lnd-line > span, .lnd-hero-copy > :not(h1) { animation: none; }
+  .lnd-hero-photo img, .lnd-hero-photo img.is-ready { opacity: 1; animation: none; }
   .lnd .lnd-btn:active { transform: none; }
-  .lnd-lightbox[open] { animation: none; }
-  .lnd-steps button span { transition: none; }
 }
 
 /* ---- Opening picture ---- */
 .lnd-hero-photo { position: relative; height: 100svh; min-height: 480px; background: #000; overflow: hidden; }
-.lnd-hero-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; display: block; }
+.lnd-hero-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; display: block; opacity: 0; }
+/* Camera settle: the photograph fades up while easing from slightly close to its resting framing. */
+.lnd-hero-photo img.is-ready {
+  animation:
+    lnd-fade 900ms var(--md-ease-standard) both,
+    lnd-settle 2800ms var(--md-ease-emph-decel) both;
+}
+@keyframes lnd-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lnd-settle { from { transform: scale(1.06); } to { transform: none; } }
 .lnd-hero-photo .lnd-scrim { z-index: 1; }
 .lnd-hero-photo .lnd-scrim::after {
   content: '';
@@ -491,9 +355,25 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 }
 .lnd-hero-photo-copy { position: absolute; z-index: 2; inset: calc(var(--lnd-nav-h) + 24px) var(--lnd-pad) 64px; display: flex; align-items: center; }
 .lnd-hero-photo-copy .lnd-hero-copy { max-width: 780px; }
-.lnd-hero-credit { position: absolute; z-index: 2; right: var(--lnd-pad); bottom: 20px; margin: 0; font-size: 12px; color: var(--lnd-on-dark-2); }
-.lnd-hero-credit a { color: inherit; text-decoration: underline; }
-@media (max-width: 640px) { .lnd-hero-photo-copy { align-items: flex-end; } }
+.lnd-hero-credits {
+  position: absolute;
+  z-index: 2;
+  inset: auto var(--lnd-pad) 20px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 24px;
+  font-size: 12px;
+  color: var(--lnd-on-dark-3);
+}
+.lnd-hero-credits p { margin: 0; }
+.lnd-hero-credits a { color: var(--lnd-on-dark-2); text-decoration: underline; }
+@media (max-width: 640px) {
+  .lnd-hero-photo-copy { align-items: flex-end; }
+  /* The footer carries the team credit; on a phone the hero keeps only the image credit. */
+  .lnd-hero-credits { justify-content: flex-end; bottom: 16px; }
+  .lnd-hero-credits p:first-child { display: none; }
+}
 
 .lnd-preview {
   padding: clamp(24px, 4vw, 64px) var(--lnd-pad) clamp(40px, 6vw, 96px);
