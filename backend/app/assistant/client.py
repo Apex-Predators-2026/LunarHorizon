@@ -25,8 +25,8 @@ class AssistantUnavailable(Exception):
 
 NOT_CONFIGURED = (
     "not_configured",
-    "The Mission Assistant is not configured on this server (no OPENROUTER_API_KEY). "
-    "The comparison itself works without it.",
+    "The Mission Assistant is not configured on this server: add OPENROUTER_API_KEY to backend/.env "
+    "(copy backend/.env.example), then press Check again. The comparison itself works without it.",
 )
 OFFLINE = (
     "offline",
