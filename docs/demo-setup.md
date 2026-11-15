@@ -52,7 +52,35 @@ With `LUNAR_OFFLINE=1` the backend serves only cached data (Moon Trek, JPL Horiz
 once), so a clean `--verify` means the demo runs with no network. Options: `--sites a,b` (default: the 8 Artemis
 region sites, the Shackleton control, IM-1, IM-2), `--check-horizon` (also compares the 3D terrain's skyline with
 the engine's horizon), `--out dir` (screenshots of every stop and report.json; default `tour-output/`).
+The tour also fails on any uncaught error in the page.
 The UI font comes from Google Fonts: offline the UI falls back to a system font (looks slightly different, works).
+
+### Two checks, two questions
+| Check | Question it answers | How it drives the app |
+|---|---|---|
+| `node scripts/demo-tour.mjs` (terrain-cache tour) | Do the demo's views load their terrain, imagery and data (from the cache, with `--verify`)? | The **dev server**: steers the app through its stores (sites, times, camera); a diagnostic tool |
+| `node scripts/smoke-prod.mjs` (production smoke test) | Can a user, on the **production build**, open the app, assess a site, plan missions, run one, investigate it in 3D, rescue it after a launch slip, compare and export plans, find a landing date in the Feasibility Atlas and send it to the Planner, and come back? | Builds and serves `dist/` (or `--url` for a deployed copy); only clicks, types and reads the interface |
+
+A passing dev tour doesn't show that the built app works; run the smoke test before a demo or after a deploy:
+```
+cd frontend
+node scripts/smoke-prod.mjs                   # backend on port 8000 (--api to change); --no-build reuses dist/
+```
+It fails (exit 1) on a failed step, any uncaught page error or any API 5xx, with a screenshot of the failing
+step and `smoke-output/report.json`. A step the app doesn't offer at all (none at the moment) is
+listed as MISSING; `--strict` fails on that too. `--online` adds the live JPL Horizons check.
+
+### Release gate (before a release; then freeze features)
+```
+node scripts/release-gate.mjs --full          # full suites, then every gate check (from the repository root)
+node scripts/release-gate.mjs --only atlas    # after a fix: re-run just the affected checks
+```
+Each check is tied to the tests or browser steps that prove it: real passing mission, real failed mission,
+UNKNOWN mission, Comparison, Atlas, Report, Navigation, Production demo (production build, fresh browser) and
+Offline fallback (the same journey against a `LUNAR_OFFLINE=1` backend, with its stated limitations). It starts its
+own backends (ports 8011, 8012) and writes `release-gate/LATEST.md` plus a JSON record with the commit: commit
+those with the release. A run with uncommitted changes, skipped or only some checks is not a release pass.
+GitHub Actions (`.github/workflows/ci.yml`) runs the plain build and tests on every push.
 
 ## 3. Run
 Two terminals:

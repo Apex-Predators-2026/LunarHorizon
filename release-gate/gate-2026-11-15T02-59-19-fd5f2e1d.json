@@ -1,0 +1,199 @@
+{
+  "commit": "fd5f2e1dd90e5ed78113119446c315958090345d",
+  "uncommitted_changes": true,
+  "started": "2026-11-15T02:59:19.753Z",
+  "finished": "2026-11-15T03:00:37.704Z",
+  "node": "v24.12.0",
+  "platform": "win32",
+  "full_suites": [],
+  "checks": [
+    {
+      "id": "pass",
+      "name": "Real passing mission",
+      "outcome": "Correct verdict, metrics, and explanation",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "pytest 4 test target(s)",
+          "targets": [
+            "tests/viability/test_real_sites_phase6_explanations.py::test_malapert_lit_season_pass",
+            "tests/viability/test_real_sites_phase6_explanations.py::test_explanations_quote_independently_computed_values",
+            "tests/test_compare_evidence.py::test_assessment_carries_canonical_metric_states_and_versions",
+            "tests/test_compare_evidence.py::test_constraints_match_the_verdict"
+          ],
+          "ok": true,
+          "seconds": 8,
+          "tail": ".......................................                                  [100%]\r | 39 passed in 6.80s"
+        }
+      ]
+    },
+    {
+      "id": "fail",
+      "name": "Real failed mission",
+      "outcome": "Correct violated requirement and evidence",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "pytest 4 test target(s)",
+          "targets": [
+            "tests/viability/test_real_sites_phase6_explanations.py::test_peak_near_shackleton_night_landing",
+            "tests/viability/test_real_sites_phase6_explanations.py::test_shackleton_floor_control_fails_everything",
+            "tests/viability/test_real_sites_phase6_explanations.py::test_connecting_ridge_blackout_in_progress_at_landing",
+            "tests/test_compare_evidence.py::test_failed_requirements_carry_the_engine_evidence_windows"
+          ],
+          "ok": true,
+          "seconds": 4,
+          "tail": "....                                                                     [100%]\r | 4 passed in 2.95s"
+        }
+      ]
+    },
+    {
+      "id": "unknown",
+      "name": "UNKNOWN mission",
+      "outcome": "No fabricated zero values or false failure",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "pytest 6 test target(s)",
+          "targets": [
+            "tests/viability/test_real_sites_phase6_explanations.py::test_mission_past_dataset_end_is_unknown_not_failed",
+            "tests/viability/test_real_sites_phase6_explanations.py::test_connecting_ridge_without_any_data",
+            "tests/test_rescue_unknown.py",
+            "tests/test_compare_ranking.py::test_missing_score_is_never_zero_and_measured_zero_is_kept",
+            "tests/test_compare_ranking.py::test_unknown_stays_unknown_with_its_reason",
+            "tests/test_compare_evidence.py::test_unknown_samples_stay_unknown"
+          ],
+          "ok": true,
+          "seconds": 4,
+          "tail": "............                                                             [100%]\r | 12 passed in 2.96s"
+        },
+        {
+          "what": "vitest src/features/compare/compare.test.tsx -t \"UNKNOWN\"",
+          "ok": true,
+          "seconds": 4,
+          "tail": "      Tests  4 passed | 38 skipped (42) |    Start at  21:59:36 |    Duration  1.82s (import 90%, transform 9%, tests 1%)"
+        }
+      ]
+    },
+    {
+      "id": "comparison",
+      "name": "Comparison",
+      "outcome": "Eligible ranks, honest groups, consistent times",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "pytest 1 test target(s)",
+          "targets": [
+            "tests/test_compare_ranking.py"
+          ],
+          "ok": true,
+          "seconds": 2,
+          "tail": "..............                                                           [100%]\r | 14 passed in 0.78s"
+        },
+        {
+          "what": "vitest src/features/compare/compare.test.tsx",
+          "ok": true,
+          "seconds": 2,
+          "tail": "      Tests  42 passed (42) |    Start at  21:59:40 |    Duration  810ms (import 81%, tests 12%, transform 7%, worker 1%)"
+        }
+      ]
+    },
+    {
+      "id": "atlas",
+      "name": "Atlas",
+      "outcome": "Selected cell opens the matching mission",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "pytest 1 test target(s)",
+          "targets": [
+            "tests/test_atlas.py"
+          ],
+          "ok": true,
+          "seconds": 8,
+          "tail": ".........                                                                [100%]\r | 9 passed in 4.34s"
+        },
+        {
+          "what": "vitest src/features/atlas/atlas.test.ts",
+          "ok": true,
+          "seconds": 1,
+          "tail": "      Tests  8 passed (8) |    Start at  21:59:50 |    Duration  150ms (import 40%, transform 33%, tests 15%, worker 13%)"
+        }
+      ]
+    },
+    {
+      "id": "report",
+      "name": "Report",
+      "outcome": "Matches the evaluated snapshot",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "pytest 2 test target(s)",
+          "targets": [
+            "tests/test_validation_report.py",
+            "tests/viability/test_part2_validation.py::test_demo_snapshot_is_reproducible"
+          ],
+          "ok": true,
+          "seconds": 44,
+          "tail": ".....                                                                    [100%]\r | 5 passed in 43.29s"
+        },
+        {
+          "what": "vitest src/features/compare/export.test.tsx",
+          "ok": true,
+          "seconds": 1,
+          "tail": "      Tests  8 passed (8) |    Start at  22:00:36 |    Duration  203ms (transform 47%, import 27%, tests 21%, worker 5%)"
+        }
+      ]
+    },
+    {
+      "id": "navigation",
+      "name": "Navigation",
+      "outcome": "No route collisions or lost scenarios",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "vitest src/appRoute.test.ts",
+          "ok": true,
+          "seconds": 1,
+          "tail": "      Tests  4 passed (4) |    Start at  22:00:37 |    Duration  133ms (import 40%, transform 29%, worker 17%, tests 14%)"
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "name": "Production demo",
+      "outcome": "Works from a fresh browser",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "skipped (--no-browser)",
+          "ok": null,
+          "tail": ""
+        }
+      ]
+    },
+    {
+      "id": "offline",
+      "name": "Offline fallback",
+      "outcome": "Prepared demonstration works with stated limitations",
+      "ok": false,
+      "limitations": "Backend with LUNAR_OFFLINE=1: only cached terrain and precomputed data; the live JPL Horizons check and custom pins outside the cache are unavailable (the app says so); the UI font falls back to a system font.",
+      "evidence": [
+        {
+          "what": "skipped (--no-browser)",
+          "ok": null,
+          "tail": ""
+        }
+      ]
+    }
+  ],
+  "passed": false
+}
