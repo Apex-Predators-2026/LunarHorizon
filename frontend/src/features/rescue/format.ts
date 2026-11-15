@@ -1,3 +1,4 @@
+import type { UndecidedReason } from './types'
 import type { MissionRequirements, Scenario, ViabilityMetrics } from '../../types'
 import type { AltKind, MetricDelta } from './types'
 
@@ -146,4 +147,24 @@ export function evaluatedTimeNote(requestedIso: string | null | undefined, evalu
   const b = Date.parse(evaluatedIso)
   if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) return null
   return `Evaluated at ${fmtUtc(evaluatedIso)} (rescue uses the hourly data grid; you entered ${fmtUtc(requestedIso)}).`
+}
+
+/** Why a point has no answer, in words. Unknown is never a failure; not evaluated was never run. */
+export const REASON_LABEL: Record<UndecidedReason, string> = {
+  incomplete_data: 'unknown: real data has missing samples here',
+  outside_coverage: 'unknown: outside the dates the real data covers',
+  no_real_data: 'unknown: no real data for this site',
+  position_unsupported: 'not evaluated: no real terrain data around the site',
+}
+
+/** "2 missing samples, 1 outside the data" style breakdown of the undecided points; '' when there is none. */
+export function reasonBreakdown(by: Partial<Record<UndecidedReason, number>> | undefined): string {
+  if (!by) return ''
+  const words: [UndecidedReason, string][] = [
+    ['incomplete_data', 'missing samples'],
+    ['outside_coverage', 'outside the data range'],
+    ['no_real_data', 'no real data for the site'],
+    ['position_unsupported', 'position check unsupported'],
+  ]
+  return words.filter(([k]) => (by[k] ?? 0) > 0).map(([k, w]) => `${by[k]} ${w}`).join(', ')
 }

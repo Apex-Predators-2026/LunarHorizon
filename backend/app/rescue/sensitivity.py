@@ -95,7 +95,7 @@ def _counts(points: list[SensitivityPoint]) -> SensitivityCounts:
 
 _REASON_TEXT = {
     "incomplete_data": "real data has missing samples (a gap, or the mission runs past the end of the data)",
-    "outside_coverage": "the site's real data does not cover those dates",
+    "outside_coverage": "the site's real data does not cover the mission's dates",
     "no_real_data": "the site has no real data",
 }
 
