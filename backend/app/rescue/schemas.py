@@ -174,23 +174,39 @@ class SensitivityPoint(BaseModel):
     bearing_deg: float | None
     lat: float
     lon: float
-    passes: bool
+    passes: bool = Field(description="True only when status is 'pass'. Kept for compatibility; read `status`")
     score: float | None
     failing_constraints: list[str]
+    status: Literal["pass", "fail", "unknown", "not_evaluated"] = Field(
+        "not_evaluated",
+        description="pass/fail = evaluated on real data (or simulation); unknown = evaluated but real data is "
+                    "incomplete; not_evaluated = skipped (e.g. no terrain around the site)")
+
+
+class SensitivityCounts(BaseModel):
+    requested: int = Field(description="Every requested point (date slips except 0, plus position offsets)")
+    evaluated: int = Field(description="Points whose evaluation ran: passed + failed + unknown")
+    skipped: int = Field(description="Points not evaluated at all (status not_evaluated)")
+    passed: int
+    failed: int
+    unknown: int = Field(description="Evaluated, but real data does not fully cover the point")
 
 
 class SensitivityResponse(BaseModel):
     base: ViabilityResult
-    points: list[SensitivityPoint]
-    date_pass_rate: float | None = Field(description="None if no date slips could be checked")
-    position_pass_rate: float | None = Field(description="None if no landing-position errors could be checked")
+    points: list[SensitivityPoint] = Field(description="Every requested point, skipped ones included")
+    counts: SensitivityCounts | None = None
+    date_pass_rate: float | None = Field(description="Of date slips that could be decided; None if none could be")
+    position_pass_rate: float | None = Field(description="Of landing-position errors that could be decided; None if none could be")
     safe_date_window_hours: tuple[float, float] | None = Field(
-        description="Contiguous range of tested date offsets around 0 that all pass; None if the base fails")
+        description="Contiguous run of TESTED date offsets around 0 that all pass; it never bridges unknown, "
+                    "skipped or untested offsets. None if the base fails or no date slip could be decided")
+    safe_date_window_tested: int = Field(0, description="Tested offsets (other than 0) inside the window")
     score_min: float | None
     score_max: float | None
     most_sensitive_constraint: str | None
-    skipped_points: int = Field(0, description="Points left out because they only had synthetic data")
-    verdict: Literal["robust", "sensitive", "fragile", "fails", "unknown"]
+    skipped_points: int = Field(0, description="Legacy: points without a pass/fail answer (unknown + not_evaluated)")
+    verdict: Literal["robust", "sensitive", "fragile", "fails", "unknown", "not_assessed"]
     explanation: str
 
 

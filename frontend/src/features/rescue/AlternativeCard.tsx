@@ -1,4 +1,4 @@
-import { KIND_LABEL, fmtDelta, fmtShift, fmtUtc, fmtValue } from './format'
+import { KIND_LABEL, fmtDelta, fmtShift, fmtUtc, fmtValue, headroom, headroomSummary } from './format'
 import type { Alternative } from './types'
 
 const VERDICT_STYLE = {
@@ -27,6 +27,19 @@ interface Props {
   onCheckSensitivity: () => void
 }
 
+/** How far this passing option is from its limits: model screening margins, not a guarantee. */
+export function Headroom({ alt }: { alt: Alternative }) {
+  const items = headroom(alt.viability.metrics, alt.scenario.requirements)
+  const h = headroomSummary(items)
+  const limited = items.some((i) => i.limited && (i.key === 'battery_hours' || i.key === 'max_comms_gap_hours'))
+  return (
+    <div className="mt-1 text-xs">
+      <p className={limited ? 'text-amber-300' : 'text-emerald-300'}>{h.headline}</p>
+      {h.closest && <p className="text-slate-400">{h.closest}. Model screening margins, not a guarantee.</p>}
+    </div>
+  )
+}
+
 export function AlternativeCard({ alt, selected, onSelect, onCheckSensitivity }: Props) {
   const { scenario, viability, robustness } = alt
   const rows = alt.improvements.filter((m) => m.metric !== 'score' && m.better !== null)
@@ -48,6 +61,7 @@ export function AlternativeCard({ alt, selected, onSelect, onCheckSensitivity }:
             {fmtUtc(scenario.landing_utc)} · {fmtShift(alt.date_shift_hours)}
             {alt.distance_km > 0.01 && <> · {alt.distance_km.toFixed(1)} km away</>}
           </p>
+          {viability.passes && <Headroom alt={alt} />}
         </div>
         <div className="text-right">
           <div className="text-xl font-semibold tabular-nums text-slate-100">{viability.score?.toFixed(0) ?? '—'}</div>

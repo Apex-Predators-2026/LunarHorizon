@@ -21,6 +21,7 @@ import {
 } from './globe/measure'
 import { artemisNote, currentBlockers, fmtDistance, siteColor, surfacePoint } from './globe/overlays'
 import { BlockerLines, MeasureOverlay, PsrLayer, SitePins } from './globe/SurfaceOverlays'
+import { RescueMapOverlay } from '../features/rescue/RescueMapOverlay'
 import type { TileHeights } from './globe/terrainHeight'
 import { TileTree, type TileStats } from './globe/TileTree'
 import { ColorKey, MapTools, type Layers, type PinState } from './MapTools'
@@ -486,6 +487,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         )}
         {frame && layers.sites && <SitePins frame={frame} sites={otherSites} selectedId={siteId} />}
         {frame && layers.psr && psr.data && <PsrLayer frame={frame} data={psr.data} />}
+        {frame && <RescueMapOverlay frame={frame} sites={sites.data ?? []} />}
         {frame && waypoints.length > 0 && (
           <MeasureOverlay frame={frame} waypoints={waypoints} analysis={measureAnalysis} hoveredSample={hoveredSample} />
         )}
