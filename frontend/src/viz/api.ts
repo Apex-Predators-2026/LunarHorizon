@@ -5,17 +5,40 @@ import type { Horizon, PsrData, SiteInfo, SiteStatus, TimelineStep, VerifyResult
 
 export const API_URL: string = import.meta.env.VITE_API_URL ?? ''
 
+/**
+ * A readable sentence for a failed API call. FastAPI sends `detail` as a string for our own errors and as a list of
+ * {loc, msg} objects for request validation (422); anything else falls back to the HTTP status, never raw JSON.
+ */
+export function apiErrorMessage(status: number, statusText: string, body: unknown): string {
+  const detail = body && typeof body === 'object' ? (body as { detail?: unknown }).detail : undefined
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail)) {
+    const parts = detail
+      .map((d) => {
+        if (!d || typeof d !== 'object') return ''
+        const { loc, msg } = d as { loc?: unknown; msg?: unknown }
+        const field = Array.isArray(loc) ? loc.filter((x) => x !== 'body').join('.') : ''
+        return typeof msg === 'string' ? (field ? `${field}: ${msg}` : msg) : ''
+      })
+      .filter(Boolean)
+    if (parts.length) return parts.join('; ')
+  }
+  return `${statusText || 'Request failed'} (HTTP ${status})`
+}
+
+async function errorFrom(res: Response): Promise<Error> {
+  let body: unknown = null
+  try {
+    body = await res.json()
+  } catch {
+    // non-JSON error body (a proxy page, or an unhandled server error): the status line is all we have
+  }
+  return new Error(apiErrorMessage(res.status, res.statusText, body))
+}
+
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { signal })
-  if (!res.ok) {
-    let detail = res.statusText
-    try {
-      detail = (await res.json()).detail ?? detail
-    } catch {
-      // non-JSON error body
-    }
-    throw new Error(typeof detail === 'string' ? detail : `Request failed (${res.status})`)
-  }
+  if (!res.ok) throw await errorFrom(res)
   return (await res.json()) as T
 }
 
@@ -32,16 +55,7 @@ export async function createCustomSite(lat: number, lon: number, name?: string):
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lat, lon, name }),
   })
-  if (!res.ok) {
-    let detail = res.statusText
-    try {
-      const body = await res.json()
-      detail = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail)
-    } catch {
-      // non-JSON error body
-    }
-    throw new Error(detail || `Request failed (${res.status})`)
-  }
+  if (!res.ok) throw await errorFrom(res)
   return (await res.json()) as SiteInfo
 }
 export const fetchHorizon = (id: string, signal?: AbortSignal) =>

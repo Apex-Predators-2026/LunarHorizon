@@ -6,14 +6,12 @@ import { MethodologyView } from './features/methodology/MethodologyView'
 import { ComparisonDashboard } from './features/compare'
 import { ReportPreview } from './features/compare/ReportPreview'
 import { PlanDialogHost, PlanFab, PlansPanel } from './features/plans/PlansPanel'
-import { GuideCard, TryMissionButton } from './features/guide/GuideCard'
-import { useGuide } from './features/guide/mission'
 import { MissionRescue } from './features/rescue'
 import {
-  TUTORIAL_STEPS,
   TutorialOfferChip,
   TutorialSpotlight,
   initTutorialFromSearch,
+  installTourBridge,
   useTutorialStore,
 } from './features/tutorial'
 import { GlassDemo } from './ui/GlassDemo'
@@ -48,6 +46,12 @@ function openNavigator() {
   window.scrollTo(0, 0)
 }
 
+/** Landing page "Take the guided tour": open the navigator and start the one Guided Tour from Act 1. */
+function openGuidedTour() {
+  openNavigator()
+  useTutorialStore.getState().startTour(0)
+}
+
 const VIEWS = [
   { id: 'planner', label: 'Mission Planner' },
   { id: 'compare', label: 'Scenario Comparison' }, // Member 4
@@ -79,7 +83,9 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
   return (
     <div className="pointer-events-none flex flex-wrap items-center gap-x-[clamp(16px,3vw,44px)] gap-y-1">
       <a href="#" aria-label="Lunar Horizon Site Navigator: back to the project page" data-tip="Back to the project page" className="pointer-events-auto shrink-0">
-        <LunarHorizonLogo className={`block h-auto ${view === 'planner' ? 'w-[clamp(176px,20vw,240px)]' : 'w-[clamp(144px,15vw,178px)]'}`} />
+        {/* The larger planner logo from lg up only: at tablet width it pushed "Try a mission" onto a second line, over
+            the planner's time readout. */}
+        <LunarHorizonLogo className={`block h-auto w-[clamp(144px,15vw,178px)] ${view === 'planner' ? 'lg:w-[clamp(176px,20vw,240px)]' : ''}`} />
       </a>
       <nav ref={navRef} aria-label="Main" className="pointer-events-auto relative flex gap-[clamp(14px,2vw,32px)] pb-1">
         {VIEWS.map((v) => (
@@ -124,7 +130,6 @@ export default function App() {
   const route = parseRoute(hash)
   const view: View = route.page === 'app' ? route.view : 'planner'
   const compare = view === 'compare'
-  const guideActive = useGuide((g) => g.active) // the story and the feature tutorial never compete for focus
   const pageView = view !== 'planner' // a scrolling page (Comparison, Atlas, Methodology) rather than the 3D view
   useEffect(() => initMaterialMotion(), [])
   useEffect(() => installMangoTexture(), [])
@@ -143,22 +148,8 @@ export default function App() {
     }
   }, [hash])
 
-  useEffect(() => {
-    let lastNonce = -1
-    const sync = () => {
-      const st = useTutorialStore.getState()
-      if (!st.open || st.prepNonce === lastNonce) return
-      lastNonce = st.prepNonce
-      const nextView = TUTORIAL_STEPS[st.stepIndex]?.prep?.appView
-      if (nextView) goToView(nextView)
-    }
-    const id = setTimeout(sync, 0)
-    const unsub = useTutorialStore.subscribe(sync)
-    return () => {
-      clearTimeout(id)
-      unsub()
-    }
-  }, [])
+  // The one Guided Tour drives the views and the live mission story (features/tutorial/storyBridge.ts).
+  useEffect(() => installTourBridge(), [])
   if (route.page === 'mango') return <GradientPreview />
   if (route.page === 'glass') return (
     <>
@@ -168,7 +159,7 @@ export default function App() {
   )
   if (route.page !== 'app') return (
     <Suspense fallback={<div className="h-full bg-black" />}>
-      <Landing onOpen={openNavigator} />
+      <Landing onOpen={openNavigator} onTour={openGuidedTour} />
     </Suspense>
   )
 
@@ -182,11 +173,9 @@ export default function App() {
       <header className={`ui-chrome md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${pageView ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
         <div className="flex flex-wrap items-center gap-x-[clamp(16px,3vw,44px)] gap-y-2">
           <TopNav view={view} onView={goToView} />
-          <TryMissionButton />
         </div>
       </header>
       <PlanDialogHost />
-      <GuideCard />
       <ReportPreview />
       {compare ? (
         <main key="compare" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
@@ -214,13 +203,9 @@ export default function App() {
           />
         </main>
       )}
-      {!guideActive && <TutorialOfferChip uiHidden={uiHidden && !pageView} compareActive={compare} />}
-      <TutorialSpotlight
-        uiHidden={uiHidden && !pageView}
-        appView={view === 'atlas' || view === 'method' ? undefined : view} // the guided tour has no Atlas or Methodology steps
-        onOpenCompare={() => goToView('compare')}
-        onResetTourView={() => goToView('planner')}
-      />
+      {/* The tour lives in the planner toolbar's More (⋮) menu; the one-time offer points there. */}
+      <TutorialOfferChip uiHidden={uiHidden && !pageView} compareActive={compare} anchorToMenu={!pageView} />
+      <TutorialSpotlight uiHidden={uiHidden && !pageView} />
     </div>
   )
 }
