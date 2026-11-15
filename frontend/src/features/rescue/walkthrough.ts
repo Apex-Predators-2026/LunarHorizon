@@ -10,18 +10,18 @@ export interface WalkthroughStep {
 }
 
 export const GLOSSARY: { term: string; definition: string }[] = [
-  { term: 'Sunlit fraction', definition: 'The share of the mission time the Sun is above the horizon, so the solar panels can make power.' },
-  { term: 'Longest darkness (battery limit)', definition: 'The longest stretch without sunlight. The battery has to keep the lander alive through it.' },
-  { term: 'Earth contact (comms blackout)', definition: 'Earth contact is time when Earth is above the horizon, so the lander can talk to it directly. A comms blackout is a stretch without it.' },
-  { term: 'Robustness', definition: 'Whether a plan still passes if the landing slips a little. Robust plans keep passing; fragile ones fail after a small change.' },
-  { term: 'Unknown (no real data)', definition: 'The mission is not fully covered by real NASA data, so rescue says unknown instead of guessing.' },
+  { term: 'Sunlit fraction', definition: 'The average share of the Sun’s disk visible over the mission, so a Sun half hidden behind a ridge counts as half (not just time above the horizon). It describes sunlight geometry, not power produced.' },
+  { term: 'Longest power gap (battery limit)', definition: 'The longest stretch when less of the Sun’s disk is visible than the panel threshold, so the panels count as dark. The battery limit is the longest such stretch the plan tolerates; no battery charge is simulated.' },
+  { term: 'Earth contact (comms blackout)', definition: 'Earth is above the local terrain, a clear line of sight for direct-to-Earth radio (the radio link itself is not modelled). A comms blackout is the longest stretch without that line of sight.' },
+  { term: 'Robustness', definition: 'Whether a plan still passes at the tested date slips, and at landing-position errors when terrain data exists. It covers only the offsets actually tested, not a guarantee in between.' },
+  { term: 'Unknown (no real data)', definition: 'Rescue says unknown instead of guessing when the mission runs outside the dates the real data covers, or when that data is incomplete for a requirement. Unknown is never counted as a pass or a fail.' },
 ]
 
 const LABEL: Record<RequirementKey | 'data_coverage', string> = {
-  min_sunlight_fraction: 'sunlit fraction',
-  battery_hours: 'longest darkness (battery limit)',
+  min_sunlight_fraction: 'sunlit fraction (average visible Sun disk)',
+  battery_hours: 'longest power gap (battery limit)',
   panel_threshold: 'panel threshold',
-  min_earth_visibility_fraction: 'time with Earth contact',
+  min_earth_visibility_fraction: 'time with Earth in line of sight',
   max_comms_gap_hours: 'longest comms blackout',
   min_initial_sun_hours: 'sunlight right after landing',
   min_initial_comms_hours: 'Earth contact right after landing',
@@ -54,15 +54,25 @@ function stepChange(res: RescueResponse): string {
 
 const need = (k: string, v: Violation) => {
   const word = k === 'max_comms_gap_hours' || k === 'battery_hours' ? 'at most' : 'at least'
-  return `${label(k)} is ${fmtValue(v.actual, v.unit)}, but the plan needs ${word} ${fmtValue(v.required, v.unit)}`
+  // Format in the violation's own unit; anything other than a fraction or hours is printed as-is.
+  const f = (x: number | null) =>
+    v.unit === 'fraction' || v.unit === 'h' ? fmtValue(x, v.unit) : x === null ? 'n/a' : `${Math.round(x * 100) / 100} ${v.unit}`
+  return `${label(k)} is ${f(v.actual)}, but the plan needs ${word} ${f(v.required)}`
 }
 
 function stepPlan(res: RescueResponse): string {
   const c = res.changed
   if (c.eligibility === 'unknown') {
-    const gap = c.violations.find((v) => v.is_unknown)
-    const cover = gap ? ` Real data covers ${fmtValue(gap.actual, 'h')} of the ${fmtValue(gap.required, 'h')} mission.` : ''
-    return `The changed plan could not be judged: its dates are not fully covered by real data, so the verdict is unknown.${cover}`
+    const unknowns = c.violations.filter((v) => v.is_unknown)
+    const cov = unknowns.find((v) => v.constraint === 'data_coverage')
+    if (cov) {
+      const covered = cov.actual ?? 0
+      return covered <= 0
+        ? 'The changed plan could not be judged: real data does not cover any of its dates at this site, so the verdict is unknown (not a fail).'
+        : `The changed plan could not be judged: real data covers ${fmtValue(covered, 'h')} of the ${fmtValue(cov.required, 'h')} mission and the rest is outside the data range, so the verdict is unknown (not a fail).`
+    }
+    const which = unknowns.map((v) => label(v.constraint))
+    return `The changed plan could not be judged: real data inside the range is incomplete for ${which.length ? list(which) : 'at least one requirement'}, so the verdict is unknown (not a fail).`
   }
   const broken = c.violations.filter((v) => !v.is_unknown)
   if (c.passes && !broken.length) return `The changed plan still passes every requirement${c.score === null ? '' : ` (score ${Math.round(c.score)})`}.`

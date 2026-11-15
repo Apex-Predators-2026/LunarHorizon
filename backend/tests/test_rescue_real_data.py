@@ -113,7 +113,10 @@ def test_sensitivity_on_real_data_skips_synthetic_positions(ev, plan):
     s = sensitivity(SensitivityRequest(scenario=plan, position_offsets_km=[1], bearings=4), ev)
     assert s.position_pass_rate is None and s.skipped_points == 4
     assert s.date_pass_rate is not None
-    assert all(p.distance_km == 0 for p in s.points)
+    # Skipped landing-position points stay in the list, marked not_evaluated; date slips are all evaluated.
+    pos = [p for p in s.points if p.distance_km > 0]
+    assert len(pos) == 4 and all(p.status == "not_evaluated" and not p.passes for p in pos)
+    assert s.counts.skipped == 4 and s.counts.requested == len(s.points)
     assert "skipped" in s.explanation
 
 
@@ -280,3 +283,57 @@ def test_cache_is_bounded_and_never_mixes_real_and_synthetic():
                for sim in order}
         assert all(not is_real(r) and r.eligibility == "unknown" for r in out[False])
         assert all(r.data_source == "synthetic-placeholder" for r in out[True])
+
+
+# ---------------------------------------------------------------- demo scenario and release gate
+
+DEMO_PATH = Path(__file__).resolve().parents[1] / "app" / "rescue" / "demo_scenario.json"
+
+
+def _demo_request() -> RescueRequest:
+    d = json.loads(DEMO_PATH.read_text(encoding="utf-8"))
+    return RescueRequest(original=Scenario(**d["original"]), change=PlanChange(**d["change"]))
+
+
+def _demo_in_data_range(req: RescueRequest) -> None:
+    first, last = data_range(req.original.site.id)
+    end = req.original.landing_utc + timedelta(days=req.change.launch_delay_days + 31 + req.original.duration_days)
+    if req.original.landing_utc < first or end > last:
+        pytest.skip("demo scenario is outside the data's time range")
+
+
+def test_demo_scenario_transition():
+    """The preset: passes as planned, fails after the delay (battery darkness), rescue finds a pass."""
+    d = json.loads(DEMO_PATH.read_text(encoding="utf-8"))
+    assert d["story"] and d["change"]["launch_delay_days"] > 0
+    req = _demo_request()
+    _demo_in_data_range(req)
+    res = rescue(req, Evaluator())
+    assert res.status == "rescued"
+    assert res.original.verdict == "pass" and not res.original.violations
+    assert res.changed.verdict == "fail"
+    assert [v.constraint for v in res.changed.violations] == ["battery_hours"]
+    assert res.changed.violations[0].actual > res.changed.violations[0].required
+    assert res.alternatives and all(a.viability.verdict == "pass" for a in res.alternatives)
+    assert res.alternatives[0].rank == 1 and res.stats.passing >= len(res.alternatives)
+
+
+def _release_gate(req: RescueRequest) -> None:
+    _demo_in_data_range(req)
+    res = rescue(req, Evaluator())
+    assert res.alternatives
+    direct = Evaluator(cache_size=0, fast_windows=False)  # the canonical engine, nothing reused
+    for a in res.alternatives:
+        again = direct.evaluate(a.scenario)
+        assert again.verdict == "pass" and a.viability.verdict == "pass"
+        assert again.score == a.viability.score and again.passes == a.viability.passes
+        assert again.violations == a.viability.violations
+
+
+def test_release_gate_demo_alternatives_pass_canonical_engine():
+    _release_gate(_demo_request())
+
+
+def test_release_gate_second_case_alternatives_pass_canonical_engine():
+    sc = Scenario(site=get_site("malapert-massif").to_site(), landing_utc=datetime(2027, 7, 15, tzinfo=timezone.utc))
+    _release_gate(RescueRequest(original=sc, change=PlanChange(launch_delay_days=14)))
