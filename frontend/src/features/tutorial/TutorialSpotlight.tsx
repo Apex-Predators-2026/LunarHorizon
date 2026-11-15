@@ -14,12 +14,12 @@ const SPOTLIGHT_PAD = 8
 /** After this long a working story step offers Retry (it never advances on its own). */
 const SLOW_MS = 15_000
 
-function findTargetElement(selectors: string[]): HTMLElement | null {
+export function findTargetElement(selectors: string[]): HTMLElement | null {
   if (typeof document === 'undefined') return null
   for (const selector of selectors) {
     const matches = document.querySelectorAll<HTMLElement>(selector)
     for (const el of matches) {
-      if (el.closest('[inert]')) continue // inside the hidden Planner while another page is open
+      if (el.closest('[inert], [hidden], [aria-hidden="true"]')) continue // inside hidden Planner or collapsed panel
       const r = el.getBoundingClientRect()
       if (r.width > 0 && r.height > 0) return el
     }

@@ -31,7 +31,7 @@ interface Box {
 function visibleBox(selector: string): Box | null {
   if (typeof document === 'undefined') return null
   for (const el of document.querySelectorAll<HTMLElement>(selector)) {
-    if (el.closest('[inert]')) continue // inside the hidden Planner while another page is open
+    if (el.closest('[inert], [hidden], [aria-hidden="true"]')) continue // inside the hidden Planner while another page is open
     const r = el.getBoundingClientRect()
     if (r.width > 0 && r.height > 0) return { left: r.left, top: r.top, width: r.width, height: r.height }
   }
