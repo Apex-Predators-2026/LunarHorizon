@@ -18,6 +18,7 @@ import {
   type MarginStatus,
   type OperationalHeadroom,
 } from '../../types'
+import { axisPlacement, missionTime } from './missionTime'
 import type { CanonicalMetric, ComparisonScenario, CompareResult, ConstraintItem, RankingGroup, RankingInfo, ResultState, TimelineColumns } from './types'
 
 export interface Entry {
@@ -867,31 +868,36 @@ export function computeTradeoff(entries: Entry[], w: Weights, traverseKm: number
 
 export type Align = 'met' | 'utc'
 
-// The backend evaluates every mission on the hourly data grid (backend/app/timegrid.py): landing rounded to the
-// nearest whole UTC hour (half rounds up), length to whole hours. The charts' data start at that evaluated
-// landing, so the shared axis must use the same times, or elapsed and UTC labels drift from the data.
+// The backend evaluates every mission on the hourly data grid (backend/app/timegrid.py) and returns the window it
+// evaluated. The charts' data start at that evaluated landing, so the shared axis uses the evaluated windows
+// (missionTime.ts), never a re-derived rounding, or elapsed and UTC labels drift from the data. A scenario with no
+// evaluation yet is placed provisionally (axisPlacement) until its result arrives.
 const HOUR = 3_600_000
-/** Evaluated landing time (ms): nearest whole UTC hour, half rounds up. */
-export const gridLandingMs = (s: Pick<ComparisonScenario, 'landing_utc'>) =>
-  Math.floor((new Date(s.landing_utc).getTime() + HOUR / 2) / HOUR) * HOUR
-/** Evaluated mission length in hours: whole hours, at least one. */
-export const gridHours = (s: Pick<ComparisonScenario, 'duration_days'>) => Math.max(1, Math.round(s.duration_days * 24))
 
-export function axisOffsets(scenarios: ComparisonScenario[], align: Align): Record<string, number> {
-  if (align === 'met' || !scenarios.length) return Object.fromEntries(scenarios.map((s) => [s.id, 0]))
-  const t0 = Math.min(...scenarios.map(gridLandingMs))
-  return Object.fromEntries(scenarios.map((s) => [s.id, (gridLandingMs(s) - t0) / HOUR]))
+/** What the axis needs of a scenario: its inputs and its result state. */
+export type AxisItem = Pick<Entry, 'scenario' | 'state'>
+
+const placement = (e: AxisItem) => axisPlacement(missionTime(e))
+
+export function axisOffsets(items: AxisItem[], align: Align): Record<string, number> {
+  if (align === 'met' || !items.length) return Object.fromEntries(items.map((e) => [e.scenario.id, 0]))
+  const t0 = axisOrigin(items)
+  return Object.fromEntries(items.map((e) => [e.scenario.id, (placement(e).landingMs - t0) / HOUR]))
 }
+
+/** [start, end] of the mission on the shared axis (hours): the evaluated window. */
+export const missionExtent = (e: Entry): [number, number] => [e.offsetHours, e.offsetHours + placement(e).hours]
 
 export function fullDomain(entries: Entry[]): [number, number] {
   if (!entries.length) return [0, 24]
   const lo = Math.min(...entries.map((e) => e.offsetHours))
-  const hi = Math.max(...entries.map((e) => e.offsetHours + gridHours(e.scenario)))
+  const hi = Math.max(...entries.map((e) => missionExtent(e)[1]))
   return [lo, hi > lo ? hi : lo + 24]
 }
 
-export function axisOrigin(scenarios: ComparisonScenario[]): number {
-  return scenarios.length ? Math.min(...scenarios.map(gridLandingMs)) : 0
+/** Time (ms) of axis x = 0: the earliest evaluated landing. */
+export function axisOrigin(items: AxisItem[]): number {
+  return items.length ? Math.min(...items.map((e) => placement(e).landingMs)) : 0
 }
 
 /** Tick label for an axis value. */
@@ -934,7 +940,7 @@ export function conditionsAt(e: Entry, x: number): Conditions | null {
   const tl = e.result?.timeline
   if (!tl) return null
   const met = x - e.offsetHours
-  if (met < 0 || met > e.scenario.duration_days * 24) return null
+  if (met < 0 || met > placement(e).hours) return null // the evaluated length, not the requested one
   const i = sampleIndex(tl, met)
   if (i === null) return null
   const sunEl = tl.sun_elevation_deg[i], sunHorizon = tl.sun_horizon_deg[i], f = tl.sun_visible_fraction[i]
@@ -1137,7 +1143,7 @@ export function buildSummary(entries: Entry[]): Summary {
 
   // ---- why: only mechanisms the data shows directly
   const sameSite = cmp.length > 1 && new Set(cmp.map((e) => e.scenario.site.id)).size === 1
-  const sameStart = cmp.length > 1 && new Set(cmp.map((e) => e.scenario.landing_utc)).size === 1
+  const sameStart = cmp.length > 1 && new Set(cmp.map((e) => placement(e).landingMs)).size === 1 // evaluated landings
   if (sameSite && !sameStart) {
     const el = pick(cmp, (e) => e.result!.solar?.mean_elevation_deg, 'higher')
     if (el) overall.push(`All scenarios use the same site, so the differences come from where the Sun and Earth are on those dates, not from the terrain: mean solar elevation ranges from ${el.worst.v.toFixed(2)}° (${lbl(el.worst.e)}) to ${el.best.v.toFixed(2)}° (${lbl(el.best.e)}).`)
