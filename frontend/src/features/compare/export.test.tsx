@@ -40,6 +40,15 @@ function parseCsv(text: string): string[][] {
   return rows
 }
 
+describe('wording', () => {
+  it('shows engine durations in days or hours without changing the values', async () => {
+    const { humanizeSeconds } = await import('./analysis')
+    expect(humanizeSeconds('evaluated duration (1.2096e+06 s vs 432000 s)')).toBe('evaluated duration (14 d vs 5 d)')
+    expect(humanizeSeconds('gap of 7200 s')).toBe('gap of 2 h')
+    expect(humanizeSeconds('requirements fingerprint')).toBe('requirements fingerprint')
+  })
+})
+
 describe('export', () => {
   it('matches the displayed comparison: eligibility, ranks, groups and the recommendation', () => {
     const x = exp()

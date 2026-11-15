@@ -10,6 +10,7 @@ import {
   canonicalRanking,
   cm,
   eligibilityOf,
+  humanizeSeconds,
   requirementSummary,
   type Entry,
   type GroupView,
@@ -255,7 +256,7 @@ export function buildDecision(entries: Entry[], groups: RankingGroup[], pairs: P
   const notes: string[] = []
   if (multi) {
     for (const v of views.slice(1)) {
-      if (v.group.separate_reason) notes.push(`Group ${v.group.id} is not comparable with ${views[0].group.id} (${v.group.separate_reason}), so no scenario in it is ranked against ${views[0].group.id} and no preference is stated across groups.`)
+      if (v.group.separate_reason) notes.push(`Group ${v.group.id} is not comparable with ${views[0].group.id} (${humanizeSeconds(v.group.separate_reason)}), so no scenario in it is ranked against ${views[0].group.id} and no preference is stated across groups.`)
     }
   }
   for (const e of unassessed) {
