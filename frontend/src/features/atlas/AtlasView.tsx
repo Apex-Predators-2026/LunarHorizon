@@ -3,6 +3,7 @@
 // selecting it explains the deciding requirement, shows the same mission at the neighbouring tested dates,
 // and can send that exact mission to the Mission Planner.
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useStore } from 'zustand'
 
 import { useAppStore } from '../../store'
 import { DEFAULT_REQUIREMENTS, type MissionRequirements, type SiteInfo } from '../../types'
@@ -18,7 +19,6 @@ import {
   STEP_OPTIONS,
   activeRequirements,
   cellLabel,
-  cellScenario,
   fmtDay,
   fmtDays,
   fmtUtc,
@@ -27,13 +27,15 @@ import {
   moveSelection,
   neighbourhood,
   noFeasibleSummary,
+  noPassSummary,
   robustnessText,
+  rowWindowsText,
   searchBounds,
   type AtlasRequest,
   type AtlasResponse,
   type CellStatus,
 } from './atlas'
-import { fetchAtlas } from './api'
+import { atlasSession, normalizeRequest, requestDiffs, transferFor } from './session'
 import { openInPlanner } from './transfer'
 
 const COLOR: Record<CellStatus, { bg: string; fg: string }> = {
@@ -60,26 +62,14 @@ function StatusChip({ status, count }: { status: CellStatus; count?: number }) {
 /** The tested landing windows per duration, in words: the text alternative to the colours. */
 function WindowsList({ r }: { r: AtlasResponse }) {
   return (
-    <ul className="space-y-1 text-xs text-slate-300">
-      {r.durations_days.map((d, row) => {
-        const runs: string[] = []
-        let start = -1
-        r.cells[row].forEach((c, i) => {
-          if (c.status === 'pass' && start < 0) start = i
-          if ((c.status !== 'pass' || i === r.cells[row].length - 1) && start >= 0) {
-            const end = c.status === 'pass' ? i : i - 1
-            runs.push(start === end ? fmtDay(r.cells[row][start].landing_utc) : `${fmtDay(r.cells[row][start].landing_utc)} to ${fmtDay(r.cells[row][end].landing_utc)}`)
-            start = -1
-          }
-        })
-        return (
-          <li key={d}>
-            <b className="font-medium text-slate-200">{fmtDays(d)} missions:</b>{' '}
-            {runs.length ? `pass at tested landings ${runs.join(', ')}` : 'no tested landing passes'}
-          </li>
-        )
-      })}
-    </ul>
+    <>
+      <ul className="space-y-1 text-xs text-slate-300">
+        {r.durations_days.map((d, row) => (
+          <li key={d}><b className="font-medium text-slate-200">{fmtDays(d)} missions:</b> {rowWindowsText(r, row)}</li>
+        ))}
+      </ul>
+      <p className="mt-1 text-[11px] text-slate-500">A run is a sequence of consecutive tested dates that pass, one every {r.step_hours} h; times between tested dates were not evaluated.</p>
+    </>
   )
 }
 
@@ -97,50 +87,36 @@ export function AtlasView() {
     requirements: { ...DEFAULT_REQUIREMENTS },
   }))
   const [durationsText, setDurationsText] = useState('3, 7, 14, 28')
-  const [result, setResult] = useState<AtlasResponse | null>(null)
-  const [ran, setRan] = useState<AtlasRequest | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [sel, setSel] = useState<[number, number]>([0, 0])
+  const snapshot = useStore(atlasSession, (s) => s.snapshot)
+  const pending = useStore(atlasSession, (s) => s.pending)
+  const error = useStore(atlasSession, (s) => s.error)
+  const sel = useStore(atlasSession, (s) => s.sel)
+  const result: AtlasResponse | null = snapshot?.response ?? null
+  const loading = pending !== null
   const cellRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const abort = useRef<AbortController | null>(null)
 
   const curated = useMemo(() => (sites ?? []).filter((s) => s.kind !== 'custom'), [sites])
   const site = curated.find((s) => s.id === form.site_id) ?? null
 
-  const run = (req: AtlasRequest) => {
-    abort.current?.abort()
-    const ctl = new AbortController()
-    abort.current = ctl
-    setLoading(true)
-    setError(null)
-    fetchAtlas(req, ctl.signal)
-      .then((r) => {
-        setResult(r)
-        setRan(req)
-        // Start on the first passing cell (else the first cell), so the explanation has something to say.
-        let first: [number, number] = [0, 0]
-        outer: for (let i = 0; i < r.cells.length; i++) for (let j = 0; j < r.cells[i].length; j++) if (r.cells[i][j].status === 'pass') { first = [i, j]; break outer }
-        setSel(first)
-      })
-      .catch((e: unknown) => {
-        if ((e as Error).name !== 'AbortError') setError(e instanceof Error ? e.message : String(e))
-      })
-      .finally(() => {
-        if (abort.current === ctl) setLoading(false)
-      })
-  }
+  const run = (req: AtlasRequest, siteInfo: SiteInfo | null) => void atlasSession.getState().submit(req, siteInfo)
 
   useEffect(() => {
     const ctl = new AbortController()
     fetchSites(ctl.signal)
       .then((list) => {
         setSites(list)
+        const shown = atlasSession.getState().snapshot
+        if (shown) {
+          // Back on the Atlas: show the search the map was made from, not a fresh default.
+          setForm(shown.request)
+          setDurationsText(shown.request.durations_days.join(', '))
+          return
+        }
         const curatedIds = list.filter((s) => s.kind !== 'custom').map((s) => s.id)
         const id = appSite && curatedIds.includes(appSite) ? appSite : form.site_id
         const first = { ...form, site_id: id }
         setForm(first)
-        run(first)
+        run(normalizeRequest(first, first.durations_days), list.find((s) => s.id === id) ?? null)
       })
       .catch((e: unknown) => (e as Error).name !== 'AbortError' && setSiteError(e instanceof Error ? e.message : String(e)))
     return () => ctl.abort()
@@ -151,15 +127,25 @@ export function AtlasView() {
   const bounds = searchBounds({ ...form, durations_days: durations })
   const tooMany = bounds.cells > MAX_CELLS
   const valid = !!site && durations.length > 0 && durations.length <= 8 && form.count >= 1 && form.count <= 120 && !tooMany
-  const changed = ran !== null && JSON.stringify({ ...form, durations_days: [...new Set(durations)].sort((a, b) => a - b) }) !== JSON.stringify(ran)
-  const submit = () => valid && run({ ...form, durations_days: [...new Set(durations)].sort((a, b) => a - b) })
+  const edited = normalizeRequest(form, durations)
+  // What the edited search changes relative to the map shown ([] = the map shows this search).
+  const diffs = snapshot ? requestDiffs(edited, snapshot.request) : []
+  const submit = () => valid && run(edited, site)
 
   const [row, col] = sel
   const cell = result?.cells[row]?.[col] ?? null
   const reqById = useMemo(() => new Map((result?.requirements ?? []).map((q) => [q.id, q])), [result])
 
+  // The selected cell as a Planner mission, from the map's own snapshot (or why it can't be sent).
+  const plan = transferFor(snapshot, row, col, loading)
+  /** The one path to the Planner, for the button and for Enter: it reads the session, never the form. */
+  const sendToPlanner = () => {
+    const t = atlasSession.getState().transfer()
+    if (t.ok) openInPlanner(t.name, t.scenario)
+  }
+
   const focusCell = (r: number, c: number) => {
-    setSel([r, c])
+    atlasSession.getState().select(r, c)
     cellRefs.current.get(`${r}:${c}`)?.focus()
   }
   const onGridKey = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -168,9 +154,9 @@ export function AtlasView() {
     if (next) {
       e.preventDefault()
       focusCell(next[0], next[1])
-    } else if (e.key === 'Enter' && cell && cell.status !== 'not_evaluated' && site) {
+    } else if (e.key === 'Enter') {
       e.preventDefault()
-      openInPlanner(`Atlas: ${site.name} ${fmtDay(cell.landing_utc)} ${fmtDays(cell.duration_days)}`, cellScenario(result, cell, site))
+      sendToPlanner()
     }
   }
 
@@ -178,9 +164,6 @@ export function AtlasView() {
   const labelEvery = Math.max(1, Math.ceil(cols / 12))
   const wide = cols <= 45 // room for the symbol inside each cell
   const gridCols = `4rem repeat(${cols}, minmax(${wide ? 18 : 7}px, 1fr))`
-  const planner = () =>
-    cell && cell.status !== 'not_evaluated' && site && result &&
-    openInPlanner(`Atlas: ${site.name} ${fmtDay(cell.landing_utc)} ${fmtDays(cell.duration_days)}`, cellScenario(result, cell, site))
 
   // What the map evaluates: the engine's own requirement list once a map exists, else the controls' values.
   const requirementSummary = result
@@ -241,7 +224,12 @@ export function AtlasView() {
             {site && <> Site data: {fmtDay(site.data_start_utc)} to {fmtDay(site.data_stop_utc)}.</>}
             {tooMany && <span className="block text-red-400">At most {MAX_CELLS} missions per map: fewer dates or lengths.</span>}
           </p>
-          {changed && !loading && <p className="mt-1 text-amber-300" role="status">Changed since the map below was made: press "Map these missions".</p>}
+          {loading && <p role="status" className="mt-1 text-slate-400">Evaluating your search: the map shown will be replaced when it is ready.</p>}
+          {!loading && diffs.length > 0 && (
+            <p role="status" className="mt-1 text-amber-300" data-testid="atlas-edited">
+              Edited, not mapped yet ({diffs.join(', ')}). The map shown is still the previous search: press “Map these missions” to evaluate your edits.
+            </p>
+          )}
 
           <p className="mt-2 leading-snug" data-testid="atlas-active-requirements">
             <span className="font-medium text-slate-200">{result ? 'This map evaluates: ' : 'Requirements: '}</span>
@@ -284,27 +272,35 @@ export function AtlasView() {
             {result && (
               <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'} aria-busy={loading}>
                 {result.time_note && <p className="mb-2 text-xs text-slate-400">{result.time_note}</p>}
+                <p className="mb-2 text-[11px] text-slate-400" data-testid="atlas-shown">
+                  Map shown: {result.site_name}, landings {fmtUtc(result.landing_utc[0])} to {fmtUtc(result.landing_utc[result.landing_utc.length - 1])}{' '}
+                  every {result.step_hours} h, {result.durations_days.map(fmtDays).join(' / ')} missions, with the requirements it was mapped with
+                  {diffs.length > 0 && <b className="ml-1 font-medium text-amber-300">(not your edited search)</b>}.
+                </p>
                 <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1" aria-label="Legend">
                   {(['pass', 'fail', 'unknown', 'not_evaluated'] as const).map((st) => <StatusChip key={st} status={st} count={result.counts[st]} />)}
                 </div>
 
-                {result.counts.pass === 0 && (
-                  <div role="status" className="mb-3 rounded-lg border border-amber-700/60 bg-amber-950/20 p-3 text-xs text-amber-100">
-                    {result.counts.not_evaluated === result.cells.length * cols ? (
-                      <p><b>Nothing to evaluate:</b> every tested landing is outside this site's data ({fmtDay(result.data_start_utc)} to {fmtDay(result.data_stop_utc)}). Move the first landing date into that range.</p>
-                    ) : (
-                      <>
-                        <p><b>No tested mission meets every requirement here.</b> The deciding requirement, most common first:</p>
-                        <ul className="mt-1 list-disc pl-5">
-                          {noFeasibleSummary(result).slice(0, 3).map(({ requirement, cells }) => (
-                            <li key={requirement.id}>{requirement.name ?? requirement.id} ({limitText(requirement)}): {cells} mission{cells === 1 ? '' : 's'}</li>
-                          ))}
-                        </ul>
-                        <p className="mt-1">Try shorter missions, another start date or interval, another site, or relax a requirement above. Select a cell to see by how much it misses.</p>
-                      </>
-                    )}
-                  </div>
-                )}
+                {result.counts.pass === 0 && (() => {
+                  const none = noPassSummary(result)
+                  const deciding = noFeasibleSummary(result).slice(0, 3)
+                  return (
+                    <div role="status" data-testid="atlas-no-pass" data-kind={none.kind} className="mb-3 rounded-lg border border-amber-700/60 bg-amber-950/20 p-3 text-xs text-amber-100">
+                      <p><b>{none.text}</b></p>
+                      {deciding.length > 0 && (
+                        <>
+                          <p className="mt-1">Among the confirmed failures, the deciding requirement, most common first:</p>
+                          <ul className="mt-1 list-disc pl-5">
+                            {deciding.map(({ requirement, cells }) => (
+                              <li key={requirement.id}>{requirement.name ?? requirement.id} ({limitText(requirement)}): {cells} mission{cells === 1 ? '' : 's'}</li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                      {none.kind !== 'none_evaluated' && <p className="mt-1">Try shorter missions, another start date or interval, another site, or relax a requirement above. Select a cell to see what decides it.</p>}
+                    </div>
+                  )
+                })()}
 
                 {/* The map: rows = mission lengths, columns = tested landing dates. Arrow keys move, Enter opens in the Planner. */}
                 <div
@@ -353,7 +349,7 @@ export function AtlasView() {
                   ))}
                 </div>
                 <p className="mt-2 text-[11px] text-slate-500">
-                  Click a cell, or use the arrow keys (Home / End, Page Up / Down = a week of columns); Enter opens that mission in the Planner.
+                  Click a cell, or use the arrow keys (Home / End, Page Up / Down = a week of columns); Enter opens that mission (from this map) in the Planner.
                   Only the tested dates are shown: nothing is interpolated between them.
                 </p>
 
@@ -382,12 +378,17 @@ export function AtlasView() {
                   <dt className="text-slate-500">Decisive</dt>
                   <dd className="text-slate-200" aria-live="polite">{cell.reason}</dd>
                 </dl>
-                {cell.status !== 'not_evaluated' && site && (
-                  <div>
-                    <button type="button" className={btnPrimary} onClick={planner}>Open this mission in the Planner</button>
-                    <p className="mt-1 text-[11px] text-slate-500">Creates a plan with exactly this site, landing time, length and requirements{cell.status === 'fail' ? ' (it fails: Mission Rescue can then look for alternatives)' : ''}.</p>
-                  </div>
-                )}
+                <div>
+                  <button type="button" className={btnPrimary} disabled={!plan.ok} onClick={sendToPlanner} data-testid="atlas-open-planner"
+                    aria-describedby="atlas-transfer-note">
+                    Open this mission in the Planner
+                  </button>
+                  <p id="atlas-transfer-note" className="mt-1 text-[11px] text-slate-500">
+                    {plan.ok ? (
+                      <>Creates a plan from the map shown ({plan.from}) and runs it in the 3D view{cell.status === 'fail' ? '; it fails, so Mission Rescue can then look for alternatives' : ''}.{diffs.length > 0 && ' Your edited search is not used.'}</>
+                    ) : plan.reason}
+                  </p>
+                </div>
 
                 {cell.constraints && cell.constraints.length > 0 && (
                   <Disclosure id="atlas-requirement-table" title="Every requirement for this mission" summary="limits, measured values and margins">
