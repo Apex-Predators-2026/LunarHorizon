@@ -32,8 +32,7 @@ Scenario Comparison) and in [`docs/`](docs/).
 | **Ask Rover: Mission Assistant** (in Scenario Comparison) | A read-only chat panel (docked and resizable, full screen, or minimized) that explains the comparison on screen, answers "how do I…" questions about the page, and reads the generated Mission Report. Answers stream in, show the page's own verdict chips, and contain links that jump to the right section, tab or tour. It flags a report that is out of date first. It never changes plans, verdicts, scores or rankings. Without an AI key it says so and offers basic answers assembled from the page itself, labelled "not AI". Setup: see *AI assistance*. |
 | **Feasibility Atlas** (`#app/atlas`) | Landing date × mission length grid for one site and spacecraft: which missions pass, fail or cannot be decided. |
 | **Validation & Methodology** (`#app/method`) | Where each answer comes from, the independent scientific checks (ephemeris, horizon geometry, LROC sunlight), the viability engine's software-verification report, and the limitations. |
-| **Try a mission** (landing page button, and the header button in the navigator) | A guided, real-data mission through the actual tools: a Peak Near Shackleton plan that passes, a 4-day launch delay that makes it fail on the Earth-radio blackout, "Show why" in 3D, a Mission Rescue recovery, the Comparison, and a frozen summary report you can export. Every verdict is read live from the engine; nothing is scripted. Restart and exit are always available. Definition and replay check: [`docs/mission-story.md`](docs/mission-story.md). |
-| **Guided tours** | A first-visit *Mission Briefing* in the Planner (8 stops: 3D shadows, sky blockers, the JPL check, Mission Rescue) and a six-stop *How to compare missions* tour of the Comparison (select missions, viability, conditions, trade-offs, the Mission Report, the assistant). Both are separate from *Try a mission*, and never run together with it. |
+| **Guided Tour** (*Take the guided tour* on landing page; *More (⋮) -> Quick tour / Full guided tour* in planner; *How to compare missions* in comparison) | One unified interactive tour with two routes across three acts: **Quick tour (~90 s)** (7 stops) and **Full guided tour** (19 stops). Drives real NASA data through the live tools: Peak Near Shackleton passing, a 4-day launch delay failing the Earth-radio blackout limit (`118 h > 96 h`), "See why in 3D", a Mission Rescue recovery at Malapert Massif, Scenario Comparison, a frozen Mission Report you can export, Feasibility Atlas, Validation & Methodology, and a live verdict recap. Nothing is pre-recorded. Definition and replay check: [`docs/mission-story.md`](docs/mission-story.md). |
 | **Mission Report** (header of Scenario Comparison) | A frozen snapshot of the evaluated comparison, laid out as a formal black-and-white document: serif type, ruled tables and plain PASS / FAIL / UNKNOWN wording. A title page with contents is followed by nine sections: executive summary, mission overview, mission performance, comparison analysis, requirements assessment, strengths and weaknesses, final assessment and recommendation, data sources and methodology, and disclaimer. Mission performance has **five real figures** with axes and the requirement limits drawn in (mean visible solar disk, longest darkness, Earth line of sight, longest communication blackout, requirement outcomes per plan). The preview has section navigation. Exports: a one-click **PDF** (generated in the browser and loaded only when needed, numbered "Page n of N"), **Print** (A4 / Letter) and a matching **JSON**. The technical record (ranking evidence, pairwise comparisons, dataset SHA-256, engine versions, evaluated UTC intervals) is an appendix. A later change to the comparison marks the report out of date until you regenerate it. The PDF is laid out separately from the on-screen pages, so its page count can differ. |
 
 Verdicts are **PASS**, **FAIL** or **UNKNOWN** (the Atlas adds *not evaluated* for dates outside the data). UNKNOWN
@@ -105,7 +104,7 @@ frontend/   React 19 + TypeScript + Vite; Three.js via React Three Fiber (3D); Z
                         @react-pdf/renderer, loaded on demand), methodology/ (How This Analysis Was Built)
   src/lib/            shared canonical verdict / assessment clients
   scripts/            demo-tour.mjs (terrain-cache tour), smoke-prod.mjs (production smoke journey),
-                      e2e-guided.mjs (Try a mission journey), e2e-time-missing.mjs (hourly-grid / incomplete data)
+                      e2e-guided.mjs (Full Guided Tour end-to-end journey), e2e-time-missing.mjs (hourly-grid / incomplete data)
 backend/    Python + FastAPI + numpy + rasterio
   app/engine/         data engine: Horizons ephemeris, Moon Trek LOLA DEMs, horizon masks, timelines, tiles
   app/viability/      canonical viability engine (verdicts, metrics, margins, risks, score, ranking) + /api/viability
@@ -138,7 +137,7 @@ on the **production build** (`npm run build` first), which is what the gate does
 ```powershell
 cd frontend
 node scripts/smoke-prod.mjs --strict --api http://localhost:8000     # the whole planner / rescue / compare / export / Atlas journey (builds dist/ unless --no-build)
-node scripts/e2e-guided.mjs --serve-dist --api http://localhost:8000 # Try a mission end to end + frozen report + Atlas transfer, 1366x768 and 1920x1080
+node scripts/e2e-guided.mjs --serve-dist --api http://localhost:8000 # Full Guided Tour end to end + frozen report + Atlas transfer, 1366x768 and 1920x1080
 node scripts/e2e-time-missing.mjs --serve-dist --api http://localhost:8000   # hourly-grid mission time and incomplete data, both viewports
 node scripts/e2e-evidence.mjs --serve-dist --api http://localhost:8000       # Show why from the Comparison into the 3D view and back, both viewports
 ```
@@ -162,9 +161,9 @@ handful of older findings in `app/viability/compat/headroom.py` and two test fil
 
 ### Review it as a judge (about 10 minutes)
 
-1. Start the backend and `npm run dev` (Quick start), open `http://localhost:5173` and press **Try a mission**.
-2. Follow the story to the end: PASS, the 4-day delay, FAIL (Earth blackout 118 h against 96 h), **Show why** in 3D,
-   the Rescue recovery, the Comparison, then the **Summary report** (print or JSON).
+1. Start the backend and `npm run dev` (Quick start), open `http://localhost:5173` and press **Take the guided tour** (for the 90 s Quick tour), or **Open the navigator** and launch **Full guided tour** under **More (⋮)** for all 19 steps.
+2. Follow the story to the end: PASS, the 4-day delay, FAIL (Earth blackout 118 h against 96 h), **See why in 3D**,
+   the Rescue recovery, the Comparison, then the **Mission Report** (PDF, Print, or JSON export).
 3. In **Scenario Comparison**, read the decision on *Overview*, switch to *Evidence* and *Detailed analysis*, then
    open the **Mission Report** from the page header and download the PDF.
 4. Press **Ask Rover** and ask "Summarize my current comparison" (needs an AI key; without one it gives a basic,
