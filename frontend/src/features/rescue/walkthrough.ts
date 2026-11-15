@@ -84,7 +84,7 @@ function stepPlan(res: RescueResponse): string {
       ? hr.qualified_verdict.charAt(0).toLowerCase() + hr.qualified_verdict.slice(1)
       : 'passes declared model requirements'
     const closest = hr.closest_constraint ? ` Closest limit: ${hr.closest_constraint.summary_text}.` : ''
-    return `The changed plan ${qual}${c.score === null ? '' : ` (score ${Math.round(c.score)})`}.${closest} Model screening result only — not a guarantee of spacecraft survival.`
+    return `The changed plan ${qual}${c.score === null ? '' : ` (score ${Math.round(c.score)})`}.${closest} Model screening result only - not a guarantee of spacecraft survival.`
   }
   if (!broken.length) return 'The changed plan fails, but no single broken rule was reported.'
   const main = broken.reduce((m, v) => (v.relative_shortfall > m.relative_shortfall ? v : m))

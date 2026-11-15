@@ -1,4 +1,4 @@
-# TEAM HANDOFF — overnight recovery (PARTIAL, local only)
+# TEAM HANDOFF - overnight recovery (PARTIAL, local only)
 
 **Status: partially verified, stopped early on the user's instruction. NOT pushed, NOT merged into `main`.**
 

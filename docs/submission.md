@@ -126,7 +126,7 @@ Use **real screenshots or recordings** of the app, never illustrative images.
 
 | Time | Show | Source in the app |
 |---|---|---|
-| 0:00–0:02 | Team name | — |
+| 0:00–0:02 | Team name | - |
 | 0:02–0:05 | The problem: the Sun and Earth skim the polar horizon | Planner, Sun eye view at Connecting Ridge |
 | 0:05–0:10 | Name and hook | Landing page |
 | 0:10–0:20 | The example mission: PASS → 5-day slip → FAIL (63 h dark) → "Show in 3D" → Rescue picks Malapert | Planner (plan card, Full assessment), Rescue |
