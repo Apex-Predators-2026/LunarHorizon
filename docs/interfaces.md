@@ -300,3 +300,26 @@ a decimated timeline per scenario. Scenarios without real data return `status: "
 `allow_demo_data` is set. Additive since the ranking fix: `results[].ranking` and `ranking_groups` carry the
 canonical viability engine's ranking (only PASS scenarios ranked, per comparable group; `score: null` is never 0). Frontend integration: `sendToComparison(scenarios)` from
 `frontend/src/features/compare`. Details: `docs/comparison.md`.
+
+## Feasibility Atlas: `POST /api/atlas`
+
+Which tested landing dates work for which tested mission lengths, for one curated site and one spacecraft.
+Request: `site_id`, `start_utc` (first landing), `step_hours` (sampling interval, 1-720), `count` (landing dates,
+1-120), `durations_days` (1-8 values), `requirements` (the shared `MissionRequirements`); at most 600 cells.
+Each cell is that exact mission evaluated by the canonical engine (`evaluate_scenario`, via the same
+`scenario_to_mission` conversion as Planner / Rescue / Comparison), on the site's precomputed file:
+
+| `status` | Meaning |
+|---|---|
+| `pass` / `fail` / `unknown` | The engine's eligibility for that mission |
+| `not_evaluated` | No data at all for that landing (before / after the site file): not run, unlike `unknown` |
+
+Per cell: `limiting` (the deciding requirement: the worst failure, the undecided one, or for a pass the one
+closest to its limit, relative to the limit), `reason` (the engine's message for it) and compact `constraints`
+(status, measured value or bounds, `margin` in display units). Requirement names, limits and units are listed
+once in `requirements`. Nothing is interpolated between tested dates; `method` and `limitations` say so.
+The site series is sliced to the searched window before evaluating (~7 ms per mission instead of ~95 ms);
+`backend/tests/test_atlas.py` checks the verdicts equal the full-series ones, including at the end of the data.
+Frontend: the "Feasibility Atlas" tab (`#app/atlas`, `frontend/src/features/atlas/`); "Open this mission in the
+Planner" saves that exact scenario as a plan and runs it. Not implemented: boundary refinement, capability
+studies, per-cell sensitivity.
