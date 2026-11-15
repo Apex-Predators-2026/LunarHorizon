@@ -65,7 +65,7 @@ function Gallery() {
       <div className="lnd-wrap">
         <div className="lnd-gallery-head" data-reveal>
           <h2 id="gallery-h">Inside the navigator</h2>
-          <p>The four views you plan in, from the 3D terrain to the rescue after a launch slip</p>
+          <p>Explore how the navigator uses Horizons and LOLA data to plan a lunar landing.</p>
         </div>
         <ul className="lnd-gallery-grid">
           {PICTURES.map((p, i) => (
