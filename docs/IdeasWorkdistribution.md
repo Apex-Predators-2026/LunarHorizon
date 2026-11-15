@@ -2,7 +2,7 @@
 - Most generic idea would be to just have the 3d terrain map and you drop your pin and it tells you the information  
 - Next Sunset (when terrain blocks the Sun) and Next Earthset (when Earth dips below the crater rim)  
 - Users drag a landing pin across crater rims, ridges, and permanently shadowed regions (PSRs) on a south polar map while live charts update total sunlight hours, solar elevation angle (for solar panel efficiency), and Earth visibility windows in real time.  
-- Users select a primary target—such as Artemis III candidate regions like Peak Near Shackleton, Malapert Massif, or Connecting Ridge—and a planned landing date, then shift the schedule by days, weeks, or months. The app immediately compares the original plan against alternative dates and nearby backup sites side-by-side, highlighting how power and direct-to-Earth (DTE) communication windows shift.
+- Users select a primary target - such as Artemis III candidate regions like Peak Near Shackleton, Malapert Massif, or Connecting Ridge - and a planned landing date, then shift the schedule by days, weeks, or months. The app immediately compares the original plan against alternative dates and nearby backup sites side-by-side, highlighting how power and direct-to-Earth (DTE) communication windows shift.
 
 What our project will include, BROAD FEATURES: 
 
@@ -67,7 +67,7 @@ Verify results against reference calculations, display sources, identify limitat
 
 # 
 
-## **Andrew — Scientific Data Integration & 3D Visualization**
+## **Andrew - Scientific Data Integration & 3D Visualization**
 
 **Original Features 1 \+ 4**
 
@@ -89,7 +89,7 @@ Verify results against reference calculations, display sources, identify limitat
 
 ---
 
-## **Brandon — Mission Viability, Risk Assessment & Ranking Algorithm**
+## **Brandon - Mission Viability, Risk Assessment & Ranking Algorithm**
 
 **Original Feature 2**
 
@@ -109,7 +109,7 @@ Verify results against reference calculations, display sources, identify limitat
 
 ---
 
-## **Member 3 — Interactive UI/UX & Mission Configuration**
+## **Member 3 - Interactive UI/UX & Mission Configuration**
 
 **Original Feature 3**
 
@@ -129,7 +129,7 @@ Verify results against reference calculations, display sources, identify limitat
 
 ---
 
-## **Member 4 — Multi-Scenario Comparison System**
+## **Member 4 - Multi-Scenario Comparison System**
 
 **Original Feature 5**
 
@@ -150,7 +150,7 @@ Verify results against reference calculations, display sources, identify limitat
 
 ---
 
-## **Member 5 — Mission Rescue & Optimization**
+## **Member 5 - Mission Rescue & Optimization**
 
 **Original Feature 6**
 
@@ -172,7 +172,7 @@ Verify results against reference calculations, display sources, identify limitat
 
 ---
 
-## **Member 6 — Scientific Validation, Explainability & Uncertainty**
+## **Member 6 - Scientific Validation, Explainability & Uncertainty**
 
 **Original Feature 7**
 

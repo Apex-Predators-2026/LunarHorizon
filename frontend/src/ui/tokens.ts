@@ -1,5 +1,5 @@
 // Raw token values for code that cannot use CSS classes (SVG attributes, Recharts props, three.js).
-// Same numbers as the @theme block in src/index.css — change both together.
+// Same numbers as the @theme block in src/index.css - change both together.
 export const color = {
   canvas: '#070b14',
   surface: '#0c1220',

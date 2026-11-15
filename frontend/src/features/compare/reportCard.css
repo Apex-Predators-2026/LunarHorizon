@@ -1,0 +1,125 @@
+/* Mission Report document (preview): a formal technical report. Black text on white, serif type, thin rules,
+   three-rule tables; colour only in the figures (reportLayout.ts). */
+.rc-doc {
+  --rc-ink: #000000; --rc-ink2: #262626; --rc-ink3: #595959; --rc-hair: #a6a6a6; --rc-shade: #f2f2f2;
+  max-width: 210mm; margin: 0 auto; color: var(--rc-ink);
+  font: 10.5pt/1.5 Georgia, 'Times New Roman', Times, serif;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.rc-page {
+  background: #ffffff; min-height: 297mm; display: flex; flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18); scroll-margin-top: 12px;
+}
+.rc-body { padding: 14mm 20mm 10mm; flex: 1; min-width: 0; }
+.rc-running {
+  display: flex; justify-content: space-between; gap: 12px; margin: 0 20mm; padding: 8mm 0 2mm;
+  font: 8.5pt/1.3 Georgia, 'Times New Roman', serif; font-style: italic; color: var(--rc-ink3); border-bottom: 0.5pt solid var(--rc-ink);
+}
+.rc-foot { padding: 2mm 0 8mm; border-bottom: 0; border-top: 0.5pt solid var(--rc-ink); font-style: normal; }
+
+/* Title page */
+.rc-page-title .rc-body { padding-top: 34mm; }
+.rc-titleblock { text-align: center; border-top: 1.5pt solid var(--rc-ink); border-bottom: 0.5pt solid var(--rc-ink); padding: 10mm 0 8mm; margin-bottom: 12mm; }
+.rc-kicker { margin: 0; font-size: 10pt; letter-spacing: 0.12em; text-transform: uppercase; }
+.rc-titleblock h1 { margin: 6mm 0 3mm; font-size: 24pt; line-height: 1.2; font-weight: 700; }
+.rc-sub { margin: 0; font-size: 12pt; font-style: italic; }
+.rc-details { width: 100%; border-collapse: collapse; margin-bottom: 12mm; font-size: 10pt; }
+.rc-details th { width: 34%; text-align: left; font-weight: 700; vertical-align: top; padding: 3px 8px 3px 0; }
+.rc-details td { padding: 3px 0; overflow-wrap: anywhere; }
+.rc-details tr { border-bottom: 0.5pt solid var(--rc-hair); }
+.rc-contents-title { font-size: 13pt; margin: 0 0 4px; }
+.rc-contents { list-style: decimal; margin: 0; padding-left: 22px; font-size: 10.5pt; }
+.rc-contents li { padding: 1px 0; }
+.rc-contents li > span:first-child { margin-right: 6px; }
+.rc-contents li { display: list-item; }
+.rc-contents li > span { display: inline; }
+.rc-contents li > span:last-child { float: right; }
+.rc-dots { display: none; }
+
+/* Headings and text */
+.rc-h2 { margin: 16px 0 8px; font-size: 14pt; font-weight: 700; scroll-margin-top: 12px; }
+.rc-body > .rc-h2:first-child { margin-top: 0; }
+.rc-h3 { margin: 12px 0 4px; font-size: 11pt; font-weight: 700; }
+.rc-body p { margin: 0 0 8px; text-align: justify; hyphens: auto; }
+.rc-note { display: block; font-size: 8.5pt; color: var(--rc-ink3); font-weight: 400; text-align: left; }
+.rc-wrap { overflow-wrap: anywhere; }
+.rc-status { font-weight: 700; letter-spacing: 0.02em; }
+.rc-status-muted { font-weight: 400; color: var(--rc-ink3); }
+.rc-missing { color: var(--rc-ink3); font-style: italic; }
+.rc-range { font-style: italic; }
+.rc-best { font-weight: 700; }
+.rc-list { margin: 0 0 8px; padding-left: 20px; }
+.rc-list li { margin: 2px 0; }
+.rc-sw-head { margin: 6px 0 2px !important; font-weight: 700; font-style: italic; }
+.rc-conclusion { margin: 10px 0; padding: 8px 10px; border: 0.75pt solid var(--rc-ink); }
+.rc-disclaimer { font-size: 9.5pt; font-style: italic; }
+
+/* Tables: three rules (top, under the header, bottom), no fills. */
+.rc-table { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 10px 0 14px; font-size: 9pt; border-top: 1.2pt solid var(--rc-ink); border-bottom: 1.2pt solid var(--rc-ink); }
+.rc-table caption { caption-side: top; text-align: left; font-weight: 700; padding: 0 0 4px; font-size: 9.5pt; }
+.rc-table th, .rc-table td { padding: 4px 6px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.rc-table thead th { border-bottom: 0.6pt solid var(--rc-ink); font-weight: 700; }
+.rc-table tbody tr + tr th, .rc-table tbody tr + tr td { border-top: 0.4pt solid #e0e0e0; }
+.rc-table .rc-metric { width: 34%; font-weight: 400; }
+.rc-plans th:nth-child(1) { width: 26%; } .rc-plans th:nth-child(5) { width: 26%; }
+.rc-kv { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 2px 0 10px; }
+.rc-kv th { width: 26%; text-align: left; font-weight: 700; vertical-align: top; padding: 2px 8px 2px 0; }
+.rc-kv td { padding: 2px 0; overflow-wrap: anywhere; }
+.rc-findings th { width: 24%; }
+.rc-findings tr + tr th, .rc-findings tr + tr td { border-top: 0.4pt solid #e0e0e0; padding-top: 4px; }
+.rc-plan { break-inside: avoid; }
+
+/* Figures */
+.rc-figures { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 4px 0 8px; }
+.rc-figure { margin: 0 0 8px; break-inside: avoid; }
+.rc-figure figcaption { font-size: 9pt; color: var(--rc-ink2); text-align: left; margin-top: 2px; }
+.rc-svg { display: block; width: 100%; max-width: 160mm; height: auto; margin: 0 auto; font-family: Georgia, 'Times New Roman', serif; }
+.rc-svg-tick { font-size: 8px; fill: #404040; }
+.rc-svg-label { font-size: 9px; fill: #000000; }
+.rc-svg-value { font-size: 9px; fill: #000000; }
+.rc-svg-missing { font-size: 9px; fill: #595959; font-style: italic; }
+.rc-svg-limit { font-size: 8px; fill: #000000; font-style: italic; }
+.rc-svg-count { font-size: 8px; fill: #ffffff; font-weight: 700; }
+
+/* Phones: no fixed page height, narrower margins, no horizontal scrolling. */
+@media (max-width: 760px) {
+  .rc-doc { font-size: 10pt; gap: 12px; }
+  .rc-page { min-height: 0; }
+  .rc-body, .rc-page-title .rc-body { padding: 16px 14px 12px; }
+  .rc-running { margin: 0 14px; padding: 10px 0 4px; flex-direction: column; gap: 0; }
+  .rc-foot { padding: 4px 0 10px; }
+  .rc-titleblock h1 { font-size: 18pt; }
+  .rc-body p { text-align: left; }
+  .rc-table { font-size: 8pt; }
+  .rc-table th, .rc-table td { padding: 3px 3px; }
+  .rc-table .rc-metric { width: 30%; }
+  .rc-kv th { width: 34%; }
+}
+
+@media print {
+  .rc-doc { max-width: none; gap: 0; }
+  .rc-page { box-shadow: none; min-height: 0; break-after: page; }
+  .rc-page:last-child { break-after: auto; }
+  .rc-doc * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .rc-table tr, .rc-plan, .rc-figure { break-inside: avoid; }
+}
+
+/* Preview chrome: section navigation with the current page, appendix, PDF error. */
+.report-sections {
+  position: sticky; top: 0; z-index: 2; display: flex; gap: 4px; align-items: center; overflow-x: auto;
+  max-width: 210mm; margin: 0 auto 12px; padding: 6px 8px; background: #ffffff; border: 1px solid #c8c8c8; border-radius: 4px;
+  scrollbar-width: thin;
+}
+.report-page { flex: none; padding: 2px 8px; margin-right: 4px; border-right: 1px solid #c8c8c8; font-size: 12px; font-weight: 600; color: #000000; white-space: nowrap; }
+.report-section-link { flex: none; padding: 3px 8px; border: 0; border-radius: 3px; background: transparent; font-size: 12px; color: #262626; cursor: pointer; white-space: nowrap; }
+.report-section-link span { font-weight: 700; margin-right: 2px; }
+.report-section-link:hover { background: #ececec; color: #000000; }
+.report-section-link:focus-visible { outline: 2px solid #000000; outline-offset: 1px; }
+.report-appendix { max-width: 210mm; margin: 18px auto 0; padding: 10px 14px; background: #ffffff; border: 1px solid #c8c8c8; }
+.report-appendix summary { cursor: pointer; font-weight: 600; color: #000000; }
+.report-appendix-note { font-size: 12px; color: #595959; }
+.report-pdf-error { align-self: center; font-size: 12px; color: #a94442; }
+
+@media print {
+  .report-sections, .report-appendix { display: none !important; }
+}

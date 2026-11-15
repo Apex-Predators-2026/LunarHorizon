@@ -15,7 +15,7 @@
 // step, any uncaught page error and any 5xx from the API. A journey step the app doesn't offer at all is
 // reported as MISSING (and fails the run with --strict).
 import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
 
@@ -30,6 +30,8 @@ const OUT = opt('out', 'smoke-output')
 const DEPLOYED = opt('url', null)
 const ONLINE = flag('online')
 const STRICT = flag('strict')
+const RUN_ID = opt('run-id', null) // written into report.json so a caller never mistakes an older report for this run
+const STARTED = new Date().toISOString()
 
 function findChrome() {
   const found = [
@@ -63,6 +65,7 @@ if (!DEPLOYED) {
 }
 console.log(`App: ${base}  (API: ${DEPLOYED ? 'as deployed' : API})`)
 
+rmSync(OUT, { recursive: true, force: true }) // no screenshot or report from an earlier run survives beside this one
 mkdirSync(OUT, { recursive: true })
 const browser = await chromium.launch({ executablePath: findChrome(), args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'] })
 const page = await (await browser.newContext({ viewport: { width: 1600, height: 900 } })).newPage()
@@ -86,12 +89,19 @@ async function step(name, fn) {
   } catch (e) {
     const shot = join(OUT, `fail-${steps.length + 1}.png`)
     await page.screenshot({ path: shot }).catch(() => {})
-    steps.push({ name, status: 'fail', error: String(e.message ?? e).split('\n')[0], screenshot: shot })
-    console.log(`FAIL    ${name}: ${String(e.message ?? e).split('\n')[0]}`)
+    const why = String(e.message ?? e).split('\n').slice(0, 3).join(' | ') // the message and the locator being waited for
+    steps.push({ name, status: 'fail', error: why, screenshot: shot })
+    console.log(`FAIL    ${name}: ${why}`)
   }
 }
 const MISSING = Symbol('missing')
 const text = () => page.locator('body').innerText()
+/** Open a disclosure (the compact UI keeps supporting evidence closed) the way a user would: by its button. */
+async function openDisclosure(name) {
+  const b = page.getByRole('button', { name }).first()
+  await b.waitFor({ timeout: 10_000 })
+  if ((await b.getAttribute('aria-expanded')) !== 'true') await b.click()
+}
 async function waitForText(re, timeout = 60_000) {
   await page.waitForFunction((src) => new RegExp(src).test(document.body.innerText), re.source, { timeout })
 }
@@ -157,10 +167,31 @@ await step('Plan two missions (New plan dialog)', async () => {
   await newPlan('Smoke Ridge', 'Connecting Ridge')
 })
 
-await step('Run a plan: it becomes the active mission', async () => {
+await step('Run a plan: it becomes the active mission and its card shows the canonical assessment', async () => {
   const card = page.getByRole('listitem', { name: 'Plan Smoke Ridge' })
   await card.getByRole('button', { name: 'Run' }).click()
-  await card.getByText('Running').waitFor({ timeout: 10_000 })
+  await card.getByText('Active · in 3D view').waitFor({ timeout: 10_000 })
+  // A canonical verdict from the assessment API on the card (not just "Active"): Passes, Fails or Cannot be decided.
+  await ['Passes', 'Fails', 'Cannot be decided'].map((w) => card.getByText(w, { exact: true })).reduce((x, y) => x.or(y)).first().waitFor({ timeout: 60_000 })
+    .catch(async (e) => { throw new Error(`no canonical verdict on the plan card: ${(await card.innerText()).replace(/\s+/g, ' ').slice(0, 240)} (${String(e).split('\n')[0]})`) })
+})
+
+await step('Plan assessment dialog: Show in 3D, then Back returns to the same dialog', async () => {
+  const card = page.getByRole('listitem', { name: 'Plan Smoke Ridge' })
+  await card.getByRole('button', { name: /Full assessment/ }).click()
+  const dialogs = () => page.getByRole('dialog', { name: 'Mission assessment: Smoke Ridge' })
+  await dialogs().waitFor({ timeout: 60_000 })
+  const show = dialogs().getByRole('button', { name: 'Show in 3D' }).first() // the failing requirement's evidence window
+  await show.waitFor({ timeout: 60_000 })
+  await show.click()
+  await dialogs().waitFor({ state: 'detached', timeout: 10_000 }) // the dialog gives way to the 3D view
+  const banner = page.getByRole('status').filter({ hasText: 'Back to Smoke Ridge assessment' })
+  await banner.waitFor({ timeout: 30_000 })
+  await banner.getByRole('button', { name: 'Back to Smoke Ridge assessment' }).click()
+  await dialogs().waitFor({ timeout: 10_000 }) // the same plan's dialog, not the running plan's panel
+  await banner.waitFor({ state: 'detached', timeout: 10_000 })
+  await dialogs().getByRole('button', { name: 'Close' }).click()
+  await dialogs().waitFor({ state: 'detached', timeout: 10_000 })
 })
 
 await step("Investigate: the lander's-eye Sun view, the sky plot and the map layers", async () => {
@@ -209,13 +240,17 @@ await step('Compare the two plans side by side', async () => {
   if (/Backend unavailable/.test(await text())) throw new Error('comparison: backend unavailable')
   await waitForText(/Malapert Massif[\s\S]*Connecting Ridge|Connecting Ridge[\s\S]*Malapert Massif/, 5_000)
   await waitForText(/Passes|Fails|Cannot be decided/, 5_000)
-  await page.locator('nav[aria-label="Comparison sections"] a', { hasText: 'Trade-off' }).click()
+  // The trade-off analysis sits in the "Detailed analysis" view, in a disclosure that is closed by default.
+  await page.getByRole('tab', { name: 'Detailed analysis' }).click()
+  const tradeoff = page.getByRole('button', { name: /Trade-off analysis/ })
+  if ((await tradeoff.getAttribute('aria-expanded')) !== 'true') await tradeoff.click()
   await waitForText(/Recommended feasible options/, 10_000)
   if (!page.url().includes('#app/compare')) throw new Error(`unexpected URL ${page.url()}`)
   await page.screenshot({ path: join(OUT, '4-compare.png') })
 })
 
 await step('Export the comparison (JSON and CSV files the user can keep)', async () => {
+  await page.getByRole('tab', { name: 'Overview' }).click() // the export buttons sit with the decision, on the Overview view
   const files = {}
   for (const kind of ['JSON', 'CSV']) {
     const button = page.getByRole('button', { name: `Export ${kind}` })
@@ -234,7 +269,7 @@ await step('Export the comparison (JSON and CSV files the user can keep)', async
 })
 
 await step('Feasibility Atlas: map dates x lengths, explain a cell, check neighbours, open it in the Planner', async () => {
-  await page.getByRole('button', { name: 'Feasibility Atlas' }).click()
+  await page.locator('nav[aria-label=Main]').getByRole('button', { name: 'Feasibility Atlas', exact: true }).click()
   const grid = page.getByRole('grid')
   await grid.waitFor({ timeout: 90_000 })
   if (!page.url().includes('#app/atlas')) throw new Error(`unexpected URL ${page.url()}`)
@@ -252,12 +287,15 @@ await step('Feasibility Atlas: map dates x lengths, explain a cell, check neighb
   if (await fail.count()) {
     await fail.click()
     await waitForText(/Fails: /, 5_000)
+    await openDisclosure(/Every requirement for this mission/)
     await page.getByLabel('deciding requirement').first().waitFor({ timeout: 5_000 })
   }
+  await openDisclosure(/Neighbouring tested dates/)
   await page.getByRole('list', { name: 'The same mission at the neighbouring tested landing dates' }).waitFor()
-  await waitForText(/Viable for \d+ consecutive|Viable only at this tested date|Not viable here/, 5_000)
+  await waitForText(/Passes at \d+ consecutive tested dates|Passes at this tested date only|Fails here|can't be decided here|Not assessed: this landing/, 5_000)
   await page.screenshot({ path: join(OUT, '5-atlas.png') })
   // A helpful state when nothing is feasible.
+  await openDisclosure(/Spacecraft requirements/)
   await page.getByLabel('Sunlight needed after landing (h)').fill('5000') // longer than any tested mission
   await page.getByRole('button', { name: 'Map these missions' }).click()
   await waitForText(/No tested mission meets every requirement here|Passes \(0\)/, 60_000)
@@ -269,16 +307,24 @@ await step('Feasibility Atlas: map dates x lengths, explain a cell, check neighb
   const pass = grid.locator('[role=gridcell][data-status=pass]').first()
   await pass.click()
   const label = await pass.getAttribute('aria-label') // "Landing 2027-01-05 00:00 UTC, 7 d mission: ..."
-  const [, day, len] = /Landing (\d{4}-\d{2}-\d{2}) \d\d:\d\d UTC, ([\d.]+ d) mission/.exec(label)
+  const [, when, len] = /Landing (\d{4}-\d{2}-\d{2} \d\d:\d\d) UTC, ([\d.]+ d) mission/.exec(label)
+  const shownSite = /Map shown: (.+?), landings/.exec(await page.getByTestId('atlas-shown').innerText())?.[1]
+  // Edit the search (another site) without re-mapping: the transfer must still be the mapped mission.
+  const siteSelect = page.locator('form[aria-label="Atlas search and requirements"] select').first()
+  const other = await siteSelect.evaluate((el, cur) => [...el.options].find((o) => o.text !== cur)?.text, shownSite)
+  await siteSelect.selectOption({ label: other })
+  await page.getByTestId('atlas-edited').waitFor({ timeout: 5_000 })
   await page.getByRole('button', { name: 'Open this mission in the Planner' }).click()
   await page.getByRole('toolbar', { name: 'Map tools' }).waitFor({ timeout: 30_000 })
-  const plan = page.getByRole('listitem', { name: new RegExp(`Plan Atlas: .* ${day} ${len}`) })
-  await plan.getByText('Running').waitFor({ timeout: 10_000 })
-  await waitForText(new RegExp(`${day} \\d\\d:\\d\\d UTC`), 10_000) // the simulation time is the landing
+  const plan = page.getByRole('listitem', { name: `Plan Atlas: ${shownSite} ${when} UTC, ${len}` })
+  await plan.getByText('Active · in 3D view').waitFor({ timeout: 10_000 })
+  if ((await plan.innerText()).includes(other)) throw new Error(`the transferred plan took the edited site ${other}`)
+  await plan.getByText('Passes', { exact: true }).waitFor({ timeout: 60_000 }) // the same verdict as the cell
+  await waitForText(new RegExp(`${when.slice(0, 10)} \\d\\d:\\d\\d UTC`), 10_000) // the simulation time is the landing
 })
 
 await step('Browser Back / Forward between the views; the 3D view is drawn again', async () => {
-  if (!page.url().includes('#app/planner')) await page.getByRole('button', { name: 'Mission Planner' }).click()
+  if (!page.url().includes('#app/planner')) await page.locator('nav[aria-label=Main]').getByRole('button', { name: 'Mission Planner' }).click()
   await page.getByRole('toolbar', { name: 'Map tools' }).waitFor({ timeout: 30_000 })
   await page.goBack() // to the page before (the Atlas, which sent the mission here)
   await page.getByRole('grid').or(page.locator('[data-tour="compare-dashboard"]')).first().waitFor({ timeout: 30_000 })
@@ -294,7 +340,7 @@ await browser.close()
 await server?.close()
 const failed = steps.filter((s) => s.status === 'fail')
 const missing = steps.filter((s) => s.status === 'missing')
-const report = { app: base, api: DEPLOYED ? null : API, steps, page_errors: pageErrors, api_failures: apiFailures, console_errors: consoleErrors }
+const report = { run_id: RUN_ID, started: STARTED, finished: new Date().toISOString(), strict: STRICT, app: base, api: DEPLOYED ? null : API, steps, page_errors: pageErrors, api_failures: apiFailures, console_errors: consoleErrors }
 writeFileSync(join(OUT, 'report.json'), JSON.stringify(report, null, 2))
 
 console.log(`\n${steps.length - failed.length - missing.length}/${steps.length} steps passed${missing.length ? `, ${missing.length} missing from the app` : ''}`)

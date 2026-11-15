@@ -21,7 +21,7 @@ Everything is in the Moon's **Mean-Earth/polar-axis (ME)** frame on the 1737.4 k
   list in George et al., "Artemis III Site Selection Update", LPSC 2026 (NTRS 20250011660), which adds that removed
   regions are not unsuitable for future exploration. Our sites: Malapert Massif, Haworth (Rim), Nobile Rim 1, Mons
   Mouton are in the 2024 list; Connecting Ridge, Peak Near Shackleton, Faustini Rim A only in the 2022 list (kept:
-  Connecting Ridge and Peak Near Shackleton are the Gracy & Lee 2024 validation sites); de Gerlache Rim is an
+  Connecting Ridge and Peak Near Shackleton are the two sites whose coordinates come from Gracy & Lee 2024); de Gerlache Rim is an
   approximate point that may be in Rim 1 or Rim 2. The app shows this (`artemis_list`, marker colour, legend).
 - Why it matters: the principal-axis (PA) frame differs from ME by ~0.9 km on the surface. Near the pole that shift
   can rotate the local north direction by degrees, which would misalign Sun/Earth azimuths with the horizon mask.
