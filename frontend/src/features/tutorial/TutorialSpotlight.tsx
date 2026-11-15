@@ -42,22 +42,27 @@ export function TutorialSpotlight({
 
   const maskId = useId()
   const cardRef = useRef<HTMLDivElement>(null)
-  const [targetRect, setTargetRect] = useState<RectBox | null>(null)
-  const [viewport, setViewport] = useState(() =>
-    typeof window !== 'undefined' ? { width: window.innerWidth, height: window.innerHeight } : { width: 1366, height: 768 },
-  )
-  const [cardSize, setCardSize] = useState({ width: 384, height: 268 })
+  const [layout, setLayout] = useState<{
+    stepIndex: number
+    targetRect: RectBox | null
+    viewport: { width: number; height: number }
+    cardSize: { width: number; height: number }
+  }>(() => ({
+    stepIndex: -1,
+    targetRect: null,
+    viewport: typeof window !== 'undefined' ? { width: window.innerWidth, height: window.innerHeight } : { width: 1366, height: 768 },
+    cardSize: { width: 384, height: 268 },
+  }))
 
   const step = TUTORIAL_STEPS[stepIndex] ?? TUTORIAL_STEPS[0]
   const total = TUTORIAL_STEPS.length
 
   const measure = useCallback(() => {
     if (typeof window === 'undefined' || !open || uiHidden) return
-    setViewport({ width: window.innerWidth, height: window.innerHeight })
+    const nextViewport = { width: window.innerWidth, height: window.innerHeight }
     const el = findTargetElement(step.targetSelectors)
-    if (!el) {
-      setTargetRect(null)
-    } else {
+    let nextRect: RectBox | null = null
+    if (el) {
       const r = el.getBoundingClientRect()
       const clipParent = el.closest('[data-tour="sidebar-card"]')
       const cr = clipParent ? clipParent.getBoundingClientRect() : null
@@ -65,21 +70,42 @@ export function TutorialSpotlight({
       const bottom = Math.min(window.innerHeight, cr ? Math.min(r.bottom, cr.bottom) : r.bottom)
       const left = Math.max(0, cr ? Math.max(r.left, cr.left) : r.left)
       const right = Math.min(window.innerWidth, cr ? Math.min(r.right, cr.right) : r.right)
-      setTargetRect({
+      nextRect = {
         left,
         top,
         right,
         bottom,
         width: Math.max(0, right - left),
         height: Math.max(0, bottom - top),
-      })
+      }
     }
     const card = cardRef.current
-    if (card) {
-      const cr = card.getBoundingClientRect()
-      if (cr.width > 0 && cr.height > 0) setCardSize({ width: cr.width, height: cr.height })
-    }
-  }, [open, uiHidden, step])
+    const cr = card ? card.getBoundingClientRect() : null
+    const nextCardSize = cr && cr.width > 0 && cr.height > 0 ? { width: Math.round(cr.width), height: Math.round(cr.height) } : null
+
+    setLayout((prev) => {
+      const nextCs = nextCardSize ?? prev.cardSize
+      const sameStep = prev.stepIndex === stepIndex
+      const sameVp = prev.viewport.width === nextViewport.width && prev.viewport.height === nextViewport.height
+      const sameCs = Math.abs(prev.cardSize.width - nextCs.width) <= 1 && Math.abs(prev.cardSize.height - nextCs.height) <= 1
+      const sameRect =
+        prev.targetRect === null && nextRect === null
+          ? true
+          : prev.targetRect !== null &&
+            nextRect !== null &&
+            Math.abs(prev.targetRect.left - nextRect.left) <= 1.5 &&
+            Math.abs(prev.targetRect.top - nextRect.top) <= 1.5 &&
+            Math.abs(prev.targetRect.width - nextRect.width) <= 1.5 &&
+            Math.abs(prev.targetRect.height - nextRect.height) <= 1.5
+      if (sameStep && sameVp && sameCs && sameRect) return prev
+      return {
+        stepIndex,
+        targetRect: nextRect,
+        viewport: nextViewport,
+        cardSize: nextCs,
+      }
+    })
+  }, [open, uiHidden, step, stepIndex])
 
   useEffect(() => {
     if (!open || uiHidden) return
@@ -99,10 +125,9 @@ export function TutorialSpotlight({
     window.addEventListener('resize', onViewportChange)
     window.addEventListener('scroll', onViewportChange, true)
 
+    // Measure on next animation frame after step/panel prep settles; one delayed pass catches async layout mounts.
     const raf = requestAnimationFrame(measure)
-    const t1 = setTimeout(measure, 140)
-    const t2 = setTimeout(measure, 380)
-    const t3 = setTimeout(measure, 650)
+    const t1 = setTimeout(measure, 180)
 
     return () => {
       ro?.disconnect()
@@ -110,8 +135,6 @@ export function TutorialSpotlight({
       window.removeEventListener('scroll', onViewportChange, true)
       cancelAnimationFrame(raf)
       clearTimeout(t1)
-      clearTimeout(t2)
-      clearTimeout(t3)
     }
   }, [open, uiHidden, stepIndex, appView, actionDone, measure, step.targetSelectors])
 
@@ -126,6 +149,9 @@ export function TutorialSpotlight({
 
   if (!open || uiHidden) return null
 
+  const settledStepIndex = layout.stepIndex >= 0 ? layout.stepIndex : stepIndex
+  const settledStep = TUTORIAL_STEPS[settledStepIndex] ?? step
+  const targetRect = layout.targetRect
   const box = targetRect
     ? {
         x: Math.max(4, Math.round(targetRect.left - SPOTLIGHT_PAD)),
@@ -135,7 +161,7 @@ export function TutorialSpotlight({
       }
     : null
 
-  const cardPos = computeCoachmarkPosition(targetRect, viewport, cardSize, step.preferredPlacement)
+  const cardPos = computeCoachmarkPosition(targetRect, layout.viewport, layout.cardSize, settledStep.preferredPlacement)
 
   return (
     <TutorialSpotlightView
@@ -208,7 +234,7 @@ export function TutorialSpotlightView({
         <defs>
           <mask id={maskId}>
             <rect width="100%" height="100%" fill="white" />
-            {box && <rect x={box.x} y={box.y} width={box.w} height={box.h} rx={16} ry={16} fill="black" />}
+            {box && <rect className="md-tour-hole" x={box.x} y={box.y} width={box.w} height={box.h} rx={16} ry={16} fill="black" />}
           </mask>
         </defs>
         <rect width="100%" height="100%" fill="rgba(10, 12, 16, 0.44)" mask={`url(#${maskId})`} />
@@ -217,26 +243,29 @@ export function TutorialSpotlightView({
       {box && (
         <div
           aria-hidden
-          className="md-tour-ring pointer-events-none fixed rounded-[16px] border-2 border-coral transition-all duration-300 ease-[var(--md-ease-emph-decel)]"
-          style={{ left: box.x, top: box.y, width: box.w, height: box.h }}
+          className="md-tour-ring pointer-events-none fixed left-0 top-0 rounded-[16px] border-2 border-coral"
+          style={{
+            transform: `translate3d(${box.x}px, ${box.y}px, 0)`,
+            width: box.w,
+            height: box.h,
+          }}
         />
       )}
 
-      {/* Floating M3 Coachmark Card */}
+      {/* Persistent M3 Coachmark Card: outer wrapper glides via GPU transform; inner card plays entrance once */}
       <div
-        ref={cardRef}
-        key={step.id}
-        role="dialog"
-        aria-modal="false"
-        aria-label={`Step ${stepIndex + 1} of ${total}: ${step.title}`}
-        data-testid="tutorial-coachmark"
-        className="lp-light md-dialog-in pointer-events-auto fixed z-[56] flex w-[min(388px,calc(100vw-32px))] flex-col overflow-hidden rounded-[24px] border border-opal-300 bg-opal-50 text-slate-100 shadow-2xl shadow-black/45"
-        style={{
-          left: cardPos.left,
-          top: cardPos.top,
-          fontFamily: 'var(--font-inter)',
-        }}
+        className="md-tour-card pointer-events-auto fixed left-0 top-0 z-[56]"
+        style={{ transform: `translate3d(${cardPos.left}px, ${cardPos.top}px, 0)` }}
       >
+        <div
+          ref={cardRef}
+          role="dialog"
+          aria-modal="false"
+          aria-label={`Step ${stepIndex + 1} of ${total}: ${step.title}`}
+          data-testid="tutorial-coachmark"
+          className="lp-light md-dialog-in flex w-[min(388px,calc(100vw-32px))] flex-col overflow-hidden rounded-[24px] border border-opal-300 bg-opal-50 text-slate-100 shadow-2xl shadow-black/45"
+          style={{ fontFamily: 'var(--font-inter)' }}
+        >
         {/* Top coral gradient progress strip */}
         <div className="h-1.5 w-full bg-opal-300/60" aria-hidden>
           <div
@@ -271,7 +300,7 @@ export function TutorialSpotlightView({
             </button>
           </div>
 
-          <div>
+          <div key={step.id} className="md-tour-content-in">
             <h2 className="font-display text-base font-bold leading-snug tracking-tight text-slate-100">
               {step.title}
             </h2>
@@ -363,6 +392,7 @@ export function TutorialSpotlightView({
               </button>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </div>
