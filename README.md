@@ -141,4 +141,4 @@ Full detail, frames and caveats: [`docs/data-sources.md`](docs/data-sources.md).
   
 ## Team
 
-Apex Predators (Space Apps 2026). 
+B.A.J.A.N (Space Apps 2026).
