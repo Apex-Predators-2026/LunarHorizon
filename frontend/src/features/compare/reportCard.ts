@@ -63,6 +63,8 @@ export interface RequirementRow {
   id: string
   requirement: string
   limit: string | null // shared limit, or null when the plans differ (then each cell has its own)
+  /** The shared limit as a number in display units (%, h, °), for charts; null when the plans differ. */
+  limit_value: number | null
   cells: Record<string, RequirementCell>
 }
 
@@ -284,12 +286,14 @@ function requirementRows(scenarios: ExportedScenario[]): { rows: RequirementRow[
   const rows = ids.map(({ id, name }) => {
     const cells: Record<string, RequirementCell> = {}
     const limits = new Set<string>()
+    const limitValues = new Set<number>()
     for (const s of scenarios) {
       const r = s.requirement_verdicts.find((x) => x.id === id)
       if (!s.assessed) { cells[s.label] = { status: 'NOT ASSESSED', limit: null, measured: 'Not assessed', margin: null, note: null }; continue }
       if (!r || r.status === 'not_applicable') { cells[s.label] = { status: 'NOT CONFIGURED', limit: null, measured: '-', margin: null, note: 'Not a requirement of this plan' }; continue }
       const limit = limitText(r)
       if (limit) limits.add(limit)
+      if (r.threshold !== null && r.comparison) limitValues.add(r.threshold * (r.measured.unit === 'fraction' ? 100 : 1))
       const st = statusOf(r.status)
       let note: string | null = null
       if (st === 'UNKNOWN') {
@@ -299,7 +303,8 @@ function requirementRows(scenarios: ExportedScenario[]): { rows: RequirementRow[
       } else if (st === 'FAIL') note = r.message
       cells[s.label] = { status: st, limit, measured: valueOf(r.measured).text, margin: marginText(s, r), note }
     }
-    return { id, requirement: name, limit: limits.size === 1 ? [...limits][0] : null, cells }
+    const shared = limits.size === 1 && limitValues.size === 1
+    return { id, requirement: name, limit: limits.size === 1 ? [...limits][0] : null, limit_value: shared ? [...limitValues][0] : null, cells }
   })
   return { rows, unknown_notes }
 }

@@ -240,17 +240,22 @@ change an open report. The preview flags itself out of date and offers **Regener
 result is loading or the ranking is stale. **Close** returns to the Comparison workspace exactly as it was (the dashboard
 stays mounted under the preview).
 
-**Mission Report Card.** The preview shows the snapshot as the "Lunar Mission Comparison Report": six A4-style pages and
-nine numbered sections (executive summary, mission overview, mission performance with charts, comparison analysis,
-requirements assessment, strengths and weaknesses, final assessment, data sources and methodology, disclaimer). The content
-is `reportCard.ts` (a pure function of the snapshot, with the same integrity rules), laid out by `ReportCardDocument.tsx`
-(preview) and `ReportCardPdf.tsx` (PDF) from one page/section list in `reportLayout.ts`. A bar at the top jumps between
-sections and shows the page; the summary report's detailed record follows as a technical appendix (preview and JSON only).
-**Download PDF** builds a real PDF in the browser with `@react-pdf/renderer` (loaded only on that click, in its own chunk):
-running header, footer with "Page n of N", tables that wrap and repeat their header on continuation pages, built-in
-Helvetica (characters it cannot draw are written out: "≤ 100 h" prints as "max 100 h"). **Print** remains for the
-browser print dialog. Renderer notes for maintainers: no `lineHeight` on the PDF page or on a View (it hides the pinned
-page number, or doubles the spacing); a pinned `Text` needs a child to be drawn.
+**Mission Report Card.** The preview shows the snapshot as the "Lunar Mission Comparison Report", a formal technical
+report: black text on white, serif type, thin rules, three-rule tables and status as plain words (PASS / FAIL / UNKNOWN);
+colour only in the figures, in muted tones. A title page (document details and contents) is followed by nine numbered
+sections (executive summary, mission overview, mission performance, comparison analysis, requirements assessment,
+strengths and weaknesses, final assessment, data sources and methodology, disclaimer). Five figures, all from the
+snapshot: mean visible solar disk, longest power darkness, Earth in line of sight and longest communication blackout per
+plan, each with its axis and the requirement limit as a dashed line (no bar where there is no exact value), and the
+requirement outcomes per plan. The content is `reportCard.ts` (a pure function of the snapshot, with the same integrity
+rules), laid out by `ReportCardDocument.tsx` (preview) and `ReportCardPdf.tsx` (PDF) from one page/section list and one
+figure geometry in `reportLayout.ts`. A bar at the top jumps between sections and shows the page; the summary report's
+detailed record follows as a technical appendix (preview and JSON only). **Download PDF** builds a real PDF in the browser
+with `@react-pdf/renderer` (loaded only on that click, in its own chunk): A4, built-in Times fonts, running header, footer
+with "Page n of N", vector figures, tables kept whole with their captions. Characters the built-in fonts cannot draw are
+written out ("≤ 100 h" prints as "max 100 h"). **Print** remains for the browser print dialog. Renderer notes for
+maintainers: no `lineHeight` on the PDF page or on a View (it hides the pinned page number, or doubles the spacing);
+a pinned `Text` needs a child to be drawn.
 
 - Same data everywhere: the report embeds the structured export built from the same entries (`snapshot.export`), and
   **Download JSON** saves that snapshot. Report rows and export agree on identity, requested vs evaluated window
