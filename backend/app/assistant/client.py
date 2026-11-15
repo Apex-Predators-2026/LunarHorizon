@@ -33,7 +33,7 @@ OFFLINE = (
 )
 
 
-def complete(messages: list[dict], s: Settings, *, temperature: float = 0.2, max_tokens: int = 900) -> tuple[str, str]:
+def complete(messages: list[dict], s: Settings, *, temperature: float = 0.1, max_tokens: int = 1100) -> tuple[str, str]:
     """Send the conversation and return (reply text, model that answered)."""
     if not s.api_key:
         raise AssistantUnavailable(*NOT_CONFIGURED)
