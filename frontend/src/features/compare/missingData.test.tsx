@@ -92,8 +92,8 @@ describe('incomplete data never becomes a measurement', () => {
     const sum = buildSummary(es)
     expect(sum.bests.map((b) => b.label)).not.toContain('Best solar performance')
     expect(sum.bests.map((b) => b.label)).not.toContain('Shortest darkness')
-    expect(sum.caveats.join(' ')).toMatch(/Incomplete data for Scenario B \(Sun known 160 of 168 h\)/)
-    expect(sum.overall.join(' ')).toMatch(/No overall power-versus-communication comparison/)
+    expect(sum.caveats.join(" ")).toMatch(/Scenario B has withheld or unavailable Sun\/Earth statistics/)
+    expect(sum.overall).toEqual([]) // no overall power-versus-communication verdict is claimed while a member's data is incomplete
   })
 
   it('a genuine measured zero stays a zero (never shown as unknown)', () => {
@@ -193,10 +193,10 @@ describe('availability lanes', () => {
       dark_windows: [win('darkness', 40, 50), win('darkness', 52, 60)],
     }))
     const html = renderToString(<SyncTimeline entries={[e]} full={[0, 168]} view={[0, 168]} align="met" originMs={Date.UTC(2027, 0, 15)} />)
-    expect((html.match(/data-testid="unknown-band"/g) ?? []).length).toBe(3)
-    expect(html).toContain('Sun unknown for 3 h: missing data, not darkness')
-    expect(html).toContain('Earth unknown for 2 h: missing data, not a blackout')
-    expect(html).toContain('Unknown (missing data: neither dark nor blocked)')
+    expect((html.match(/<title>(Sun|Earth) unknown /g) ?? []).length).toBe(3) // each unknown window is its own labelled band
+    expect(html).toMatch(/Sun unknown 3 h: .*not darkness/)
+    expect(html).toMatch(/Earth unknown 2 h: .*not a blackout/)
+    expect(html).toContain('hatch-unknown')
     vi.unstubAllGlobals()
   })
 

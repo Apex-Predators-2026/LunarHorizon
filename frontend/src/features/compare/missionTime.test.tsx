@@ -251,7 +251,7 @@ describe('shared time axis follows the evaluated windows', () => {
     expect(missionExtent(lc)).toEqual([3, 27])
     // Rendered: the extent rectangle of B ends exactly at the evaluated end (x(24) on a 0..48 h axis).
     const html = renderToString(<SyncTimeline entries={[lb]} full={[0, 48]} view={[0, 48]} align="met" originMs={axisOrigin([lb])} />)
-    const ext = /<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="20" fill="none" stroke/i.exec(html)!
+    const ext = /<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="20" fill="url\(#hatch-unknown\)"/i.exec(html)!
     const [x0, wd] = [Number(ext[1]), Number(ext[2])]
     const plotW = 800 - 168 - 8 // SSR width (useWidth default) minus the wide gutter and the right padding
     expect(x0).toBeCloseTo(168, 6)
@@ -296,9 +296,10 @@ describe('Mission Rescue story', () => {
 describe('JSON export describes the evaluated window', () => {
   const exp = (list: Entry[]) => buildExport(list, res.ranking_groups, res.pairwise, [], new Date('2027-01-01T00:00:00Z'))
 
-  it('keeps format v1 and adds explicit evaluated and requested fields', () => {
+  it('keeps format v1, adds revision 2 with explicit evaluated and requested fields', () => {
     const x = exp([caseB()])
     expect(x.format).toBe('comparison-export-v1')
+    expect(x.schema_revision).toBe(2)
     expect(EXPORT_VERSION).toBe('comparison-export-v1')
     const s = x.scenarios[0]
     expect(s.mission_time).toEqual({
@@ -314,7 +315,7 @@ describe('JSON export describes the evaluated window', () => {
       time_adjusted: true,
       time_note: NOTE_B,
     })
-    // Compatibility until the report export (prompt 3): the v1 fields remain and hold the REQUESTED values.
+    // The v1 fields stay, unchanged, and are the REQUESTED values (compatibility for existing consumers).
     expect(s.landing_utc).toBe('2027-02-08T00:15:00.000Z')
     expect(s.duration_days).toBe(1.01)
   })
@@ -343,15 +344,60 @@ describe('JSON export describes the evaluated window', () => {
   })
 })
 
-describe('CSV export stays v1-compatible', () => {
-  it('keeps the existing landing_utc / duration_days columns (requested values) and a stable header', () => {
-    const first = (list: Entry[]) => toCsv(buildExport(list, [], [], [])).split(String.fromCharCode(10))[0].trim()
-    const head = first([caseB()]).split(',')
-    expect(head).toContain('landing_utc')
-    expect(head).toContain('duration_days')
-    expect(first([caseB()])).toBe(first([entryOf(scenario('P', '2027-02-08T00:15:00Z', 1.01), undefined)]))
+describe('CSV export describes the evaluated window', () => {
+  const rowsOf = (list: Entry[]) => {
+    const text = toCsv(buildExport(list, res.ranking_groups, res.pairwise, []))
+    const [head, ...rows] = text.trim().split('\r\n').map(splitCsvLine)
+    return rows.map((r) => Object.fromEntries(head.map((h, i) => [h, r[i]])))
+  }
+  const COLS = ['evaluation_status', 'evaluated_landing_utc', 'evaluated_duration_hours', 'evaluated_end_utc',
+    'requested_landing_utc', 'requested_duration_days', 'time_adjusted', 'time_note']
+
+  it('keeps the v1 landing_utc / duration_days columns in place and appends the evaluated and requested columns', () => {
+    const text = toCsv(buildExport([caseB()], [], [], []))
+    const head = text.split('\r\n')[0].split(',')
+    for (const c of COLS) expect(head).toContain(c)
+    expect(head.slice(6, 8)).toEqual(['landing_utc', 'duration_days']) // v1 positions unchanged
+    expect(head.indexOf('evaluated_landing_utc')).toBeGreaterThan(head.indexOf('screening_note')) // appended
+  })
+
+  it('carries the backend-evaluated values, and empty cells when unavailable', () => {
+    const pending = entryOf(scenario('P', '2027-02-08T00:15:00Z', 1.01), { state: 'loading' })
+    const [b, p] = rowsOf([caseB(), pending])
+    expect(b.evaluation_status).toBe('evaluated')
+    expect(b.evaluated_landing_utc).toBe('2027-02-08T00:00:00.000Z')
+    expect(b.evaluated_duration_hours).toBe('24')
+    expect(b.evaluated_end_utc).toBe('2027-02-09T00:00:00.000Z')
+    expect(b.requested_landing_utc).toBe('2027-02-08T00:15:00.000Z')
+    expect(b.requested_duration_days).toBe('1.01')
+    expect(b.time_adjusted).toBe('true')
+    expect(p.evaluation_status).toBe('pending')
+    for (const c of ['evaluated_landing_utc', 'evaluated_duration_hours', 'evaluated_end_utc', 'time_adjusted']) expect(p[c]).toBe('')
+    expect(p.requested_landing_utc).toBe('2027-02-08T00:15:00.000Z')
+  })
+
+  it('has the same header for every selection (stable columns)', () => {
+    const h1 = toCsv(buildExport([caseB()], [], [], [])).split('\r\n')[0]
+    const h2 = toCsv(buildExport([entryOf(scenario('P', '2027-02-08T00:15:00Z', 1.01), undefined)], [], [], [])).split('\r\n')[0]
+    expect(h1).toBe(h2)
   })
 })
+
+/** One CSV line (quoted fields, doubled quotes; the test data has no line breaks inside fields). */
+function splitCsvLine(line: string): string[] {
+  const out: string[] = []
+  let cur = '', q = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (q) {
+      if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++ } else if (ch === '"') q = false; else cur += ch
+    } else if (ch === '"') q = true
+    else if (ch === ',') { out.push(cur); cur = '' }
+    else cur += ch
+  }
+  out.push(cur)
+  return out
+}
 
 // ---------------------------------------------------------------- assistant
 

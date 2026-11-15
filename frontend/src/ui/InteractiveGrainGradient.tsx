@@ -50,14 +50,33 @@ export function InteractiveGrainGradient({ className, style, interactive = true,
     let influence = 0
     let influenceTarget = 0
     let last = performance.now()
+    // Layout is read as little as possible: the size is cached (the ResizeObserver updates it) and the pointer is
+    // only turned into gradient coordinates once per drawn frame, not on every pointer event.
+    let bw = box.clientWidth
+    let bh = box.clientHeight
+    let pointer: { x: number; y: number } | null = null
 
     const size = () => {
       const dpr = Math.min(window.devicePixelRatio || 1, maxDpr)
-      const w = Math.max(2, Math.round(box.clientWidth * dpr))
-      const h = Math.max(2, Math.round(box.clientHeight * dpr))
+      const w = Math.max(2, Math.round(bw * dpr))
+      const h = Math.max(2, Math.round(bh * dpr))
       if (w !== cv.width || h !== cv.height) g.resize(w, h)
     }
+    const applyPointer = () => {
+      if (!pointer) return
+      const r = box.getBoundingClientRect()
+      const nx = (pointer.x - r.left) / r.width
+      const ny = 1 - (pointer.y - r.top) / r.height
+      const near = nx > -1 && nx < 2 && ny > -1 && ny < 2
+      influenceTarget = near ? 1 : 0
+      if (near) {
+        target[0] = Math.min(1.2, Math.max(-0.2, nx))
+        target[1] = Math.min(1.2, Math.max(-0.2, ny))
+      }
+      pointer = null
+    }
     const frame = (now: number) => {
+      applyPointer()
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
       // Inertia: the pointer position is chased, and its velocity relaxes back to zero.
@@ -70,11 +89,18 @@ export function InteractiveGrainGradient({ className, style, interactive = true,
       influence += (influenceTarget - influence) * (1 - Math.exp(-dt * 3))
       size()
       // Small elements (a button glyph, a thin bar) would otherwise show a single hue: pack more pattern in.
-      const scale = patternScale ?? Math.min(2, Math.max(1, 220 / Math.max(1, Math.min(box.clientWidth, box.clientHeight))))
+      const scale = patternScale ?? Math.min(2, Math.max(1, 220 / Math.max(1, Math.min(bw, bh))))
       g.draw({ time: ((now - t0) / 1000) * speed, mouse, vel, influence: influence * strength, grain, scale })
     }
+    // While nothing is happening near it the drift is too slow to see: draw about 15 times a second instead of 60.
+    let lastDraw = 0
     const loop = (now: number) => {
-      frame(now)
+      applyPointer()
+      const busy = influenceTarget > 0 || influence > 0.01
+      if (busy || now - lastDraw >= 64) {
+        lastDraw = now
+        frame(now)
+      }
       raf = visible && !document.hidden ? requestAnimationFrame(loop) : 0
     }
     const start = () => {
@@ -90,15 +116,7 @@ export function InteractiveGrainGradient({ className, style, interactive = true,
 
     const onMove = (e: PointerEvent) => {
       if (!interactive || reduced.matches) return
-      const r = box.getBoundingClientRect()
-      const nx = (e.clientX - r.left) / r.width
-      const ny = 1 - (e.clientY - r.top) / r.height
-      const near = nx > -1 && nx < 2 && ny > -1 && ny < 2
-      influenceTarget = near ? 1 : 0
-      if (near) {
-        target[0] = Math.min(1.2, Math.max(-0.2, nx))
-        target[1] = Math.min(1.2, Math.max(-0.2, ny))
-      }
+      pointer = { x: e.clientX, y: e.clientY }
     }
     const onLeave = () => (influenceTarget = 0)
     window.addEventListener('pointermove', onMove, { passive: true })
@@ -111,6 +129,8 @@ export function InteractiveGrainGradient({ className, style, interactive = true,
     const onVis = () => !document.hidden && start()
     document.addEventListener('visibilitychange', onVis)
     const ro = new ResizeObserver(() => {
+      bw = box.clientWidth
+      bh = box.clientHeight
       size()
       if (reduced.matches || !raf) frame(performance.now())
     })

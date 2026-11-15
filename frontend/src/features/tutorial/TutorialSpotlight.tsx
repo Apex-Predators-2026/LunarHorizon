@@ -383,12 +383,9 @@ export function TutorialSpotlightView({
               <button
                 type="button"
                 onClick={onNext}
-                className="md-compact relative overflow-hidden font-semibold text-white shadow-sm"
+                className="md-compact bg-coral font-semibold text-slate-950 shadow-sm"
               >
-                <span aria-hidden className="absolute inset-0">
-                  <InteractiveGrainGradient className="h-full w-full" />
-                </span>
-                <span className="relative z-10">{isLast ? 'Finish' : 'Next'}</span>
+                {isLast ? 'Finish' : 'Next'}
               </button>
             </div>
           </div>

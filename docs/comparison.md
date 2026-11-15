@@ -126,17 +126,18 @@ ranking. Logic: `frontend/src/features/compare/rescueFlow.ts`.
 
 "Export JSON" / "Export CSV" in the comparison summary save the comparison exactly as displayed (enabled once the
 selection has been ranked). Built in the browser from the same data (`frontend/src/features/compare/export.ts`,
-format `comparison-export-v1`); nothing is recomputed and nothing is sent anywhere.
+format `comparison-export-v1`, export revision 2 (`export_revision`)); nothing is recomputed and nothing is sent anywhere.
 
-- Mission window (additive in v1): the window the backend **evaluated** on its hourly grid (`evaluated_landing_utc`,
+- Mission window (revision 2, additive): the window the backend **evaluated** on its hourly grid (`evaluated_landing_utc`,
   `evaluated_duration_days` from each result, see `backend/app/timegrid.py`), with the user's request kept
   separately. JSON `mission_time`: `evaluation_status` (`evaluated` | `pending` | `error` | `not_requested` |
   `not_assessed` | `not_reported` | `stale`), `evaluated_landing_utc`, `evaluated_duration_days`,
   `evaluated_duration_hours`, `evaluated_end_utc`, `requested_landing_utc`, `requested_duration_days`,
-  `requested_duration_hours`, `requested_end_utc`, `time_adjusted`, `time_note` (the backend's own explanation).
-  `landing_utc` / `duration_days` remain (JSON and CSV) and hold the *requested* values; the evaluated window is
-  only in `mission_time` until the report export replaces this format. When nothing was evaluated the evaluated
-  fields are `null`, never the request and never 0. The same snapshot (`frontend/src/features/compare/missionTime.ts`) drives the shared time axis, mission
+  `requested_duration_hours`, `requested_end_utc`, `time_adjusted`, `time_note` (the backend's own explanation). CSV columns are appended after every v1 column
+  (`evaluation_status`, `evaluated_landing_utc`, `evaluated_duration_hours`, `evaluated_end_utc`, `requested_landing_utc`,
+  `requested_duration_days`, `requested_end_utc`, `time_adjusted`, `time_note`). When nothing was evaluated the evaluated
+  fields are `null` / empty, never the request and never 0. v1's `landing_utc` / `duration_days` are unchanged and remain
+  the *requested* values (kept for existing consumers). The same snapshot (`frontend/src/features/compare/missionTime.ts`) drives the shared time axis, mission
   extents, the scenario cards, the Mission Assistant context (`comparison-assistant-context-v3`, `mission_time`)
   and the 3D-view cursor.
 - JSON: per scenario the plan and requirements, data provenance (kind, source, dataset, engine and scoring
@@ -167,6 +168,45 @@ into the shared `useAppStore` for the followed scenario; "View in 3D ↗" switch
 **Mission configuration (Member 3).** Scenarios are team `Scenario`s plus a `SpacecraftConfig`;
 `fromTeamScenario` / `toTeamScenario` convert between them.
 
+## Guided tour and Mission Assistant
+
+**Guided tour** (`frontend/src/features/compare/tour/`). "How to compare missions" in the page header starts a
+five-stop spotlight tour (select missions, viability, conditions, trade-offs, assistant). A one-time offer appears
+on first visit; completion and dismissal are remembered in `localStorage` (`lunar-compare-tour`). The page stays
+usable during the tour; Esc skips, arrow keys move between stops. It is separate from the Mission Planner's tour.
+
+**Mission Assistant** (`frontend/src/features/compare/assistant/`, `backend/app/assistant/`). A read-only chat panel
+that explains the comparison on screen and how to use the page. It cannot change scenarios, requirements, rankings or
+Rescue plans; links in its answers only scroll the page or start the tour.
+
+| Piece | What it does |
+|---|---|
+| `context.ts` | Builds what the assistant reads from the page itself: verdicts, ranks, groups and the recommendation from `buildExport()`; figures as the page displays them (At a glance, Key metrics, Requirements); why figures are withheld; the Mission Rescue story; the interface guide. Rebuilt on every change, so answers never use a stale comparison. While the ranking is updating, no rank or recommendation is sent. |
+| `navigation.ts` | Factual guide to the page's controls (checked against the components). The AI may describe only these, and `[[go:section]]` links only to real sections. |
+| `fallback.ts` | Basic answers without AI (summary, requirements, Rescue, how-to), assembled from the same context and labelled "Basic answer · not AI". Never sent to the AI. |
+| `backend/app/assistant/` | `GET /api/assistant/status`, `POST /api/assistant/chat`. Adds the system instruction and the API key and forwards to an OpenAI-compatible service (OpenRouter by default) using the Python standard library. Failures return 503 with a reason; no answer is ever made up. |
+
+**Setup.** Copy `backend/.env.example` to `backend/.env` and set `OPENROUTER_API_KEY` (optional: `OPENROUTER_MODEL`,
+default `openai/gpt-4o-mini`; `OPENROUTER_BASE_URL`; `ASSISTANT_TIMEOUT_S`). The file is read on every request, so
+press "Check again" in the panel; no restart is needed. `backend/.env` is git-ignored: each machine needs its own copy,
+and without it the panel says "not configured" and gives basic answers. The key never reaches the browser, a log or an
+error message. `LUNAR_OFFLINE=1` turns the assistant off (the comparison itself still works).
+
+**Answer rules** (system prompt in `backend/app/assistant/prompt.py`): the team's required instruction word for word,
+plus how to read the context. UNKNOWN is never FAIL, missing figures are never 0, only eligible PASS scenarios are
+ranked, the page's own recommendation is never overridden, demonstration data is flagged, and navigation answers use
+only the interface guide. Each answer shows the page's own verdict chips so it can be checked at a glance.
+
+**Privacy.** Each question sends the current comparison (scenarios, sites, dates, requirements, results) and the
+conversation to the configured AI service. No personal data is involved.
+
+**Tests.** `frontend/src/features/compare/assistant/assistant.test.tsx`, `tour/tour.test.tsx`,
+`backend/tests/test_assistant.py`, `backend/tests/test_assistant_setup.py` (the AI service is stubbed; no key needed).
+
+**AI disclosure for the submission page.** The app contains an LLM-powered feature (the Mission Assistant, OpenRouter
+model `openai/gpt-4o-mini` by default) that explains results computed by the team's own engine; it does not compute,
+change or rank anything. Parts of the comparison, tour and assistant code were written with an AI coding assistant.
+
 ## Known limitations
 
 - Real data covers the curated sites for 2026-01-01 → 2031-01-01 (hourly). Custom sites created through
@@ -190,3 +230,27 @@ into the shared `useAppStore` for the followed scenario; "View in 3D ↗" switch
 | UI / design | The comparison uses the shared Tailwind tokens and the page's own `compare.css` | None |
 | Member 6 (validation) | `docs/comparison.md` (this page) states every rule: no zero-filling, UNKNOWN kept, ranks only for PASS within a group | Review welcome |
 
+
+## Summary report (frozen snapshot)
+
+"Generate Summary Report" (Decision area of the Comparison) freezes the evaluated selection into a detached, deep-frozen
+snapshot (`frontend/src/features/compare/report.ts`, `ReportPreview.tsx`, print CSS in `report.css`). The preview renders
+only the snapshot: later edits to scenarios, landing date, duration, requirements, rankings or background requests never
+change an open report. The preview flags itself out of date and offers **Regenerate**; regeneration is refused while any
+result is loading or the ranking is stale. **Close** returns to the Comparison workspace exactly as it was (the dashboard
+stays mounted under the preview). **Print / Save as PDF** uses the browser print dialog; the print stylesheet prints only
+the report.
+
+- Same data everywhere: the report embeds the structured export built from the same entries (`snapshot.export`), and
+  **Download JSON** saves that snapshot. Report rows and export agree on identity, requested vs evaluated window
+  (`mission_time`), verdicts, ranking groups, scores and bounds, requirement margins, evidence windows, dataset file +
+  SHA-256, engine / scoring versions, limitations.
+- Requested and evaluated time are separate. The plans table leads with the evaluated window and shows the request when
+  the grid adjusted it; with no evaluated window it says "not evaluated" and never substitutes the request.
+- UNKNOWN stays UNKNOWN (never FAIL); a bounded score prints as bounds; a missing value or hash prints as unavailable.
+- Export compatibility: format stays `comparison-export-v1`; `schema_revision: 2` is additive (identity, evaluated
+  interval, dataset file + hash, selection key, story, preferences, reproduction block, `mission_time`). `landing_utc` /
+  `duration_days` keep their v1 meaning (requested) and CSV columns keep their positions; new CSV columns are appended.
+- Entry points: `useReportStore.getState().generate()` / `.reopen()` / `.close()`, `cannotGenerate()`,
+  `ReportButton`, `LastReportButton`, `ReportPreview` (mounted once in `App.tsx`), `reportHooks.mission` for a guided
+  mission to attach its title / objective.
