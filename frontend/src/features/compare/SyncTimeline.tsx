@@ -36,7 +36,9 @@ function sunPath(tl: TimelineColumns, offset: number, x: (v: number) => number, 
   for (let i = 0; i < tl.hour.length; i++) {
     const t = offset + tl.hour[i]
     if (t < view[0] - tl.step_hours || t > view[1] + tl.step_hours) continue
-    const y = top + LANE - tl.sun_visible_fraction[i] * LANE
+    const frac = tl.sun_visible_fraction[i]
+    if (frac === null) continue // unknown: no sunlight is drawn and none is implied
+    const y = top + LANE - frac * LANE
     pts.push(`${x(t - half).toFixed(1)},${y.toFixed(1)}`, `${x(t + half).toFixed(1)},${y.toFixed(1)}`)
   }
   if (!pts.length) return ''

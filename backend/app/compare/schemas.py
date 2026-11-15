@@ -120,20 +120,72 @@ class ScienceContext(BaseModel):
 
 
 class TimelineColumns(BaseModel):
-    """Decimated mission timeline for charts. Index i across all arrays is one sample."""
+    """Decimated mission timeline for charts. Index i across all arrays is one sample.
+    ``None`` = unknown at that sample (e.g. terrain or ephemeris gap); never a measured value."""
 
     step_hours: float
     hour: list[float]
     time_utc: list[str]
-    sun_elevation_deg: list[float]
-    sun_azimuth_deg: list[float]
-    sun_horizon_deg: list[float]
-    sun_visible_fraction: list[float]
-    earth_elevation_deg: list[float]
-    earth_azimuth_deg: list[float]
-    earth_horizon_deg: list[float]
-    earth_visible: list[bool]
-    incidence_factor: list[float]
+    sun_elevation_deg: list[float | None]
+    sun_azimuth_deg: list[float | None]
+    sun_horizon_deg: list[float | None]
+    sun_visible_fraction: list[float | None]
+    earth_elevation_deg: list[float | None]
+    earth_azimuth_deg: list[float | None]
+    earth_horizon_deg: list[float | None]
+    earth_visible: list[bool | None]
+    incidence_factor: list[float | None]
+
+
+class CanonicalMetric(BaseModel):
+    """A metric exactly as the viability engine reports it, converted to display units (s -> h).
+    ``known``: ``value``; ``bounded``: true value lies in [``lower``, ``upper``]; ``unavailable``: no number."""
+
+    status: Literal["known", "bounded", "unavailable", "not_applicable"]
+    unit: str  # h | % | fraction | deg
+    value: float | None = None
+    lower: float | None = None
+    upper: float | None = None
+    reason: str | None = None
+
+
+class ConstraintItem(BaseModel):
+    """One mission requirement as the engine judged it."""
+
+    id: str
+    name: str | None
+    status: Literal["pass", "fail", "unknown", "not_applicable"]
+    comparison: str | None  # at_least | at_most
+    threshold: float | None  # display units
+    measured: CanonicalMetric
+    message: str
+    requirement_field: str | None
+    unknown_reason: str | None = None
+
+
+class RiskItem(BaseModel):
+    code: str
+    level: str
+    message: str
+
+
+class AssessmentInfo(BaseModel):
+    """Evidence from the canonical assessment beyond pass/fail and score (docs/member2-part2-consumer-handoff.md §12.7)."""
+
+    engine_version: str
+    scoring_method_version: str
+    dataset_id: str
+    data_basis: str
+    is_synthetic: bool
+    overall_risk: str
+    risks: list[RiskItem]
+    sun_coverage_percent: float
+    earth_coverage_percent: float
+    uncovered_hours: float
+    metrics: dict[str, CanonicalMetric]
+    constraints: list[ConstraintItem]
+    explanations: list[str]
+    limitations: list[str]
 
 
 class RankingInfo(BaseModel):
@@ -144,6 +196,7 @@ class RankingInfo(BaseModel):
     ranked against each other. ``score`` is the exact score or ``None``; ``None`` never means 0."""
 
     eligibility: Literal["pass", "fail", "unknown"]
+    assessed: bool = Field(True, description="False = the engine never assessed it (e.g. no data); eligibility is then UNKNOWN")
     rank: int | None = Field(None, ge=1)
     group: str | None = Field(None, description="Comparable group id (G1 = primary group)")
     group_size: int
@@ -179,7 +232,8 @@ class CompareResult(BaseModel):
     site_context: SiteContext | None = None
     science_context: ScienceContext | None = None
     viability: ViabilityResult | None = None
-    ranking: RankingInfo | None = Field(None, description="Canonical ranking; None when no assessment exists")
+    ranking: RankingInfo | None = Field(None, description="Canonical ranking (UNKNOWN with no rank when no assessment exists)")
+    assessment: AssessmentInfo | None = Field(None, description="Canonical evidence: metric states, constraints, risk, coverage")
     solar: SolarStats | None = None
     earth: EarthStats | None = None
     power: PowerStats | None = None

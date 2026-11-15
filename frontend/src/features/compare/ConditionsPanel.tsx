@@ -4,8 +4,10 @@ import { conditionsAt, fmtAxis, type Align, type Entry } from './analysis'
 import { ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
 
-const d2 = (v: number) => `${v.toFixed(2)}°`
-const az = (v: number) => `${v.toFixed(1)}°`
+// Unknown samples show as an em dash, never as 0.
+const d2 = (v: number | null) => (v === null ? '—' : `${v.toFixed(2)}°`)
+const az = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}°`)
+const diff = (a: number | null, b: number | null) => (a === null || b === null ? null : a - b)
 
 export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entries: Entry[]; align: Align; originMs: number; onOpen3D?: () => void }) {
   const cursor = useCompareStore((s) => s.cursor)
@@ -40,19 +42,19 @@ export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entrie
               ) : (
                 <>
                   <p className="text-[11px] text-slate-400">{fmtUtc(c.time_utc)} · T+{Math.round(c.met)} h</p>
-                  <div className={`mt-1.5 rounded px-2 py-1 ${c.sunFraction > 0 ? 'bg-amber-950/40 text-amber-200' : 'bg-slate-900 text-slate-300'}`}>
+                  <div className={`mt-1.5 rounded px-2 py-1 ${c.sunFraction === null ? 'bg-slate-800 text-slate-200' : c.sunFraction > 0 ? 'bg-amber-950/40 text-amber-200' : 'bg-slate-900 text-slate-300'}`}>
                     <div className="font-medium">Sun: {c.sunReason}</div>
                     <div className="mt-0.5 grid grid-cols-2 gap-x-2 text-[11px] tabular-nums text-slate-300">
                       <span>Elevation {d2(c.sunEl)}</span><span>Azimuth {az(c.sunAz)}</span>
-                      <span>Terrain {d2(c.sunHorizon)}</span><span>Disk {Math.round(c.sunFraction * 100)}%</span>
-                      <span className="col-span-2" title="Idealised: visible disk × max(0, cos θ)">Incidence factor {c.incidence.toFixed(3)} (idealised)</span>
+                      <span>Terrain {d2(c.sunHorizon)}</span><span>Disk {c.sunFraction === null ? '—' : `${Math.round(c.sunFraction * 100)}%`}</span>
+                      <span className="col-span-2" title="Idealised: visible disk × max(0, cos θ)">Incidence factor {c.incidence === null ? '—' : c.incidence.toFixed(3)} (idealised)</span>
                     </div>
                   </div>
-                  <div className={`mt-1.5 rounded px-2 py-1 ${c.earthVisible ? 'bg-sky-950/50 text-sky-200' : 'bg-red-950/40 text-red-200'}`}>
+                  <div className={`mt-1.5 rounded px-2 py-1 ${c.earthVisible === null ? 'bg-slate-800 text-slate-200' : c.earthVisible ? 'bg-sky-950/50 text-sky-200' : 'bg-red-950/40 text-red-200'}`}>
                     <div className="font-medium">Earth: {c.earthReason}</div>
                     <div className="mt-0.5 grid grid-cols-2 gap-x-2 text-[11px] tabular-nums text-slate-300">
                       <span>Elevation {d2(c.earthEl)}</span><span>Azimuth {az(c.earthAz)}</span>
-                      <span>Terrain {d2(c.earthHorizon)}</span><span>Margin {d2(c.earthEl - c.earthHorizon)}</span>
+                      <span>Terrain {d2(c.earthHorizon)}</span><span>Margin {d2(diff(c.earthEl, c.earthHorizon))}</span>
                     </div>
                   </div>
                 </>
