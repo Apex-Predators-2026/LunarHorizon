@@ -53,3 +53,11 @@ def test_report_is_sent_as_its_own_message_with_its_state_first():
     stale = build_messages(q, {"report": {"snapshot_id": "rpt-1", "out_of_date": True}})
     assert "Status: OUT OF DATE" in stale[2]["content"]
     assert stale[-1] == q[-1]
+
+
+def test_instruction_has_answer_layouts_for_report_questions():
+    system = build_messages([{"role": "user", "content": "q"}], {})[0]["content"]
+    for rule in ('"Summarize my report": ### Report status', '"Explain the final assessment"', "never name a winner it does not name",
+                 '"Strengths / weaknesses of Scenario X"', "(UNKNOWN is not a failure)", '"Explain the communication (or solar) section"',
+                 '"What does the report mean by UNKNOWN"', '"Which section shows ...": name the report section'):
+        assert rule in system, rule
