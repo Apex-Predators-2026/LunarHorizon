@@ -5,6 +5,7 @@
 import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { SCREENING_NOTE } from '../../lib/headroom'
 import { useAppStore } from '../../store'
 import { DEFAULT_REQUIREMENTS } from '../../types'
 import {
@@ -630,5 +631,160 @@ describe('quick comparisons', () => {
     const s = useCompareStore.getState()
     const sel = s.selectedIds.map((id) => s.scenarios.find((x) => x.id === id)!.site.id)
     expect(sel).toEqual(['peak-near-shackleton', 'malapert-massif', 'connecting-ridge'])
+  })
+})
+
+function makeBatteryPassEntry(base: Entry, opts: {
+  label: string
+  darkHours: number
+  batteryHours: number
+  rank?: number | null
+  initialSun?: number
+  firstSunset?: number | null
+  initialEarth?: number
+  firstEarthset?: number | null
+  boundedDark?: [number, number]
+}): Entry {
+  const r = base.result!
+  const a = r.assessment!
+  const v = r.viability!
+  const darkMetric: CanonicalMetric = opts.boundedDark
+    ? { status: 'bounded', unit: 'h', value: null, lower: opts.boundedDark[0], upper: opts.boundedDark[1], reason: 'missing span in darkness window' }
+    : { status: 'known', unit: 'h', value: opts.darkHours, lower: null, upper: null, reason: null }
+  const initSun = opts.initialSun ?? 0
+  const initEarth = opts.initialEarth ?? 168
+  const firstSunset = opts.firstSunset === undefined ? null : opts.firstSunset
+  const firstEarthset = opts.firstEarthset === undefined ? null : opts.firstEarthset
+  const constraints = a.constraints.map((c) => (
+    c.id === 'max_continuous_darkness'
+      ? { ...c, threshold: opts.batteryHours, status: 'pass' as const, measured: darkMetric }
+      : c
+  ))
+  const metrics = {
+    ...a.metrics,
+    longest_power_darkness_h: darkMetric,
+    initial_sunlight_h: { status: 'known' as const, unit: 'h', value: initSun, lower: null, upper: null, reason: null },
+    initial_earth_h: { status: 'known' as const, unit: 'h', value: initEarth, lower: null, upper: null, reason: null },
+    ...(firstSunset !== null
+      ? { time_to_first_sunset_h: { status: 'known' as const, unit: 'h', value: firstSunset, lower: null, upper: null, reason: null } }
+      : {}),
+    ...(firstEarthset !== null
+      ? { time_to_first_earthset_h: { status: 'known' as const, unit: 'h', value: firstEarthset, lower: null, upper: null, reason: null } }
+      : {}),
+  }
+  const nextReq = { ...base.scenario.requirements, battery_hours: opts.batteryHours }
+  const nextViability = {
+    ...v,
+    passes: true,
+    eligibility: 'pass' as const,
+    headroom: undefined,
+    scenario: { ...v.scenario, requirements: nextReq },
+    metrics: {
+      ...v.metrics,
+      longest_dark_gap_hours: opts.boundedDark ? opts.boundedDark[1] : opts.darkHours,
+      initial_sun_hours: initSun,
+      hours_to_first_sunset: firstSunset,
+      initial_earth_hours: initEarth,
+      hours_to_first_earthset: firstEarthset,
+    },
+  }
+  const nextRanking = base.ranking ? { ...base.ranking, eligibility: 'pass' as const, rank: opts.rank ?? base.ranking.rank } : null
+  const result: CompareResult = {
+    ...r,
+    key: opts.label,
+    viability: nextViability,
+    ranking: nextRanking,
+    assessment: { ...a, headroom: undefined, margins: undefined, constraints, metrics },
+  }
+  return {
+    ...base,
+    scenario: { ...base.scenario, id: `s-${opts.label}`, label: opts.label, requirements: nextReq },
+    result,
+    state: { state: 'done', result },
+    ranking: nextRanking,
+  }
+}
+
+describe('operational headroom & margin distinction', () => {
+  it('distinguishes 15 h vs 49 h darkness under 50 h battery limit across requirementMatrix, OverviewCards, MetricsTable, PerformancePanels', () => {
+    const [b, c] = entries(['B', 'C'])
+    const comfortable = makeBatteryPassEntry(b, { label: 'B', darkHours: 15, batteryHours: 50, rank: 1, initialSun: 12, firstSunset: 12, initialEarth: 24, firstEarthset: 24 })
+    const limited = makeBatteryPassEntry(c, { label: 'C', darkHours: 49, batteryHours: 50, rank: 2, initialSun: 10, firstSunset: 10, initialEarth: 36, firstEarthset: 36 })
+
+    const rows = requirementMatrix([comfortable, limited])
+    const darkRow = rows.find((r) => r.id === 'max_continuous_darkness')!
+    expect(darkRow.cells[comfortable.scenario.id]!.margin.value).toBe(35)
+    expect(darkRow.cells[comfortable.scenario.id]!.marginClass).toBe('comfortable')
+    expect(darkRow.cells[comfortable.scenario.id]!.narrowReason).toBeNull()
+    expect(darkRow.cells[limited.scenario.id]!.margin.value).toBe(1)
+    expect(darkRow.cells[limited.scenario.id]!.marginClass).toBe('narrow')
+    expect(darkRow.cells[limited.scenario.id]!.narrowReason).toContain('<= 10%')
+
+    const cardsHtml = plain(renderToString(<OverviewCards entries={[comfortable, limited]} />))
+    expect(cardsHtml).toContain('Pass · comfortable')
+    expect(cardsHtml).toContain('Pass · limited darkness')
+    expect(cardsHtml).toContain('+35 h')
+    expect(cardsHtml).toContain('+1 h')
+    expect(cardsHtml).toContain('12 h continuous from landing (first sunset T+12 h)')
+    expect(cardsHtml).toContain('168 h continuous from landing (first Earthset T+24 h)')
+    expect(cardsHtml).toContain('Closest requirement to limit')
+    expect(cardsHtml).toContain(SCREENING_NOTE)
+
+    const tableHtml = plain(renderToString(<MetricsTable entries={[comfortable, limited]} />))
+    expect(tableHtml).toContain('Pass · comfortable')
+    expect(tableHtml).toContain('Pass · limited darkness')
+    expect(tableHtml).toContain('Closest requirement to limit')
+    expect(tableHtml).toContain('headroom +35 h')
+    expect(tableHtml).toContain('headroom +1 h')
+    expect(tableHtml).toContain('Limited')
+    expect(tableHtml).toContain('Comfortable')
+    expect(tableHtml).toContain('Time to first sunset')
+    expect(tableHtml).toContain('Time to first Earthset')
+
+    const chartsHtml = plain(renderToString(<AvailabilityCharts entries={[comfortable, limited]} />))
+    expect(chartsHtml).toContain('text-warn')
+    expect(chartsHtml).toContain('Limited')
+    expect(chartsHtml).toContain('headroom +1 h')
+
+    const perfHtml = plain(renderToString(<MissionPerformance entries={[comfortable, limited]} groups={res.ranking_groups.filter((g) => g.id === 'G1')} />))
+    expect(perfHtml).toContain('Pass · limited darkness')
+    expect(perfHtml).toContain('Passes with limited darkness margin (+1 h of 50 h limit)')
+    expect(perfHtml).not.toContain('Every applicable requirement is met')
+  })
+
+  it('preserves bounded darkness margins without collapsing intervals to a point value', () => {
+    const [b] = entries(['B'])
+    const bounded = makeBatteryPassEntry(b, { label: 'B', darkHours: 49, batteryHours: 50, rank: 1, boundedDark: [42, 49] })
+    const r = bounded.result!
+    bounded.result = {
+      ...r,
+      assessment: {
+        ...r.assessment!,
+        margins: [{
+          id: 'max_continuous_darkness',
+          name: 'Maximum continuous power-darkness',
+          short_label: 'Max continuous darkness',
+          unit: 'h',
+          measured: { status: 'bounded', unit: 'h', value: null, lower: 42, upper: 49 },
+          margin: { status: 'bounded', unit: 'h', value: null, lower: 1, upper: 8 },
+          margin_class: 'narrow',
+          narrow_reason: 'Darkness headroom bounded within +[1..8] h against 50 h limit',
+          description: 'Longest power-dark period vs battery limit',
+        }],
+      },
+    }
+
+    const rows = requirementMatrix([bounded])
+    const cell = rows.find((row) => row.id === 'max_continuous_darkness')!.cells[bounded.scenario.id]!
+    expect(cell.margin).toEqual({ status: 'bounded', unit: 'h', value: null, lower: 1, upper: 8 })
+    expect(cell.marginClass).toBe('narrow')
+
+    const tableHtml = plain(renderToString(<MetricsTable entries={[bounded]} />))
+    expect(tableHtml).toContain('+[1..8] h')
+    expect(tableHtml).toContain('between 42 h and 49 h')
+    expect(tableHtml).not.toContain('45.5 h')
+
+    const chartsHtml = plain(renderToString(<AvailabilityCharts entries={[bounded]} />))
+    expect(chartsHtml).toContain('between 42 h and 49 h. Not plotted')
   })
 })

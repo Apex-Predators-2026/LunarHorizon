@@ -4,8 +4,9 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
+import { SCREENING_NOTE } from '../../lib/headroom'
 import fixture from './__fixtures__/compare-response.json'
-import { type Entry } from './analysis'
+import { buildSummary, type Entry } from './analysis'
 import { buildDecision, findPair, tradeoff, tradeoffSentence, withLabels } from './decision'
 import { makeScenario } from './scenario'
 import { SummaryPanel } from './SummaryPanel'
@@ -159,5 +160,70 @@ describe('decision explanations', () => {
     for (const t of ['Preferred option', '1 · Requirements', '2 · Ranking evidence', '3 · Measured trade-offs', 'Engine explanation (verbatim)', 'Per-metric highlights']) {
       expect(html).toContain(t)
     }
+  })
+
+  it('qualifies PASS wording and includes non-guarantee screening note when darkness headroom is limited (49 h vs 50 h limit)', () => {
+    const makeDarkPass = (base: Entry, key: string, darkHours: number, batteryHours: number, rank: number): Entry => {
+      const a = base.result!.assessment!
+      const v = base.result!.viability!
+      const req = { ...v.scenario.requirements, battery_hours: batteryHours, min_initial_sun_hours: 0, min_initial_comms_hours: 0 }
+      const constraints = a.constraints.map((c) => (
+        c.id === 'max_continuous_darkness'
+          ? { ...c, threshold: batteryHours, status: 'pass' as const, measured: { status: 'known' as const, unit: 'h', value: darkHours, lower: null, upper: null, reason: null } }
+          : { ...c, status: c.status === 'not_applicable' ? c.status : 'pass' as const }
+      ))
+      const ranking: RankingInfo = { ...base.ranking!, eligibility: 'pass', rank, group: 'G1' }
+      const result: CompareResult = {
+        ...base.result!,
+        key,
+        ranking,
+        viability: {
+          ...v,
+          passes: true,
+          eligibility: 'pass',
+          headroom: undefined,
+          scenario: { ...v.scenario, requirements: req },
+          metrics: { ...v.metrics, longest_dark_gap_hours: darkHours },
+        },
+        assessment: {
+          ...a,
+          headroom: undefined,
+          margins: undefined,
+          constraints,
+          metrics: {
+            ...a.metrics,
+            longest_power_darkness_h: { status: 'known', unit: 'h', value: darkHours, lower: null, upper: null, reason: null },
+          },
+        },
+      }
+      return {
+        ...base,
+        scenario: { ...base.scenario, id: `s-${key}`, label: key, requirements: req },
+        result,
+        state: { state: 'done', result },
+        ranking,
+      }
+    }
+
+    const limitedWinner = makeDarkPass(entry('B'), 'L', 49, 50, 1)
+    const comfortableRunner = makeDarkPass(entry('C'), 'M', 15, 50, 2)
+    const d = buildDecision([limitedWinner, comfortableRunner], [group(['L', 'M'], ['L', 'M'])], [pair('L', 'M')])
+    const g = d.groups[0]
+    expect(g.headline).toContain('passes with limited darkness margin')
+    expect(g.headline).toContain('closest requirement to limit: Max continuous darkness: +1 h remaining of 50 h limit (2.0%)')
+    expect(g.headline).not.toContain('passes every requirement')
+    const reqLine = g.requirements.find((r) => r.entry.scenario.label === 'L')!.text
+    expect(reqLine).toContain('passes with limited darkness margin')
+    expect(reqLine).not.toContain('meets all')
+    expect(d.notes).toContain(SCREENING_NOTE)
+
+    const summary = buildSummary([limitedWinner, comfortableRunner])
+    expect(summary.overall.join(' ')).toContain('passes with limited darkness margin')
+    expect(summary.caveats).toContain(SCREENING_NOTE)
+
+    const html = renderToString(<SummaryPanel entries={[limitedWinner, comfortableRunner]} groups={[group(['L', 'M'], ['L', 'M'])]} pairs={[pair('L', 'M')]} />)
+    expect(html).toContain('Preferred option (limited headroom)')
+    expect(html).toContain('Pass · limited darkness')
+    expect(html).toContain(SCREENING_NOTE)
   })
 })

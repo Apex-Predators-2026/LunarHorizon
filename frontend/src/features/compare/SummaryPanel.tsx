@@ -3,7 +3,8 @@
 // (decision.ts) and from measured metrics; the per-metric highlights stay available underneath.
 import type { ReactNode } from 'react'
 
-import { buildSummary, eligibilityOf, type Entry } from './analysis'
+import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
+import { buildSummary, eligibilityOf, headroomOfEntry, isLimitedHeadroom, type Entry } from './analysis'
 import { buildDecision, tradeoffSentence, type DecisionKind, type GroupDecision } from './decision'
 import type { PairEvidence, RankingGroup } from './types'
 import { EligibilityBadge, Icon, ReqIcon, ScenarioChip } from './ui'
@@ -14,6 +15,12 @@ const KIND: Record<DecisionKind, { label: string; cls: string; icon: 'check' | '
   lone: { label: 'Passes, nothing to compare against', cls: 'border-slate-600 bg-slate-800 text-slate-200', icon: 'info' },
   insufficient: { label: 'No conclusion: insufficient evidence', cls: 'border-slate-500 bg-slate-800 text-slate-200', icon: 'unknown' },
   none_pass: { label: 'No option meets the requirements', cls: 'border-red-800 bg-red-950 text-red-300', icon: 'close' },
+}
+
+const LIMITED_KIND_LABEL: Partial<Record<DecisionKind, string>> = {
+  recommended: 'Preferred option (limited headroom)',
+  single_pass: 'Only passing option (limited headroom)',
+  lone: 'Passes with limited headroom, nothing to compare against',
 }
 
 function Block({ title, note, children }: { title: string; note: string; children: ReactNode }) {
@@ -28,25 +35,40 @@ function Block({ title, note, children }: { title: string; note: string; childre
 
 function GroupCard({ d, showGroup }: { d: GroupDecision; showGroup: boolean }) {
   const k = KIND[d.kind]
+  const recHr = d.recommended ? headroomOfEntry(d.recommended) : null
+  const recLimited = isLimitedHeadroom(recHr)
+  const badgeCls = recLimited && LIMITED_KIND_LABEL[d.kind] ? 'border-warn/45 bg-inset text-warn' : k.cls
+  const badgeIcon = recLimited && LIMITED_KIND_LABEL[d.kind] ? 'warning' : k.icon
+  const badgeLabel = (recLimited ? LIMITED_KIND_LABEL[d.kind] : undefined) ?? k.label
   return (
     <article aria-label={`Decision${showGroup ? ` for group ${d.group.id}` : ''}`} className="space-y-3 rounded-xl border border-line bg-surface p-4">
       <header className="flex flex-wrap items-center gap-2">
-        <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium ${k.cls}`}>
-          <Icon name={k.icon} size={14} /> {k.label}
+        <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
+          <Icon name={badgeIcon} size={14} /> {badgeLabel}
         </span>
         {d.recommended && <ScenarioChip s={d.recommended.scenario} />}
+        {d.recommended && (
+          <PassHeadroomBadge headroom={recHr} eligibility={eligibilityOf(d.recommended) ?? undefined} surface="compare" />
+        )}
         {showGroup && <span className="text-[11px] text-slate-500">Group {d.group.id}{d.group.primary ? ' (main comparison)' : ''}</span>}
       </header>
       <p className="text-sm leading-relaxed text-slate-100">{d.headline}</p>
+      {recHr && <PassHeadroom headroom={recHr} surface="compare" compact showScreeningNote />}
 
       <Block title="1 · Requirements" note="The viability engine's verdict on each scenario under the selected mission requirements.">
         <ul className="space-y-1 text-sm text-slate-300">
           {d.requirements.map(({ entry, text }) => {
             const el = eligibilityOf(entry)
+            const entryHr = el === 'pass' ? headroomOfEntry(entry) : null
             return (
               <li key={entry.scenario.id} className="flex items-start gap-2">
                 {el && <ReqIcon status={el} />}
-                <span>{text}</span>
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span>{text}</span>
+                  {el === 'pass' && isLimitedHeadroom(entryHr) && (
+                    <PassHeadroomBadge headroom={entryHr} eligibility={el} surface="compare" />
+                  )}
+                </span>
               </li>
             )
           })}
@@ -132,9 +154,10 @@ export function SummaryPanel({ entries, groups = [], pairs = [] }: { entries: En
                   <div className="mb-1 flex items-center gap-2"><ScenarioChip s={hl.entry.scenario} size="sm" />
                     <span className="truncate text-slate-200">{hl.entry.scenario.name}</span></div>
                   {hl.strengths.map((s) => <p key={s} className="text-emerald-300">＋ {s}</p>)}
+                  {hl.cautions.map((s) => <p key={s} className="text-warn">! {s}</p>)}
                   {hl.weaknesses.map((s) => <p key={s} className="text-red-300">－ {s}</p>)}
                   {hl.uncertain.map((s) => <p key={s} className="text-slate-300">? {s}</p>)}
-                  {!hl.strengths.length && !hl.weaknesses.length && !hl.uncertain.length && <p className="text-slate-500">No stand-out differences.</p>}
+                  {!hl.strengths.length && !hl.cautions.length && !hl.weaknesses.length && !hl.uncertain.length && <p className="text-slate-500">No stand-out differences.</p>}
                 </div>
               ))}
             </div>

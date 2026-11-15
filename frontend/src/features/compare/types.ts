@@ -1,7 +1,15 @@
 // Multi-Scenario Comparison (Member 4).
 // Request/response types mirror backend/app/compare/schemas.py (see docs/comparison.md).
 // Shared types (Site, Scenario, MissionRequirements, ViabilityResult) live in src/types.ts.
-import type { Eligibility, MissionRequirements, Scenario, Site, ViabilityResult } from '../../types'
+import type {
+  CanonicalMarginItem,
+  Eligibility,
+  MissionRequirements,
+  OperationalHeadroom,
+  Scenario,
+  Site,
+  ViabilityResult,
+} from '../../types'
 
 // ---------------------------------------------------------------- scenario objects
 
@@ -182,6 +190,8 @@ export interface AssessmentInfo {
   uncovered_hours: number
   metrics: Record<string, CanonicalMetric>
   constraints: ConstraintItem[]
+  margins?: CanonicalMarginItem[]
+  headroom?: OperationalHeadroom | null
   explanations: string[]
   limitations: string[]
 }

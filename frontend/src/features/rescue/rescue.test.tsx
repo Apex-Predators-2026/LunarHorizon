@@ -253,9 +253,9 @@ describe('components render real backend responses', () => {
   it('names a plan only when the rescue scenario came from it, and flags edits', () => {
     const sc = rescue.original.scenario
     const fresh = { ...sc, duration_days: 5 }
-    // Node has no working localStorage; give the persisted plans store an in-memory one.
+    // Node has no working localStorage; give the persisted plans store an in-memory one when persist middleware attached.
     const mem = new Map<string, string>()
-    usePlansStore.persist.setOptions({
+    usePlansStore.persist?.setOptions({
       storage: createJSONStorage(() => ({ getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => void mem.set(k, v), removeItem: (k) => void mem.delete(k) })),
     })
     usePlansStore.setState({ plans: [{ id: 'p1', name: 'Baseline', scenario: sc }], activeId: 'p1', compareIds: [] })
@@ -640,5 +640,228 @@ describe('operational headroom and evaluated time', () => {
     expect(evaluatedTimeNote('2027-04-17T00:30:00Z', '2027-04-17T01:00:00Z')).toMatch(/^Evaluated at .*hourly data grid/)
     expect(evaluatedTimeNote('2027-04-17T01:00:00.000Z', '2027-04-17T01:00:00Z')).toBeNull()
     expect(evaluatedTimeNote(undefined, '2027-04-17T01:00:00Z')).toBeNull()
+  })
+})
+
+describe('operational headroom in rescue UI', () => {
+  const basePassViability = rescue.alternatives[0].viability
+  const makePass = (darkGapHours: number) => ({
+    ...basePassViability,
+    passes: true,
+    eligibility: 'pass' as const,
+    violations: [],
+    headroom: undefined,
+    metrics: {
+      ...basePassViability.metrics,
+      longest_dark_gap_hours: darkGapHours,
+      longest_comms_gap_hours: 12,
+      initial_sun_hours: 24,
+      initial_comms_hours: 18,
+      hours_to_first_sunset: 24,
+      hours_to_first_earthset: 18,
+    },
+    scenario: {
+      ...basePassViability.scenario,
+      requirements: {
+        ...DEFAULT_REQUIREMENTS,
+        battery_hours: 48,
+        max_comms_gap_hours: 72,
+        min_initial_sun_hours: 6,
+        min_initial_comms_hours: 6,
+      },
+    },
+  })
+
+  it('qualifies RescueResults status="still_viable" with headroom and tested date-slip pills', () => {
+    const limitedPass: RescueResponse = {
+      ...rescue,
+      status: 'still_viable',
+      summary: 'Changed plan remains within declared model thresholds.',
+      changed: makePass(47),
+      changed_robustness: {
+        checked_points: 4,
+        passing_points: 4,
+        pass_rate: 1,
+        worst_score: 0.72,
+        verdict: 'robust',
+        note: '4 of 4 nearby positions pass',
+        date_checked: 2,
+        date_passing: 2,
+        date_note: 'Tested -24 h / +24 h slips pass (limited at -24 h)',
+        date_checks: [
+          {
+            date_offset_hours: -24,
+            status: 'pass',
+            passes: true,
+            darkness_headroom_h: 1,
+            comms_headroom_h: 60,
+            closest_label: 'Darkness gap',
+            closest_headroom_text: '+1 h',
+            headroom_status: 'limited',
+            failing_constraints: [],
+          },
+          {
+            date_offset_hours: 24,
+            status: 'pass',
+            passes: true,
+            darkness_headroom_h: 35,
+            comms_headroom_h: 60,
+            closest_label: 'Sunlight',
+            closest_headroom_text: '+12 pts',
+            headroom_status: 'comfortable',
+            failing_constraints: [],
+          },
+        ],
+      },
+      alternatives: [],
+    }
+    const html = renderToString(
+      <RescueResults
+        res={limitedPass}
+        selected={null}
+        sensitivity={null}
+        onSelect={() => {}}
+        onCheckSensitivity={() => {}}
+      />,
+    )
+    expect(html).toContain('Plan passes model screening')
+    expect(html).not.toContain('Still passes')
+    expect(html).toContain('Pass · limited darkness')
+    expect(html).toContain('Closest requirement to limit')
+    expect(html).toContain('Tested date-slip checks')
+    expect(html).toContain('-24 h<!-- -->: <!-- -->pass · limited (+1 h)')
+    expect(html).toContain('bg-amber-950')
+    expect(html).toContain('not a guarantee of spacecraft survival')
+  })
+
+  it('qualifies buildWalkthrough still_viable copy instead of bare PASS', () => {
+    const stillViable: RescueResponse = {
+      ...rescue,
+      status: 'still_viable',
+      changed: makePass(47),
+      alternatives: [],
+    }
+    const steps = buildWalkthrough(stillViable)
+    expect(steps[1].text).toContain('passes with limited darkness margin')
+    expect(steps[1].text).toContain('Model screening result only')
+    expect(steps[3].text).toContain('not a guarantee of spacecraft survival')
+
+    const withDateNotes: RescueResponse = {
+      ...rescue,
+      alternatives: [
+        {
+          ...rescue.alternatives[0],
+          viability: makePass(47),
+          robustness: {
+            ...rescue.alternatives[0].robustness!,
+            verdict: 'robust',
+            date_note: 'Tested ±12 h slips pass with narrow darkness headroom.',
+          },
+        },
+      ],
+    }
+    const rescuedSteps = buildWalkthrough(withDateNotes)
+    expect(rescuedSteps[3].text).toContain('Passes with limited darkness margin')
+    expect(rescuedSteps[4].text).toContain('±12 h slips pass')
+    expect(rescuedSteps[4].text).toContain('Covers tested offsets only')
+  })
+
+  it('shows comfortable vs limited PassHeadroom, initial windows, and date-slip vs position separation on AlternativeCard', () => {
+    const limitedAlt = {
+      ...rescue.alternatives[0],
+      viability: makePass(47),
+      robustness: {
+        checked_points: 4,
+        passing_points: 4,
+        pass_rate: 1,
+        worst_score: 0.71,
+        verdict: 'robust' as const,
+        note: '4 of 4 nearby positions pass',
+        date_checked: 2,
+        date_passing: 1,
+        date_note: 'Tested -24 h passes narrowly; +24 h fails darkness',
+        date_checks: [
+          {
+            date_offset_hours: -24,
+            status: 'pass' as const,
+            passes: true,
+            darkness_headroom_h: 1,
+            comms_headroom_h: 60,
+            closest_headroom_text: '+1 h',
+            headroom_status: 'limited',
+            failing_constraints: [],
+          },
+          {
+            date_offset_hours: 24,
+            status: 'fail' as const,
+            passes: false,
+            darkness_headroom_h: -2,
+            comms_headroom_h: 58,
+            closest_headroom_text: '-2 h',
+            headroom_status: 'failed',
+            failing_constraints: ['battery_hours' as const],
+          },
+        ],
+      },
+    }
+    const comfortableAlt = { ...rescue.alternatives[0], viability: makePass(13) }
+
+    const limitedHtml = renderToString(
+      <AlternativeCard alt={limitedAlt} selected={false} onSelect={() => {}} onCheckSensitivity={() => {}} />,
+    )
+    expect(limitedHtml).toContain('Pass · limited darkness')
+    expect(limitedHtml).toContain('first sunset T+24 h')
+    expect(limitedHtml).toContain('first Earthset T+18 h')
+    expect(limitedHtml).toContain('data-testid="date-slip-checks"')
+    expect(limitedHtml).toContain('-24 h<!-- -->: <!-- -->pass · limited (+1 h)')
+    expect(limitedHtml).toContain('+24 h<!-- -->: <!-- -->fail')
+    expect(limitedHtml).toContain('data-testid="position-checks-note"')
+    expect(limitedHtml).toContain('4 of 4 nearby positions pass')
+    expect(limitedHtml).toContain('Model screening result based on solar illumination')
+
+    const comfortableHtml = renderToString(
+      <AlternativeCard alt={comfortableAlt} selected={false} onSelect={() => {}} onCheckSensitivity={() => {}} />,
+    )
+    expect(comfortableHtml).toContain('Pass · comfortable')
+  })
+
+  it('highlights limited date-slip offsets, tightest headroom, and screening note in SensitivityView', () => {
+    const sens: SensitivityResponse = {
+      ...sensitivity,
+      base: makePass(47),
+      tightest_passing_headroom: '+1 h darkness headroom at +12h slip',
+      date_limited_offsets_hours: [12],
+      screening_note: 'Model screening across discrete tested offsets only — narrow margins or gaps remain sensitive and are not a guarantee of mission success.',
+      points: sensitivity.points.map((p) =>
+        p.distance_km === 0 && p.date_offset_hours === 12
+          ? { ...p, status: 'pass', passes: true, darkness_headroom_h: 1, closest_headroom_text: '+1 h', headroom_status: 'limited' }
+          : p,
+      ),
+    }
+    const html = renderToString(<SensitivityView data={sens} />)
+    expect(html).toContain('data-testid="tightest-headroom-banner"')
+    expect(html).toContain('+1 h darkness headroom at +12h slip')
+    expect(html).toContain('data-testid="limited-offsets-note"')
+    expect(html).toContain('bg-amber-950')
+    expect(html).toContain('data-testid="sensitivity-screening-note"')
+    expect(html).toContain('not a guarantee of mission success')
+  })
+
+  it('distinguishes comfortable vs limited PASS headroom on CompromiseResults best option and Pareto rows', () => {
+    const compWithHeadroom: CompromiseResponse = {
+      ...compromise,
+      status: 'both_met',
+      best: { ...compromise.pareto_front[0], viability: makePass(47), meets_engineering: true, meets_science: true },
+      pareto_front: [
+        { ...compromise.pareto_front[0], viability: makePass(47) },
+        { ...(compromise.pareto_front[1] ?? compromise.pareto_front[0]), viability: makePass(13) },
+      ],
+    }
+    const html = renderToString(<CompromiseResults res={compWithHeadroom} onSelect={() => {}} />)
+    expect(html).toContain('Pass · limited darkness')
+    expect(html).toContain('Pass · comfortable')
+    expect(html).toContain('Closest:')
+    expect(html).toContain('data-testid="compromise-screening-note"')
+    expect(html).toContain('not a guarantee of spacecraft survival')
   })
 })

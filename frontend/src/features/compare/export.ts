@@ -5,8 +5,9 @@
 //   - UNKNOWN stays "unknown";
 //   - a canonical rank is only exported for an eligible PASS scenario, inside its comparable group;
 //   - "recommended" is only true for the scenario the decision panel actually recommends.
-import type { Eligibility, MissionRequirements } from '../../types'
-import { eligibilityOf, requirementSummary, type Entry } from './analysis'
+import { SCREENING_NOTE, formatMarginMetric } from '../../lib/headroom'
+import type { ClosestRequirementInfo, Eligibility, HeadroomStatus, MarginMetricValue, MarginStatus, MissionRequirements, OperationalHeadroom } from '../../types'
+import { eligibilityOf, headroomOfEntry, requirementSummary, type Entry } from './analysis'
 import { buildDecision, withLabels } from './decision'
 import { METRIC_FIELDS_ORDER } from './exportFields'
 import type { CanonicalMetric, PairEvidence, RankingGroup, SpacecraftConfig } from './types'
@@ -59,9 +60,33 @@ export interface ExportedScenario {
   failed_requirements: string[]
   undecided_requirements: string[]
   requirement_verdicts: ExportedRequirement[]
+  headroom: ExportedHeadroom | null
+  margins: ExportedMargin[]
   metrics: Record<string, ExportedMetric>
   ranking_explanation: string | null
   message: string | null
+}
+
+export interface ExportedMargin {
+  id: string
+  name: string
+  short_label: string
+  unit: string
+  margin_class: MarginStatus
+  margin: ExportedMetric
+  narrow_reason: string | null
+}
+
+export interface ExportedHeadroom {
+  status: HeadroomStatus
+  qualified_verdict: string
+  limited_constraints: string[]
+  closest_constraint: ClosestRequirementInfo | null
+  darkness_headroom: ExportedMetric | null
+  comms_blackout_headroom: ExportedMetric | null
+  initial_sunlight: OperationalHeadroom['initial_sunlight']
+  initial_earth: OperationalHeadroom['initial_earth']
+  screening_note: string
 }
 
 export interface ComparisonExport {
@@ -80,6 +105,14 @@ const metric = (m: CanonicalMetric | undefined | null): ExportedMetric =>
     lower: m.status === 'bounded' ? m.lower : null, upper: m.status === 'bounded' ? m.upper : null }
     : { status: 'missing', unit: null, value: null, lower: null, upper: null }
 
+const exportMarginValue = (m: MarginMetricValue): ExportedMetric => ({
+  status: m.status,
+  unit: m.unit,
+  value: m.status === 'known' ? (m.value ?? null) : null,
+  lower: m.status === 'bounded' ? (m.lower ?? null) : null,
+  upper: m.status === 'bounded' ? (m.upper ?? null) : null,
+})
+
 export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: PairEvidence[], notes: string[], now = new Date()): ComparisonExport {
   const decision = buildDecision(entries, groups, pairs)
   const recommended = new Set(decision.groups.filter((d) => d.kind === 'recommended' || d.kind === 'single_pass')
@@ -96,7 +129,25 @@ export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: Pai
       rank = null
     }
     const req = requirementSummary(e)
+    const hr = headroomOfEntry(e)
     const group = rk?.group ? groups.find((g) => g.id === rk.group) : undefined
+    const rawMargins = a?.margins ?? hr?.constraints ?? []
+    const resolveExportMetric = (k: string): ExportedMetric => {
+      if (a?.metrics[k]) return metric(a.metrics[k])
+      if (a && k === 'time_to_first_sunset_h' && a.metrics['initial_sunlight_h']?.status === 'known') {
+        const hrEnd = hr?.initial_sunlight.first_end_hours
+        if (hrEnd && (hrEnd.status === 'known' || hrEnd.status === 'bounded')) return exportMarginValue(hrEnd)
+        const end = r?.viability?.metrics.hours_to_first_sunset ?? null
+        if (end !== null) return { status: 'known', unit: 'h', value: end, lower: null, upper: null }
+      }
+      if (a && k === 'time_to_first_earthset_h' && a.metrics['initial_earth_h']?.status === 'known') {
+        const hrEnd = hr?.initial_earth.first_end_hours
+        if (hrEnd && (hrEnd.status === 'known' || hrEnd.status === 'bounded')) return exportMarginValue(hrEnd)
+        const end = r?.viability?.metrics.hours_to_first_earthset ?? null
+        if (end !== null) return { status: 'known', unit: 'h', value: end, lower: null, upper: null }
+      }
+      return metric(null)
+    }
     return {
       label: e.scenario.label,
       name: e.scenario.name,
@@ -133,7 +184,27 @@ export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: Pai
       requirement_verdicts: (a?.constraints ?? []).map((c) => ({
         id: c.id, name: c.name ?? c.id, status: c.status, comparison: c.comparison, threshold: c.threshold, measured: metric(c.measured),
       })),
-      metrics: Object.fromEntries(METRIC_FIELDS_ORDER.map((k) => [k, metric(a?.metrics[k])])),
+      headroom: hr ? {
+        status: hr.status,
+        qualified_verdict: hr.qualified_verdict,
+        limited_constraints: [...hr.limited_constraints],
+        closest_constraint: hr.closest_constraint ? { ...hr.closest_constraint } : null,
+        darkness_headroom: hr.darkness ? exportMarginValue(hr.darkness.margin) : null,
+        comms_blackout_headroom: hr.communication_blackout ? exportMarginValue(hr.communication_blackout.margin) : null,
+        initial_sunlight: { ...hr.initial_sunlight },
+        initial_earth: { ...hr.initial_earth },
+        screening_note: hr.screening_note || SCREENING_NOTE,
+      } : null,
+      margins: rawMargins.map((m) => ({
+        id: m.id,
+        name: m.name,
+        short_label: m.short_label,
+        unit: m.unit,
+        margin_class: m.margin_class,
+        margin: exportMarginValue(m.margin),
+        narrow_reason: m.narrow_reason ?? null,
+      })),
+      metrics: Object.fromEntries(METRIC_FIELDS_ORDER.map((k) => [k, resolveExportMetric(k)])),
       ranking_explanation: rk?.explanation ? withLabels(rk.explanation, entries, pairs) : null,
       message: e.state?.state === 'done' ? e.state.result.message : e.state?.state === 'error' ? e.state.message : null,
     }
@@ -175,6 +246,11 @@ export function toCsv(x: ComparisonExport): string {
     'score_status', 'score', 'score_lower', 'score_upper', 'overall_risk', 'failed_requirements', 'undecided_requirements',
     ...Object.keys(x.scenarios[0]?.requirements ?? {}).map((k) => `req_${k}`),
     ...METRIC_FIELDS_ORDER.flatMap((k) => [k, `${k}_lower`, `${k}_upper`, `${k}_status`]),
+    'headroom_status', 'qualified_verdict', 'closest_constraint_id', 'closest_constraint_label', 'closest_constraint_status', 'closest_constraint_margin',
+    'darkness_headroom', 'darkness_headroom_lower', 'darkness_headroom_upper', 'darkness_headroom_status',
+    'comms_blackout_headroom', 'comms_blackout_headroom_lower', 'comms_blackout_headroom_upper', 'comms_blackout_headroom_status',
+    'initial_sunlight_hours', 'time_to_first_sunset_hours', 'initial_earth_hours', 'time_to_first_earthset_hours',
+    'margins_summary', 'screening_note',
   ]
   const rows = x.scenarios.map((s) => [
     s.label, s.name, s.site.id, s.site.name, s.site.lat, s.site.lon, s.landing_utc, s.duration_days,
@@ -185,6 +261,35 @@ export function toCsv(x: ComparisonExport): string {
     s.failed_requirements.join('; '), s.undecided_requirements.join('; '),
     ...Object.values(s.requirements),
     ...METRIC_FIELDS_ORDER.flatMap((k) => { const m = s.metrics[k]; return [m.value, m.lower, m.upper, m.status] }),
+    s.headroom?.status ?? null,
+    s.headroom?.qualified_verdict ?? null,
+    s.headroom?.closest_constraint?.constraint_id ?? null,
+    s.headroom?.closest_constraint?.label ?? null,
+    s.headroom?.closest_constraint?.margin_class ?? null,
+    s.headroom?.closest_constraint?.headroom_text ?? null,
+    s.headroom?.darkness_headroom?.value ?? null,
+    s.headroom?.darkness_headroom?.lower ?? null,
+    s.headroom?.darkness_headroom?.upper ?? null,
+    s.headroom?.darkness_headroom?.status ?? null,
+    s.headroom?.comms_blackout_headroom?.value ?? null,
+    s.headroom?.comms_blackout_headroom?.lower ?? null,
+    s.headroom?.comms_blackout_headroom?.upper ?? null,
+    s.headroom?.comms_blackout_headroom?.status ?? null,
+    s.headroom?.initial_sunlight.duration.value ?? null,
+    s.headroom?.initial_sunlight.first_end_hours.value ?? null,
+    s.headroom?.initial_earth.duration.value ?? null,
+    s.headroom?.initial_earth.first_end_hours.value ?? null,
+    s.margins.map((m) => {
+      const mv: MarginMetricValue = {
+        status: m.margin.status === 'missing' ? 'unavailable' : m.margin.status as MarginMetricValue['status'],
+        unit: m.unit,
+        value: m.margin.value,
+        lower: m.margin.lower,
+        upper: m.margin.upper,
+      }
+      return `${m.id}:${formatMarginMetric(mv, true)}(${m.margin_class})`
+    }).join('; '),
+    s.headroom?.screening_note ?? SCREENING_NOTE,
   ].map(cell).join(','))
   return [head.join(','), ...rows].join('\r\n') + '\r\n'
 }

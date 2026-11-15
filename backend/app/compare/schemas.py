@@ -4,6 +4,8 @@ Mirrored in frontend/src/features/compare/types.ts and documented in docs/compar
 """
 from __future__ import annotations
 
+from ..models import CanonicalMarginItem, OperationalHeadroom
+
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -198,6 +200,8 @@ class AssessmentInfo(BaseModel):
     uncovered_hours: float
     metrics: dict[str, CanonicalMetric]
     constraints: list[ConstraintItem]
+    margins: list[CanonicalMarginItem] = Field(default_factory=list)
+    headroom: OperationalHeadroom | None = None
     explanations: list[str]
     limitations: list[str]
 

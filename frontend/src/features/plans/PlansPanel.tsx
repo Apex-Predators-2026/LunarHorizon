@@ -4,12 +4,27 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+import { deriveHeadroomFromTrack, headroomTone, resolveHeadroom } from '../../lib/headroom'
 import { useAppStore } from '../../store'
-import { DEFAULT_REQUIREMENTS, type MissionRequirements, type Scenario } from '../../types'
+import {
+  DEFAULT_REQUIREMENTS,
+  verdictOf,
+  type Eligibility,
+  type MissionRequirements,
+  type OperationalHeadroom,
+  type Scenario,
+  type TimelineStep,
+  type ViabilityResult,
+} from '../../types'
 import { InteractiveGrainGradient } from '../../ui/InteractiveGrainGradient'
 import { DateField, SelectField, TextField } from '../../ui/MdFields'
+import { PassHeadroomBadge } from '../../ui/PassHeadroom'
+import { fetchTimeline } from '../../viz/api'
 import { DatePopup } from '../../viz/DatePopup'
+import { missionTrack, missionWindow, type MissionTrack } from '../../viz/mission'
 import { showSnackbar } from '../../viz/snackbarStore'
+import { toIsoMinute } from '../../viz/timeline'
+import { verdictFor } from '../../viz/useMissionPlayback'
 import { sendToComparison } from '../compare'
 import { fetchRescueCatalog } from '../rescue/api'
 import { fmtUtc, fromUtcInput, toUtcInput } from '../rescue/format'
@@ -18,6 +33,29 @@ import type { RescueCatalog } from '../rescue/types'
 import { useRescueStore } from '../rescue/useRescueStore'
 import { useTutorialStore } from '../tutorial'
 import { usePlanDialog, usePlansStore, type Plan } from './usePlansStore'
+
+const timelineCache = new Map<string, TimelineStep[]>()
+
+const SHORT_CONSTRAINT: Record<string, string> = {
+  battery_hours: 'dark',
+  max_comms_gap_hours: 'comms',
+  min_sunlight_fraction: 'sun',
+  min_earth_visibility_fraction: 'Earth',
+  min_initial_sun_hours: 'init sun',
+  min_initial_comms_hours: 'init comms',
+}
+
+function formatTightestHeadroom(hr: OperationalHeadroom, elig: Eligibility): string | null {
+  if (elig === 'unknown') return 'Coverage gap'
+  const c = hr.closest_constraint
+  if (!c) return elig === 'fail' ? 'Fails limits' : hr.status === 'vacuous' ? 'No limits set' : null
+  const short = (c.requirement_field && SHORT_CONSTRAINT[c.requirement_field]) || c.label.toLowerCase()
+  if (elig === 'fail') return `${c.headroom_text} ${short}`
+  if (hr.status === 'limited') return `limited · ${c.headroom_text} ${short}`
+  if (hr.status === 'at_threshold') return `at limit · ${c.headroom_text} ${short}`
+  if (hr.status === 'uncertain') return `bounded · ${c.headroom_text} ${short}`
+  return `${c.headroom_text} ${short}`
+}
 
 const MAX_COMPARE = 6
 const PLUS_MASK = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 60 60\'%3E%3Cpath d=\'M27 2h6v56h-6zM2 27h56v6H2z\'/%3E%3C/svg%3E")'
@@ -154,12 +192,67 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
   )
 }
 
-function PlanCard({ plan, onEdit, onRun }: { plan: Plan; onEdit: () => void; onRun: () => void }) {
+export function PlanCard({
+  plan,
+  onEdit,
+  onRun,
+  track: propTrack,
+  verdict: propVerdict,
+}: {
+  plan: Plan
+  onEdit: () => void
+  onRun: () => void
+  track?: MissionTrack | null
+  verdict?: ViabilityResult | null
+}) {
   const active = usePlansStore((s) => s.activeId === plan.id)
   const compare = usePlansStore((s) => s.compareIds.includes(plan.id))
   const toggle = usePlansStore((s) => s.toggleCompare)
   const remove = usePlansStore((s) => s.remove)
+  const rescue = useRescueStore((s) => s.rescue)
+  const compromise = useRescueStore((s) => s.compromise)
   const sc = plan.scenario
+  const cachedVerdict = propVerdict ?? verdictFor(sc, rescue, compromise)
+  const [ws, we] = missionWindow(sc)
+  const cacheKey = `${sc.site.id}:${toIsoMinute(ws)}:${toIsoMinute(we)}`
+  const cachedSteps = timelineCache.get(cacheKey) ?? null
+  const [fetched, setFetched] = useState<{ key: string; steps: TimelineStep[] } | null>(null)
+
+  useEffect(() => {
+    if (cachedVerdict || propTrack || cachedSteps || typeof fetch !== 'function') return
+    let cancelled = false
+    fetchTimeline(sc.site.id, toIsoMinute(ws), toIsoMinute(we), 1)
+      .then((steps) => {
+        timelineCache.set(cacheKey, steps)
+        if (!cancelled) setFetched({ key: cacheKey, steps })
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [cachedVerdict, propTrack, cachedSteps, cacheKey, sc.site.id, ws, we])
+
+  const steps = cachedSteps ?? (fetched?.key === cacheKey ? fetched.steps : null)
+  const effectiveTrack = propTrack ?? (steps ? missionTrack(steps, sc) : null)
+  const hr: OperationalHeadroom | null = cachedVerdict
+    ? resolveHeadroom(cachedVerdict)
+    : effectiveTrack
+      ? deriveHeadroomFromTrack(effectiveTrack, sc.requirements)
+      : null
+  const elig: Eligibility | null = cachedVerdict
+    ? verdictOf(cachedVerdict)
+    : effectiveTrack && hr
+      ? effectiveTrack.unknownHours > 0
+        ? 'unknown'
+        : hr.status === 'failed' || effectiveTrack.failures.length > 0
+          ? 'fail'
+          : 'pass'
+      : null
+  const tightest = hr && elig ? formatTightestHeadroom(hr, elig) : null
+  const tone = hr && elig ? headroomTone(hr, elig) : 'unknown'
+  const toneText =
+    tone === 'crit' ? 'text-red-300' : tone === 'warn' ? 'text-amber-200' : tone === 'ok' ? 'text-emerald-200' : 'text-slate-400'
+
   const iconBtn = 'flex h-10 w-10 items-center justify-center rounded-full text-slate-400'
   return (
     <li className={`md-reveal rounded-2xl border p-4 transition-colors ${active ? 'border-coral bg-coral/10' : 'border-slate-800 bg-white/60'}`} aria-label={`Plan ${plan.name}`}>
@@ -172,6 +265,13 @@ function PlanCard({ plan, onEdit, onRun }: { plan: Plan; onEdit: () => void; onR
         </div>
         {active && <span className="shrink-0 rounded-full bg-coral px-2 py-0.5 text-[11px] font-semibold text-white">Running</span>}
       </div>
+      {hr && elig && (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="plan-headroom">
+          <PassHeadroomBadge headroom={hr} eligibility={elig} surface="planner" />
+          {tightest && <span className={`text-[11px] font-medium ${toneText}`}>{tightest}</span>}
+          <span className="text-[10px] text-slate-500">· Screening only</span>
+        </div>
+      )}
       <div className="mt-2 flex items-center justify-between gap-2">
         <label className="flex items-center gap-3 text-xs text-slate-400" data-tip="Tick two or more plans, then press Compare to see them side by side.">
           <input type="checkbox" checked={compare} onChange={() => toggle(plan.id)} />
