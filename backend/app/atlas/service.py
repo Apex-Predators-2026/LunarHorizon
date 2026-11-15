@@ -22,6 +22,7 @@ from functools import lru_cache
 
 from fastapi import HTTPException
 
+from ..timegrid import POLICY, snap_duration_days, snap_time
 from ..compare.evidence import canonical_metric
 from ..engine.sites import ALL_SITES
 from ..models import Scenario, Site
@@ -128,12 +129,19 @@ def atlas(req: AtlasRequest) -> AtlasResponse:
     site = Site(id=known["id"], name=known["name"], lat=known["lat"], lon=known["lon"])
     full = _series(req.site_id)
     data_start, data_end = full.coverage_start_utc, full.coverage_end_utc
-    landings = [req.start_utc + timedelta(hours=req.step_hours * i) for i in range(req.count)]
-    window_end = landings[-1] + timedelta(days=max(req.durations_days))
+    # One time policy on every screen (app.timegrid): landings and lengths on the hourly data grid.
+    start = snap_time(req.start_utc)
+    landings = [snap_time(start + timedelta(hours=req.step_hours * i)) for i in range(req.count)]
+    durations = sorted({snap_duration_days(d) for d in req.durations_days})
+    moved = [f"lengths evaluated as {', '.join(f'{round(d * 24):d} h' for d in durations)}"]         if any(abs(d - snap_duration_days(d)) > 1e-9 for d in req.durations_days) else []
+    if start != req.start_utc:
+        moved.insert(0, f"first landing evaluated at {_iso(start)} (you entered {_iso(req.start_utc)})")
+    note = f"On the hourly data grid: {'; '.join(moved)}." if moved else None
+    window_end = landings[-1] + timedelta(days=max(durations))
     series = slice_series(full, max(landings[0], data_start), min(window_end, data_end))
 
     info: dict[str, RequirementInfo] = {}
-    cells = [[_cell(req, series, site, t, d, data_start, data_end, info) for t in landings] for d in req.durations_days]
+    cells = [[_cell(req, series, site, t, d, data_start, data_end, info) for t in landings] for d in durations]
     counts = {k: 0 for k in ("pass", "fail", "unknown", "not_evaluated")}
     for row in cells:
         for c in row:
@@ -141,13 +149,13 @@ def atlas(req: AtlasRequest) -> AtlasResponse:
     return AtlasResponse(
         site_id=req.site_id, site_name=site.name,
         data_start_utc=_iso(data_start), data_stop_utc=_iso(data_end),
-        start_utc=_iso(req.start_utc), step_hours=req.step_hours,
-        landing_utc=[_iso(t) for t in landings], durations_days=req.durations_days,
+        start_utc=_iso(start), step_hours=req.step_hours, time_note=note,
+        landing_utc=[_iso(t) for t in landings], durations_days=durations,
         requirements_input=req.requirements, requirements=list(info.values()), cells=cells, counts=counts,
         engine_version=ENGINE_VERSION,
         method=("Each cell is one mission (that landing time, that duration) evaluated by the canonical viability "
                 "engine on the site's precomputed JPL Horizons + LOLA data. Only the tested dates and durations are "
-                f"shown, every {req.step_hours:g} h from {_iso(req.start_utc)}; nothing is interpolated between them."),
+                f"shown, every {req.step_hours:g} h from {_iso(start)}; nothing is interpolated between them. {POLICY}"),
         limitations=[
             "A landing between two tested dates may differ from both: re-run with a smaller interval to look closer.",
             "Curated sites with precomputed data only (no custom pins).",

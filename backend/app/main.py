@@ -60,6 +60,13 @@ def _parse_time(value: str, name: str) -> np.datetime64:
         raise HTTPException(422, f"'{name}' must be an ISO UTC time like 2027-01-01T00:00Z")
 
 
+def _grid_index(times: np.ndarray, t: np.datetime64) -> int:
+    """Index of the sample on the shared hourly evaluation grid (app.timegrid): nearest whole hour, half rounds up."""
+    secs = int(t.astype("datetime64[s]").astype(np.int64))
+    snapped = np.datetime64(((secs + 1800) // 3600) * 3600, "s")
+    return int(np.abs(times - snapped).argmin())
+
+
 def _iso(t) -> str:
     return str(np.datetime64(t, "m")) + "Z"
 
@@ -174,12 +181,13 @@ def get_timeline(
 
 @app.get("/api/sites/{site_id}/status")
 def get_status(site_id: str, time: str = Query(..., description="ISO UTC time")) -> SiteStatus:
-    """Conditions at the hourly sample nearest `time`, plus the next sunset/sunrise/Earthset/Earthrise."""
+    """Conditions at `time` on the hourly evaluation grid (nearest whole hour, half rounds up; see app.timegrid),
+    plus the next sunset/sunrise/Earthset/Earthrise."""
     d = _get(site_id)
     t = _parse_time(time, "time")
     if t < d.times[0] or t > d.times[-1]:
         raise HTTPException(422, f"time must be within {_iso(d.times[0])} .. {_iso(d.times[-1])}")
-    i = int(np.abs(d.times - t).argmin())
+    i = _grid_index(d.times, t)
 
     def when(on, to_state):
         j = next_edge(on, i, to_state)
@@ -202,7 +210,7 @@ def verify_site(site_id: str, time: str = Query(..., description="ISO UTC time")
     t = _parse_time(time, "time")
     if t < d.times[0] or t > d.times[-1]:
         raise HTTPException(422, f"time must be within {_iso(d.times[0])} .. {_iso(d.times[-1])}")
-    i = int(np.abs(d.times - t).argmin())
+    i = _grid_index(d.times, t)
     stored = {
         b: {"azimuth_deg": float(d.cols[f"{b}_azimuth_deg"][i]), "elevation_deg": float(d.cols[f"{b}_elevation_deg"][i])}
         for b in ("sun", "earth")

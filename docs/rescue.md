@@ -215,6 +215,9 @@ the results and the UI.
 
 **Why are landing times rounded to the hour?** The data is hourly. The result shows the time that
 was actually evaluated, which can differ from what you typed by up to half an hour.
+The same rule (`backend/app/timegrid.py`: nearest whole UTC hour, half rounds up; lengths in whole hours) is
+used by Comparison, the Feasibility Atlas and the planner's site readout, so one mission is judged the same
+way on every screen, and each says when it moved your time.
 
 ## Regenerating the frontend test fixtures
 
