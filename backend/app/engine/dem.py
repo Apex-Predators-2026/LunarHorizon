@@ -10,8 +10,12 @@ so many terrain tiles and horizon rays share a few requests. A lookup for spacin
 coarsest level whose pixels are still <= s, so zoomed-out tiles don't download 5 m data.
 """
 
+import http.client
+import logging
+import os
 import threading
 import time
+import urllib.error
 import urllib.parse
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
@@ -20,14 +24,31 @@ from pathlib import Path
 
 import numpy as np
 import rasterio
+import rasterio.errors
 
 from .geo import latlon_to_xy, latlon_to_xy_np
-from .net import CACHE_DIR, require_online
+from .net import CACHE_DIR, OfflineError, offline, require_online
 from .terrain import INVALID_BELOW, TREK
 
 BLOCK = 1024  # pixels per block side (at most)
 DEM_CACHE = CACHE_DIR / "dem"
-MAX_BLOCKS_IN_MEMORY = 48  # each block is at most 4 MB (float32)
+# Each block is at most 4 MB in memory (float32). One polar horizon touches ~40 blocks, so a smaller
+# cache would make horizons and tiles keep evicting each other's blocks (~380 MB at most).
+MAX_BLOCKS_IN_MEMORY = 96
+
+# Moon Trek downloads at once, across every request (the per-call pools below would otherwise
+# multiply: 40 server threads x 8). When Moon Trek stalls, requests queue here instead of piling up
+# threads; one that waits longer than WAIT_S gets DownloadBusy (503) and the 3D view retries it.
+MAX_DOWNLOADS = 6
+WAIT_S = 90.0
+ATTEMPT_TIMEOUT_S = 60  # one exportImage attempt (a block normally arrives in seconds)
+RETRY_FOR_S = 90.0  # no new attempt after this long (all attempts together)
+_downloads = threading.BoundedSemaphore(MAX_DOWNLOADS)
+_log = logging.getLogger(__name__)
+
+
+class DownloadBusy(OSError):
+    """Waited too long for a download slot or for another request's download of the same block."""
 # Moon Trek's global ImageServer fails (HTTP 502) when one request spans too large an area,
 # regardless of output size; 32 x 32 degrees works. Coarse global blocks therefore use fewer pixels.
 MAX_SPAN_EQ_DEG = 32.0
@@ -126,27 +147,62 @@ class _BlockStore:
                 self.mem.move_to_end(key)
                 return self.mem[key]
             klock = self.key_locks.setdefault(key, threading.Lock())
-        with klock:  # one download per block even under concurrent requests
+        # One download per block even under concurrent requests; but a request doesn't wait forever
+        # for another one's stalled download (it would hold a server thread that long).
+        if not klock.acquire(timeout=WAIT_S):
+            raise DownloadBusy(f"still waiting for terrain block {key} after {WAIT_S:.0f} s")
+        try:
             with self.lock:
                 if key in self.mem:
                     return self.mem[key]
             path = self.root / src.name / str(level) / f"{bx}_{by}.npy"
-            if path.exists():
-                z = np.load(path)
-            else:
+            z = self._load_cached(path)
+            if z is None:
                 z = self._download(src, level, bx, by)
-                path.parent.mkdir(parents=True, exist_ok=True)
-                tmp = path.with_name(path.name + ".part")
-                with open(tmp, "wb") as f:
-                    np.save(f, z)
-                tmp.replace(path)
+                if src.pixel_type == "U8":  # imagery: 1 byte a pixel on disk (0 = no data, NaN below)
+                    z = np.where(np.isnan(z), 0, z).astype(np.uint8)
+                self._save(path, z)
             if src.zero_is_nodata:  # on load, so blocks cached before this rule are covered too
-                z = np.where(z == 0, np.float32(np.nan), z)
+                z = np.where(z == 0, np.float32(np.nan), z.astype(np.float32))
             with self.lock:
                 self.mem[key] = z
                 while len(self.mem) > MAX_BLOCKS_IN_MEMORY:
                     self.mem.popitem(last=False)
             return z
+        finally:
+            klock.release()
+
+    @staticmethod
+    def _load_cached(path: Path) -> np.ndarray | None:
+        """The cached block, or None if there is none. A damaged file (cut off by a crash, say) is
+        deleted, so the block is downloaded again instead of failing on every request."""
+        if not path.exists():
+            return None
+        try:
+            return np.load(path)
+        except (ValueError, OSError, EOFError):
+            if offline():
+                raise OfflineError(f"offline mode (LUNAR_OFFLINE=1), cached block is damaged: {path}")
+            try:
+                path.unlink()
+            except OSError:
+                pass
+            return None
+
+    @staticmethod
+    def _save(path: Path, z: np.ndarray) -> None:
+        """Atomic write. The temp name is unique per process and thread: the prefetch script and the
+        server may write the same block at once (on Windows a shared name fails or corrupts)."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.{threading.get_ident()}.part")
+        with open(tmp, "wb") as f:
+            np.save(f, z)
+        try:
+            tmp.replace(path)
+        except PermissionError:  # Windows: the other writer's file is in place (or being read)
+            tmp.unlink(missing_ok=True)
+            if not path.exists():
+                raise
 
     def _download(self, src: DemSource, level: int, bx: int, by: int) -> np.ndarray:
         """Fetch one block; parts outside the product's extent are NaN."""
@@ -173,20 +229,32 @@ class _BlockStore:
         }
         url = f"{TREK}/{src.service}/ImageServer/exportImage?" + urllib.parse.urlencode(params)
         require_online(url)  # offline mode: fail at once, not after the retries below
-        # Moon Trek occasionally answers 500/502 for a request that works moments later.
-        # A block (<= 1024^2 px) normally arrives in seconds; 120 s per attempt keeps a stalled
-        # connection from tying up a terrain request for many minutes (the 3D view retries).
-        for attempt in range(4):
-            try:
-                with urllib.request.urlopen(url, timeout=120) as r:
-                    data = r.read()
-                break
-            except OSError:
-                if attempt == 3:
-                    raise
+        # Moon Trek occasionally answers 500/502, a cut-off body or an error page instead of a
+        # GeoTIFF for a request that works moments later: retry those (not 4xx, which won't change),
+        # for at most RETRY_FOR_S altogether, within the global download limit.
+        if not _downloads.acquire(timeout=WAIT_S):
+            raise DownloadBusy(f"no Moon Trek download slot after {WAIT_S:.0f} s (busy or stalled)")
+        try:
+            t0 = time.monotonic()
+            for attempt in range(4):
+                try:
+                    with urllib.request.urlopen(url, timeout=ATTEMPT_TIMEOUT_S) as r:
+                        data = r.read()
+                    with rasterio.MemoryFile(data) as mf, mf.open() as ds:
+                        a = ds.read(1).astype(np.float32)
+                    break
+                except urllib.error.HTTPError as e:
+                    if 400 <= e.code < 500 or attempt == 3 or time.monotonic() - t0 > RETRY_FOR_S:
+                        raise
+                except (OSError, http.client.HTTPException, rasterio.errors.RasterioError) as e:
+                    if attempt == 3 or time.monotonic() - t0 > RETRY_FOR_S:
+                        if isinstance(e, OSError):
+                            raise
+                        # Not every one of these is an OSError: make it one, so the API answers 502.
+                        raise OSError(f"Moon Trek block download failed: {e}") from e
                 time.sleep(2 * (attempt + 1))
-        with rasterio.MemoryFile(data) as mf, mf.open() as ds:
-            a = ds.read(1).astype(np.float32)
+        finally:
+            _downloads.release()
         a[a < INVALID_BELOW] = np.nan
         c0 = int(round((cx0 - x0) / px))
         r0 = int(round((y1 - cy1) / px))
@@ -235,27 +303,35 @@ def sample_source(src: DemSource, level: int, x: np.ndarray, y: np.ndarray, stor
         with ThreadPoolExecutor(max_workers=8) as pool:
             list(pool.map(lambda k: store.get(src, level, k[0], k[1]), missing))
 
-    # Gather the 4 neighbours, each possibly in a different block.
+    # Gather the 4 neighbours, each possibly in a different block. Each block is looked up once per
+    # call (not once per corner), so a block evicted meanwhile isn't read from disk 4 times.
+    blocks = {k: store.get(src, level, *k) for k in needed}
     corners = []
     for rr, cc, bid in corners_idx:
         vals = np.full(col.shape, np.nan)
-        for kx, ky in needed:
+        for (kx, ky), block in blocks.items():
             sel = bid == ky * _BLOCK_ID_STRIDE + kx
             if sel.any():
-                block = store.get(src, level, kx, ky)
                 vals[sel] = block[rr[sel] - ky * bp, cc[sel] - kx * bp]
         corners.append(vals)
     z00, z01, z10, z11 = corners
     return (z00 * (1 - fc) + z01 * fc) * (1 - fr) + (z10 * (1 - fc) + z11 * fc) * fr
 
 
-def sample_latlon(lat, lon, spacing_m: float, store: _BlockStore | None = None) -> np.ndarray:
+def sample_latlon(
+    lat, lon, spacing_m: float, store: _BlockStore | None = None, coarser_if_offline: bool = False
+) -> np.ndarray:
     """Heights (m, relative to the 1737.4 km sphere) at lat/lon, using data no coarser than
     `spacing_m` where available. Each point tries its latitude band's sources from the coarsest
-    adequate one downwards in resolution, then falls back to coarser ones where data is missing."""
+    adequate one downwards in resolution, then falls back to coarser ones where data is missing.
+
+    `coarser_if_offline` (3D tiles only, never horizons): in offline mode a product whose blocks
+    aren't cached is skipped for the next one, so a demo away from the warmed areas shows coarser
+    terrain instead of none. If no product has the data, the OfflineError is raised as usual."""
     lat = np.asarray(lat, dtype=float)
     lon = np.asarray(lon, dtype=float)
     out = np.full(lat.shape, np.nan)
+    skipped: OfflineError | None = None
     bands = np.where(lat <= -POLAR_LAT, 0, np.where(lat >= POLAR_LAT, 1, 2))
     for band, names in enumerate((SOUTH, NORTH, GLOBAL_ONLY)):
         sel = bands == band
@@ -280,8 +356,18 @@ def sample_latlon(lat, lon, spacing_m: float, store: _BlockStore | None = None) 
             inside = (x >= xmin) & (x <= xmax) & (y >= ymin) & (y <= ymax)
             if not inside.any():
                 continue
-            vals = sample_source(src, level_for(src, spacing_m), x[inside], y[inside], store)
+            try:
+                vals = sample_source(src, level_for(src, spacing_m), x[inside], y[inside], store)
+            except OfflineError as e:
+                if not coarser_if_offline:
+                    raise
+                if skipped is None:  # visible in the server log (prefetch_tiles.py --check lists them all)
+                    _log.warning("offline: %s not cached here, using coarser cached terrain", src.name)
+                skipped = e
+                continue
             out[todo[inside]] = vals
+    if skipped is not None and np.isnan(out).any():
+        raise skipped  # nothing cached for some points: an error, not a flat patch
     return out
 
 

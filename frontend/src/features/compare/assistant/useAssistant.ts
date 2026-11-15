@@ -28,6 +28,7 @@ export interface AssistantState {
   open: boolean
   messages: ChatMessage[]
   pending: boolean
+  streamingReply: string
   error: { reason: string; message: string } | null
   availability: AssistantAvailability
   availabilityMessage: string | null
@@ -74,14 +75,17 @@ export const useAssistant = create<AssistantState>()(
         inflight?.abort()
         const ctl = new AbortController()
         inflight = ctl
-        set({ pending: true, error: null, lastSignature: contextSignature(context) })
+        set({ pending: true, streamingReply: '', error: null, lastSignature: contextSignature(context) })
         try {
-          const r = await postAssistantChat(turns, context, ctl.signal)
+          const r = await postAssistantChat(turns, context, ctl.signal, (draft) => {
+            if (inflight === ctl) set({ streamingReply: draft })
+          })
           if (inflight !== ctl) return
           set((s) => ({
             messages: [...s.messages, { id: newId(), role: 'assistant' as const, content: r.reply, at: Date.now(), model: r.model, verdicts: verdictChips(context) }].slice(-MAX_KEPT),
             availability: 'available',
             availabilityMessage: null,
+            streamingReply: '',
           }))
         } catch (e) {
           if (isAbort(e) || inflight !== ctl) return
@@ -93,7 +97,7 @@ export const useAssistant = create<AssistantState>()(
         } finally {
           if (inflight === ctl) {
             inflight = null
-            set({ pending: false })
+            set({ pending: false, streamingReply: '' })
           }
         }
       }
@@ -102,6 +106,7 @@ export const useAssistant = create<AssistantState>()(
         open: false,
         messages: [],
         pending: false,
+        streamingReply: '',
         error: null,
         availability: 'unknown',
         availabilityMessage: null,
@@ -164,13 +169,13 @@ export const useAssistant = create<AssistantState>()(
         stop: () => {
           inflight?.abort()
           inflight = null
-          set({ pending: false })
+          set({ pending: false, streamingReply: '' })
         },
 
         clear: () => {
           inflight?.abort()
           inflight = null
-          set({ messages: [], pending: false, error: null, lastSignature: null })
+          set({ messages: [], pending: false, streamingReply: '', error: null, lastSignature: null })
         },
       }
     },
