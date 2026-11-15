@@ -263,6 +263,7 @@ export function GlobeControls({
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'u' && e.key !== 'U') return
       if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
+      if (el.closest('[inert]')) return // the Planner is hidden behind another page
       const t = e.target as HTMLElement | null
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return // typing
       useCameraTilt.setState((s) => ({ requests: s.requests + 1 }))
