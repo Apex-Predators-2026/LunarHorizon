@@ -129,7 +129,12 @@ export interface ScienceContext {
 
 /** Decimated mission timeline. `null` = unknown at that sample (terrain or ephemeris gap), never a measurement. */
 export interface TimelineColumns {
-  step_hours: number
+  step_hours: number // spacing of the returned points (source cadence x stride)
+  source_step_hours?: number // cadence of the source data
+  stride?: number // chart decimation (points per source sample)
+  mission_start_utc?: string | null // the evaluated interval; `hour` is measured from its start
+  mission_end_utc?: string | null
+  sun_visible?: (boolean | null)[] // any part of the disk visible (authoritative: a sliver can round to 0)
   hour: number[]
   time_utc: string[]
   sun_elevation_deg: (number | null)[]
@@ -168,6 +173,7 @@ export interface ConstraintItem {
 
 export interface EvidenceWindow {
   kind: string // power_dark, communication_blackout, earth_visible, ...
+  duration_s: number // exact duration in seconds, as the engine reports it
   start_hour: number // hours after mission start
   end_hour: number
   duration_hours: number
@@ -181,6 +187,7 @@ export interface EvidenceWindow {
 export interface AssessmentInfo {
   evaluated_start_utc?: string | null
   evaluated_end_utc?: string | null
+  windows?: EvidenceWindow[] // every canonical window of the mission, unknown-data windows included
   engine_version: string
   scoring_method_version: string
   dataset_id: string
