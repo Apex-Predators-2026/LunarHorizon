@@ -179,6 +179,8 @@ export interface EvidenceWindow {
 
 /** Canonical evidence beyond pass/fail and score: metric states, constraints, risk, coverage, versions. */
 export interface AssessmentInfo {
+  evaluated_start_utc?: string | null
+  evaluated_end_utc?: string | null
   engine_version: string
   scoring_method_version: string
   dataset_id: string
@@ -265,6 +267,13 @@ export interface CompareResult {
   evaluated_duration_days?: number | null
   /** Plain note when the evaluated landing time or length differs from the request. */
   time_note?: string | null
+  /** Site file the result came from (relative to data/sites) and its SHA-256 as evaluated; null for demonstration data. */
+  dataset_file?: string | null
+  dataset_sha256?: string | null
+  /** The interval evaluated (UTC, hourly grid). */
+  evaluated_start_utc?: string | null
+  evaluated_end_utc?: string | null
+  evaluated_hours?: number | null
   site_context: SiteContext | null
   science_context: ScienceContext | null
   viability: ViabilityResult | null
@@ -295,6 +304,7 @@ export interface CompareResponse {
   pairwise: PairEvidence[]
   viability_source: string
   notes: string[]
+  time_policy?: string | null // the backend's mission-time policy for this request
 }
 
 /** Client-side state of one scenario's result. */

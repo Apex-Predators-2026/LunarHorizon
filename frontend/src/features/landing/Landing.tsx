@@ -4,9 +4,12 @@
 // team's frosted GlassSurface, and M3 easing for every move.
 import { useEffect, useRef, useState } from 'react'
 
+import { goToView } from '../../appRoute'
 import { GlassDefs, GlassSurface } from '../../ui/GlassSurface'
 import { InteractiveGrainGradient } from '../../ui/InteractiveGrainGradient'
+import { RoverMascot } from '../../ui/RoverMascot'
 import { ChevronRightIcon, ExternalIcon } from '../../ui/icons'
+import { useAssistant } from '../compare/assistant/useAssistant'
 import { LiveNow } from './LiveNow'
 import { DATA_SOURCES, HERO, PICTURES, REPO_URL } from './content'
 import './landing.css'
@@ -129,6 +132,32 @@ function FeatureCarousel() {
   )
 }
 
+function MeetRover() {
+  function openAssistant() {
+    useAssistant.getState().setOpen(true)
+    goToView('compare')
+    window.scrollTo(0, 0)
+  }
+
+  return (
+    <section className="lnd-section lnd-light lnd-rover" aria-labelledby="rover-h">
+      <div className="lnd-wrap lnd-rover-grid">
+        <div className="lnd-rover-stage">
+          <RoverMascot facing="right" size={260} />
+        </div>
+        <div className="lnd-rover-copy">
+          <h2 id="rover-h">Meet Rover</h2>
+          <p className="lnd-rover-lead"><strong>Your AI-powered mission companion.</strong></p>
+          <p>Rover helps you make sense of your mission data. From summarizing key events to highlighting important insights, Rover turns complex mission information into clear, useful answers. Have a question? Just ask Rover.</p>
+          <button type="button" className="lnd-btn lnd-rover-link" onClick={openAssistant}>
+            Meet your assistant <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function Data() {
   return (
     <section id="data" className="lnd-section lnd-light lnd-data" aria-labelledby="data-h">
@@ -246,6 +275,7 @@ export default function Landing({ onOpen }: { onOpen: () => void }) {
       <main>
         <Hero onOpen={onOpen} />
         <FeatureCarousel />
+        <MeetRover />
         <Data />
         <Close onOpen={onOpen} />
       </main>

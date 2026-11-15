@@ -2,7 +2,7 @@
 // conditions drawn side by side so the differences are visible without reading the tables. Everything shown comes
 // from the canonical engine (verdicts, ranks, metrics); bars are drawn only for exact values.
 import { eligibilityOf, groupCountOf, rankText, requirementSummary, type Entry } from './analysis'
-import { HEADLINES, headlineRows, type Headline } from './glance'
+import { HEADLINES, headlineNote, headlineRows, type Headline } from './glance'
 import { buildDecision } from './decision'
 import { seriesColor } from './palette'
 import type { PairEvidence, RankingGroup } from './types'
@@ -23,15 +23,21 @@ function Bars({ h, entries }: { h: Headline; entries: Entry[] }) {
           <li key={r.entry.scenario.id} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 text-xs">
             <ScenarioChip s={r.entry.scenario} size="sm" />
             <span className="relative block h-2.5 overflow-hidden rounded-sm bg-inset" aria-hidden="true">
-              {r.value !== null && (
+              {/* A measured zero draws no bar (its text says 0); a small positive value keeps a visible sliver. */}
+              {r.value !== null && r.value > 0 && (
                 <span className="absolute inset-y-0 left-0 rounded-sm"
-                  style={{ width: `${Math.max(1.5, (r.value / max) * 100)}%`, background: seriesColor(r.entry.scenario.colorSlot) }} />
+                  style={{ width: `${Math.min(100, Math.max(1.5, (r.value / max) * 100))}%`, background: seriesColor(r.entry.scenario.colorSlot) }} />
               )}
             </span>
             <span className="flex min-w-[7.5rem] items-center justify-end gap-1 tabular-nums text-ink-2">
               {r.status && r.status !== 'not_applicable' && <ReqIcon status={r.status as 'pass' | 'fail' | 'unknown'} />}
               <span className={r.value === null ? 'text-ink-4' : ''}>{r.text}</span>
-              {r.best && <span className="text-[11px] font-medium text-emerald-300" title="Meaningfully better than every other compared scenario">best</span>}
+              {r.best && (
+                <span className="text-[11px] font-medium text-emerald-300" data-testid="glance-best"
+                  title={r.illustrative ? 'Best among demonstration results only: illustrative, not about the real Moon' : 'A meaningful, proven lead on this quantity among comparable real-data scenarios. Descriptive, not a recommendation.'}>
+                  {r.illustrative ? 'best (illustrative)' : 'best'}
+                </span>
+              )}
             </span>
           </li>
         ))}
@@ -84,15 +90,24 @@ export function AtAGlance({ entries, groups, pairs, ready, onJump }: {
           })}
         </ul>
       </div>
-      {anyData && (
-        <div data-tour="compare-headlines" className="grid gap-x-8 gap-y-4 rounded-xl border border-line bg-surface p-4 md:grid-cols-2">
-          {HEADLINES.map((h) => <Bars key={h.key} h={h} entries={entries} />)}
-          <p className="text-[11px] text-ink-3 md:col-span-2">
-            Bars are drawn only for exact values; a range or a missing value is written out instead. The icon is the verdict of the
-            requirement each figure is checked against. “best” needs a meaningful lead (≥ 1 percentage point, or ≥ 2 h / 10%).
-          </p>
-        </div>
-      )}
+      <HeadlineConditions entries={entries} />
     </div>
+  )
+}
+
+/** The four headline conditions side by side (the "compare-headlines" tour target). Nothing until data exists. */
+export function HeadlineConditions({ entries }: { entries: Entry[] }) {
+  if (!entries.some((e) => e.result)) return null
+  const note = headlineNote(entries)
+  return (
+      <div data-tour="compare-headlines" className="grid gap-x-8 gap-y-4 rounded-xl border border-line bg-surface p-4 md:grid-cols-2">
+        {HEADLINES.map((h) => <Bars key={h.key} h={h} entries={entries} />)}
+        <p className="text-[11px] text-ink-3 md:col-span-2">
+          Bars are drawn only for exact values; a range or a missing value is written out instead. The icon is the verdict of the
+          requirement each figure is checked against. “best” is a proven, meaningful lead (≥ 1 percentage point, or ≥ 2 h / 10%)
+          on one quantity among comparable real-data plans: it describes a measurement, it is not the recommendation.
+          {note && <span className="mt-1 block text-ink-2" data-testid="glance-best-note">{note}</span>}
+        </p>
+      </div>
   )
 }

@@ -1,0 +1,91 @@
+/* Mission Assistant panel: geometry moves smoothly between side / full screen / minimized, plus Rover's dock. */
+.cmp-assistant-panel.cmp-ai {
+  /* Panels are placed with px left/top/width/height, so every layout change animates. */
+  --ai-geo: left var(--md-dur-medium2) var(--md-ease-emph-decel), top var(--md-dur-medium2) var(--md-ease-emph-decel),
+    width var(--md-dur-medium2) var(--md-ease-emph-decel), height var(--md-dur-medium2) var(--md-ease-emph-decel);
+}
+.cmp-assistant-panel.cmp-ai[data-open='true'] {
+  transition: transform var(--md-dur-medium2) var(--md-ease-emph-decel), var(--ai-geo);
+}
+.cmp-assistant-panel.cmp-ai[data-resizing='true'] {
+  transition: transform var(--md-dur-medium2) var(--md-ease-emph-decel);
+}
+@media (min-width: 1100px) {
+  .cmp-dashboard-content[data-assistant-open='true'] {
+    margin-right: calc(var(--assistant-w, 400px) + 16px);
+  }
+}
+
+/* Rover beside the minimized dock: he stands next to it and bobs a little. */
+.cmp-ai-rover {
+  position: absolute;
+  z-index: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  background: none;
+  border: 0;
+  padding: 0;
+  transform-origin: bottom center;
+  animation: cmp-ai-rover-in var(--md-dur-medium4) var(--md-ease-emph-decel) both;
+}
+.cmp-ai-rover:hover .cmp-ai-bubble { opacity: 1; transform: none; }
+.cmp-ai-rover:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 4px; border-radius: 16px; }
+@keyframes cmp-ai-rover-in {
+  from { opacity: 0; transform: translateX(24px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cmp-ai-rover > svg { animation: cmp-ai-rover-bob 3.2s ease-in-out infinite; }
+}
+@keyframes cmp-ai-rover-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.cmp-ai-bubble {
+  position: absolute;
+  right: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(10px) translateY(4px);
+  opacity: 0;
+  white-space: nowrap;
+  border-radius: 16px;
+  background: var(--color-opal-50, #f5f5f7);
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--color-calcite-ink, #3c4044);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  transition: opacity var(--md-dur-short4) var(--md-ease-standard), transform var(--md-dur-short4) var(--md-ease-standard);
+  pointer-events: none;
+}
+
+/* Resize handles on the side panel's left / top edges. */
+.cmp-ai-grip { position: absolute; z-index: 5; touch-action: none; }
+.cmp-ai-grip-w { left: -3px; top: 16px; bottom: 16px; width: 8px; cursor: ew-resize; }
+.cmp-ai-grip-n { top: -3px; left: 16px; right: 16px; height: 8px; cursor: ns-resize; }
+.cmp-ai-grip-nw { top: -4px; left: -4px; width: 18px; height: 18px; cursor: nwse-resize; }
+.cmp-ai-grip::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 4px;
+  background: var(--color-coral);
+  opacity: 0;
+  transition: opacity var(--md-dur-short3) var(--md-ease-standard);
+}
+.cmp-ai-grip:hover::after, .cmp-ai-grip[data-active='true']::after { opacity: 0.55; }
+
+/* The composer: one rounded field with the send button inside it (ChatGPT style). */
+/* No orange focus box while typing: just a slightly darker edge on the field. */
+.cmp-page .cmp-ai-composer textarea:focus,
+.cmp-page .cmp-ai-composer textarea:focus-visible { outline: none; box-shadow: none; }
+.cmp-ai-composer:focus-within { border-color: var(--color-ink-4, #8d9096); }
+
+/* Rover bounces in place while he talks: he stays on the ground and his sprite squashes and stretches. */
+.cmp-ai-bounce { display: inline-flex; transform-origin: 50% 100%; }
+@media (prefers-reduced-motion: no-preference) {
+  .cmp-ai-bounce[data-on='true'] { animation: cmp-ai-bounce 0.42s ease-in-out infinite; }
+}
+@keyframes cmp-ai-bounce {
+  0%, 100% { transform: scale(1.05, 0.94); }   /* squashed down */
+  50%      { transform: scale(0.97, 1.06); }   /* stretched up */
+}

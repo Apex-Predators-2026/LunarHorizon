@@ -253,6 +253,35 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 .lnd-wrap { max-width: 1440px; margin: 0 auto; padding: 0 var(--lnd-pad); }
 .lnd-light h2 { font-size: clamp(36px, 4.4vw, 64px); line-height: 1; letter-spacing: -0.045em; color: var(--lnd-ink); }
 .lnd-light h2 + p { margin-top: 24px; max-width: 520px; font-size: 20px; color: var(--lnd-ink-2); }
+.lnd-section.lnd-rover { padding: clamp(64px, 8vw, 112px) 0; }
+.lnd-rover + .lnd-data { padding-top: clamp(32px, 4vw, 64px); }
+.lnd-rover-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  align-items: center;
+  gap: clamp(32px, 6vw, 96px);
+}
+.lnd-rover-stage {
+  display: grid;
+  place-items: center;
+  min-height: clamp(240px, 32vw, 380px);
+  padding: 32px;
+  border-radius: 28px;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--lnd-coral) 17%, var(--lnd-surface)), var(--lnd-surface) 74%);
+}
+.lnd-rover-copy { max-width: 540px; }
+.lnd-light .lnd-rover-lead { margin-top: 16px; }
+.lnd-rover-lead + p { margin-top: 12px; color: var(--lnd-ink-2); }
+.lnd .lnd-rover-link {
+  margin-top: 24px;
+  background: var(--lnd-coral);
+  color: #1f2326;
+}
+.lnd .lnd-rover-link:hover { background: #ff7a64; }
+@media (max-width: 760px) {
+  .lnd-rover-grid { grid-template-columns: 1fr; }
+  .lnd-rover-stage .rover-mascot { max-width: 180px; }
+}
 .lnd-data-grid { display: grid; grid-template-columns: 5fr 7fr; gap: 64px; align-items: start; }
 .lnd-sources { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .lnd-sources a {
