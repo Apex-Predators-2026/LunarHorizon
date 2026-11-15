@@ -82,7 +82,9 @@
   }
   .lp-dark :is(.report-page, .report-section-link, .report-appendix summary) { color: var(--color-slate-100); }
   .lp-dark .report-page { border-color: var(--color-opal-300); }
-  .lp-dark .report-section-link:hover { background: var(--color-opal-300); }
+  .lp-dark .report-section-link:hover,
+  .lp-dark .report-section-link[aria-current] { background: var(--color-opal-300); }
+  .lp-dark .report-toc-title { color: var(--color-slate-400); }
   .lp-dark .report-section-link:focus-visible { outline-color: var(--color-coral); }
   .lp-dark .report-appendix-note { color: var(--color-slate-400); }
 }
