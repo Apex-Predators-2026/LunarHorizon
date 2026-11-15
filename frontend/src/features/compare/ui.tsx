@@ -116,6 +116,24 @@ export function EligibilityBadge({ eligibility }: { eligibility: Eligibility }) 
   )
 }
 
+const REQ_ICON: Record<'pass' | 'fail' | 'unknown' | 'not_applicable', { icon: IconName; cls: string; text: string }> = {
+  pass: { icon: 'check', cls: 'text-emerald-300', text: 'requirement met' },
+  fail: { icon: 'close', cls: 'text-red-300', text: 'requirement failed' },
+  unknown: { icon: 'unknown', cls: 'text-slate-300', text: 'cannot be decided (missing data)' },
+  not_applicable: { icon: 'info', cls: 'text-slate-500', text: 'not applicable' },
+}
+
+/** One requirement verdict as an icon with screen-reader text (the visible label sits next to it). */
+export function ReqIcon({ status }: { status: keyof typeof REQ_ICON }) {
+  const s = REQ_ICON[status]
+  return (
+    <span className={`inline-flex shrink-0 ${s.cls}`} title={s.text}>
+      <Icon name={s.icon} size={14} />
+      <span className="sr-only">{s.text}</span>
+    </span>
+  )
+}
+
 /** Canonical rank badge, scoped to its comparable group. Only rendered for ranked (PASS) scenarios. */
 export function RankBadge({ text }: { text: string }) {
   return (
