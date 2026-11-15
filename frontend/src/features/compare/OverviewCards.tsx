@@ -114,6 +114,9 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
                     : e.state?.state === 'loading' ? 'Requesting timelines and viability from the backend…' : 'Waiting…'}
               </p>
             )}
+            {e.state?.state === 'done' && e.state.result.time_note && (
+              <p className="mt-2 text-[11px] leading-snug text-slate-400">{e.state.result.time_note}</p>
+            )}
             {/* What was evaluated: the spacecraft settings and the requirement limits of this plan. */}
             <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 border-t border-line pt-2 text-[11px]">
               <dt className="text-slate-500">Spacecraft</dt>

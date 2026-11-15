@@ -16,6 +16,7 @@ import numpy as np
 
 from .. import store
 from ..models import Scenario
+from ..timegrid import snap_duration_days, snap_time, time_note
 from ..rescue.catalog import SITES_BY_ID, nearest_psr_edge_km
 from ..rescue.timeline import SyntheticTimelineProvider, Timeline
 from ..rescue.timeline.base import to_np_utc
@@ -269,13 +270,18 @@ def _viability(sc: Scenario, tl: Timeline):
 
 
 def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> tuple[CompareResult, Assessed | None]:
-    sc = item.scenario
+    # One time policy on every screen (app.timegrid): evaluate on the hourly data grid and say so when it moves.
+    asked = item.scenario
+    sc = asked.model_copy(update={"landing_utc": snap_time(asked.landing_utc),
+                                  "duration_days": snap_duration_days(asked.duration_days)})
+    grid = dict(evaluated_landing_utc=_iso(to_np_utc(sc.landing_utc)), evaluated_duration_days=sc.duration_days,
+                time_note=time_note(asked.landing_utc, asked.duration_days, sc.landing_utc, sc.duration_days))
     tl = real_timeline(sc)
     kind = "real"
     if tl is None:
         if not allow_demo:
             reason = data_coverage(sc)
-            return CompareResult(key=item.key, status="unavailable", data_kind="unavailable", data_source="none",
+            return CompareResult(key=item.key, status="unavailable", data_kind="unavailable", data_source="none", **grid,
                                  message=reason + " Enable demonstration data to see a synthetic illustration instead.",
                                  ranking=unassessed_ranking(reason),
                                  site_context=site_context(sc), science_context=science_context(sc)), None
@@ -303,7 +309,7 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
             sun_windows=sun_w, dark_windows=dark_w, earth_windows=earth_w, blackout_windows=black_w, events=events(tl),
         )
     result = CompareResult(
-        key=item.key, status="ok", data_kind=kind, data_source=tl.source, message=" ".join(notes) or None,
+        key=item.key, status="ok", data_kind=kind, data_source=tl.source, message=" ".join(notes) or None, **grid,
         site_context=site_context(sc), science_context=science_context(sc),
         viability=viability,
         assessment=assessment_info(assessment) if assessment is not None else None,

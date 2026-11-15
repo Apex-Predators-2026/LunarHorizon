@@ -47,8 +47,9 @@ export interface AtlasResponse {
   site_name: string
   data_start_utc: string
   data_stop_utc: string
-  start_utc: string
+  start_utc: string // first landing evaluated (hourly data grid)
   step_hours: number
+  time_note?: string // plain note when the grid moved the start or a length
   landing_utc: string[]
   durations_days: number[]
   requirements_input: MissionRequirements

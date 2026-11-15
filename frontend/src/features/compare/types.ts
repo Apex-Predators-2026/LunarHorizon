@@ -259,6 +259,11 @@ export interface CompareResult {
   message: string | null
   data_kind: DataKind
   data_source: string
+  /** What was actually evaluated: the hourly data grid (backend app/timegrid.py). */
+  evaluated_landing_utc?: string | null
+  evaluated_duration_days?: number | null
+  /** Plain note when the evaluated landing time or length differs from the request. */
+  time_note?: string | null
   site_context: SiteContext | null
   science_context: ScienceContext | null
   viability: ViabilityResult | null

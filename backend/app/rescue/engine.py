@@ -17,6 +17,7 @@ import numpy as np
 
 from .geo import destination, distance_km
 from ..models import MissionRequirements, Scenario, Site, ViabilityMetrics, ViabilityResult, Violation
+from ..timegrid import snap_duration_days, snap_time
 from .catalog import SITES, custom_site, get_site, is_catalog, nearest_catalog_site
 from .timeline import Timeline, TimelineProvider, default_provider
 from .viability import evaluate_timeline as default_evaluate
@@ -157,7 +158,8 @@ class Evaluator:
                       req: MissionRequirements, simulation: bool | None = None) -> list[ViabilityResult]:
         if not starts:
             return []
-        starts = [snap_to_grid(t) for t in starts]  # the data grid is on whole hours
+        starts = [snap_to_grid(t) for t in starts]  # the data grid is on whole hours (app.timegrid)
+        duration_days = snap_duration_days(duration_days)  # and lengths are whole hours
         sim = self.simulation if simulation is None else simulation
         step = TIMELINE_STEP_HOURS
         n = max(1, int(round(duration_days * 24 / step)))
@@ -218,12 +220,9 @@ def _utc(dt: datetime) -> datetime:
 def snap_to_grid(t: datetime, step_hours: float = TIMELINE_STEP_HOURS) -> datetime:
     """Round a time to the nearest whole timeline step on the UTC clock (half rounds up).
 
-    The data grid sits on whole UTC hours; a start between samples would lose its first sample.
+    The shared policy for every screen lives in app.timegrid (rescue, comparison and the atlas use it alike).
     """
-    t = _utc(t)
-    step = timedelta(hours=step_hours)
-    origin = datetime(1970, 1, 1, tzinfo=timezone.utc)
-    return origin + ((t - origin + step / 2) // step) * step
+    return snap_time(t, step_hours)
 
 
 def candidate_times(earliest: datetime, opts: SearchOptions) -> list[datetime]:
