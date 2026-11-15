@@ -159,7 +159,7 @@ export function AlternativeCard({ alt, selected, onSelect, onCheckSensitivity }:
           {elig === 'pass' && <PassHeadroom headroom={hr} surface="planner" compact className="mt-2" />}
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-xl font-semibold tabular-nums text-slate-100">{viability.score?.toFixed(0) ?? '—'}</div>
+          <div className="text-xl font-semibold tabular-nums text-slate-100">{viability.score?.toFixed(0) ?? '-'}</div>
           <div className="text-[11px] text-slate-500">score</div>
         </div>
       </header>

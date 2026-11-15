@@ -78,7 +78,7 @@ const Lanes = memo(function Lanes({ e, top, x, view, w, gutter: GUTTER }: { e: E
   const earthIn = engineEarth || !r.timeline ? r.earth_windows : timelineEarthRuns(r.timeline, true)
   const earthOut = engineEarth || !r.timeline ? r.blackout_windows : timelineEarthRuns(r.timeline, false)
   const unknownTitle = (lane: 'Sun' | 'Earth', w: Window) =>
-    `${lane} unknown ${fmtDur(w.duration_hours)}: ${w.start_utc} → ${w.end_utc}. No terrain or ephemeris data — ` +
+    `${lane} unknown ${fmtDur(w.duration_hours)}: ${w.start_utc} → ${w.end_utc}. No terrain or ephemeris data: ` +
     `not ${lane === 'Sun' ? 'darkness' : 'a blackout'}, and not counted as one.`
   return (
     <g>
