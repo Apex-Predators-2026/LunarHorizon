@@ -95,8 +95,12 @@ function SingleSunLight({
       shadow-camera-bottom={-shadowHalfWidth}
       shadow-camera-near={1}
       shadow-camera-far={45000}
-      shadow-bias={-0.0004}
-      shadow-normalBias={8}
+      // Bias in shadow-map texels, as for the cascades below. normalBias lifts each lookup off the
+      // ground (metres), which moves shadow edges by normalBias / tan(sun elevation) towards whatever
+      // casts them: the old 8 m cut ~300 m off every shadow at a 1.5 deg polar Sun (and the rover's
+      // whole shadow). 1.5 texels (~4 m at 4096 px over 12 km) still keeps grazing light acne-free.
+      shadow-bias={-0.00005}
+      shadow-normalBias={((2 * shadowHalfWidth) / shadowMapSize) * 1.5}
     />
   )
 }

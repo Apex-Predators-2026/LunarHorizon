@@ -6,8 +6,9 @@ import { buildHorizonCurtain } from './geometry'
 
 // The curtain is the horizon as seen from the lander, so it only makes sense with the camera at
 // the lander. Further away it would wrap the camera in a dark shell and hide the whole Moon
-// (e.g. zooming out while still in the Sun / Earth view).
-const SHOW_WITHIN_M = 1000
+// (e.g. zooming out while still in the Sun / Earth view). The views put the camera at the lander's
+// eye (CameraRig); a few hundred metres away nearby rims no longer line up with the line.
+const SHOW_WITHIN_M = 200
 
 /**
  * The computed terrain horizon (720 directions, out to 300 km) drawn as a distant curtain, from

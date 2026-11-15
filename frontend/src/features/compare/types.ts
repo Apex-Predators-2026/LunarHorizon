@@ -64,6 +64,7 @@ export interface Window {
   end_utc: string
   open_start: boolean
   open_end: boolean
+  kind?: string | null // canonical window kind (darkness, sun_unknown, earth_unknown, ...)
 }
 
 export interface MissionEvent {
@@ -276,8 +277,15 @@ export interface CompareResult {
   dark_windows: Window[]
   earth_windows: Window[]
   blackout_windows: Window[]
+  /** The engine's sun_unknown / earth_unknown windows: no data there, never darkness or a blackout. */
+  unknown_windows?: Window[]
   events: MissionEvent[]
   timeline: TimelineColumns | null
+  /** Mission hours with a known Sun / Earth state (null when not assessed). */
+  sun_known_hours?: number | null
+  earth_known_hours?: number | null
+  /** solar / earth / power -> why that block of statistics is withheld (it is never shown as 0). */
+  withheld?: Record<string, string>
 }
 
 export interface CompareResponse {
