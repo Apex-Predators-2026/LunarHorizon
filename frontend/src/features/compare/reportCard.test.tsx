@@ -61,8 +61,8 @@ describe('Mission Report Card', () => {
   it('never counts UNKNOWN as a failure', () => {
     const c = buildReportCard(snapshot(['A', 'B', 'C', 'D']))
     expect(c.final.categories).toEqual({ eligible_pass: ['B', 'C'], fail: ['A'], unknown: ['D'], not_assessed: [] })
-    expect(c.executive_summary).toMatch(/Scenario D cannot be decided from the data \(UNKNOWN, not a failure\)/)
-    expect(c.executive_summary).not.toMatch(/Scenario D fails/)
+    expect(c.executive_summary).toMatch(/Plan D cannot be decided from the data \(UNKNOWN, not a failure\)/)
+    expect(c.executive_summary).not.toMatch(/Plan D fails/)
     for (const w of c.strengths.find((x) => x.label === 'D')!.weaknesses) expect(w).not.toMatch(/\bFails\b/)
   })
 
@@ -106,9 +106,9 @@ describe('Mission Report Card', () => {
   it('compares the plans only where the evidence allows it', () => {
     const c = buildReportCard(snapshot(['A', 'B', 'C', 'D']))
     const f = Object.fromEntries(c.analysis.findings.map((x) => [x.topic, x.text]))
-    expect(f.Sunlight).toMatch(/^Scenario B has the most sunlight \(Mean visible solar disk: A 36\.8%; B 95\.6%; C 76\.1%; D Not assessed\)/)
+    expect(f.Sunlight).toMatch(/^Plan B has the most sunlight \(Mean visible solar disk: A 36\.8%; B 95\.6%; C 76\.1%; D Not assessed\)/)
     expect(f['Earth visibility']).toMatch(/^No meaningful difference/)
-    expect(f.Requirements).toMatch(/Scenario A fails minimum mean visible solar-disk fraction/)
+    expect(f.Requirements).toMatch(/Plan A fails minimum mean visible solar-disk fraction/)
     expect(c.analysis.tradeoffs.length).toBeGreaterThan(0)
     const disk = c.performance.solar.find((r) => r.id === 'disk')!
     expect(disk.best).toEqual(['B'])
@@ -131,7 +131,7 @@ describe('Mission Report Card', () => {
   it('makes an evidence-backed final assessment and never manufactures a winner', () => {
     const c = buildReportCard(snapshot(['A', 'B', 'C']))
     expect(c.final.groups[0]).toMatchObject({ outcome: 'recommended', recommended: 'B' })
-    expect(c.final.conclusion).toMatch(/Scenario B is the most suitable plan/)
+    expect(c.final.conclusion).toMatch(/Plan B is the most suitable plan/)
     const lone = buildReportCard(snapshot(['A']))
     expect(lone.final.groups.every((g) => g.recommended === null)).toBe(true)
     expect(lone.final.conclusion).toMatch(/^No eligible passing recommendation is available/)

@@ -57,7 +57,7 @@ export interface DecisionReport {
 /** Lower-case only the first letter, so proper nouns inside a requirement name ("Earth") keep their capital. */
 export const lcFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1)
 
-const L = (e: Entry) => `Scenario ${e.scenario.label}`
+const L = (e: Entry) => `Plan ${e.scenario.label}`
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
 
 /** Replace the engine's internal scenario ids with the scenario letters the user sees. Nothing else changes. */
@@ -224,7 +224,7 @@ function decideGroup(v: GroupView, entries: Entry[], pairs: PairEvidence[], mult
     const hr = headroomOfEntry(recommended)
     const limited = isLimitedHeadroom(hr)
     const passClause = hr && limited ? qualifiedPassClause(hr) : 'passes every requirement'
-    headline = `${L(recommended)} is preferred under the selected requirements${label}: it ${passClause} and holds canonical rank 1 of ${v.ranked.length} passing scenarios.`
+    headline = `${L(recommended)} is preferred under the selected requirements${label}: it ${passClause} and holds canonical rank 1 of ${v.ranked.length} passing plans.`
     evidence.push(...scoreEvidence(recommended, runner, deciding))
   } else if (v.ranked.length === 1 && members.length === 1) {
     kind = 'lone'
@@ -232,15 +232,15 @@ function decideGroup(v: GroupView, entries: Entry[], pairs: PairEvidence[], mult
     const hr = headroomOfEntry(recommended)
     const limited = isLimitedHeadroom(hr)
     const passClause = hr && limited ? qualifiedPassClause(hr) : 'passes every requirement'
-    headline = `${L(recommended)} ${passClause}${label}, but no other scenario can be ranked against it (different data basis, requirements or mission duration), so this is not a comparison.`
+    headline = `${L(recommended)} ${passClause}${label}, but no other plan can be ranked against it (different data basis, requirements or mission duration), so this is not a comparison.`
   } else if (v.ranked.length === 1) {
     kind = 'single_pass'
     recommended = v.ranked[0]
     const hr = headroomOfEntry(recommended)
     const limited = isLimitedHeadroom(hr)
     headline = hr && limited
-      ? `${L(recommended)} is the only scenario${label} that ${qualifiedPassClause(hr)}.`
-      : `${L(recommended)} is the only scenario${label} that passes every requirement, so it is the only option that meets them.`
+      ? `${L(recommended)} is the only plan${label} that ${qualifiedPassClause(hr)}.`
+      : `${L(recommended)} is the only plan${label} that passes every requirement, so it is the only option that meets them.`
     const next = [...v.unknown, ...v.failed][0]
     if (next) {
       deciding = findPair(pairs, recommended, next)
@@ -248,10 +248,10 @@ function decideGroup(v: GroupView, entries: Entry[], pairs: PairEvidence[], mult
     }
   } else if (v.unknown.length) {
     kind = 'insufficient'
-    headline = `No scenario${label} is proven to pass every requirement, and ${list(v.unknown.map(L))} cannot be decided from the available data. The evidence is not sufficient for a recommendation.`
+    headline = `No plan${label} is proven to pass every requirement, and ${list(v.unknown.map(L))} cannot be decided from the available data. The evidence is not sufficient for a recommendation.`
   } else {
     kind = 'none_pass'
-    headline = `None of the scenarios${label} meets the selected requirements, so none is recommended.`
+    headline = `None of the plans${label} meets the selected requirements, so none is recommended.`
     const counts = v.failed.map((e) => ({ e, n: requirementSummary(e)?.failed.length ?? 0 }))
     const min = Math.min(...counts.map((c) => c.n))
     const fewest = counts.filter((c) => c.n === min)
@@ -281,7 +281,7 @@ export function buildDecision(entries: Entry[], groups: RankingGroup[], pairs: P
   const notes: string[] = []
   if (multi) {
     for (const v of views.slice(1)) {
-      if (v.group.separate_reason) notes.push(`Group ${v.group.id} is not comparable with ${views[0].group.id} (${humanizeSeconds(v.group.separate_reason)}), so no scenario in it is ranked against ${views[0].group.id} and no preference is stated across groups.`)
+      if (v.group.separate_reason) notes.push(`Group ${v.group.id} is not comparable with ${views[0].group.id} (${humanizeSeconds(v.group.separate_reason)}), so no plan in it is ranked against ${views[0].group.id} and no preference is stated across groups.`)
     }
   }
   for (const e of unassessed) {

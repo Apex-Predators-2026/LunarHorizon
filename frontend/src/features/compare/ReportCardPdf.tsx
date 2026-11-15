@@ -102,7 +102,7 @@ function Grid({ caption, head, rows, labels }: { caption: string; head: string; 
       <View style={s.table}>
         <View style={s.thead}>
           <View style={[s.cell, { width: '34%' }]}><Text style={s.headText}>{t(head)}</Text></View>
-          {labels.map((l) => <View key={l} style={[s.cell, { width: w }]}><Text style={s.headText}>Scenario {l}</Text></View>)}
+          {labels.map((l) => <View key={l} style={[s.cell, { width: w }]}><Text style={s.headText}>Plan {l}</Text></View>)}
         </View>
         {rows.map((r, i) => (
           <View key={r.key} style={i ? s.tr : { flexDirection: 'row' }} wrap={false}>
@@ -237,7 +237,7 @@ export function ReportCardPdf({ card }: { card: ReportCard }) {
   const plan = Object.fromEntries(card.plans.map((p) => [p.label, p]))
   const f = card.final
   return (
-    <Document title={card.title} author={card.product} subject={`Scenarios ${labels.join(', ')} · snapshot ${card.snapshot_id}`} creator={card.product} producer={card.product}>
+    <Document title={card.title} author={card.product} subject={`Plans ${labels.join(', ')} · snapshot ${card.snapshot_id}`} creator={card.product} producer={card.product}>
       {/* ---------------- title page and contents ---------------- */}
       <Page size="A4" style={s.titlePage}>
         <Chrome card={card} title />
@@ -249,7 +249,7 @@ export function ReportCardPdf({ card }: { card: ReportCard }) {
         {([
           ['Date generated', fmtWhen(card.generated_at)],
           ['Report snapshot', card.snapshot_id],
-          ['Plans compared', card.plans.map((p) => `Scenario ${p.label}: ${p.name}`).join('; ')],
+          ['Plans compared', card.plans.map((p) => `Plan ${p.label}: ${p.name}`).join('; ')],
           ['Data', 'NASA JPL Horizons ephemerides; NASA LRO LOLA terrain models'],
           ['Prepared with', card.product],
           ['Status of this document', 'Planning aid. Not an official NASA mission approval.'],
@@ -292,7 +292,7 @@ export function ReportCardPdf({ card }: { card: ReportCard }) {
           const p = plan[o.label]
           return (
             <View key={o.label} wrap={false} style={{ marginBottom: 6 }}>
-              <Text style={s.h3}>{t(`2.${i + 1} Scenario ${o.label}: ${p.name}`)}</Text>
+              <Text style={s.h3}>{t(`2.${i + 1} Plan ${o.label}: ${p.name}`)}</Text>
               <KV k="Assessment"><StatusWord status={p.status} />{t(` · ${p.eligibility} · ${p.rank}`)}</KV>
               <KV k="Landing site">{t(`${p.site}${p.coordinates ? ` (${p.coordinates})` : ''}`)}</KV>
               <KV k="Landing (UTC)">{t(p.landing)}</KV>
@@ -340,7 +340,7 @@ export function ReportCardPdf({ card }: { card: ReportCard }) {
         <H2 id="rc-strengths" breakBefore />
         {card.strengths.map((x, i) => (
           <View key={x.label} wrap={false} style={{ marginBottom: 6 }}>
-            <Text style={s.h3}>{`6.${i + 1} Scenario ${x.label} (`}<StatusWord status={plan[x.label].status} />)</Text>
+            <Text style={s.h3}>{`6.${i + 1} Plan ${x.label} (`}<StatusWord status={plan[x.label].status} />)</Text>
             <Text style={[s.cellText, { fontFamily: 'Times-BoldItalic', marginTop: 2 }]}>Strengths</Text>
             <List items={x.strengths} empty="None established by the evidence" />
             <Text style={[s.cellText, { fontFamily: 'Times-BoldItalic', marginTop: 2 }]}>Weaknesses</Text>
@@ -353,7 +353,7 @@ export function ReportCardPdf({ card }: { card: ReportCard }) {
           <View style={s.thead}>{['Eligible PASS', 'FAIL', 'UNKNOWN', 'Not assessed'].map((h) => <View key={h} style={[s.cell, { width: '25%' }]}><Text style={s.headText}>{h}</Text></View>)}</View>
           <View style={{ flexDirection: 'row' }}>
             {[f.categories.eligible_pass, f.categories.fail, f.categories.unknown, f.categories.not_assessed].map((ls, i) => (
-              <View key={i} style={[s.cell, { width: '25%' }]}><Text style={s.cellText}>{ls.length ? ls.map((l) => `Scenario ${l}`).join(', ') : 'None'}</Text></View>
+              <View key={i} style={[s.cell, { width: '25%' }]}><Text style={s.cellText}>{ls.length ? ls.map((l) => `Plan ${l}`).join(', ') : 'None'}</Text></View>
             ))}
           </View>
         </View>
@@ -372,7 +372,7 @@ export function ReportCardPdf({ card }: { card: ReportCard }) {
         <SmallList items={card.sources.nasa} />
         {card.sources.datasets.length > 0 && <><Text style={s.h3}>8.2 Datasets</Text><SmallList items={card.sources.datasets} /></>}
         <Text style={s.h3}>8.3 Data coverage</Text>
-        <SmallList items={card.sources.coverage.map((c) => `Scenario ${c.label}: ${c.text}`)} />
+        <SmallList items={card.sources.coverage.map((c) => `Plan ${c.label}: ${c.text}`)} />
         <Text style={s.h3}>8.4 Methodology</Text>
         <SmallList items={card.sources.methodology} />
         <Text style={s.h3}>8.5 Main uncertainty</Text>

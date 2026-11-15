@@ -156,7 +156,7 @@ describe('report and export parity, and backward compatibility', () => {
     expect(s.export.selection_key).toBe(s.selection.key)
     const html = plain(renderToString(<ReportDocument s={s} />))
     for (const sc of s.export.scenarios) {
-      expect(html).toContain(`Scenario ${sc.label}`)
+      expect(html).toContain(`Plan ${sc.label}`)
       const row = s.scenarios.find((r) => r.label === sc.label)!
       expect(row.mission_time).toEqual(sc.mission_time)
       expect(row.verdict).toBe(sc.assessed ? sc.eligibility : null)

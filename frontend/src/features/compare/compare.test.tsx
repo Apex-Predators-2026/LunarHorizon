@@ -233,12 +233,12 @@ describe('analysis on real data', () => {
   it('explains why with numbers only from the data', () => {
     const sum = buildSummary(entries(['A', 'B', 'C', 'D']))
     const text = sum.overall.join(' ')
-    expect(text).toContain('Scenario B provides the greatest solar availability')
+    expect(text).toContain('Plan B provides the greatest solar availability')
     expect(text).toContain('95.6%')
-    expect(text).toContain('Scenario B, Scenario C pass every requirement')
+    expect(text).toContain('Plan B, Plan C pass every requirement')
     expect(text).toContain('same landing time')
     expect(sum.bests.find((b) => b.label === 'Best Earth communication')).toBeUndefined() // tied at 100%
-    expect(sum.caveats.join(' ')).toMatch(/Scenario D has no scientific data/)
+    expect(sum.caveats.join(' ')).toMatch(/Plan D has no scientific data/)
     expect(sum.caveats.join(' ')).toMatch(/does not guarantee a working radio link/)
   })
 
@@ -387,7 +387,7 @@ describe('components render real results', () => {
     )
     expect(html).toContain('Peak Near Shackleton')
     expect(html).toContain('JPL Horizons + LOLA')
-    expect(html).toContain('title="A meaningful, proven lead among comparable real-data scenarios. Descriptive, not a recommendation.">best</span>') // the best value is marked
+    expect(html).toContain('title="A meaningful, proven lead among comparable real-data plans. Descriptive, not a recommendation.">best</span>') // the best value is marked
     expect(html).toContain('Longest continuous darkness')
     expect(html).toContain('falls outside it') // D: unavailable message, not fabricated numbers
     expect(html).toContain('Canonical ranking from the viability engine')
@@ -634,6 +634,19 @@ describe('comparison interface (Phase 4)', () => {
 })
 
 describe('quick comparisons', () => {
+  it('compares the delay against the original landing and the saved Rescue example', () => {
+    useCompareStore.setState({ scenarios: [], selectedIds: [] })
+    useCompareStore.getState().loadPreset('recovery')
+    const { scenarios, selectedIds, baselineId } = useCompareStore.getState()
+    expect(selectedIds).toEqual(scenarios.map((plan) => plan.id))
+    expect(baselineId).toBe(scenarios[1].id)
+    expect(scenarios.map((plan) => [plan.site.id, plan.landing_utc])).toEqual([
+      ['connecting-ridge', '2027-02-08T00:00:00.000Z'],
+      ['connecting-ridge', '2027-02-13T00:00:00.000Z'],
+      ['malapert-massif', '2027-02-16T12:00:00.000Z'],
+    ])
+  })
+
   it('"Same date, 3 sites" uses the curated south-pole candidates', () => {
     useCompareStore.setState({ scenarios: [], selectedIds: [], sites: [
       { id: 'apollo-11', name: 'Apollo 11', lat: 0.67, lon: 23.47, source: 'x', ground_height_m: null, isControl: false, summary: null, dataRange: null },

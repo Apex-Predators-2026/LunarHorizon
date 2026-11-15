@@ -1040,3 +1040,39 @@
 /* filter, not opacity: their entrance animation (md-reveal) holds opacity at 1. */
 .recede-behind-menu { transition: filter var(--md-dur-short4) var(--md-ease-standard); }
 body:has([data-toolbar-menu]) .recede-behind-menu { filter: opacity(0); pointer-events: none; }
+
+
+/* ==========================================================================
+ * Graphics: Extra low (viz/graphics.ts sets data-gfx="xlow" on <html>).
+ * No liquid glass / backdrop blur, no grain overlays, no shadows-on-glass, and (almost) no animation.
+ * Durations are near-zero rather than "none" so animationend / transitionend still fire and dialogs close.
+ * ========================================================================== */
+html[data-gfx='xlow'] *,
+html[data-gfx='xlow'] *::before,
+html[data-gfx='xlow'] *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  animation-duration: 0.001ms !important;
+  animation-delay: 0s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+html[data-gfx='xlow'] .glass-on {
+  background: rgba(255, 244, 238, 0.94) !important;
+  border: 1px solid rgba(130, 40, 20, 0.2) !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+html[data-gfx='xlow'] .glass-on::before,
+html[data-gfx='xlow'] .glass-on::after {
+  content: none !important;
+  display: none !important;
+}
+html[data-gfx='xlow'] .md-ripple {
+  display: none !important;
+}
+html[data-gfx='xlow'] [class*='shadow-'] {
+  box-shadow: none !important;
+}

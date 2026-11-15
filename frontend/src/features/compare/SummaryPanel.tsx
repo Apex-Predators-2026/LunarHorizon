@@ -36,11 +36,11 @@ function Block({ title, note, children }: { title: string; note: string; childre
 
 /** The question the "Ask why" button asks about this decision (none for a lone scenario: nothing to compare). */
 function decisionQuestion(d: GroupDecision): string | null {
-  const r = d.recommended ? `Scenario ${d.recommended.scenario.label}` : null
+  const r = d.recommended ? `Plan ${d.recommended.scenario.label}` : null
   switch (d.kind) {
-    case 'recommended': return `Why is ${r} preferred over the other scenarios?`
+    case 'recommended': return `Why is ${r} preferred over the other plans?`
     case 'single_pass': return `Why is ${r} the only option that meets every requirement?`
-    case 'none_pass': return 'Why does no scenario meet the requirements?'
+    case 'none_pass': return 'Why does no plan meet the requirements?'
     case 'insufficient': return 'Why can the comparison not reach a conclusion?'
     default: return null
   }
@@ -69,7 +69,7 @@ function GroupCard({ d, showGroup }: { d: GroupDecision; showGroup: boolean }) {
       <p className="text-sm leading-relaxed text-slate-100">{d.headline}</p>
       {recHr && <PassHeadroom headroom={recHr} surface="compare" compact showScreeningNote />}
 
-      <Block title="1 · Requirements" note="The viability engine's verdict on each scenario under the selected mission requirements.">
+      <Block title="1 · Requirements" note="The viability engine's verdict on each plan under the selected mission requirements.">
         <ul className="space-y-1 text-sm text-slate-300">
           {d.requirements.map(({ entry, text }) => {
             const el = eligibilityOf(entry)
@@ -90,7 +90,7 @@ function GroupCard({ d, showGroup }: { d: GroupDecision; showGroup: boolean }) {
       </Block>
 
       {(d.evidence.length > 0 || d.engineText) && (
-        <Block title="2 · Ranking evidence" note="From the engine's canonical ranking: why one scenario is placed above another and how decisive that is.">
+        <Block title="2 · Ranking evidence" note="From the engine's canonical ranking: why one plan is placed above another and how decisive that is.">
           <ul className="space-y-1 text-sm text-slate-300">{d.evidence.map((x) => <li key={x}>{x}</li>)}</ul>
           {d.engineText && (
             <details className="mt-2 text-[11px] text-slate-400">
@@ -123,7 +123,7 @@ export function SummaryPanel({ entries, groups = [], pairs = [] }: { entries: En
   return (
     <div className="space-y-4">
       {decision.groups.length === 0 ? (
-        <p className="text-sm text-slate-400">The decision appears once the selected scenarios have been assessed.</p>
+        <p className="text-sm text-slate-400">The decision appears once the selected plans have been assessed.</p>
       ) : (
         decision.groups.map((d) => <GroupCard key={d.group.id} d={d} showGroup={decision.groups.length > 1} />)
       )}

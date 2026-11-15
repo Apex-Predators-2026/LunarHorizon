@@ -39,15 +39,15 @@ export function ScenarioStrip() {
     <section id="cmp-scenarios" aria-labelledby="cmp-scenarios-h" className="cmp-section scroll-mt-16 !p-4">
       <div data-tour="compare-select">
         <div className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 id="cmp-scenarios-h" className="text-lg font-medium text-ink">Scenarios</h2>
+          <h2 id="cmp-scenarios-h" className="text-lg font-medium text-ink">Plans</h2>
           <span className="text-xs text-ink-3" aria-live="polite">
             Comparing <strong className="text-ink-2">{selected.length}</strong> of {scenarios.length} saved (max {MAX_COMPARED})
           </span>
         </div>
         {selected.length === 0 ? (
-          <p className="text-sm text-ink-3">No scenario is selected. Open “Manage scenarios” to add one or start from a quick comparison.</p>
+          <p className="text-sm text-ink-3">No plan is selected. Open “Manage plans” to select plans or choose a quick comparison.</p>
         ) : (
-          <ul className="flex flex-wrap gap-2" aria-label="Scenarios being compared">
+          <ul className="flex flex-wrap gap-2" aria-label="Plans being compared">
             {selected.map((s) => (
               <li key={s.id} className="flex min-w-0 items-center gap-2 rounded-xl border border-line bg-inset py-1 pl-3 pr-1">
                 <ScenarioChip s={s} />
@@ -63,7 +63,7 @@ export function ScenarioStrip() {
                     </span>
                   )}
                 </span>
-                <button type="button" className={btnQuiet} aria-label={`Edit scenario ${s.label}`}
+                <button type="button" className={btnQuiet} aria-label={`Edit plan ${s.label}`}
                   onClick={() => {
                     setActive(s.id)
                     reveal('cmp-scenarios-manage')
@@ -74,10 +74,10 @@ export function ScenarioStrip() {
             ))}
           </ul>
         )}
-        {selected.length === 1 && <p className="mt-2 text-xs text-amber-300">Select at least one more scenario to compare.</p>}
+        {selected.length === 1 && <p className="mt-2 text-xs text-amber-300">Select at least one more plan to compare.</p>}
       </div>
 
-      <Disclosure id="cmp-scenarios-manage" className="mt-2" defaultOpen={selected.length < 2} title="Manage scenarios"
+      <Disclosure id="cmp-scenarios-manage" className="mt-2" defaultOpen={selected.length < 2} title="Manage plans"
         summary={`${scenarios.length} saved · add, duplicate, shift a date, edit, import`}>
         <ScenarioManager />
       </Disclosure>
@@ -85,7 +85,7 @@ export function ScenarioStrip() {
         summary={`${align === 'met' ? 'Mission elapsed time' : 'Calendar date'} · educational ${educational ? 'on' : 'off'} · demonstration data ${allowDemo ? 'allowed' : 'off'}`}>
         <div className="flex flex-wrap items-center gap-2">
           <SelectField label="Align timelines by" value={align} fieldClassName="w-60"
-            tip="Line the scenarios up by time since landing, or by calendar date"
+            tip="Line the plans up by time since landing, or by calendar date"
             onChange={(e) => setAlign(e.target.value as 'met' | 'utc')}>
             <option value="met">Mission elapsed time</option>
             <option value="utc">Calendar date (UTC)</option>

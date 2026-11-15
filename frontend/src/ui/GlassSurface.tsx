@@ -1,3 +1,4 @@
+import { isLiteUi } from '../viz/graphics'
 import { useEffect, useRef, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react'
 
 /** Chromium can run an SVG displacement filter inside backdrop-filter; other browsers keep plain blur. */
@@ -59,7 +60,7 @@ export function GlassSurface({ enabled = true, radius = '28px', interactive = tr
       style={{ ...(enabled ? { borderRadius: radius } : null), ...style } as CSSProperties}
       onPointerMove={(e) => {
         onPointerMove?.(e)
-        if (!enabled || !interactive || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+        if (!enabled || !interactive || isLiteUi() || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
         const r = e.currentTarget.getBoundingClientRect()
         target.current = [e.clientX - r.left, e.clientY - r.top]
         cancelAnimationFrame(raf.current)

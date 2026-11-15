@@ -80,7 +80,7 @@ async function run(viewport) {
     await banner.waitFor({ timeout: 30_000 })
     check(`${tag} navigates to the Mission Planner`, (await hash()) === '#app/planner', await hash())
     const text = await banner.innerText()
-    check(`${tag} banner names the requirement and its origin`, /(Evidence|Data missing): /.test(text) && /from Scenario [A-Z]/.test(text), text.split('\n')[0])
+    check(`${tag} banner names the requirement and its origin`, /(Evidence|Data missing): /.test(text) && /from Plan [A-Z]/.test(text), text.split('\n')[0])
     check(`${tag} banner shows the threshold and the measured value or bounds`, /Required .+ · Measured .+/.test(text))
     const band = page.locator('[data-testid=evidence-band]')
     await band.waitFor({ timeout: 30_000 })

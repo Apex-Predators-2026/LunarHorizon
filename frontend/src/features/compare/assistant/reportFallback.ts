@@ -7,26 +7,26 @@ import type { AssistantReport } from './reportContext'
 const VERDICT: Record<string, string> = { pass: 'PASS', fail: 'FAIL', unknown: 'UNKNOWN' }
 const verdict = (v: string | null) => (v ? VERDICT[v] ?? v : 'not assessed')
 
-export const NO_REPORT = 'No Mission Report has been generated yet. Click **Generate Mission Report** at the top of the page (it is available once every selected scenario has been assessed and ranked); the report then opens as a preview. [[go:report]]'
+export const NO_REPORT = 'No Mission Report has been generated yet. Click **Generate Mission Report** at the top of the page (it is available once every selected plan has been assessed and ranked); the report then opens as a preview. [[go:report]]'
 
 /** Questions about the report's content (not how to generate, open or download it: those are how-to questions). */
 export const isReportQuestion = (q: string) =>
   /\breport\b/i.test(q) && !/\b(generate|create|make|download|pdf|print|save|open|reopen)\b|\bhow (do|can) (i|we)\b/i.test(q)
 
 function status(r: AssistantReport): string[] {
-  const when = `Generated ${fmtWhen(r.generated_at)} for Scenarios ${r.scenarios.join(', ')}.`
+  const when = `Generated ${fmtWhen(r.generated_at)} for Plans ${r.scenarios.join(', ')}.`
   return r.out_of_date
-    ? [`**Out of date:** the scenarios or their results changed after this report was generated, so it describes the earlier comparison, not the one on screen. Generate a new report for the current comparison. ${when}`]
+    ? [`**Out of date:** the plans or their results changed after this report was generated, so it describes the earlier comparison, not the one on screen. Generate a new report for the current comparison. ${when}`]
     : [`${when} It matches the comparison on screen.`]
 }
 
 const planLine = (p: AssistantReport['plans'][number]) =>
-  `- **Scenario ${p.label}** (${p.site}): ${verdict(p.verdict)} · ${p.rank}${p.deciding_requirement ? ` · ${p.deciding_requirement}` : ''}`
+  `- **Plan ${p.label}** (${p.site}): ${verdict(p.verdict)} · ${p.rank}${p.deciding_requirement ? ` · ${p.deciding_requirement}` : ''}`
 
 function decisionLines(r: AssistantReport): string[] {
   if (!r.decisions.length) return ['- No plan has a canonical assessment, so none is judged and nothing is recommended.']
   return r.decisions.flatMap((d) => [
-    `- **${d.label}**${d.recommended ? `: Scenario ${d.recommended}` : ''}${r.decisions.length > 1 ? ` (group ${d.group})` : ''}. ${d.headline}`,
+    `- **${d.label}**${d.recommended ? `: Plan ${d.recommended}` : ''}${r.decisions.length > 1 ? ` (group ${d.group})` : ''}. ${d.headline}`,
     ...d.evidence.slice(0, 2).map((e) => `  - ${e}`),
   ])
 }
@@ -49,7 +49,7 @@ const sentences = (t: string) => t.split(/(?<=\.)\s+(?=[A-Z])/)
 
 function strengthsWeaknesses(r: AssistantReport, label: string): string {
   const p = r.plans.find((x) => x.label === label)
-  if (!p) return `The report does not include Scenario ${label}. It covers Scenarios ${r.scenarios.join(', ')}.`
+  if (!p) return `The report does not include Plan ${label}. It covers Plans ${r.scenarios.join(', ')}.`
   const strengths: string[] = []
   const weaknesses: string[] = []
   for (const row of r.decisive_differences) {
@@ -62,16 +62,16 @@ function strengthsWeaknesses(r: AssistantReport, label: string): string {
   }
   // Measured advantages, as the report's trade-off sentences state them. ("… is at least as good on every metric"
   // is left out: the sentence does not name which plan it is compared with.)
-  const own = new RegExp(`^(?:In return, )?Scenario ${label} has `)
-  const other = /^(?:In return, )?Scenario ([A-Z]) has /
-  for (const t of r.decisions.flatMap((d) => d.tradeoffs).filter((x) => x.includes(`Scenario ${label}`))) {
+  const own = new RegExp(`^(?:In return, )?Plan ${label} has `)
+  const other = /^(?:In return, )?(?:Plan|Scenario) ([A-Z]) has /
+  for (const t of r.decisions.flatMap((d) => d.tradeoffs).filter((x) => x.includes(`Plan ${label}`))) {
     for (const s of sentences(t)) {
       if (own.test(s)) strengths.push(s.replace(/^In return, /, ''))
       else if (other.test(s)) weaknesses.push(`Compared with it, ${s.replace(/^In return, /, '')}`)
     }
   }
   return [
-    `### Scenario ${label}: ${verdict(p.verdict)}`,
+    `### Plan ${label}: ${verdict(p.verdict)}`,
     `${p.site} · ${p.rank}${p.deciding_requirement ? ` · ${p.deciding_requirement}` : ''}`,
     '', '**Strengths (from the report)**', ...(strengths.length ? [...new Set(strengths)].map((x) => `- ${x}`) : ['- The report lists no measured advantage for this plan.']),
     '', '**Weaknesses (from the report)**', ...(weaknesses.length ? [...new Set(weaknesses)].map((x) => `- ${x}`) : ['- The report lists no failed requirement or measured disadvantage for this plan.']),
@@ -108,7 +108,7 @@ function unknownAnswer(r: AssistantReport): string {
   return [
     'In the report, **UNKNOWN** means the data cannot decide at least one requirement and none is violated: it is **not** a failure. An UNKNOWN plan is not ranked or recommended until it can be decided.',
     ...(unknown.length ? ['', 'UNKNOWN in this report:', ...unknown.map(planLine)] : ['', 'No plan in this report is UNKNOWN.']),
-    ...(r.unassessed.length ? ['', 'Not assessed (no data):', ...r.unassessed.map((u) => `- Scenario ${u.label}: ${u.reason}`)] : []),
+    ...(r.unassessed.length ? ['', 'Not assessed (no data):', ...r.unassessed.map((u) => `- Plan ${u.label}: ${u.reason}`)] : []),
   ].join('\n')
 }
 
@@ -116,7 +116,7 @@ function unknownAnswer(r: AssistantReport): string {
 export function basicReportAnswer(question: string, r: AssistantReport | null): string {
   if (!r) return NO_REPORT
   const head = status(r)
-  const letter = /\bscenario\s+([A-Z])\b/i.exec(question)?.[1]?.toUpperCase()
+  const letter = /\b(?:plan|scenario)\s+([A-Z])\b/i.exec(question)?.[1]?.toUpperCase()
   let body: string
   if (/\b(which|what|where)\b.*\bsection\b|\bsection\b.*\b(show|has|contain)/i.test(question)) body = sectionAnswer(r, question)
   else if (/\bunknown\b/i.test(question)) body = unknownAnswer(r)

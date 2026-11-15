@@ -9,6 +9,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
+import rescueDemo from '../../../../backend/app/rescue/demo_scenario.json'
 import { useAppStore } from '../../store'
 import type { MissionRequirements, Scenario } from '../../types'
 import { WEIGHT_PRESETS, axisOrigin, type Align, type Weights } from './analysis'
@@ -30,6 +31,7 @@ import {
 import type { ComparisonScenario, PairEvidence, RankingGroup, ResultState, ScenarioOrigin, SpacecraftConfig } from './types'
 
 type Status = 'idle' | 'loading' | 'done' | 'error'
+export type QuickComparison = 'locations' | 'dates' | 'durations' | 'battery' | 'recovery'
 
 export interface CompareState {
   scenarios: ComparisonScenario[]
@@ -74,7 +76,7 @@ export interface CompareState {
   setActive: (id: string | null) => void
   setBaseline: (id: string | null) => void
   importScenarios: (list: Scenario[], opts?: ImportOptions) => string[]
-  loadPreset: (kind: 'locations' | 'dates', opts?: { siteId?: string; landingUtc?: string }) => void
+  loadPreset: (kind: QuickComparison, opts?: { siteId?: string; landingUtc?: string }) => void
 
   setAllowDemo: (v: boolean) => void
   setEducational: (v: boolean) => void
@@ -253,6 +255,10 @@ export const useCompareStore = create<CompareState>()(
 
       loadPreset: (kind, opts = {}) => {
         const { sites } = get()
+        const preset = { origin: 'preset', baselineIndex: 0 } as const
+        const original = rescueDemo.original
+        const delayed = { ...original, landing_utc: rescueDemo.verified.delayed.landing_utc }
+        const alternative = rescueDemo.verified.first_alternative
         const landing = opts.landingUtc ?? DEFAULT_DATE
         if (kind === 'locations') {
           // The three curated south-pole candidates (with real data), whatever else the site list contains.
@@ -260,14 +266,28 @@ export const useCompareStore = create<CompareState>()(
           const picks = curated.slice(0, 3)
           get().importScenarios(
             picks.map((site) => ({ ...toTeamScenario(makeScenario({ site, landing_utc: landing }, [])) })),
-            { origin: 'preset', baselineIndex: 0 },
+            preset,
           )
-        } else {
+        } else if (kind === 'dates') {
           const site = sites.find((s) => s.id === opts.siteId) ?? sites.find((s) => s.id === 'malapert-massif') ?? FALLBACK_SITES[1]
           const base = makeScenario({ site, landing_utc: landing }, [])
           get().importScenarios(
             [0, 14, 28].map((d) => toTeamScenario(duplicateShifted(base, d, []))),
-            { origin: 'preset', baselineIndex: 0 },
+            preset,
+          )
+        } else if (kind === 'durations') {
+          get().importScenarios([3, 7, 14].map((duration_days) => ({ ...original, duration_days })), preset)
+        } else if (kind === 'battery') {
+          const limits = [40, original.requirements.battery_hours, 72]
+          get().importScenarios(
+            limits.map((battery_hours) => ({ ...delayed, requirements: { ...delayed.requirements, battery_hours } })),
+            { ...preset, baselineIndex: 1, names: limits.map((hours) => `${hours} h battery limit`) },
+          )
+        } else {
+          const site = FALLBACK_SITES.find((s) => s.id === alternative.site_id)!
+          get().importScenarios(
+            [original, delayed, { ...original, site, landing_utc: alternative.landing_utc }],
+            { ...preset, baselineIndex: 1, names: ['Original landing', 'After 5-day delay', 'Mission Rescue alternative'] },
           )
         }
       },
@@ -362,7 +382,7 @@ export const useCompareStore = create<CompareState>()(
           for (const s of valid) {
             failed[resultKey(s, allowDemo)] = {
               state: 'error',
-              message: offline ? `Backend unavailable (${msg}). No scientific data is shown for this scenario.` : msg,
+              message: offline ? `Backend unavailable (${msg}). No scientific data is shown for this plan.` : msg,
             }
           }
           set({ results: failed, rankingGroups: [], rankingMethod: null, rankingSetKey: null })
