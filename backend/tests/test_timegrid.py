@@ -78,7 +78,8 @@ def test_planner_readout_uses_the_same_hour():
 
 
 # ---- the final dataset boundary: every screen lets the canonical engine judge a mission that starts inside the
-# data and runs past its end (a provable fail, otherwise unknown, never a pass)
+# data and runs past its end: a verdict where the covered hours prove it (these cases have long uncovered tails, so
+# they are a fail or unknown; a one-hour tail can prove a pass, see test_one_missing_hour_can_still_prove_a_pass)
 
 def _three_ways(landing, days):
     c = _compare(landing, days)
@@ -100,10 +101,27 @@ def test_screens_agree_at_the_end_of_the_data():
     for landing, days in [(last - timedelta(hours=23), 1), (last - timedelta(days=2), 7), (last - timedelta(hours=12), 28)]:
         c, r, a = _three_ways(_iso(landing), days)
         verdict = c["viability"]["eligibility"]
-        assert verdict in ("fail", "unknown")  # never a pass on missing hours
+        assert verdict in ("fail", "unknown")  # for these missions the covered hours do not prove a pass
         assert r.eligibility == verdict and a["status"] == verdict
         assert r.data_source.startswith("precomputed")  # real samples only, never the synthetic fallback
         assert r.score is None and c["viability"]["score"] is None
+
+
+def test_one_missing_hour_can_still_prove_a_pass():
+    """The canonical policy is bounded evidence, not "never a pass": a 3 d mission with one hour past the end of the
+    data still PASSES when even the worst case for that hour passes. Every screen says so (and the Comparison
+    withholds the whole-mission statistics it cannot compute, instead of inventing them)."""
+    from datetime import timedelta
+    from tests.data_range import data_range
+    _, last = data_range("connecting-ridge")
+    c, r, a = _three_ways(_iso(last - timedelta(hours=71)), 3)
+    assert c["viability"]["eligibility"] == "pass"
+    assert r.eligibility == "pass" and a["status"] == "pass"
+    assert set(c["withheld"]) >= {"solar", "power", "earth"}  # the figures that need every hour are withheld
+    assert all("bounds" in why for why in c["withheld"].values())  # the reason points at the engine's bounds
+    body = client.post("/api/compare", json={"scenarios": [{"key": "x", "scenario": {
+        "site": CR, "landing_utc": _iso(last - timedelta(hours=71)), "duration_days": 3}}]}).text
+    assert "never a pass" not in body and "can show a fail" not in body
 
 
 def test_comparison_withholds_window_stats_past_the_data():
