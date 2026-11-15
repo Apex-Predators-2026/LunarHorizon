@@ -105,7 +105,7 @@ function readPinPrefs(): PinPrefs {
  * sky plot. Everything shown comes from the backend (terrain tiles, horizon mask, hourly timeline),
  * so the 3D view and the charts always show the same numbers.
  */
-export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }) {
+export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fab?: ReactNode; active?: boolean }) {
   const siteId = useAppStore((s) => s.siteId)
   const timeUtc = useAppStore((s) => s.timeUtc)
   const playing = useAppStore((s) => s.playing)
@@ -425,7 +425,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
 
   // Keyboard shortcuts while measuring: Escape disarms, Backspace removes last waypoint.
   useEffect(() => {
-    if (!measureArmed) return
+    if (!measureArmed || !active) return
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
@@ -441,7 +441,17 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [measureArmed, waypoints.length])
+  }, [measureArmed, waypoints.length, active])
+
+  // The app keeps this view mounted (hidden) while another page is open, so the terrain and camera survive a
+  // visit to Comparison or the Atlas. Hidden: playback stops and nothing is drawn; shown again: draw once.
+  useEffect(() => {
+    if (!active) {
+      useAppStore.getState().setPlaying(false)
+      return
+    }
+    ;(canvasGetRef.current?.() as { invalidate?: () => void } | undefined)?.invalidate?.()
+  }, [active])
 
   const deletePin = (site: SiteInfo) => {
     if (!pinIds.has(site.id)) return
@@ -620,7 +630,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
       )}
       <Canvas
         key={`${graphicsQuality}-${canvasGen}`}
-        frameloop={PERF_RENDER_ALWAYS ? 'always' : 'demand'}
+        frameloop={!active ? 'never' : PERF_RENDER_ALWAYS ? 'always' : 'demand'}
         dpr={gfx.dpr}
         shadows={gfx.shadows}
         gl={{ logarithmicDepthBuffer: true, antialias: gfx.antialias }}
@@ -901,7 +911,8 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         className="ui-chrome md-host pointer-events-none absolute inset-0 z-[2] [--lp-side-w:clamp(280px,23.5vw,360px)]"
         style={{ fontFamily: 'var(--font-inter)' }}
       >
-        <SnackbarHost />
+        {/* Only while shown: a message raised on another page waits in the queue until the Planner is back. */}
+        {active && <SnackbarHost />}
         <TerrainLoadingOverlay />
         <div
           className="pointer-events-none absolute bottom-2 right-[4vw] flex flex-col items-end gap-2 text-[10px] tabular-nums text-white"
