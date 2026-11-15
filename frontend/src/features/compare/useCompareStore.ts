@@ -11,7 +11,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 
 import { useAppStore } from '../../store'
 import type { MissionRequirements, Scenario } from '../../types'
-import { WEIGHT_PRESETS, type Align, type Weights } from './analysis'
+import { WEIGHT_PRESETS, axisOrigin, gridLandingMs, type Align, type Weights } from './analysis'
 import { errorMessage, fetchSites, postCompare } from './api'
 import { MAX_COMPARED } from './palette'
 import type { RescueContext } from './rescueFlow'
@@ -281,7 +281,8 @@ export const useCompareStore = create<CompareState>()(
         const selected = scenarios.filter((s) => selectedIds.includes(s.id))
         const follow = selected.find((s) => s.id === activeId) ?? selected[0]
         if (!follow) return
-        const origin = align === 'utc' ? Math.min(...selected.map((s) => new Date(s.landing_utc).getTime())) : new Date(follow.landing_utc).getTime()
+        // The charts' data start at the evaluated (hourly-grid) landing, so the 3D view's time must too (00:15 -> 00:00).
+        const origin = align === 'utc' ? axisOrigin(selected) : gridLandingMs(follow)
         const t = new Date(origin + cursor * 3_600_000)
         if (Number.isNaN(t.getTime())) return
         const app = useAppStore.getState()
