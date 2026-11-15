@@ -16,6 +16,7 @@ import {
   type ReqStatus,
 } from './analysis'
 import { seriesColor } from './palette'
+import { PANEL_MODE_LABEL } from './scenario'
 import type { CompareResult } from './types'
 import { DataKindBadge, EligibilityBadge, RankBadge, ReqIcon, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
@@ -113,6 +114,21 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
                     : e.state?.state === 'loading' ? 'Requesting timelines and viability from the backend…' : 'Waiting…'}
               </p>
             )}
+            {/* What was evaluated: the spacecraft settings and the requirement limits of this plan. */}
+            <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 border-t border-line pt-2 text-[11px]">
+              <dt className="text-slate-500">Spacecraft</dt>
+              <dd className="text-slate-300">
+                {PANEL_MODE_LABEL[s.spacecraft.panel_mode]}
+                {s.spacecraft.panel_rated_power_w != null && ` · ${s.spacecraft.panel_rated_power_w} W panels`}
+                {s.spacecraft.average_load_w != null && ` · ${s.spacecraft.average_load_w} W load`}
+                {s.spacecraft.battery_capacity_wh != null && ` · ${s.spacecraft.battery_capacity_wh} Wh battery`}
+              </dd>
+              <dt className="text-slate-500">Limits</dt>
+              <dd className="text-slate-300">
+                darkness ≤ {s.requirements.battery_hours} h · blackout ≤ {s.requirements.max_comms_gap_hours} h ·
+                sunlight ≥ {Math.round(s.requirements.min_sunlight_fraction * 100)}% · Earth ≥ {Math.round(s.requirements.min_earth_visibility_fraction * 100)}%
+              </dd>
+            </dl>
             {r?.site_context && (
               <p className="mt-1 text-[11px] text-slate-500">
                 Ground {r.site_context.ground_height_m != null ? `${Math.round(r.site_context.ground_height_m)} m` : 'n/a'}

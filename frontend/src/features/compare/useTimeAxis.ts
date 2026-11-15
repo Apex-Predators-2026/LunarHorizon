@@ -1,5 +1,5 @@
 // Shared time-axis helpers for the synchronized timeline and charts.
-import { useEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 
 import { useCompareStore } from './useCompareStore'
 
@@ -33,16 +33,28 @@ export const panView = (view: [number, number], full: [number, number], frac: nu
   return clampView([view[0] + d, view[1] + d], full)
 }
 
-/** Element width, tracked with ResizeObserver. */
+/**
+ * Element width: measured once on mount (so the first layout is right even where ResizeObserver callbacks are
+ * delayed, e.g. a background tab), then kept up to date with ResizeObserver and window resizes.
+ */
 export function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] {
   const ref = useRef<T>(null)
   const [w, setW] = useState(800)
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(([e]) => setW(Math.max(280, Math.floor(e.contentRect.width))))
-    ro.observe(el)
-    return () => ro.disconnect()
+    if (!el) return
+    const measure = () => {
+      const width = Math.floor(el.getBoundingClientRect().width)
+      if (width > 0) setW(Math.max(240, width))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    ro?.observe(el)
+    return () => {
+      window.removeEventListener('resize', measure)
+      ro?.disconnect()
+    }
   }, [])
   return [ref, w]
 }
