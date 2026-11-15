@@ -2,7 +2,7 @@
 // Eligibility, ranks and order come from the canonical viability engine via the backend (never recomputed here).
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-import { canonicalRanking, cm, comparableEntries, fmtMetric, inexactText, knownValue, okEntries, scoreText, type Entry, type MetricDef } from './analysis'
+import { canonicalRanking, cm, comparableEntries, humanizeSeconds, fmtMetric, inexactText, knownValue, okEntries, scoreText, type Entry, type MetricDef } from './analysis'
 import { STATE, seriesColor } from './palette'
 import type { RankingGroup } from './types'
 import { DataKindBadge, EligibilityBadge, Explain, Icon, ScenarioChip } from './ui'
@@ -198,7 +198,7 @@ export function MissionPerformance({ entries, groups, ranking = 'ready' }: {
               {v.group.primary ? `Group ${v.group.id} (main comparison)` : `Group ${v.group.id}: ranked separately`}
               {v.group.data_basis === 'synthetic' && <span className="ml-2 text-amber-300">demonstration data</span>}
               {v.group.separate_reason && (
-                <span className="ml-2 font-normal text-slate-400">Not comparable with {views[0].group.id}: {v.group.separate_reason}</span>
+                <span className="ml-2 font-normal text-slate-400">Not comparable with {views[0].group.id}: {humanizeSeconds(v.group.separate_reason)}</span>
               )}
             </h3>
           )}
