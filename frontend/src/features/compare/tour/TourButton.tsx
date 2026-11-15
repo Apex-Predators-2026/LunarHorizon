@@ -9,7 +9,7 @@ export function TourButton() {
     <button type="button" className="cmp-btn" onClick={() => useTutorialStore.getState().startTour(actStart(2))}
       data-tip="Start the guided tour at Act 2: it loads the example mission's three plans into this comparison and selects them">
 
-      <Icon name="info" size={16} /> How to compare missions
+      <Icon name="info" size={16} /> How to compare plans
     </button>
   )
 }

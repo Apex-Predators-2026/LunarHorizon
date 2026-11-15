@@ -46,7 +46,7 @@ function MetricTable({ caption, number, rows, labels }: { caption: string; numbe
     <table className="rc-table">
       <caption>Table {number}. {caption}</caption>
       <thead>
-        <tr><th scope="col" className="rc-metric">Measure</th>{labels.map((l) => <th key={l} scope="col">Scenario {l}</th>)}</tr>
+        <tr><th scope="col" className="rc-metric">Measure</th>{labels.map((l) => <th key={l} scope="col">Plan {l}</th>)}</tr>
       </thead>
       <tbody>
         {rows.map((r) => (
@@ -76,7 +76,7 @@ function MetricTable({ caption, number, rows, labels }: { caption: string; numbe
 function BarChart({ f }: { f: BarFigure }) {
   const g = barGeometry(f)
   return (
-    <svg viewBox={`0 0 ${g.width} ${g.height}`} className="rc-svg" role="img" aria-label={`${f.title}: ${f.bars.map((b) => `Scenario ${b.label} ${b.value.text}`).join(', ')}`}>
+    <svg viewBox={`0 0 ${g.width} ${g.height}`} className="rc-svg" role="img" aria-label={`${f.title}: ${f.bars.map((b) => `Plan ${b.label} ${b.value.text}`).join(', ')}`}>
       {g.ticks.map((t) => (
         <g key={t.text}>
           <line x1={t.x} x2={t.x} y1={g.plot.y0} y2={g.plot.y1} stroke={COLORS.grid} strokeWidth={0.6} />
@@ -107,7 +107,7 @@ const OUTCOME_COLOR = { pass: COLORS.pass, fail: COLORS.fail, unknown: COLORS.un
 function OutcomeChart({ f }: { f: OutcomeFigure }) {
   const g = outcomeGeometry(f)
   return (
-    <svg viewBox={`0 0 ${g.width} ${g.height + 14}`} className="rc-svg" role="img" aria-label={`${f.title}: ${f.rows.map((r) => `Scenario ${r.label} ${r.pass} PASS, ${r.fail} FAIL, ${r.unknown} UNKNOWN`).join('; ')}`}>
+    <svg viewBox={`0 0 ${g.width} ${g.height + 14}`} className="rc-svg" role="img" aria-label={`${f.title}: ${f.rows.map((r) => `Plan ${r.label} ${r.pass} PASS, ${r.fail} FAIL, ${r.unknown} UNKNOWN`).join('; ')}`}>
       {g.ticks.map((t) => (
         <g key={t.text}>
           <line x1={t.x} x2={t.x} y1={g.plot.y0} y2={g.plot.y1} stroke={COLORS.grid} strokeWidth={0.6} />
@@ -170,7 +170,7 @@ export function ReportCardDocument({ card }: { card: ReportCard }) {
           <tbody>
             <tr><th scope="row">Date generated</th><td>{fmtWhen(card.generated_at)}</td></tr>
             <tr><th scope="row">Report snapshot</th><td>{card.snapshot_id}</td></tr>
-            <tr><th scope="row">Plans compared</th><td>{card.plans.map((p) => `Scenario ${p.label}: ${p.name}`).join('; ')}</td></tr>
+            <tr><th scope="row">Plans compared</th><td>{card.plans.map((p) => `Plan ${p.label}: ${p.name}`).join('; ')}</td></tr>
             <tr><th scope="row">Data</th><td>NASA JPL Horizons ephemerides; NASA LRO LOLA terrain models</td></tr>
             <tr><th scope="row">Prepared with</th><td>{card.product}</td></tr>
             <tr><th scope="row">Status of this document</th><td>Planning aid. Not an official NASA mission approval.</td></tr>
@@ -213,7 +213,7 @@ export function ReportCardDocument({ card }: { card: ReportCard }) {
           const p = plan[o.label]
           return (
             <div key={o.label} className="rc-plan">
-              <h3 className="rc-h3">2.{i + 1} Scenario {o.label}: <span className="rc-wrap">{p.name}</span></h3>
+              <h3 className="rc-h3">2.{i + 1} Plan {o.label}: <span className="rc-wrap">{p.name}</span></h3>
               <table className="rc-kv">
                 <tbody>
                   <tr><th scope="row">Assessment</th><td><StatusWord status={p.status} /> · {p.eligibility} · {p.rank}</td></tr>
@@ -255,7 +255,7 @@ export function ReportCardDocument({ card }: { card: ReportCard }) {
         <H2 id="rc-requirements" />
         <table className="rc-table rc-reqs">
           <caption>Table 5. Requirement-by-requirement assessment</caption>
-          <thead><tr><th scope="col" className="rc-metric">Requirement</th>{labels.map((l) => <th key={l} scope="col">Scenario {l}</th>)}</tr></thead>
+          <thead><tr><th scope="col" className="rc-metric">Requirement</th>{labels.map((l) => <th key={l} scope="col">Plan {l}</th>)}</tr></thead>
           <tbody>
             {card.requirements.rows.map((r) => (
               <tr key={r.id}>
@@ -289,7 +289,7 @@ export function ReportCardDocument({ card }: { card: ReportCard }) {
         <H2 id="rc-strengths" />
         {card.strengths.map((s, i) => (
           <div key={s.label} className="rc-plan">
-            <h3 className="rc-h3">6.{i + 1} Scenario {s.label} (<StatusWord status={plan[s.label].status} />)</h3>
+            <h3 className="rc-h3">6.{i + 1} Plan {s.label} (<StatusWord status={plan[s.label].status} />)</h3>
             <p className="rc-sw-head">Strengths</p>
             <ul className="rc-list">{s.strengths.length ? s.strengths.map((x) => <li key={x}>{x}</li>) : <li className="rc-missing">None established by the evidence</li>}</ul>
             <p className="rc-sw-head">Weaknesses</p>
@@ -303,7 +303,7 @@ export function ReportCardDocument({ card }: { card: ReportCard }) {
           <tbody>
             <tr>
               {[f.categories.eligible_pass, f.categories.fail, f.categories.unknown, f.categories.not_assessed].map((ls, i) => (
-                <td key={i}>{ls.length ? ls.map((l) => `Scenario ${l}`).join(', ') : 'None'}</td>
+                <td key={i}>{ls.length ? ls.map((l) => `Plan ${l}`).join(', ') : 'None'}</td>
               ))}
             </tr>
           </tbody>
@@ -326,7 +326,7 @@ export function ReportCardDocument({ card }: { card: ReportCard }) {
         <ul className="rc-list">{card.sources.nasa.map((x) => <li key={x}>{x}</li>)}</ul>
         {card.sources.datasets.length > 0 && <><h3 className="rc-h3">8.2 Datasets</h3><ul className="rc-list rc-wrap">{card.sources.datasets.map((x) => <li key={x}>{x}</li>)}</ul></>}
         <h3 className="rc-h3">8.3 Data coverage</h3>
-        <ul className="rc-list">{card.sources.coverage.map((c) => <li key={c.label}>Scenario {c.label}: {c.text}</li>)}</ul>
+        <ul className="rc-list">{card.sources.coverage.map((c) => <li key={c.label}>Plan {c.label}: {c.text}</li>)}</ul>
         <h3 className="rc-h3">8.4 Methodology</h3>
         <ul className="rc-list">{card.sources.methodology.map((x) => <li key={x}>{x}</li>)}</ul>
         <h3 className="rc-h3">8.5 Main uncertainty</h3>

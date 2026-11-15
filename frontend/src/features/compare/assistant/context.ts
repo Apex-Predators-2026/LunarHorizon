@@ -275,7 +275,7 @@ export const contextSignature = (c: AssistantContext): string => c.revision
 
 /** One line for the panel: what the assistant is reading right now. */
 export function contextLine(c: AssistantContext): string {
-  if (c.state === 'empty') return 'No scenarios selected'
+  if (c.state === 'empty') return 'No plans selected'
   const names = c.scenarios.map((s) => `${s.label} (${s.site.name})`).join(', ')
   const when = c.state === 'ready' ? 'results up to date' : c.state === 'loading' ? 'results loading…' : 'ranking updating…'
   return `${names} · ${when}`

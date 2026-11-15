@@ -3,7 +3,7 @@
 import { create } from 'zustand'
 
 export const COMPARE_SECTIONS = [
-  ['cmp-scenarios', 'Scenarios'], ['cmp-overview', 'At a glance'], ['cmp-metrics', 'Key metrics'], ['cmp-summary', 'Decision'],
+  ['cmp-scenarios', 'Plans'], ['cmp-overview', 'At a glance'], ['cmp-metrics', 'Key metrics'], ['cmp-summary', 'Decision'],
   ['cmp-timeline', 'Timeline'], ['cmp-performance', 'Ranking'], ['cmp-charts', 'Elevation'], ['cmp-terrain', 'Terrain'],
   ['cmp-tradeoff', 'Trade-off'], ['cmp-assessment', 'Assessment'], ['cmp-assumptions', 'Assumptions'],
   ['cmp-science', 'Science vs engineering'], ['cmp-rescue', 'Mission Rescue'],

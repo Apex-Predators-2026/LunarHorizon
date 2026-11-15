@@ -29,13 +29,13 @@ describe('comparison page', () => {
     expect(intro).toBeGreaterThan(-1)
     expect(html).toContain('Explore Methodology')
     // After every comparison block (here the empty state) and before nothing else of the page's content.
-    expect(intro).toBeGreaterThan(html.indexOf('Select at least two scenarios'))
-    expect(html).not.toContain('Back to Scenario Comparison')
+    expect(intro).toBeGreaterThan(html.indexOf('Select at least two plans'))
+    expect(html).not.toContain('Back to Plan Comparison')
   })
 
   it('shows the subpage instead of the comparison on #app/compare/methodology', () => {
     const html = renderToString(<ComparisonDashboard section={COMPARE_METHODOLOGY} />)
-    expect(html).toContain('Back to Scenario Comparison')
+    expect(html).toContain('Back to Plan Comparison')
     expect(html).toContain('data-testid="comparison-methodology"')
     expect(html).not.toContain('Comparison views') // the comparison's own tabs are not on the subpage
     expect(html).not.toContain('Explore Methodology')
@@ -62,7 +62,7 @@ describe('subpage content', () => {
   })
 
   it('has a back button at the top and at the end', () => {
-    expect(html.match(/Back to Scenario Comparison/g)?.length).toBe(2)
+    expect(html.match(/Back to Plan Comparison/g)?.length).toBe(2)
   })
 })
 

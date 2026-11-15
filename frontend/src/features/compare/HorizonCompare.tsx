@@ -127,7 +127,7 @@ export function HorizonCompare({ entries }: { entries: Entry[] }) {
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      {cursor === null && <p className="text-[11px] text-slate-500">Select a time on the timeline to place the Sun (●) and Earth (■) for each scenario.</p>}
+      {cursor === null && <p className="text-[11px] text-slate-500">Select a time on the timeline to place the Sun (●) and Earth (■) for each plan.</p>}
       <Explain title="Why does a small change in landing location matter?">
         <p>Each line is the skyline seen from that site, computed from LOLA elevation maps out to ~300 km. Where the Sun (●) sits above its site’s line, that site is lit; below it, the terrain casts the site into shadow.</p>
         <p>Because the polar Sun and Earth stay within a few degrees of the horizon, a skyline that is just 1° higher in one direction can mean days of darkness or lost contact. Moving a few kilometres onto a peak lowers the skyline in every direction, which is why ridge and summit sites are favoured.</p>
