@@ -186,7 +186,7 @@ describe('MissionPanel operational headroom', () => {
     expect(comfortableHtml).toContain('Pass · comfortable')
   })
 
-  it('derives qualified headroom and first sunset/Earthset from MissionTrack when offline (verdict is null)', () => {
+  it('never manufactures a PASS or headroom from the observed track when the engine has not answered (verdict is null)', () => {
     const plan = makeScenario(48)
     const steps = makeSteps(
       169,
@@ -197,13 +197,11 @@ describe('MissionPanel operational headroom', () => {
     useAppStore.setState({ timeUtc: toIsoMinute(track.end) })
 
     const html = renderToString(<MissionPanel mission={makePlayback(plan, track, null)} />)
-    expect(html).not.toContain('Mission over: every requirement held')
-    expect(html).toContain('Mission over: passes declared model limits')
-    expect(html).toContain('Pass · limited darkness')
-    expect(html).toContain('first sunset T+24 h')
-    expect(html).toContain('first Earthset T+18 h')
-    expect(html).toContain('Darkness headroom')
-    expect(html).toContain('Model screening result based on solar illumination')
+    // Before: "Mission over: passes declared model limits" + "Pass · limited darkness" were derived on the client.
+    expect(html).not.toContain('passes declared model limits')
+    expect(html).not.toContain('Pass ·')
+    expect(html).not.toContain('Darkness headroom')
+    expect(html).toContain('Not assessed')
   })
 })
 
@@ -223,13 +221,6 @@ describe('PlansPanel operational headroom badges', () => {
     }
 
     const comfortVerdict = makeViability(comfortablePlan.scenario, 13)
-    const limitedSteps = makeSteps(
-      169,
-      (h) => h >= 24 && h < 71,
-      (h) => h >= 18 && h < 30,
-    )
-    const limitedTrack = missionTrack(limitedSteps, limitedPlan.scenario)
-
     const comfortHtml = renderToString(
       <ul>
         <PlanCard plan={comfortablePlan} verdict={comfortVerdict} onEdit={() => {}} onRun={() => {}} />
@@ -238,14 +229,16 @@ describe('PlansPanel operational headroom badges', () => {
     expect(comfortHtml).toContain('Pass · comfortable')
     expect(comfortHtml).toContain('Screening only')
 
+    // A plan with no engine verdict for this exact plan shows no PASS of its own (it used to derive "Pass · limited
+    // darkness" from a timeline track, and "Pass · comfortable" from an empty one).
     const limitedHtml = renderToString(
       <ul>
-        <PlanCard plan={limitedPlan} track={limitedTrack} onEdit={() => {}} onRun={() => {}} />
+        <PlanCard plan={limitedPlan} onEdit={() => {}} onRun={() => {}} />
       </ul>,
     )
-    expect(limitedHtml).toContain('Pass · limited darkness')
-    expect(limitedHtml).toContain('limited · +1 h dark')
-    expect(limitedHtml).toContain('Screening only')
+    expect(limitedHtml).not.toContain('Pass ·')
+    expect(limitedHtml).not.toContain('Screening only')
+    expect(limitedHtml).toContain('plan-not-assessed')
   })
 
   it('renders cached rescue verdicts on PlansPanel cards from useRescueStore', () => {
