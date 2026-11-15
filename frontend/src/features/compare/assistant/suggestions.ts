@@ -17,7 +17,7 @@ export function suggestedQuestions(c: AssistantContext, max = 6): string[] {
   if (c.state === 'empty') return GETTING_STARTED.slice(0, max)
   const out: string[] = ['Summarize my current comparison.']
   // A generated report: offer it, and say when it no longer matches the comparison on screen.
-  if (c.report) out.push(c.report.out_of_date ? 'What changed since my report was generated?' : 'Summarize my report.')
+  if (c.report) out.push(...(c.report.out_of_date ? ['What changed since my report was generated?'] : ['Summarize my report.', 'Explain the final assessment in my report.']))
   else if (c.state === 'ready') out.push('How do I generate a mission report?')
   if (c.rescue) out.push('How does the rescued mission differ from my original plan?')
   const rec = c.scenarios.find((s) => s.recommended)
