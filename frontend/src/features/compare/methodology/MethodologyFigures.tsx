@@ -106,8 +106,8 @@ export function CurvatureExplorer() {
           <polyline points={line(false)} fill="none" stroke={STATE.muted} strokeWidth={2} strokeDasharray="5 4" />
           <polyline points={line(true)} fill="none" stroke={STATE.ink} strokeWidth={2} />
           <line x1={x(dist)} x2={x(dist)} y1={T} y2={H - B} stroke={STATE.axis} strokeWidth={1} strokeDasharray="2 3" />
-          <circle cx={x(dist)} cy={y(curved)} r={5} fill={STATE.ink} stroke="#fff" strokeWidth={2} />
-          <circle cx={x(dist)} cy={y(flat)} r={4} fill="#fff" stroke={STATE.muted} strokeWidth={2} />
+          <circle cx={x(dist)} cy={y(curved)} r={5} fill={STATE.ink} stroke={STATE.surface} strokeWidth={2} />
+          <circle cx={x(dist)} cy={y(flat)} r={4} fill={STATE.surface} stroke={STATE.muted} strokeWidth={2} />
         </g>
       </svg></div>
       <div className="mt-1 flex flex-wrap gap-4 text-xs text-ink-3" aria-hidden="true">
@@ -151,7 +151,7 @@ export function SunDiskExplorer() {
       <div className="grid items-center gap-4 sm:grid-cols-[minmax(0,300px)_1fr]">
         <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-w-[300px]" role="img"
           aria-label={`Solar disk with its centre ${fmt(centre, 2)} degrees above the horizon: ${Math.round(f * 100)} percent visible.`}>
-          <rect x={0} y={0} width={W} height={horizon} fill="#eef1f5" rx={8} />
+          <rect x={0} y={0} width={W} height={horizon} fill="var(--cmp-chart-sky)" rx={8} />
           <circle cx={W / 2} cy={cy} r={r} fill={STATE.sun} />
           <path d={`M0 ${horizon} L40 ${horizon - 6} L90 ${horizon - 2} L150 ${horizon} L210 ${horizon - 4} L260 ${horizon - 1} L${W} ${horizon - 5} L${W} ${H} L0 ${H} Z`}
             fill={STATE.dark} />
@@ -165,7 +165,7 @@ export function SunDiskExplorer() {
           <Slider label="Panel threshold" value={threshold} min={0} max={1} step={0.05} onChange={setThreshold}
             display={`${Math.round(threshold * 100)}%`} />
           <p className="flex items-start gap-2 text-sm text-ink" aria-live="polite">
-            <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${lit ? 'bg-[#fff3d6] text-[#7a5300]' : 'bg-[#2f3337] text-white'}`}>
+            <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${lit ? 'bg-amber-950 text-amber-300' : 'bg-[#2f3337] text-white'}`}>
               <Icon name={lit ? 'check' : 'close'} size={14} /> {lit ? 'Power-lit' : 'Power-dark'}
             </span>
             <span>{state}.</span>
@@ -229,8 +229,8 @@ export function VerdictExplorer() {
         <text x={(x(okFrom) + x(okTo)) / 2} y={10} textAnchor="middle" fontSize="10" fill={STATE.muted}>meets the requirement</text>
         <line x1={L} x2={W - R} y1={25} y2={25} stroke={STATE.grid} strokeWidth={6} strokeLinecap="round" />
         <rect x={x(lo) - 1} y={19} width={Math.max(3, x(hi) - x(lo) + 2)} height={12} rx={6} fill={STATE.ink} />
-        <line x1={x(req.threshold)} x2={x(req.threshold)} y1={10} y2={42} stroke="#b42e1a" strokeWidth={2} />
-        <text x={x(req.threshold)} y={56} textAnchor="middle" fontSize="11" fill="#b42e1a">limit {u(req.threshold)}</text>
+        <line x1={x(req.threshold)} x2={x(req.threshold)} y1={10} y2={42} stroke="var(--color-accent-strong)" strokeWidth={2} />
+        <text x={x(req.threshold)} y={56} textAnchor="middle" fontSize="11" fill="var(--color-accent-strong)">limit {u(req.threshold)}</text>
         <text x={L} y={56} fontSize="10" fill={STATE.muted}>0</text>
         <text x={W - R} y={56} textAnchor="end" fontSize="10" fill={STATE.muted}>{u(req.max)}</text>
       </svg></div>

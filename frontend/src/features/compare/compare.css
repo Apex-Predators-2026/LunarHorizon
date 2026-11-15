@@ -1,6 +1,5 @@
 /*
- * Scenario Comparison only. Applies the Mission Planner's light-surface conventions (Opaline surfaces,
- * charcoal ink, one coral accent, M3 shapes, state layers and motion) to this page. Everything is
+ * Comparison and its related routes use the shared Opaline palette and a coral accent. Everything is
  * scoped to .cmp-page, which the dashboard root carries together with the team's .lp-light and .md-host
  * scopes, so no other page (and nothing shared) changes. Data colours keep their meaning: Sun yellow,
  * Earth blue, blackout red and the scenario A-D identity colours.
@@ -21,7 +20,6 @@
   --color-accent-strong: #b42e1a;
   /* Text that the old dark theme set near-white. */
   --color-slate-50: #1f2326;
-  --color-white: #ffffff;
   /* The old cyan accent becomes the coral ramp, as .lp-light does for sky. */
   --color-cyan-100: #8f2513;
   --color-cyan-200: #a8301c;
@@ -34,17 +32,68 @@
   --color-cyan-900: #f8cfc8;
   --color-cyan-950: #ffe3de;
 
-  background: var(--color-opal-50);
+  --cmp-rose-surface: #fff4f1;
+  --cmp-figure-surface: #fcfcfd;
+  --cmp-chart-grid: #e4e4e7;
+  --cmp-chart-sky: #eef1f5;
+  --cmp-method-range: #d9dadd;
+  --cmp-atlas-unevaluated: #d5dbe3;
+  --cmp-atlas-unevaluated-ink: #4b5563;
+  --cmp-atlas-pass: #2f9e62;
+  --cmp-atlas-fail: #d4493f;
+  --cmp-atlas-unknown: #e6b13a;
+  --cmp-atlas-unknown-ink: #3b2a00;
+  --cmp-primary: #d9472f;
+  --cmp-primary-hover: #c23a23;
+
+  background: var(--color-canvas);
   color: var(--color-calcite-ink);
   font-family: var(--font-inter);
   font-size: 14px;
+}
+
+.lp-dark .cmp-page {
+  --color-canvas: #141517;
+  --color-surface: #1d1f22;
+  --color-raised: #292b30;
+  --color-inset: #25272b;
+  --color-line: #373a40;
+  --color-line-strong: #565a62;
+  --color-ink: #f4f4f5;
+  --color-ink-2: #d3d6dc;
+  --color-ink-3: #a8abb4;
+  --color-ink-4: #9da1aa;
+  --color-accent: #ff826e;
+  --color-accent-strong: #ffad9e;
+  --color-slate-50: #fafafa;
+  --color-cyan-100: #ffdbd5;
+  --color-cyan-200: #ffc3b8;
+  --color-cyan-300: #ffad9e;
+  --color-cyan-400: #ff826e;
+  --color-cyan-800: #804337;
+  --color-cyan-900: #66372d;
+  --color-cyan-950: #46221c;
+  --cmp-rose-surface: #332522;
+  --cmp-figure-surface: #202226;
+  --cmp-chart-grid: #40434a;
+  --cmp-chart-sky: #30343b;
+  --cmp-method-range: #565a62;
+  --cmp-atlas-unevaluated: #3b404a;
+  --cmp-atlas-unevaluated-ink: #e1e4ea;
+  --cmp-atlas-pass: #216544;
+  --cmp-atlas-fail: #972f29;
+  --cmp-atlas-unknown: #694c16;
+  --cmp-atlas-unknown-ink: #fff0c8;
+  --method-sun-marker: #e8b84a;
+  --cmp-primary: #bd3a26;
+  --cmp-primary-hover: #ab301e;
 }
 
 /* Section: one white surface with a hairline, M3 large-container radius. */
 .cmp-page .cmp-section {
   border: 1px solid var(--color-line);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 24px;
 }
 
@@ -75,21 +124,21 @@
   color: var(--color-calcite-ink);
   background: transparent;
 }
-.cmp-page .cmp-btn:hover:not(:disabled) { background: rgba(60, 64, 68, 0.08); }
+.cmp-page .cmp-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--color-calcite-ink) 8%, transparent); }
 .cmp-page .cmp-btn[aria-pressed='true'],
-.cmp-page .cmp-btn[aria-expanded='true'] { background: rgba(60, 64, 68, 0.1); border-color: var(--color-calcite-ink); }
+.cmp-page .cmp-btn[aria-expanded='true'] { background: color-mix(in srgb, var(--color-calcite-ink) 10%, transparent); border-color: var(--color-calcite-ink); }
 .cmp-page .cmp-btn-primary {
   border: 0;
   padding: 0 24px;
-  background: #d9472f;
+  background: var(--cmp-primary);
   color: #ffffff;
 }
-.cmp-page .cmp-btn-primary:hover:not(:disabled) { background: #c23a23; }
+.cmp-page .cmp-btn-primary:hover:not(:disabled) { background: var(--cmp-primary-hover); }
 .cmp-page .cmp-btn-text {
   padding: 0 12px;
   margin: 0 -12px;
   background: transparent;
-  color: #b42e1a;
+  color: var(--color-accent-strong);
 }
 .cmp-page .cmp-btn-text:hover:not(:disabled) { background: rgba(217, 71, 47, 0.08); }
 /* Neutral text button: low-emphasis actions repeated on every row (M3 text button, ink colour). */
@@ -108,11 +157,11 @@
   white-space: nowrap;
   transition: background-color var(--md-dur-short4) var(--md-ease-standard), color var(--md-dur-short4) var(--md-ease-standard);
 }
-.cmp-page .cmp-btn-quiet:hover:not(:disabled) { background: rgba(60, 64, 68, 0.08); }
+.cmp-page .cmp-btn-quiet:hover:not(:disabled) { background: color-mix(in srgb, var(--color-calcite-ink) 8%, transparent); }
 .cmp-page .cmp-btn-quiet[aria-pressed='true'],
-.cmp-page .cmp-btn-quiet[aria-expanded='true'] { background: rgba(217, 71, 47, 0.1); color: #b42e1a; }
+.cmp-page .cmp-btn-quiet[aria-expanded='true'] { background: rgba(217, 71, 47, 0.1); color: var(--color-accent-strong); }
 .cmp-page .cmp-btn-quiet:disabled { opacity: 0.38; cursor: not-allowed; }
-.cmp-page .cmp-btn-quiet.cmp-danger:hover:not(:disabled) { background: rgba(168, 32, 32, 0.08); color: #a82020; }
+.cmp-page .cmp-btn-quiet.cmp-danger:hover:not(:disabled) { background: rgba(168, 32, 32, 0.08); color: var(--color-red-300); }
 .cmp-page :is(.cmp-btn, .cmp-btn-primary, .cmp-btn-text):disabled { opacity: 0.38; cursor: not-allowed; }
 .cmp-page :is(.cmp-btn, .cmp-btn-primary, .cmp-btn-text):active:not(:disabled) { transform: scale(0.98); }
 
@@ -123,7 +172,7 @@
   padding: 0 12px;
   border: 1px solid var(--color-line-strong);
   border-radius: 4px;
-  background: #ffffff;
+  background: var(--color-surface);
   color: var(--color-ink);
   font-size: 14px;
   outline: none;
@@ -137,7 +186,7 @@
 .cmp-page .cmp-tip {
   border: 1px solid var(--color-line);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 8px 12px;
   font-size: 12px;
   color: var(--color-calcite-ink);
@@ -156,10 +205,10 @@
   white-space: nowrap;
   transition: background-color var(--md-dur-short4) var(--md-ease-standard), color var(--md-dur-short4) var(--md-ease-standard);
 }
-.cmp-page .cmp-navlink:hover { background: rgba(60, 64, 68, 0.08); color: var(--color-calcite-ink); }
+.cmp-page .cmp-navlink:hover { background: color-mix(in srgb, var(--color-calcite-ink) 8%, transparent); color: var(--color-calcite-ink); }
 
 /* Native checkboxes and sliders take the accent (the planner styles its own the same way). */
-.cmp-page input[type='checkbox'] { accent-color: #d9472f; }
+.cmp-page input[type='checkbox'] { accent-color: var(--color-accent); }
 .cmp-page :focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
 
 .cmp-assistant-panel {
@@ -215,7 +264,7 @@
   white-space: nowrap;
   transition: background-color 150ms var(--md-ease-standard), color 150ms var(--md-ease-standard);
 }
-.cmp-page .cmp-tab:hover { background: rgba(60, 64, 68, 0.08); color: var(--color-ink); }
+.cmp-page .cmp-tab:hover { background: color-mix(in srgb, var(--color-calcite-ink) 8%, transparent); color: var(--color-ink); }
 .cmp-page .cmp-tab::after {
   content: '';
   position: absolute;
@@ -224,7 +273,7 @@
   bottom: 3px;
   height: 2px;
   border-radius: 1px;
-  background: #d9472f;
+  background: var(--color-accent);
   transform: scaleX(0);
   transition: transform 180ms var(--md-ease-standard);
 }
@@ -242,7 +291,7 @@
   text-align: left;
   transition: background-color 150ms var(--md-ease-standard);
 }
-.cmp-page .cmp-disc-btn:hover { background: rgba(60, 64, 68, 0.06); }
+.cmp-page .cmp-disc-btn:hover { background: color-mix(in srgb, var(--color-calcite-ink) 6%, transparent); }
 .cmp-page .cmp-chevron { color: var(--color-ink-3); transition: transform 180ms var(--md-ease-standard); }
 .cmp-page .cmp-disc-btn[aria-expanded='true'] .cmp-chevron { transform: rotate(180deg); }
 
