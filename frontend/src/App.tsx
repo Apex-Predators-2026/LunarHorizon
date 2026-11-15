@@ -209,7 +209,7 @@ export default function App() {
             fab={<PlanFab />}
             sidebar={
               <div className="space-y-6">
-                <PlansPanel onCompare={() => goToView('compare')} />
+                <PlansPanel onCompare={() => goToView('compare')} active={!pageView} />
                 <MissionRescue />
               </div>
             }

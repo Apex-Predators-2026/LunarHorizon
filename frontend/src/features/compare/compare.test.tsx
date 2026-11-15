@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SCREENING_NOTE } from '../../lib/headroom'
 import { useAppStore } from '../../store'
 import { DEFAULT_REQUIREMENTS } from '../../types'
+import { usePlansStore } from '../plans/usePlansStore'
 import {
   WEIGHT_PRESETS,
   axisOffsets,
@@ -40,7 +41,7 @@ import { duplicateShifted, makeScenario, nextLabel, resultKey, toTeamScenario, v
 import { SummaryPanel } from './SummaryPanel'
 import { TradeoffPanel } from './TradeoffPanel'
 import type { CanonicalMetric, CompareResponse, CompareResult, ComparisonScenario, RankingInfo } from './types'
-import { sendToComparison, useCompareStore } from './useCompareStore'
+import { selectSavedPlans, sendToComparison, useCompareStore } from './useCompareStore'
 
 const res = fixture as unknown as CompareResponse
 const byKey = Object.fromEntries(res.results.map((r) => [r.key, r])) as Record<string, CompareResult>
@@ -656,6 +657,39 @@ describe('quick comparisons', () => {
     const s = useCompareStore.getState()
     const sel = s.selectedIds.map((id) => s.scenarios.find((x) => x.id === id)!.site.id)
     expect(sel).toEqual(['peak-near-shackleton', 'malapert-massif', 'connecting-ridge'])
+  })
+})
+
+describe('shared saved plans', () => {
+  it('selects the existing Planner plan and propagates edits and deletions in both directions', () => {
+    const scenario = { site: SITES.B, landing_utc: '2027-01-15T00:00:00.000Z', duration_days: 7, requirements: DEFAULT_REQUIREMENTS }
+    const id = usePlansStore.getState().add('Planner original', scenario)
+    const compare = useCompareStore.getState()
+    selectSavedPlans([id])
+    selectSavedPlans([id])
+    expect(useCompareStore.getState().selectedIds).toEqual([id])
+    expect(useCompareStore.getState().scenarios.filter((plan) => plan.id === id)).toHaveLength(1)
+
+    compare.updateScenario(id, { name: 'Edited in Comparison', duration_days: 14, notes: 'Test notes' })
+    compare.updateSpacecraft(id, { average_load_w: 50 })
+    compare.updateRequirements(id, { battery_hours: 72 })
+    expect(usePlansStore.getState().plans.find((plan) => plan.id === id)).toMatchObject({
+      name: 'Edited in Comparison', scenario: { duration_days: 14, requirements: { battery_hours: 72 } },
+      notes: 'Test notes', spacecraft: { average_load_w: 50 },
+    })
+
+    usePlansStore.getState().update(id, 'Edited in Planner', { ...scenario, duration_days: 3 })
+    expect(useCompareStore.getState().scenarios.find((plan) => plan.id === id)).toMatchObject({
+      name: 'Edited in Planner', duration_days: 3, spacecraft: { average_load_w: 50 }, notes: 'Test notes',
+    })
+
+    const variantId = compare.duplicateScenario(id)!
+    expect(usePlansStore.getState().plans.some((plan) => plan.id === variantId)).toBe(true)
+    compare.removeScenario(variantId)
+    expect(usePlansStore.getState().plans.some((plan) => plan.id === variantId)).toBe(false)
+    usePlansStore.getState().remove(id)
+    expect(useCompareStore.getState().scenarios.some((plan) => plan.id === id)).toBe(false)
+    expect(useCompareStore.getState()).toMatchObject({ selectedIds: [], baselineId: null })
   })
 })
 

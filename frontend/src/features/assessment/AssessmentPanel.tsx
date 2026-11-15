@@ -131,7 +131,7 @@ function ConstraintRow({ v, siteId, missionStart, onShown, origin }: { v: Constr
         <p className="mt-2 text-xs leading-relaxed text-slate-300">{c.message}</p>
         {c.evidence_windows.length > 0 && (
           <div className="mt-2">
-            <div className="mb-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">Evidence</div>
+            <div className="mb-0.5 text-[11px] font-medium text-slate-500">Evidence</div>
             <ul className="space-y-1 text-xs">
               {c.evidence_windows.map((w) => (
                 <EvidenceRow key={`${w.kind}${w.start_utc}`} w={w} siteId={siteId} missionStart={missionStart} onShown={onShown} origin={origin} />
@@ -301,7 +301,7 @@ export function AssessmentPanel({ state, onShown, origin, part = 'all' }: {
             {r.explanation_details.map((d) => (
               <li key={d.key}>
                 <p className={SEVERITY_CLS[d.explanation.severity]}>
-                  <span className="mr-1 text-[10px] uppercase tracking-wide text-slate-500">{d.explanation.category.replace(/_/g, ' ')}</span>
+                  <span className="mr-1 text-[11px] first-letter:uppercase text-slate-500">{d.explanation.category.replace(/_/g, ' ')}</span>
                   {d.explanation.message}
                 </p>
                 {d.details.length > 0 && <p className="pl-2 font-mono text-[10px] text-slate-500">{d.details.join(' · ')}</p>}

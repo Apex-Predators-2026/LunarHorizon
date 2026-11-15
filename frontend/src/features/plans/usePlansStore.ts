@@ -4,19 +4,24 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
 import type { Scenario } from '../../types'
+import type { ScenarioOrigin, SpacecraftConfig } from '../compare/types'
 
 export interface Plan {
   id: string
   name: string
   scenario: Scenario
+  spacecraft?: SpacecraftConfig
+  notes?: string
+  origin?: ScenarioOrigin
 }
 
 interface PlansState {
   plans: Plan[]
   activeId: string | null // the plan last run
   compareIds: string[] // plans ticked for comparison
-  add: (name: string, scenario: Scenario) => string
-  update: (id: string, name: string, scenario: Scenario) => void
+  add: (name: string, scenario: Scenario, details?: Pick<Plan, 'spacecraft' | 'notes'>) => string
+  addPlans: (plans: Plan[]) => void
+  update: (id: string, name: string, scenario: Scenario, details?: Pick<Plan, 'spacecraft' | 'notes'>) => void
   remove: (id: string) => void
   setActive: (id: string | null) => void
   toggleCompare: (id: string) => void
@@ -31,12 +36,17 @@ export const usePlansStore = create<PlansState>()(
       plans: [],
       activeId: null,
       compareIds: [],
-      add: (name, scenario) => {
+      add: (name, scenario, details) => {
         const id = newId()
-        set((s) => ({ plans: [...s.plans, { id, name, scenario }] }))
+        set((s) => ({ plans: [...s.plans, { id, name, scenario, ...details }] }))
         return id
       },
-      update: (id, name, scenario) => set((s) => ({ plans: s.plans.map((p) => (p.id === id ? { ...p, name, scenario } : p)) })),
+      addPlans: (plans) => {
+        if (plans.length) set((s) => ({ plans: [...s.plans, ...plans] }))
+      },
+      update: (id, name, scenario, details) => set((s) => ({
+        plans: s.plans.map((p) => (p.id === id ? { ...p, ...details, name, scenario } : p)),
+      })),
       remove: (id) =>
         set((s) => ({
           plans: s.plans.filter((p) => p.id !== id),
@@ -64,3 +74,8 @@ export const usePlanDialog = create<PlanDialogState>((set) => ({
   show: (plan = null) => set({ open: true, plan }),
   hide: () => set({ open: false }),
 }))
+
+export function editSavedPlan(id: string) {
+  const plan = usePlansStore.getState().plans.find((p) => p.id === id)
+  if (plan) usePlanDialog.getState().show(plan)
+}

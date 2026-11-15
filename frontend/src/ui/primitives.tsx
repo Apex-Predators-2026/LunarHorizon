@@ -36,7 +36,7 @@ export function Panel({ title, meta, actions, children, className, bodyClassName
 
 /** Small uppercase label used above values and as group headings inside panels. */
 export function Label({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cx('text-micro font-semibold uppercase tracking-[0.08em] text-ink-3', className)}>{children}</div>
+  return <div className={cx('text-micro font-medium text-ink-3', className)}>{children}</div>
 }
 
 // ---------------------------------------------------------------- values
