@@ -198,12 +198,21 @@ tests (`guide.test.tsx`, which replay real captured API responses) are a separat
 | Check | Result |
 |---|---|
 | `npx tsc -b` | clean |
-| `npx vitest run` (Node 25 with `NODE_OPTIONS=--no-experimental-webstorage`) | 55 files, 614 tests passed |
+| `npx vitest run` (Node 25 with `NODE_OPTIONS=--no-experimental-webstorage`) | 55 files, 614 tests passed before the last merge of main; **57 files, 624 tests passed after it** |
 | `npx oxlint` | 0 errors, 21 warnings (pre-existing kinds, none in the guide) |
 | `npm run build` | OK |
 | `pytest tests/test_mission_story.py tests/test_guided_mission.py` | 4 passed |
 | milestone 1 backend set (Rescue, demo, Atlas, the 7 former baseline failures) | 210 passed |
 | full backend suite on the merged tree | **not run in this milestone** (about 15 minutes); no backend code changed here beyond the new mission-story module and its tests |
+
+### Re-verified after merging `origin/main` @ `233889a` (landing branding, Mission Assistant report help, report header)
+
+Merged without conflicts (`Landing.tsx` auto-merged). On the merged tree: `tsc -b` clean; vitest 57 files, 624 tests
+passed; oxlint 0 errors; `npm run build` OK; **`e2e-guided.mjs --serve-dist` 60/60** (production build, backend in
+normal online mode) and `e2e-time-missing.mjs` 31/31. One script change was needed: main now offers "Reopen last
+report" in both the page header and the decision area (same action, by design), so the script clicks the first one.
+The other two browser runs (dev server; backend offline mode) in the table above were made before this merge and were
+not repeated.
 
 ### Cross-owner items and dependencies (for the final integrator)
 
