@@ -1,7 +1,6 @@
-// Headline conditions for the "At a glance" panel: engine metrics, the requirement each is checked against, and the
-// shared comparison-pool rules (pool.ts) for the "best" mark. Pure functions; no React.
-import { cm, measuredText, type Entry } from './analysis'
-import { comparisonPool, contenderOf, pickBest, type BestOutcome } from './pool'
+// Headline conditions for the "At a glance" panel: engine metrics, the requirement each is checked against, and a
+// meaningful-difference rule for the "best" mark. Pure functions; no React.
+import { bestOf, bestPool, cm, measuredText, type Candidate, type Entry } from './analysis'
 
 export interface Headline {
   key: string
@@ -20,27 +19,42 @@ export const HEADLINES: Headline[] = [
   { key: 'longest_blackout_h', label: 'Longest communication blackout', better: 'lower', constraint: 'max_communication_blackout', scale: 1, unit: 'h' },
 ]
 
+const meaningful = (h: Headline, a: number, b: number) =>
+  Math.abs(a - b) >= (h.unit === '%' ? 1 : Math.max(2, 0.1 * Math.max(Math.abs(a), Math.abs(b))))
+
 export interface HeadlineRow {
   entry: Entry
   value: number | null // exact display value, null when bounded / unavailable / not assessed
   text: string
   status: string | null // the requirement verdict this metric is checked against
-  best: boolean
+  best: boolean // a proven, meaningful lead on this quantity within the comparable pool (bestPool)
+  illustrative: boolean // the lead is among demonstration results only
 }
 
-/** One headline's fair "best" outcome (pool.ts rules: one data kind, every member counts, bounds can block). */
-export function headlineBest(h: Headline, entries: Entry[]): BestOutcome {
-  return pickBest(comparisonPool(entries), (e) => contenderOf(cm(e.result, h.key), h.scale), h.better, h.unit)
-}
-
-/** Per headline metric: each scenario's exact value (or why there is none) and which one is fairly best. */
+/**
+ * Per headline metric: each scenario's exact value (or why there is none) and which one is meaningfully best. The
+ * pool is the shared bestPool: real results compete only with real ones (two or more), demonstration-only pools
+ * are illustrative, and a missing value or a mix of durations / requirements gives no "best". Bounded values
+ * compete with their bounds (a winner must beat every other candidate's most favourable value).
+ */
 export function headlineRows(h: Headline, entries: Entry[]): HeadlineRow[] {
-  const best = headlineBest(h, entries).ids
-  return entries.map((e) => {
+  const pool = bestPool(entries)
+  const rows = entries.map((e) => {
     const m = cm(e.result, h.key)
     const value = m && m.status === 'known' && m.value !== null ? m.value * h.scale : null
     const status = e.result?.assessment?.constraints.find((c) => c.id === h.constraint)?.status ?? null
-    return { entry: e, value, text: m ? measuredText(m) : e.result ? 'unavailable' : 'not assessed', status, best: best.has(e.scenario.id) }
+    return { entry: e, value, text: m ? measuredText(m) : e.result ? 'unavailable' : 'not assessed', status, best: false, illustrative: false }
   })
+  const cands: Candidate[] = pool.entries.map((e) => {
+    const m = cm(e.result, h.key)
+    if (m?.status === 'known' && m.value !== null) return { id: e.scenario.id, lo: m.value * h.scale, hi: m.value * h.scale }
+    if (m?.status === 'bounded' && m.lower !== null && m.upper !== null) return { id: e.scenario.id, lo: m.lower * h.scale, hi: m.upper * h.scale }
+    return { id: e.scenario.id, lo: null, hi: null }
+  })
+  const winners = bestOf(cands, h.better, (a, b) => meaningful(h, a, b))
+  for (const r of rows) if (winners.has(r.entry.scenario.id)) Object.assign(r, { best: true, illustrative: pool.basis === 'illustrative' })
+  return rows
 }
 
+/** Why no "best" can be marked, or what a "best" means here (null when nothing needs saying). */
+export const headlineNote = (entries: Entry[]) => bestPool(entries).note
