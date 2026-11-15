@@ -14,6 +14,7 @@ import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
 import { resultKey, selectionKey, validateScenario } from './scenario'
+import { ExportButtons } from './ExportButtons'
 import { RescueStory } from './RescueStory'
 import { ScenarioManager } from './ScenarioManager'
 import { SummaryPanel } from './SummaryPanel'
@@ -260,7 +261,10 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                 <TradeoffPanel entries={entries} />
               </Section>
 
-              <Section id="cmp-summary" title="Comparison summary">
+              <Section id="cmp-summary" title="Comparison summary" actions={
+                <ExportButtons entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
+                  notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} />
+              }>
                 <SummaryPanel entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
               </Section>
 
