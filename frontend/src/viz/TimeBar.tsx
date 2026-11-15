@@ -5,6 +5,7 @@ import { MangoRange } from '../ui/MangoRange'
 import type { SiteInfo, TimelineStep } from '../types'
 import { DatePopup } from './DatePopup'
 import { HOUR_MS, longestRun, parseUtc, roundHour, runs, sunUp, toIsoMinute } from './timeline'
+import { useTutorialStore } from '../features/tutorial'
 
 const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', dark: '#111a2e', gap: '#d03b3b', grid: '#22304d', axis: '#5b6168' }
 const SPEEDS = [
@@ -304,7 +305,10 @@ export function TimeBar({
   const now = parseUtc(timeUtc)
   usePlayback(speed, stop)
 
-  const seek = (ms: number) => setTime(toIsoMinute(Math.min(stop, Math.max(start, roundHour(ms)))))
+  const seek = (ms: number) => {
+    setTime(toIsoMinute(Math.min(stop, Math.max(start, roundHour(ms)))))
+    useTutorialStore.getState().recordInteraction('time-scrub')
+  }
   const step = (hours: number) => seek(now + hours * HOUR_MS)
   const totalHours = Math.round((stop - start) / HOUR_MS)
 
@@ -394,7 +398,7 @@ export function TimeBar({
         </div>
       )}
 
-      <div className="mt-1 flex items-center gap-2">
+      <div className="mt-1 flex items-center gap-2" data-tour="time-scrubber">
         <span className="shrink-0 text-[10px] tabular-nums text-slate-500">{site.data_start_utc.slice(0, 10)}</span>
         <MangoRange
           aria-label="Time across the whole data range"
@@ -420,7 +424,10 @@ export function TimeBar({
           timeUtc={timeUtc}
           min={site.data_start_utc}
           max={site.data_stop_utc}
-          onPick={setTime}
+          onPick={(iso) => {
+            setTime(iso)
+            useTutorialStore.getState().recordInteraction('date-pick')
+          }}
           onClose={() => setCalendarOpen(false)}
         />
       )}

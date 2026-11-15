@@ -14,6 +14,7 @@ import { parseCoordinates } from './coordinates'
 import { GRAPHICS, type GraphicsQuality } from './graphics'
 import { toggleTopDown, useCameraTilt } from './cameraTilt'
 import { MeasureCard, type MeasureDrawer } from './MeasureCard'
+import { useTutorialStore } from '../features/tutorial'
 
 export interface MeasureController {
   armed: boolean
@@ -85,6 +86,7 @@ const ICON = {
   more: 'M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
   hideUi: 'M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z',
   dark: 'M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z',
+  tour: 'M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14a4 4 0 0 0-4 4h2a2 2 0 1 1 4 0c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5a4 4 0 0 0-4-4z',
 }
 
 function Icon({ d, size = 24 }: { d: string; size?: number }) {
@@ -119,6 +121,7 @@ function ToolButton({
   disabled,
   onClick,
   haspopup,
+  tourId,
 }: {
   label: string
   tip?: string
@@ -128,6 +131,7 @@ function ToolButton({
   disabled?: boolean
   onClick: () => void
   haspopup?: boolean
+  tourId?: string
 }) {
   const tone = selected
     ? 'bg-coral/10 text-coral'
@@ -137,6 +141,7 @@ function ToolButton({
   return (
     <button
       type="button"
+      data-tour={tourId}
       aria-label={label}
       data-tip={tip ?? label}
       aria-pressed={selected === undefined ? undefined : selected}
@@ -162,6 +167,7 @@ function ToolMenu({
   icon,
   hover = false,
   onActivate,
+  tourId,
   children,
 }: {
   id: string
@@ -173,6 +179,7 @@ function ToolMenu({
   icon: string
   hover?: boolean // the menu opens when hovered or focused; clicking the button runs onActivate instead
   onActivate?: () => void
+  tourId?: string
   children: (close: () => void) => ReactNode
 }) {
   const open = openId === id
@@ -222,6 +229,7 @@ function ToolMenu({
   return (
     <div
       ref={root}
+      data-tour={tourId}
       className="relative"
       onPointerEnter={hover ? enter : undefined}
       onPointerLeave={hover ? leave : undefined}
@@ -351,6 +359,7 @@ export function MapTools({
 
   const runVerify = () => {
     if (!siteId) return
+    useTutorialStore.getState().recordInteraction('jpl-verify')
     setVerify({ loading: true, result: null, error: null })
     fetchVerify(siteId, timeUtc)
       .then((result) => {
@@ -365,6 +374,7 @@ export function MapTools({
   }
   const toggle = (k: keyof Layers) => {
     onLayers({ ...layers, [k]: !layers[k] })
+    useTutorialStore.getState().recordInteraction('layer-toggle')
     const name = LAYER_ROWS.find((r) => r.key === k)?.label ?? k
     showSnackbar(`${name} ${layers[k] ? 'hidden' : 'shown'}`)
   }
@@ -376,23 +386,33 @@ export function MapTools({
     <div className="lp-light pointer-events-none mb-2 flex flex-col-reverse items-center gap-2">
       <div role="toolbar" aria-label="Map tools" className="pointer-events-auto flex items-center gap-1 rounded-full bg-opal-50 p-2 shadow-lg shadow-black/30">
         <ToolButton
+          tourId="play-time"
           label={playing ? 'Pause' : 'Play'}
           tip={playing ? 'Pause: stop the time simulation' : 'Play: run the simulation forward in time at the chosen speed'}
           icon={playing ? ICON.pause : ICON.play}
           selected={playing}
           disabled={!siteId}
-          onClick={() => setPlaying(!playing)}
+          onClick={() => {
+            useTutorialStore.getState().recordInteraction('time-play')
+            setPlaying(!playing)
+          }}
         />
         <ToolButton
+          tourId="play-mission"
           label={mission.active ? 'Stop the mission playback' : mission.available ? `Play mission: ${mission.reason.replace(/^Play the plan: /, '')}` : `Play mission: ${mission.reason}`}
           icon={ICON.flag}
           selected={mission.active}
           disabled={!mission.active && !mission.available}
-          onClick={() => (mission.active ? mission.stop() : mission.start())}
+          onClick={() => {
+            useTutorialStore.getState().recordInteraction('plan-play')
+            if (mission.active) mission.stop()
+            else mission.start()
+          }}
         />
         <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" hover={!armed && !measureOpen} onActivate={() => {
+        <ToolMenu tourId="camera-menu" openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" hover={!armed && !measureOpen} onActivate={() => {
             onGoToView()
+            useTutorialStore.getState().recordInteraction('camera-view')
             showSnackbar(`Camera: ${VIEWS.find((v) => v.id === view)?.label ?? view}`)
           }} label="Camera position" tip="Camera: click to fly to the chosen view. Hover to pick a different one (whole Moon, region, site, or a lander's-eye view of the Sun or Earth)." icon={ICON.camera}>
           {(close) =>
@@ -405,6 +425,7 @@ export function MapTools({
                 data-tip={v.hint}
                 onClick={() => {
                   showSnackbar(`Camera: ${v.label}`)
+                  useTutorialStore.getState().recordInteraction('camera-view')
                   onView(v.id)
                   onGoToView()
                   close()
@@ -418,6 +439,7 @@ export function MapTools({
           }
         </ToolMenu>
         <ToolButton
+          tourId="top-down"
           label={topDown ? 'Top-down view: on (click to tilt back)' : 'Top-down view: look straight down'}
           tip={
             topDown
@@ -428,10 +450,11 @@ export function MapTools({
           selected={topDown}
           onClick={() => {
             toggleTopDown()
+            useTutorialStore.getState().recordInteraction('top-down')
             showSnackbar(topDown ? 'Camera: tilted' : 'Camera: top-down')
           }}
         />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="layers" label="Map layers" tip="Map layers: switch on landing sites, permanently shadowed regions and ice, and lines to the terrain blocking the Sun or Earth" icon={ICON.layers}>
+        <ToolMenu tourId="map-layers" openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="layers" label="Map layers" tip="Map layers: switch on landing sites, permanently shadowed regions and ice, and lines to the terrain blocking the Sun or Earth" icon={ICON.layers}>
           {() =>
             LAYER_ROWS.map((r) => (
               <button
@@ -455,13 +478,18 @@ export function MapTools({
           }
         </ToolMenu>
         <ToolButton
+          tourId="drop-pin"
           label={armed ? 'Click the terrain to drop a pin (click again to cancel)' : 'Drop pin: click anywhere on the terrain to analyse that spot'}
           icon={ICON.pin}
           selected={armed}
           disabled={pin.phase === 'working'}
-          onClick={() => onArmPin(!armed)}
+          onClick={() => {
+            useTutorialStore.getState().recordInteraction('drop-pin')
+            onArmPin(!armed)
+          }}
         />
         <ToolButton
+          tourId="measure-tool"
           label={
             measure.armed
               ? 'Measure tool active: click points on the terrain (click again to stop adding points)'
@@ -470,9 +498,13 @@ export function MapTools({
           icon={ICON.ruler}
           selected={measure.armed}
           disabled={!siteId}
-          onClick={() => measure.onArm(!measure.armed)}
+          onClick={() => {
+            useTutorialStore.getState().recordInteraction('measure-arm')
+            measure.onArm(!measure.armed)
+          }}
         />
         <ToolButton
+          tourId="jpl-verify"
           label={verify?.loading ? 'Asking JPL…' : "Verify with JPL: compare this hour's Sun/Earth positions with JPL Horizons, live"}
           icon={ICON.verify}
           selected={verify?.loading ? true : undefined}
@@ -480,7 +512,7 @@ export function MapTools({
           onClick={runVerify}
         />
         <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="more" label="More" tip="More: graphics quality, dark mode, and hide the whole interface" icon={ICON.more}>
+        <ToolMenu tourId="more-menu" openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="more" label="More" tip="More: graphics quality, dark mode, guided tour, and hide the whole interface" icon={ICON.more}>
           {(close) => (
             <>
               <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Graphics quality</p>
@@ -548,6 +580,20 @@ export function MapTools({
                     <Icon d={ICON.check} size={16} />
                   </span>
                 </span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-tip="Guided Tour: interactive 8-stop mission briefing across all planner controls"
+                onClick={() => {
+                  close()
+                  useTutorialStore.getState().startTour(0)
+                }}
+                className="flex h-12 w-full items-center gap-3 px-4 text-left text-sm"
+              >
+                <span className="flex h-6 w-6 items-center justify-center text-coral"><Icon d={ICON.tour} size={20} /></span>
+                Guided Tour
+                <span className="ml-auto text-xs text-slate-400">8 stops</span>
               </button>
               <button
                 type="button"
