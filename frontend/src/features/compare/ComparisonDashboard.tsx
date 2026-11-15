@@ -1,6 +1,8 @@
 // Multi-Scenario Comparison dashboard (Member 4). Page layout and data wiring only; each section is
 // its own component and all comparison logic lives in analysis.ts.
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
+
+import { routeHash } from '../../appRoute'
 
 import { GlassSurface } from '../../ui/GlassSurface'
 
@@ -42,8 +44,17 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
   )
 }
 
-/** `onOpen3D` switches the app to the 3D view; the selected site/time are already in the shared app store. */
-export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}) {
+/**
+ * `onOpen3D` switches the app to the 3D view; the selected site/time are already in the shared app store.
+ * `section`: the section to show (from the URL: refresh, Back / Forward); `onSection` is told when the
+ * section bar jumps to one, so the URL can remember it. The bar scrolls within the page: it never
+ * changes the app's route (a plain #cmp-... link used to replace the whole app with the landing page).
+ */
+export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
+  onOpen3D?: () => void
+  section?: string | null
+  onSection?: (id: string) => void
+} = {}) {
   const scenarios = useCompareStore((s) => s.scenarios)
   const selectedIds = useCompareStore((s) => s.selectedIds)
   const results = useCompareStore((s) => s.results)
@@ -94,8 +105,53 @@ export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}
 
   const timelineProps = { entries, full, view, align, originMs }
 
+  const pageRef = useRef<HTMLDivElement>(null)
+  const sectionBarRef = useRef<HTMLElement>(null)
+  /** Scroll the page so the section's heading sits just below the sticky section bar. */
+  const scrollToSection = (id: string, behavior: ScrollBehavior) => {
+    const el = document.getElementById(id)
+    const bar = sectionBarRef.current
+    if (!el || !bar) return
+    let scroller = el.parentElement
+    while (scroller && !(scroller.scrollHeight > scroller.clientHeight && /auto|scroll/.test(getComputedStyle(scroller).overflowY))) scroller = scroller.parentElement
+    const box = scroller ?? document.scrollingElement ?? document.documentElement
+    // Where the bar sits once stuck: below the scroller's top padding (the app header) plus its own offset.
+    const top = scroller ? scroller.getBoundingClientRect().top : 0
+    const barBottom = top + parseFloat(getComputedStyle(box).paddingTop || '0') + parseFloat(getComputedStyle(bar).top || '0') + bar.offsetHeight
+    box.scrollTo({ top: box.scrollTop + el.getBoundingClientRect().top - barBottom - 12, behavior })
+  }
+  // The section from the URL (refresh, Back / Forward): shown, and kept in view while the results load
+  // and the page above it grows, until the user scrolls or clicks, or after a few seconds.
+  useEffect(() => {
+    if (!section) return
+    let active = true
+    const show = () => {
+      if (active) scrollToSection(section, 'auto')
+    }
+    show()
+    const ro = new ResizeObserver(show)
+    if (pageRef.current) ro.observe(pageRef.current)
+    const events = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const
+    const stop = () => {
+      active = false
+      ro.disconnect()
+      events.forEach((ev) => window.removeEventListener(ev, stop))
+    }
+    events.forEach((ev) => window.addEventListener(ev, stop, { passive: true }))
+    const timer = setTimeout(stop, 5000)
+    return () => {
+      clearTimeout(timer)
+      stop()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the URL's section changes
+  }, [section])
+  const jumpTo = (id: string) => {
+    scrollToSection(id, 'smooth')
+    onSection?.(id)
+  }
+
   return (
-    <div data-tour="compare-dashboard" className="cmp-page lp-light md-host min-h-full">
+    <div ref={pageRef} data-tour="compare-dashboard" className="cmp-page lp-light md-host min-h-full">
       <div className="mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8">
         <header className="mb-6 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
@@ -116,11 +172,16 @@ export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}
         </header>
 
         {/* Section bar: a glass pill, sticky just below the app header. */}
-        <nav aria-label="Comparison sections" className="sticky top-2 z-40 mb-6">
+        <nav ref={sectionBarRef} aria-label="Comparison sections" className="sticky top-2 z-40 mb-6">
           <div>
             <GlassSurface radius="9999px" className="flex items-center gap-1 overflow-x-auto px-4 py-1">
               {NAV.map(([id, label]) => (
-                <a key={id} href={`#${id}`} className="cmp-navlink">{label}</a>
+                <a key={id} href={routeHash('compare', id)} className="cmp-navlink"
+                  onClick={(e) => {
+                    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return // new tab etc.: the link itself
+                    e.preventDefault()
+                    jumpTo(id)
+                  }}>{label}</a>
               ))}
               <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap pl-4 text-xs" aria-live="polite">
                 {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-700" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
