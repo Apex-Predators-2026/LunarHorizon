@@ -1,6 +1,8 @@
 // Floating toolbar over the 3D view (M3 "floating toolbar"): camera menu, layers menu (switches),
 // drop pin (click the terrain or type coordinates), verify with JPL, and play / pause. Messages, the legend and the JPL result open above it.
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+// Its menus float over whatever is above the toolbar (which steps back meanwhile: `recede-behind-menu`, index.css)
+// instead of pushing it up the screen.
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useAppStore } from '../store'
 import type { VerifyResult } from '../types'
 import { fetchVerify } from './api'
@@ -15,6 +17,7 @@ import { GRAPHICS, type GraphicsQuality } from './graphics'
 import { toggleTopDown, useCameraTilt } from './cameraTilt'
 import { MeasureCard, type MeasureDrawer } from './MeasureCard'
 import { useTutorialStore } from '../features/tutorial'
+import { useDraggable } from './useDraggable'
 
 export interface MeasureController {
   armed: boolean
@@ -161,7 +164,6 @@ function ToolMenu({
   id,
   openId,
   setOpenId,
-  onHeight,
   label,
   tip,
   icon,
@@ -173,7 +175,6 @@ function ToolMenu({
   id: string
   openId: string | null // the one menu that is open (menus are mutually exclusive)
   setOpenId: (id: string | null) => void
-  onHeight: (h: number) => void // the open menu's height, so other popups can make room for it
   label: string
   tip: string
   icon: string
@@ -207,10 +208,6 @@ function ToolMenu({
     }, 280)
   }
   useEffect(() => () => window.clearTimeout(timer.current), [])
-
-  useLayoutEffect(() => {
-    if (open && menuRef.current) onHeight(menuRef.current.offsetHeight)
-  }, [open, onHeight])
 
   useEffect(() => {
     if (!open) return
@@ -259,7 +256,8 @@ function ToolMenu({
           ref={menuRef}
           role="menu"
           aria-label={label}
-          className={`absolute bottom-full left-1/2 min-w-56 pb-3 ${closing ? 'md-menu-out' : 'md-menu'}`}
+          data-toolbar-menu
+          className={`absolute bottom-full left-1/2 z-50 min-w-56 pb-3 ${closing ? 'md-menu-out' : 'md-menu'}`}
           onAnimationEnd={() => {
             if (closing) {
               setOpenId(null)
@@ -274,6 +272,46 @@ function ToolMenu({
   )
 }
 
+/**
+ * The live JPL Horizons check's result. It opens above the toolbar; drag it by its title bar to put it
+ * anywhere (then it floats on its own, like the other panels).
+ */
+function VerifyCard({ onClose, children }: { onClose: () => void; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const { pos, size, dragging, handlers } = useDraggable(ref)
+  const floating = pos && size
+  return (
+    <div
+      ref={ref}
+      role="region"
+      aria-label="Live check against JPL Horizons"
+      className={`md-reveal pointer-events-auto max-w-full overflow-hidden rounded-xl border border-opal-300 bg-opal-50 text-xs text-slate-200 transition-shadow ${
+        floating ? '' : 'recede-behind-menu w-[30rem]'
+      } ${dragging ? 'shadow-2xl shadow-black/50' : 'shadow-lg shadow-black/30'}`}
+      style={floating ? { position: 'fixed', left: pos.x, top: pos.y, width: size.w, zIndex: 25 } : undefined}
+    >
+      <div
+        {...handlers}
+        data-tip="Drag to move"
+        className={`flex touch-none select-none items-center justify-between gap-2 border-b border-opal-300 px-2 py-1 ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+      >
+        <span className="font-medium">Live check against JPL Horizons</span>
+        <span aria-hidden className="h-1 w-8 shrink-0 rounded-full bg-opal-300" />
+        <button
+          type="button"
+          className="text-slate-400 hover:text-slate-100"
+          onPointerDown={(e) => e.stopPropagation()} // a click on close, not the start of a drag
+          onClick={onClose}
+          aria-label="Close"
+        >
+          ✕
+        </button>
+      </div>
+      <div className="p-2">{children}</div>
+    </div>
+  )
+}
+
 /** Shown while "Drop pin" is armed: analyse exact coordinates instead of clicking. */
 function CoordinateForm({ onSubmit }: { onSubmit: (lat: number, lon: number) => void }) {
   const [lat, setLat] = useState('')
@@ -282,7 +320,7 @@ function CoordinateForm({ onSubmit }: { onSubmit: (lat: number, lon: number) => 
   const field = 'h-10 w-28 rounded-full border border-opal-300 bg-white px-3 text-xs text-slate-300'
   return (
     <form
-      className="md-reveal lp-light pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl bg-opal-50 px-4 py-2 text-xs text-slate-300 shadow-lg shadow-black/30"
+      className="recede-behind-menu md-reveal lp-light pointer-events-auto flex flex-wrap items-center gap-2 rounded-2xl bg-opal-50 px-4 py-2 text-xs text-slate-300 shadow-lg shadow-black/30"
       onSubmit={(e) => {
         e.preventDefault()
         const r = parseCoordinates(lat, lon)
@@ -352,7 +390,6 @@ export function MapTools({
   const dark = useUiPrefs((u) => u.dark)
   const setDark = useUiPrefs((u) => u.setDark)
   const hideUi = useUiPrefs((u) => u.hideUi)
-  const [menuH, setMenuH] = useState(0)
   const topDown = useCameraTilt((s) => s.topDown)
   const playing = useAppStore((s) => s.playing)
   const setPlaying = useAppStore((s) => s.setPlaying)
@@ -410,7 +447,7 @@ export function MapTools({
           }}
         />
         <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu tourId="camera-menu" openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="camera" hover={!armed && !measureOpen} onActivate={() => {
+        <ToolMenu tourId="camera-menu" openId={openMenu} setOpenId={setOpenMenu} id="camera" hover={!armed && !measureOpen} onActivate={() => {
             onGoToView()
             useTutorialStore.getState().recordInteraction('camera-view')
             showSnackbar(`Camera: ${VIEWS.find((v) => v.id === view)?.label ?? view}`)
@@ -454,7 +491,7 @@ export function MapTools({
             showSnackbar(topDown ? 'Camera: tilted' : 'Camera: top-down')
           }}
         />
-        <ToolMenu tourId="map-layers" openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="layers" label="Map layers" tip="Map layers: switch on landing sites, permanently shadowed regions and ice, and lines to the terrain blocking the Sun or Earth" icon={ICON.layers}>
+        <ToolMenu tourId="map-layers" openId={openMenu} setOpenId={setOpenMenu} id="layers" label="Map layers" tip="Map layers: switch on landing sites, permanently shadowed regions and ice, and lines to the terrain blocking the Sun or Earth" icon={ICON.layers}>
           {() =>
             LAYER_ROWS.map((r) => (
               <button
@@ -512,7 +549,7 @@ export function MapTools({
           onClick={runVerify}
         />
         <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
-        <ToolMenu tourId="more-menu" openId={openMenu} setOpenId={setOpenMenu} onHeight={setMenuH} id="more" label="More" tip="More: graphics quality, dark mode, guided tour, and hide the whole interface" icon={ICON.more}>
+        <ToolMenu tourId="more-menu" openId={openMenu} setOpenId={setOpenMenu} id="more" label="More" tip="More: graphics quality, dark mode, guided tour, and hide the whole interface" icon={ICON.more}>
           {(close) => (
             <>
               <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Graphics quality</p>
@@ -614,9 +651,6 @@ export function MapTools({
         </ToolMenu>
       </div>
 
-      {/* Room for the open menu: everything above the toolbar is pushed up while it is open and falls back after. */}
-      <div aria-hidden className="transition-[height] duration-300 ease-[var(--md-ease-emph-decel)]" style={{ height: openMenu ? menuH : 0 }} />
-
       {armed && <CoordinateForm onSubmit={onCoordinates} />}
       {measureOpen && (
         <MeasureCard
@@ -645,19 +679,13 @@ export function MapTools({
         />
       )}
       {pin.phase === 'working' && (
-        <p className="md-reveal pointer-events-auto rounded bg-slate-950/85 px-2 py-1 text-xs text-slate-200">
+        <p className="recede-behind-menu md-reveal pointer-events-auto rounded bg-slate-950/85 px-2 py-1 text-xs text-slate-200">
           Analysing {fmtLat(pin.lat)}, {pin.lon.toFixed(3)}°E… downloading terrain can take up to a minute in a new area.
         </p>
       )}
 
       {verify && !verify.loading && (
-        <div className="md-reveal pointer-events-auto w-[30rem] max-w-full rounded-xl border border-opal-300 bg-opal-50 p-2 text-xs text-slate-200">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="font-medium">Live check against JPL Horizons</span>
-            <button type="button" className="text-slate-400 hover:text-slate-100" onClick={() => setVerify(null)} aria-label="Close">
-              ✕
-            </button>
-          </div>
+        <VerifyCard onClose={() => setVerify(null)}>
           {verify.error && <p className="text-red-300">{verify.error}</p>}
           {verify.result && (
             <>
@@ -696,7 +724,7 @@ export function MapTools({
               </p>
             </>
           )}
-        </div>
+        </VerifyCard>
       )}
     </div>
   )
