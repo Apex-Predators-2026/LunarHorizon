@@ -164,17 +164,17 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     keywords: /\b(generate|create|make|open|see|view|preview|reopen|get)\b.*\breport\b|\b(mission|summary) report\b|\breport card\b/i,
     steps: [
       'Click **Generate Mission Report** at the top of the page (the same button is under the decision in **At a glance**). It is available once every selected scenario has been assessed and ranked.',
-      'The report opens as a preview over the page: **Close** returns to the comparison, and **Reopen last report** brings it back.',
+      'The report opens as a document preview over the page: the bar at the top jumps between its sections and shows the page. **Close** returns to the comparison, and **Reopen last report** brings it back.',
       'It is a frozen snapshot of the comparison: if you change the scenarios afterwards it is marked out of date, and you can generate a new one.',
     ],
     go: ['report'],
   },
   {
-    id: 'pdf', title: 'Save the report as a PDF',
+    id: 'pdf', title: 'Download the report as a PDF',
     keywords: /\b(download|save|export|get|print)\b.*\bpdf\b|\bpdf\b|\bprint\b/i,
     steps: [
       'Generate the Mission Report (or click **Reopen last report**).',
-      'In the preview, click **Print / Save as PDF**, then choose **Save as PDF** as the printer.',
+      'In the preview, click **Download PDF**: the report is saved as a PDF file (lunar-mission-report-….pdf). **Print** is there too, for the browser print dialog.',
     ],
     go: ['report'],
   },
