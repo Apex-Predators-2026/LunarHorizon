@@ -10,28 +10,50 @@ Inputs come from other members' modules and are only read here:
 from __future__ import annotations
 
 import math
-from datetime import timedelta
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from itertools import pairwise
 
 import numpy as np
 
 from .. import store
+from ..mission_time import covers, iso_z, mission_bounds, np_us, sample_range
 from ..models import Scenario
+from ..timegrid import POLICY as TIME_POLICY
 from ..timegrid import snap_duration_days, snap_time, time_note
 from ..rescue.catalog import SITES_BY_ID, nearest_psr_edge_km
 from ..rescue.timeline import SyntheticTimelineProvider, Timeline
-from ..rescue.timeline.base import to_np_utc
-from ..viability.compat.rescue import RescueCompatError, evaluate_timeline_detailed
+from ..viability.compat.rescue import RescueCompatError, evaluate_timeline_detailed, timeline_to_series
+from ..viability.outputs import ViabilityAssessment
+from ..viability.windows import build_range_timeline, prepare_series
 from .evidence import assessment_info, unassessed_ranking
 from .ranking import Assessed, pairwise_evidence, rank_comparison
-from .schemas import (CompareRequest, CompareResponse, CompareResult, CompareScenarioIn, EarthStats, MissionEvent,
-                      PowerStats, ScienceContext, SiteContext, SolarStats, SpacecraftConfig, TimelineColumns, Window)
+from .schemas import (
+    CompareRequest,
+    CompareResponse,
+    CompareResult,
+    CompareScenarioIn,
+    EarthStats,
+    MissionEvent,
+    PowerStats,
+    ScienceContext,
+    SiteContext,
+    SolarStats,
+    SpacecraftConfig,
+    TimelineColumns,
+    Window,
+)
 
 POWER_MODEL = ("Idealised direct-beam incidence: factor = visible solar-disk fraction × max(0, cos θ), θ = angle "
                "between the Sun direction and the panel normal. Ignores cell efficiency, temperature, degradation, "
                "dust, wiring and pointing losses, so it is an upper bound, not electrical output.")
 NOTES = [
     "Real data = Sun/Earth azimuth-elevation from JPL Horizons and terrain horizons from Moon Trek LOLA DEMs, "
-    "precomputed by the data engine (data/sites/). Statistics are hourly samples over the mission.",
+    "precomputed by the data engine (data/sites/). Every tool evaluates a mission on the hourly data grid (landing "
+    "rounded to the nearest whole UTC hour, length to whole hours; each result says when that moved the request). Each "
+    "hourly sample holds until the next one (sample-and-hold), and durations, shares and means are weighted by the "
+    "time each sample represents. Shares are of the whole mission unless marked "
+    "as over known time.",
     "Sunlit = any part of the solar disk above the local terrain horizon. Earth visible = Earth's centre above "
     "the terrain horizon. This is geometric line of sight only; it does not guarantee a working radio link "
     "(antenna pointing, ground-station schedules and link budget are not modelled).",
@@ -56,27 +78,35 @@ def _site_record(site_id: str):
 
 
 def real_timeline(scenario: Scenario) -> Timeline | None:
-    """Mission slice of the data engine's record, or None if the site has no data or the mission starts outside it.
+    """The samples of the data engine's record that represent the (grid-placed) mission interval: from the sample at
+    or before landing to the last one before the end. None if the site has no data or the mission starts outside it.
 
-    A mission that starts inside the data but runs past its end gets the samples that exist (fewer than the
-    mission needs): the canonical engine then judges it on those real hours, as the Atlas and Rescue do (one
-    policy, app.timegrid), proving a fail where it can and otherwise reporting unknown, never a pass."""
+    A mission that starts inside the data but runs past its end gets the samples that exist (one policy with Rescue
+    and the Atlas, app.timegrid): the canonical engine judges it on those real hours, proving a fail where it can and
+    otherwise reporting unknown, never a pass."""
     d = _site_record(scenario.site.id)
     if d is None or len(d.times) < 2:
         return None
     step_h = float((d.times[1] - d.times[0]).astype("timedelta64[s]").astype(np.int64)) / 3600.0
-    n = max(1, int(round(scenario.duration_days * 24 / step_h)))
-    i = int(np.searchsorted(d.times, to_np_utc(scenario.landing_utc)))
-    if to_np_utc(scenario.landing_utc) < d.times[0] or to_np_utc(scenario.landing_utc) >= d.times[-1]:
+    start, end = mission_bounds(scenario.landing_utc, scenario.duration_days)
+    if np_us(start) < d.times[0] or np_us(start) >= d.times[-1]:
         return None
-    c, s = d.cols, slice(i, min(i + n, len(d.times)))
+    if covers(d.times, start, end):
+        i, j = sample_range(d.times, start, end)
+    else:  # runs past the end of the data: every real sample from landing on
+        i, j = sample_range(d.times, start, end=_utc_of(d.times[-1]))[0], len(d.times)
+    c, s = d.cols, slice(i, j)
     sun_frac = np.asarray(c["sun_visible_fraction"][s], float).copy()
     earth_horizon = np.asarray(c["earth_horizon_deg"][s], float).copy()
     # Unknown flags (null in the file) must stay unknown: rescue's Timeline encodes that as NaN, which the
     # canonical adapter reads as "unknown", never as dark or blocked.
     known = getattr(d, "known", {})
+    sun_flag = None
     if "sun_visible" in known:
-        sun_frac[~np.asarray(known["sun_visible"][s], bool)] = np.nan
+        sun_known = np.asarray(known["sun_visible"][s], bool)
+        sun_frac[~sun_known] = np.nan
+        # The file's authoritative any-disk flag: a sliver written as fraction 0.0 is still visible.
+        sun_flag = np.where(sun_known, np.asarray(c["sun_visible"][s], bool).astype(float), np.nan)
     if "earth_visible" in known:
         earth_horizon[~np.asarray(known["earth_visible"][s], bool)] = np.nan
     return Timeline(
@@ -87,8 +117,24 @@ def real_timeline(scenario: Scenario) -> Timeline | None:
         earth_az=np.asarray(c["earth_azimuth_deg"][s], float), earth_el=np.asarray(c["earth_elevation_deg"][s], float),
         earth_horizon=earth_horizon,
         earth_visible=np.asarray(c["earth_visible"][s], bool),
-        source=f"precomputed:{_source_path(scenario.site.id)}",
+        source=f"precomputed:{_source_path(scenario.site.id)}", sun_visible=sun_flag,
     )
+
+
+def _utc_of(t: np.datetime64) -> datetime:
+    return datetime.fromisoformat(str(np.datetime64(t, "us"))).replace(tzinfo=UTC)
+
+
+def _dataset_identity(site_id: str) -> tuple[str | None, str | None]:
+    """The real site file a result was computed from and its SHA-256 (cached by size and mtime, so a changed file is
+    hashed again). (None, None) when there is no file."""
+    from ..viability.api.service import _file_sha256
+
+    path = store._site_files().get(site_id)
+    if path is None or not path.is_file():
+        return None, None
+    st = path.stat()
+    return _source_path(site_id), _file_sha256(str(path), st.st_size, st.st_mtime_ns)
 
 
 def _source_path(site_id: str) -> str:
@@ -111,10 +157,12 @@ def unknown_masks(tl: Timeline) -> tuple[np.ndarray, np.ndarray]:
 
 
 def demo_timeline(scenario: Scenario) -> Timeline:
-    n = max(1, int(round(scenario.duration_days * 24)))
-    start = scenario.landing_utc
-    tl = _synthetic.timeline(scenario.site, start, start + timedelta(hours=n - 1), 1.0)
-    return tl.slice(0, n)
+    """Synthetic samples every hour from landing up to the last one before the mission end (a fractional final hour
+    is represented by the last sample, clipped at the end; nothing is rounded away)."""
+    start, end = mission_bounds(scenario.landing_utc, scenario.duration_days)
+    tl = _synthetic.timeline(scenario.site, start, end, 1.0)
+    i, j = sample_range(tl.times, start, end)
+    return tl.slice(i, j)
 
 
 def data_coverage(scenario: Scenario) -> str:
@@ -123,7 +171,7 @@ def data_coverage(scenario: Scenario) -> str:
         return (f"No precomputed Horizons + LOLA data exists for '{scenario.site.name}'. Only the curated sites "
                 "(and custom sites created through /api/sites/custom) have real data.")
     return (f"Real data for {scenario.site.name} covers {_iso(d.times[0])} to {_iso(d.times[-1])}; this mission "
-            f"({_iso(to_np_utc(scenario.landing_utc))} + {scenario.duration_days:g} days) falls outside it.")
+            f"({iso_z(scenario.landing_utc)} + {scenario.duration_days:g} days) does not start inside it.")
 
 
 # ---------------------------------------------------------------- statistics
@@ -151,16 +199,6 @@ def windows(mask: np.ndarray, tl: Timeline) -> list[Window]:
     return out
 
 
-def events(tl: Timeline) -> list[MissionEvent]:
-    out: list[MissionEvent] = []
-    for mask, up, down in ((tl.sun_visible_fraction > 0, "sunrise", "sunset"),
-                           (tl.earth_visible.astype(bool), "earthrise", "earthset")):
-        for k in np.flatnonzero(mask[1:] != mask[:-1]) + 1:
-            out.append(MissionEvent(type=up if mask[k] else down, hour=float(k * tl.step_hours),
-                                    time_utc=_iso(tl.times[k])))
-    return sorted(out, key=lambda e: e.hour)
-
-
 def incidence_factor(tl: Timeline, cfg: SpacecraftConfig) -> np.ndarray:
     el, az = np.radians(tl.sun_el), np.radians(tl.sun_az)
     if cfg.panel_mode == "two_axis":
@@ -174,48 +212,118 @@ def incidence_factor(tl: Timeline, cfg: SpacecraftConfig) -> np.ndarray:
     return np.clip(tl.sun_visible_fraction, 0, 1) * np.clip(cos, 0, None)
 
 
-def _mean(a: np.ndarray) -> float | None:
-    return float(a.mean()) if a.size else None
+# ---------------------------------------------------------------- time support (app/mission_time.py)
+
+@dataclass
+class Support:
+    """How the canonical engine reads a timeline slice over the mission: the seconds of the mission each sample
+    represents (sample-and-hold supports clipped to [start, end)), and each sample's canonical state."""
+
+    start: datetime
+    end: datetime
+    weights: np.ndarray  # seconds per sample (0 = represents no mission time)
+    uncovered_s: float  # mission time no sample represents (never happens for a covered mission)
+    sun_lit: np.ndarray  # object array: True / False / None (unknown), the engine's any-disk state
+    sun_fraction: np.ndarray  # float, NaN = unknown
+    earth_visible: np.ndarray  # object array: True / False / None
+
+    @property
+    def total_s(self) -> float:
+        return float(self.weights.sum()) + self.uncovered_s
 
 
-def _min(a: np.ndarray) -> float | None:
-    return float(a.min()) if a.size else None
+def support(tl: Timeline, scenario: Scenario) -> Support:
+    """Canonical supports and states for ``tl`` over the scenario's exact mission interval (same conversion, same
+    sampling policy as the viability engine; nothing re-derived)."""
+    start, end = mission_bounds(scenario.landing_utc, scenario.duration_days)
+    prepared = prepare_series(timeline_to_series(tl, mission_end_utc=end))
+    rt = build_range_timeline(prepared, start, end)
+    w = np.zeros(len(tl))
+    uncovered = 0
+    for sp in rt.spans:
+        if sp.index < 0:
+            uncovered += sp.length_us
+        else:
+            w[sp.index] += sp.length_us
+    frac = np.array([np.nan if f is None else f for f in prepared.sun_fraction], float)
+    return Support(start=start, end=end, weights=w / 1e6, uncovered_s=uncovered / 1e6,
+                   sun_lit=np.array(prepared.sun_any, dtype=object), sun_fraction=frac,
+                   earth_visible=np.array(prepared.earth_visible, dtype=object))
 
 
-def solar_stats(tl: Timeline, sun_w: list[Window], dark_w: list[Window]) -> SolarStats:
-    lit = tl.sun_visible_fraction > 0
+def unknown_time(sup: Support) -> tuple[float, float]:
+    """Mission seconds whose Sun / Earth state is unknown (including time no sample represents)."""
+    sun = float(sup.weights[np.array([v is None for v in sup.sun_lit], bool)].sum()) + sup.uncovered_s
+    earth = float(sup.weights[np.array([v is None for v in sup.earth_visible], bool)].sum()) + sup.uncovered_s
+    return sun, earth
+
+
+def _wmean(values: np.ndarray, w: np.ndarray) -> float | None:
+    ok = w > 0
+    return float((values[ok] * w[ok]).sum() / w[ok].sum()) if ok.any() else None
+
+
+def _canonical_hours(a: ViabilityAssessment | None, field: str) -> float | None:
+    m = None if a is None else getattr(a.metrics, field)
+    return m.value / 3600.0 if m is not None and m.status.value == "known" and m.value is not None else None
+
+
+def _count(a: ViabilityAssessment | None, kind: str) -> int | None:
+    return None if a is None else sum(1 for w in a.windows if w.kind.value == kind)
+
+
+def solar_stats(tl: Timeline, sup: Support, a: ViabilityAssessment | None) -> SolarStats:
+    """Whole-mission solar statistics, time-weighted. Only called when the Sun's state is known throughout."""
+    w, total = sup.weights, sup.total_s
+    lit = np.array([v is True for v in sup.sun_lit], bool)
+    frac = np.nan_to_num(sup.sun_fraction)  # known throughout here; a visible sliver keeps its 0.0 fraction
+    el, clear = tl.sun_el, tl.sun_el - tl.sun_horizon
+    used = w > 0
+    lit_w = np.where(lit, w, 0.0)
     return SolarStats(
-        sunlit_hours=float(lit.sum() * tl.step_hours), sunlit_fraction=float(lit.mean()),
-        mean_visible_fraction=float(tl.sun_visible_fraction.mean()),
-        equivalent_full_sun_hours=float(tl.sun_visible_fraction.sum() * tl.step_hours),
-        mean_elevation_deg=float(tl.sun_el.mean()), mean_elevation_lit_deg=_mean(tl.sun_el[lit]),
-        max_elevation_deg=float(tl.sun_el.max()), min_elevation_lit_deg=_min(tl.sun_el[lit]),
-        mean_clearance_lit_deg=_mean((tl.sun_el - tl.sun_horizon)[lit]),
-        longest_dark_hours=max((w.duration_hours for w in dark_w), default=0.0), windows_count=len(sun_w),
+        sunlit_hours=float(lit_w.sum()) / 3600.0, sunlit_fraction=float(lit_w.sum()) / total,
+        mean_visible_fraction=float((frac * w).sum()) / total,
+        equivalent_full_sun_hours=float((frac * w).sum()) / 3600.0,
+        mean_elevation_deg=float((el * w).sum()) / total, mean_elevation_lit_deg=_wmean(el, lit_w),
+        max_elevation_deg=float(el[used].max()),
+        min_elevation_lit_deg=float(el[used & lit].min()) if (used & lit).any() else None,
+        mean_clearance_lit_deg=_wmean(clear, lit_w),
+        longest_dark_hours=_canonical_hours(a, "longest_without_direct_sunlight"),
+        windows_count=_count(a, "sunlight"),
     )
 
 
-def earth_stats(tl: Timeline, vis_w: list[Window], black_w: list[Window]) -> EarthStats:
-    vis = tl.earth_visible.astype(bool)
+def earth_stats(tl: Timeline, sup: Support, a: ViabilityAssessment | None) -> EarthStats:
+    """Whole-mission Earth statistics, time-weighted. Only called when Earth's state is known throughout."""
+    w, total = sup.weights, sup.total_s
+    vis = np.array([v is True for v in sup.earth_visible], bool)
+    vis_w = np.where(vis, w, 0.0)
+    used = (w > 0) & vis
     margin = tl.earth_el - tl.earth_horizon
     return EarthStats(
-        visible_hours=float(vis.sum() * tl.step_hours), visible_fraction=float(vis.mean()),
-        longest_blackout_hours=max((w.duration_hours for w in black_w), default=0.0), windows_count=len(vis_w),
-        mean_elevation_visible_deg=_mean(tl.earth_el[vis]), min_elevation_visible_deg=_min(tl.earth_el[vis]),
-        mean_margin_visible_deg=_mean(margin[vis]), min_margin_visible_deg=_min(margin[vis]),
+        visible_hours=float(vis_w.sum()) / 3600.0, visible_fraction=float(vis_w.sum()) / total,
+        longest_blackout_hours=_canonical_hours(a, "longest_communication_blackout"),
+        windows_count=_count(a, "earth_visible"),
+        mean_elevation_visible_deg=_wmean(tl.earth_el, vis_w),
+        min_elevation_visible_deg=float(tl.earth_el[used].min()) if used.any() else None,
+        mean_margin_visible_deg=_wmean(margin, vis_w),
+        min_margin_visible_deg=float(margin[used].min()) if used.any() else None,
     )
 
 
-def power_stats(tl: Timeline, f: np.ndarray, cfg: SpacecraftConfig) -> PowerStats:
-    hours = len(tl) * tl.step_hours
-    eq_hours = float(f.sum() * tl.step_hours)
+def power_stats(f: np.ndarray, sup: Support, cfg: SpacecraftConfig) -> PowerStats:
+    """Idealised incidence over the whole mission, time-weighted. Only called when the Sun is known throughout."""
+    w, total = sup.weights, sup.total_s
+    hours = total / 3600.0
+    eq_hours = float((f * w).sum()) / 3600.0
     rated, load = cfg.panel_rated_power_w, cfg.average_load_w
     energy = rated * eq_hours if rated else None
     load_e = load * hours if load else None
+    mean_f = float((f * w).sum()) / total
     return PowerStats(
-        panel_mode=cfg.panel_mode, mean_incidence_factor=float(f.mean()), max_incidence_factor=float(f.max()),
+        panel_mode=cfg.panel_mode, mean_incidence_factor=mean_f, max_incidence_factor=float(f[w > 0].max()),
         equivalent_full_power_hours=eq_hours,
-        idealized_mean_power_w=rated * float(f.mean()) if rated else None,
+        idealized_mean_power_w=rated * mean_f if rated else None,
         idealized_energy_wh=energy, load_energy_wh=load_e,
         idealized_energy_to_load_ratio=energy / load_e if energy is not None and load_e else None,
         battery_endurance_hours=cfg.battery_capacity_wh / load if cfg.battery_capacity_wh and load else None,
@@ -223,18 +331,76 @@ def power_stats(tl: Timeline, f: np.ndarray, cfg: SpacecraftConfig) -> PowerStat
     )
 
 
-def columns(tl: Timeline, f: np.ndarray, max_points: int) -> TimelineColumns:
-    stride = max(1, math.ceil(len(tl) / max_points))
-    idx = np.arange(0, len(tl), stride)
-    r = lambda a: [None if math.isnan(float(v)) else round(float(v), 3) for v in a[idx]]  # noqa: E731
-    earth_unknown = np.isnan(tl.earth_el - tl.earth_horizon)
+# ---------------------------------------------------------------- canonical windows and events
+
+def canonical_windows(a: ViabilityAssessment, kinds: tuple[str, ...], landing: datetime) -> list[Window]:
+    """The engine's windows of these kinds in the comparison's shape (hours after landing). Unknown time stays
+    in its own windows: it is never bridged into darkness or a blackout."""
+    out = []
+    for w in a.windows:
+        if w.kind.value not in kinds:
+            continue
+        out.append(Window(
+            start_hour=(w.start_utc - landing).total_seconds() / 3600.0,
+            end_hour=(w.end_utc - landing).total_seconds() / 3600.0, duration_hours=w.duration_s / 3600.0,
+            start_utc=iso_z(w.start_utc), end_utc=iso_z(w.end_utc),
+            open_start=w.clipped_at_start, open_end=w.clipped_at_end, kind=w.kind.value,
+        ))
+    return out
+
+
+# (on kind, off kind, unknown kind, rise event, set event)
+_EVENTS = (("sunlight", "darkness", "sun_unknown", "sunrise", "sunset"),
+           ("earth_visible", "communication_blackout", "earth_unknown", "earthrise", "earthset"))
+
+
+def canonical_events(a: ViabilityAssessment, landing: datetime) -> list[MissionEvent]:
+    """Rises and sets observed in the data: a known "off" window followed directly by a known "on" window (or the
+    reverse). A boundary with unknown data or the mission edge is not an event; none is invented there."""
+    out: list[MissionEvent] = []
+    for on, off, unknown, rise, set_ in _EVENTS:
+        seq = sorted((w for w in a.windows if w.kind.value in (on, off, unknown)), key=lambda w: w.start_utc)
+        for x, y in pairwise(seq):
+            pair = (x.kind.value, y.kind.value)
+            kind = rise if pair == (off, on) else set_ if pair == (on, off) else None
+            if kind and x.end_utc == y.start_utc:
+                out.append(MissionEvent(type=kind, hour=(y.start_utc - landing).total_seconds() / 3600.0,
+                                        time_utc=iso_z(y.start_utc)))
+    return sorted(out, key=lambda e: e.hour)
+
+
+# ---------------------------------------------------------------- chart columns
+
+def columns(tl: Timeline, f: np.ndarray, sup: Support, max_points: int) -> TimelineColumns:
+    """Decimated samples for charts. ``hour`` is time since the evaluated landing (the sample holding at landing can
+    be slightly negative). With decimation, a point whose bucket contains any unknown sample is null for that body, so
+    a short unknown interval can never be hidden behind a known neighbour; the engine's unknown windows give the exact
+    extent."""
+    n = len(tl)
+    stride = max(1, math.ceil(n / max_points))
+    idx = np.arange(0, n, stride)
+    sun_unknown = np.array([v is None for v in sup.sun_lit], bool) | np.isnan(tl.sun_el)
+    earth_unknown = np.array([v is None for v in sup.earth_visible], bool) | np.isnan(tl.earth_el - tl.earth_horizon)
+    bucket_sun = np.array([sun_unknown[i:i + stride].any() for i in idx], bool)
+    bucket_earth = np.array([earth_unknown[i:i + stride].any() for i in idx], bool)
+
+    def r(a: np.ndarray, hide: np.ndarray | None = None) -> list[float | None]:
+        return [None if (hide is not None and hide[k]) or not math.isfinite(float(v)) else round(float(v), 3)
+                for k, v in enumerate(a[idx])]
+
+    landing = np_us(sup.start)
+    hours = (tl.times[idx].astype("datetime64[us]") - landing).astype(np.int64) / 3.6e9
     return TimelineColumns(
-        step_hours=tl.step_hours * stride, hour=[float(i * tl.step_hours) for i in idx],
-        time_utc=[_iso(tl.times[i]) for i in idx],
-        sun_elevation_deg=r(tl.sun_el), sun_azimuth_deg=r(tl.sun_az), sun_horizon_deg=r(tl.sun_horizon),
-        sun_visible_fraction=r(tl.sun_visible_fraction),
-        earth_elevation_deg=r(tl.earth_el), earth_azimuth_deg=r(tl.earth_az), earth_horizon_deg=r(tl.earth_horizon),
-        earth_visible=[None if earth_unknown[i] else bool(tl.earth_visible[i]) for i in idx], incidence_factor=r(f),
+        step_hours=tl.step_hours * stride, source_step_hours=tl.step_hours, stride=stride,
+        mission_start_utc=iso_z(sup.start), mission_end_utc=iso_z(sup.end),
+        hour=[float(h) for h in hours], time_utc=[_iso(tl.times[i]) for i in idx],
+        sun_elevation_deg=r(tl.sun_el), sun_azimuth_deg=r(tl.sun_az), sun_horizon_deg=r(tl.sun_horizon, bucket_sun),
+        sun_visible_fraction=r(tl.sun_visible_fraction, bucket_sun),
+        sun_visible=[None if bucket_sun[k] else bool(sup.sun_lit[i]) for k, i in enumerate(idx)],
+        earth_elevation_deg=r(tl.earth_el), earth_azimuth_deg=r(tl.earth_az),
+        earth_horizon_deg=r(tl.earth_horizon, bucket_earth),
+        earth_visible=[None if bucket_earth[k] else bool(sup.earth_visible[i]) for k, i in enumerate(idx)],
+        incidence_factor=r(f, bucket_sun),
     )
 
 
@@ -278,7 +444,8 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
     asked = item.scenario
     sc = asked.model_copy(update={"landing_utc": snap_time(asked.landing_utc),
                                   "duration_days": snap_duration_days(asked.duration_days)})
-    grid = dict(evaluated_landing_utc=_iso(to_np_utc(sc.landing_utc)), evaluated_duration_days=sc.duration_days,
+    start, end = mission_bounds(sc.landing_utc, sc.duration_days)
+    grid = dict(evaluated_landing_utc=_iso(np_us(sc.landing_utc)), evaluated_duration_days=sc.duration_days,
                 time_note=time_note(asked.landing_utc, asked.duration_days, sc.landing_utc, sc.duration_days))
     tl = real_timeline(sc)
     kind = "real"
@@ -287,37 +454,53 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
             reason = data_coverage(sc)
             return CompareResult(key=item.key, status="unavailable", data_kind="unavailable", data_source="none", **grid,
                                  message=reason + " Enable demonstration data to see a synthetic illustration instead.",
-                                 ranking=unassessed_ranking(reason),
+                                 ranking=unassessed_ranking(reason), evaluated_start_utc=iso_z(start),
+                                 evaluated_end_utc=iso_z(end), evaluated_hours=(end - start).total_seconds() / 3600.0,
                                  site_context=site_context(sc), science_context=science_context(sc)), None
         tl, kind = demo_timeline(sc), "demonstration"
 
     viability, assessment, problem = _viability(sc, tl)
-    sun_unknown, earth_unknown = unknown_masks(tl)
     notes = [DEMO_NOTE] if kind == "demonstration" else []
     if problem:
         notes.append(problem)
     f = incidence_factor(tl, item.spacecraft)
+    sup = support(tl, sc)
+    sun_unknown_s, earth_unknown_s = unknown_time(sup)
+    total_h = sup.total_s / 3600.0
     stats: dict = {}
-    covered_h = len(tl.times) * tl.step_hours
-    if kind == "real" and covered_h < sc.duration_days * 24 - 1e-9:
-        # The mission runs past the end of the real data: only part of it can be described. Window statistics
-        # would treat the missing hours as nothing; withhold them. The verdict comes from the hours that exist.
-        notes.append(f"Real data ends at {_iso(tl.times[-1])}: it covers {covered_h:g} h of this {sc.duration_days * 24:g} h "
+    withheld: dict[str, str] = {}
+    # Each body is judged on its own data: missing Sun data does not erase valid Earth statistics, and vice versa.
+    # A whole-mission statistic needs the body's state over the whole mission; otherwise it is withheld (never
+    # computed as if unknown time were dark or blocked) and the engine's bounds in assessment.metrics stand in.
+    if kind == "real" and sup.uncovered_s > 0:
+        # The mission runs past the end of the real data: only part of it can be described. Whole-mission statistics
+        # are withheld; the verdict comes from the hours that exist (it can show a fail, never a pass).
+        covered_h = total_h - sup.uncovered_s / 3600.0
+        notes.append(f"Real data ends at {_iso(tl.times[-1])}: it covers {covered_h:g} h of this {total_h:g} h "
                      "mission. Window statistics are withheld; the viability verdict is judged on the covered hours "
                      "only (it can show a fail, never a pass).")
-    elif sun_unknown.any() or earth_unknown.any():
-        # Window statistics would have to treat unknown hours as dark or blocked. Withhold them; the canonical
-        # metrics (assessment.metrics) report bounds instead.
-        notes.append(f"Incomplete data: the Sun's state is unknown for {sun_unknown.sum() * tl.step_hours:g} h and "
-                     f"Earth's for {earth_unknown.sum() * tl.step_hours:g} h of this mission. Window statistics are "
-                     "withheld; the viability engine's metrics show what the data can prove (bounds).")
+    if sun_unknown_s > 0:
+        why = (f"The Sun's state is unknown for {sun_unknown_s / 3600:.1f} h of this {total_h:.1f} h mission; "
+               "whole-mission solar and power statistics are withheld (the engine's metrics give bounds).")
+        withheld["solar"] = withheld["power"] = why
+        notes.append("Incomplete data: " + why)
     else:
-        lit, vis = tl.sun_visible_fraction > 0, tl.earth_visible.astype(bool)
-        sun_w, dark_w, earth_w, black_w = windows(lit, tl), windows(~lit, tl), windows(vis, tl), windows(~vis, tl)
-        stats = dict(
-            solar=solar_stats(tl, sun_w, dark_w), earth=earth_stats(tl, earth_w, black_w),
-            power=power_stats(tl, f, item.spacecraft),
-            sun_windows=sun_w, dark_windows=dark_w, earth_windows=earth_w, blackout_windows=black_w, events=events(tl),
+        stats.update(solar=solar_stats(tl, sup, assessment), power=power_stats(f, sup, item.spacecraft))
+    if earth_unknown_s > 0:
+        why = (f"Earth's state is unknown for {earth_unknown_s / 3600:.1f} h of this {total_h:.1f} h mission; "
+               "whole-mission Earth statistics are withheld (the engine's metrics give bounds).")
+        withheld["earth"] = why
+        notes.append("Incomplete data: " + why)
+    else:
+        stats.update(earth=earth_stats(tl, sup, assessment))
+    if assessment is not None:  # windows and events are the engine's own; unknown time keeps its own windows
+        stats.update(
+            sun_windows=canonical_windows(assessment, ("sunlight",), start),
+            dark_windows=canonical_windows(assessment, ("darkness",), start),
+            earth_windows=canonical_windows(assessment, ("earth_visible",), start),
+            blackout_windows=canonical_windows(assessment, ("communication_blackout",), start),
+            unknown_windows=canonical_windows(assessment, ("sun_unknown", "earth_unknown"), start),
+            events=canonical_events(assessment, start),
         )
     result = CompareResult(
         key=item.key, status="ok", data_kind=kind, data_source=tl.source, message=" ".join(notes) or None, **grid,
@@ -325,7 +508,10 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
         viability=viability,
         assessment=assessment_info(assessment) if assessment is not None else None,
         ranking=unassessed_ranking(problem) if assessment is None and problem else None,
-        timeline=columns(tl, f, max_points), **stats,
+        evaluated_start_utc=iso_z(start), evaluated_end_utc=iso_z(end), evaluated_hours=total_h,
+        **(dict(zip(("dataset_file", "dataset_sha256"), _dataset_identity(sc.site.id), strict=True)) if kind == "real" else {}),
+        sun_known_hours=total_h - sun_unknown_s / 3600.0, earth_known_hours=total_h - earth_unknown_s / 3600.0,
+        withheld=withheld, timeline=columns(tl, f, sup, max_points), **stats,
     )
     return result, (Assessed(item.key, assessment) if assessment is not None else None)
 
@@ -346,4 +532,4 @@ def compare(req: CompareRequest) -> CompareResponse:
         notes.append(f"The scenarios form {len(groups)} separate ranking groups (different data basis, requirements "
                      "or mission duration). Ranks are only meaningful inside a group.")
     return CompareResponse(results=results, viability_source=", ".join(sources) or "n/a", notes=notes,
-                           ranking_groups=groups, ranking_method=method, pairwise=evidence)
+                           ranking_groups=groups, ranking_method=method, pairwise=evidence, time_policy=TIME_POLICY)
