@@ -19,12 +19,13 @@ npm install
 cd backend
 .venv\Scripts\python.exe scripts\prefetch_tiles.py
 ```
-- Terrain for the whole globe (coarse), the south-polar region, and the surroundings of all 24 sites down to
-  5 m; the PSR / ice overlay; the LRO photo mosaic the 3D view fades to when zoomed out (`--no-imagery` skips
-  it); the JPL/NAIF kernels custom pins need.
+- Terrain for the whole globe (coarse), the south-polar region, a wider ring to 70°S at medium detail (what the
+  view shows near the limb from high up), and the surroundings of all 24 sites down to 5 m; the PSR / ice
+  overlay; the LRO photo mosaic the 3D view fades to when zoomed out (`--no-imagery` skips it); the JPL/NAIF
+  kernels custom pins need.
 - Safe to re-run: it reuses what's cached, lists tiles that failed (Moon Trek is sometimes busy), and a second
   run fills them in.
-- To skip this on another machine, copy the whole `data/cache/` folder across (about 5 GB: 3.2 GB terrain, 1.8 GB imagery).
+- To skip this on another machine, copy the whole `data/cache/` folder across (about 8 GB: 4.5 GB terrain, 3.7 GB imagery).
 - The whole-Moon first view doesn't need the cache: its coarsest terrain and LRO imagery (levels 0-2, 126 tiles
   each) ship with the frontend as `frontend/public/terrain/base.bin` (1.1 MB) and
   `frontend/public/imagery/base.bin` (1.7 MB). Rebuild them only if the terrain or imagery sources or the tiling

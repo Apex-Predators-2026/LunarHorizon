@@ -71,16 +71,31 @@ page.on('requestfailed', (r) => {
 const errors = []
 page.on('pageerror', (e) => errors.push(String(e)))
 
-await page.goto(`${URL_APP}/?perf`, { waitUntil: 'domcontentloaded' })
-await page.waitForFunction(() => !!window.__nav, null, { timeout: 60_000 })
-// The app's own stores, through the dev server's modules (same instances the app uses).
-await page.evaluate(async () => {
-  const find = (part) => performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes(part))
-  window.__tour = {
-    app: (await import(find('/src/store.ts'))).useAppStore,
-    terrain: (await import(find('/globe/terrainLoad.ts'))).useTerrainLoad,
-  }
-})
+// #app: the navigator itself (the first screen, "/", is the landing page).
+await page.goto(`${URL_APP}/?perf#app`, { waitUntil: 'domcontentloaded' })
+// The 3D view is up once its controls exist. A cold dev server or backend can take a while: one reload.
+try {
+  await page.waitForFunction(() => !!window.__nav, null, { timeout: 90_000 })
+} catch {
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.waitForFunction(() => !!window.__nav, null, { timeout: 90_000 })
+}
+/**
+ * The app's own stores, through the dev server's modules (same instances the app uses). Again after a
+ * reload (e.g. the dev server reloading the page because files changed): returns once they are there.
+ */
+async function attach() {
+  if (await page.evaluate(() => !!window.__tour).catch(() => false)) return
+  await page.waitForFunction(() => !!window.__nav, null, { timeout: 90_000 })
+  await page.evaluate(async () => {
+    const find = (part) => performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes(part))
+    window.__tour = {
+      app: (await import(find('/src/store.ts'))).useAppStore,
+      terrain: (await import(find('/globe/terrainLoad.ts'))).useTerrainLoad,
+    }
+  })
+}
+await attach()
 
 const sleep = (ms) => page.waitForTimeout(ms)
 /** Wait until the terrain has stopped loading (and something is drawn), or time out. */
@@ -99,7 +114,14 @@ async function terrainSettled(label) {
   return false
 }
 async function view(name) {
-  await page.locator('button[aria-label="Camera position"]').hover()
+  const button = page.locator('button[aria-label="Camera position"]')
+  if (!(await button.isVisible().catch(() => false))) {
+    // The toolbar is hidden (e.g. the interface hidden, or a panel over it): note it, try to recover.
+    await page.screenshot({ path: join(OUT, `no-toolbar-${Date.now()}.png`) })
+    await page.keyboard.press('Escape')
+    await sleep(500)
+  }
+  await button.hover({ timeout: 10_000 })
   await sleep(400)
   await page.getByRole('menuitemradio', { name }).click()
   await page.mouse.move(800, 300)
@@ -110,8 +132,21 @@ const api = async (path) => (await fetch(`${URL_API}${path}`)).json()
 
 const report = { verify: VERIFY, sites: {}, horizon: {} }
 for (const id of SITES) {
+  try {
+    await tourSite(id)
+  } catch (e) {
+    // One stop going wrong (e.g. a panel covering the toolbar) shouldn't end the whole tour.
+    const msg = String(e).split('\n')[0]
+    failures.push(`tour step failed at ${id}: ${msg}`)
+    await page.screenshot({ path: join(OUT, `${id}_error.png`) }).catch(() => {})
+    console.log(`   error: ${msg}`)
+  }
+}
+
+async function tourSite(id) {
   const t0 = Date.now()
   console.log(`\n== ${id}`)
+  await attach() // again, in case the page was reloaded meanwhile
   await page.evaluate((s) => window.__tour.app.getState().setSite(s), id)
   await sleep(2000)
   await terrainSettled(`${id} first view`)
