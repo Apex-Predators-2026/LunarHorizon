@@ -158,3 +158,24 @@ def test_env_file_loader_reads_values_but_never_overrides_the_environment(monkey
     assert s.api_key == "from-file" and s.model == "file/model"
     monkeypatch.setenv("OPENROUTER_MODEL", "env/model")
     assert config.settings().model == "env/model"
+
+
+def test_instruction_covers_uncertainty_eligibility_glossary_and_answer_layout():
+    system = build_messages([{"role": "user", "content": "q"}], {})[0]["content"]
+    for rule in (
+        "Never treat UNKNOWN as FAIL.",
+        "Only eligible PASS scenarios can receive canonical ranks.",
+        "INELIGIBLE means",  # ineligible is not the same as failed
+        "never use 0 or guess",  # missing figures
+        "\"between X and Y\" is a range",  # bounded values
+        "state no ranking or recommendation",  # results still updating
+        "never pick a different winner",
+        "not NASA data",  # demonstration data
+        "not a confirmed radio link",
+        "You are read-only",
+    ):
+        assert rule in system, rule
+    for section in ("Overall assessment", "Solar conditions", "Communication", "Mission requirements", "Main trade-off", "Conclusion"):
+        assert f"### {section}" in system
+    for term in ("Continuous darkness", "Communication blackout", "Canonical ranking", "Eligibility", "Desirability score"):
+        assert term in system
