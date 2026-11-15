@@ -162,7 +162,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   return (
     <div ref={pageRef} data-tour="compare-dashboard" className="cmp-page lp-light md-host min-h-full">
       {/* With the Mission Assistant open on a wide screen, the page makes room for it instead of being covered. */}
-      <div className={`mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8 ${assistantOpen ? 'min-[1100px]:mr-[416px]' : ''}`}>
+      <div className="cmp-dashboard-content mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8" data-assistant-open={assistantOpen}>
         <header className="mb-6 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
             <h1 className="text-[28px] font-medium leading-tight text-ink">Scenario comparison</h1>
