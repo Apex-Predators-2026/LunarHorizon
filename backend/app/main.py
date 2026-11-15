@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import store
+from .engine.net import OfflineError
 from .engine.sites import ALL_SITES
 from .engine.verify import verify
 from .engine.visibility import next_edge
@@ -205,8 +206,15 @@ def verify_site(site_id: str, time: str = Query(..., description="ISO UTC time")
     }
     try:
         return verify(d.site["lat"], d.site["lon"], d.times[i], stored)
+    except OfflineError:
+        # The one feature that must go online: the point is a fresh answer from JPL.
+        raise HTTPException(
+            503,
+            "This check asks JPL Horizons live, so it needs an internet connection (the backend is in offline "
+            "mode). Everything else runs from the stored NASA data.",
+        )
     except (OSError, RuntimeError) as e:
-        raise HTTPException(502, f"JPL Horizons check failed: {e}")
+        raise HTTPException(502, f"Couldn't reach JPL Horizons for the live check ({type(e).__name__}); try again in a minute.")
 
 
 @app.get("/api/validation")
