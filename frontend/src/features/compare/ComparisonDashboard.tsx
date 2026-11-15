@@ -14,6 +14,7 @@ import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
 import { resultKey, selectionKey, validateScenario } from './scenario'
+import { RescueStory } from './RescueStory'
 import { ScenarioManager } from './ScenarioManager'
 import { SummaryPanel } from './SummaryPanel'
 import { SyncTimeline } from './SyncTimeline'
@@ -217,6 +218,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
           ) : (
             <>
               <Section id="cmp-overview" title={sameSite && differentDates ? 'Landing date comparison' : !differentDates && !sameSite ? 'Landing location comparison' : 'Scenario overview'}>
+                <RescueStory entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
                 <OverviewCards entries={entries} />
               </Section>
 
