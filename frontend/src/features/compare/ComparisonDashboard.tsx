@@ -80,6 +80,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
 
   const rankingSetKey = useCompareStore((s) => s.rankingSetKey)
   const rankingGroups = useCompareStore((s) => s.rankingGroups)
+  const rankingPairs = useCompareStore((s) => s.rankingPairs)
   // A canonical ranking belongs to one selected set; while the set is being re-ranked no rank is shown.
   const rankingCurrent = rankingSetKey === selectionKey(selected.filter((s) => !validateScenario(s).length), allowDemo)
 
@@ -258,7 +259,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
               </Section>
 
               <Section id="cmp-summary" title="Comparison summary">
-                <SummaryPanel entries={entries} />
+                <SummaryPanel entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
               </Section>
 
               {notes.length > 0 && (
