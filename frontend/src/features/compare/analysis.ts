@@ -5,7 +5,7 @@
 // the ranking come from the canonical viability engine through the backend (compare/ranking.py) and are only
 // displayed. A missing score is never treated as 0, and UNKNOWN is never treated as FAIL.
 import { verdictOf, type Eligibility } from '../../types'
-import type { CanonicalMetric, ComparisonScenario, CompareResult, RankingGroup, RankingInfo, ResultState, TimelineColumns } from './types'
+import type { CanonicalMetric, ComparisonScenario, CompareResult, ConstraintItem, RankingGroup, RankingInfo, ResultState, TimelineColumns } from './types'
 
 export interface Entry {
   scenario: ComparisonScenario
@@ -253,22 +253,40 @@ export function comparableEntries(entries: Entry[]): Entry[] {
 }
 
 /** Ids of the best scenario(s) for a metric among comparable results (ties within `tol` share). */
+/**
+ * Smallest difference worth calling a difference, per unit. Below it two values are "similar": no "best" mark
+ * and no better/worse colour. These are display thresholds for readability, not scientific tolerances.
+ */
+export const MEANINGFUL: Record<MetricDef['unit'], (ref: number) => number> = {
+  '%': () => 1, pts: () => 1, h: (ref) => Math.max(2, 0.1 * Math.abs(ref)), deg: () => 0.1, W: () => 10,
+  x: () => 0.05, factor: () => 0.02, score: () => 1, count: () => 1,
+}
+
+export const isMeaningful = (m: MetricDef, a: number, b: number) =>
+  Math.abs(a - b) >= MEANINGFUL[m.unit](Math.max(Math.abs(a), Math.abs(b))) - 1e-9
+
+/**
+ * Scenario(s) with the best value for a metric among comparable results. Only exact values compete (bounded or
+ * unavailable values are never "best"), and only when the best is meaningfully ahead of every other value.
+ */
 export function bestIds(entries: Entry[], m: MetricDef): Set<string> {
   if (!m.better) return new Set()
   const vals = comparableEntries(entries)
     .map((e) => ({ id: e.scenario.id, v: m.get(e.result!, e.scenario) }))
     .filter((x): x is { id: string; v: number } => x.v !== null && Number.isFinite(x.v))
   if (vals.length < 2) return new Set()
-  const best = m.better === 'higher' ? Math.max(...vals.map((x) => x.v)) : Math.min(...vals.map((x) => x.v))
-  const worst = m.better === 'higher' ? Math.min(...vals.map((x) => x.v)) : Math.max(...vals.map((x) => x.v))
-  const tol = Math.max(1e-9, Math.abs(best - worst) * 0.005)
-  if (Math.abs(best - worst) <= tol) return new Set() // all equal: no winner
-  return new Set(vals.filter((x) => Math.abs(x.v - best) <= tol).map((x) => x.id))
+  const sorted = [...vals].sort((a, b) => (m.better === 'higher' ? b.v - a.v : a.v - b.v))
+  const tie = (a: number, b: number) => Math.abs(a - b) <= 1e-9
+  const top = sorted.filter((x) => tie(x.v, sorted[0].v))
+  const rest = sorted.filter((x) => !tie(x.v, sorted[0].v))
+  if (!rest.length) return new Set() // all equal: no winner
+  return isMeaningful(m, sorted[0].v, rest[0].v) ? new Set(top.map((x) => x.id)) : new Set()
 }
 
 export interface Delta {
   value: number
-  better: boolean | null // null = no preferred direction or no change
+  better: boolean | null // null = no preferred direction, no change, or a difference too small to matter
+  meaningful: boolean
 }
 
 export function deltaVsBaseline(m: MetricDef, e: Entry, base: Entry | undefined): Delta | null {
@@ -277,8 +295,79 @@ export function deltaVsBaseline(m: MetricDef, e: Entry, base: Entry | undefined)
   const b = m.get(base.result, base.scenario)
   if (a === null || b === null) return null
   const d = a - b
-  if (Math.abs(d) < 1e-9 || !m.better) return { value: d, better: null }
-  return { value: d, better: m.better === 'higher' ? d > 0 : d < 0 }
+  const meaningful = isMeaningful(m, a, b)
+  if (Math.abs(d) < 1e-9 || !m.better || !meaningful) return { value: d, better: null, meaningful }
+  return { value: d, better: m.better === 'higher' ? d > 0 : d < 0, meaningful }
+}
+
+// ---------------------------------------------------------------- mission requirements (engine verdicts)
+
+export type ReqStatus = ConstraintItem['status']
+
+export interface RequirementCell {
+  status: ReqStatus
+  measured: string // engine's measured value in display units (exact, range or unavailable)
+  threshold: string | null // e.g. "≤ 100 h"
+  message: string
+}
+
+export interface RequirementRow {
+  id: string
+  name: string
+  cells: Record<string, RequirementCell | null> // by scenario id; null = no assessment for that scenario
+}
+
+/** Display a canonical measurement in its unit; fractions are shown as percentages. */
+export function measuredText(m: CanonicalMetric): string {
+  const asPct = m.unit === 'fraction'
+  const unit: MetricDef['unit'] = asPct || m.unit === '%' ? '%' : m.unit === 'h' ? 'h' : 'deg'
+  const k = asPct ? 100 : 1
+  if (m.status === 'known' && m.value !== null) return fmtMetric(m.value * k, unit)
+  if (m.status === 'bounded' && m.lower !== null && m.upper !== null) return `between ${fmtMetric(m.lower * k, unit)} and ${fmtMetric(m.upper * k, unit)}`
+  return m.status === 'not_applicable' ? 'not applicable' : 'unavailable'
+}
+
+function thresholdText(c: ConstraintItem): string | null {
+  if (c.threshold === null) return null
+  const op = c.comparison === 'at_most' ? '≤' : '≥'
+  return `${op} ${measuredText({ ...c.measured, status: 'known', value: c.threshold, lower: null, upper: null })}`
+}
+
+/**
+ * Every mission requirement the engine checked for any compared scenario, with each scenario's verdict. Rows that
+ * are not applicable to any scenario are left out. Statuses and values are the engine's, never recomputed here.
+ */
+export function requirementMatrix(entries: Entry[]): RequirementRow[] {
+  const rows = new Map<string, RequirementRow>()
+  for (const e of entries) {
+    for (const c of e.result?.assessment?.constraints ?? []) {
+      if (!rows.has(c.id)) rows.set(c.id, { id: c.id, name: c.name ?? c.id, cells: {} })
+    }
+  }
+  for (const row of rows.values()) {
+    for (const e of entries) {
+      const c = e.result?.assessment?.constraints.find((x) => x.id === row.id)
+      row.cells[e.scenario.id] = c
+        ? { status: c.status, measured: measuredText(c.measured), threshold: thresholdText(c), message: c.message }
+        : null
+    }
+  }
+  return [...rows.values()].filter((r) => Object.values(r.cells).some((c) => c && c.status !== 'not_applicable'))
+}
+
+export interface RequirementSummary {
+  applicable: number
+  passed: number
+  failed: { id: string; name: string }[]
+  undecided: { id: string; name: string }[]
+}
+
+export function requirementSummary(e: Entry): RequirementSummary | null {
+  const cs = e.result?.assessment?.constraints
+  if (!cs) return null
+  const app = cs.filter((c) => c.status !== 'not_applicable')
+  const pick = (st: ReqStatus) => app.filter((c) => c.status === st).map((c) => ({ id: c.id, name: c.name ?? c.id }))
+  return { applicable: app.length, passed: pick('pass').length, failed: pick('fail'), undecided: pick('unknown') }
 }
 
 // ---------------------------------------------------------------- canonical ranking (viability engine)

@@ -1,9 +1,14 @@
 // Section 3: side-by-side scientific metrics, best values marked, deltas against the baseline.
 import { Fragment, useState } from 'react'
 
-import { METRICS, bestIds, deltaVsBaseline, eligibilityOf, fmtDeltaValue, fmtMetric, groupCountOf, rankText, type Entry, type MetricDef } from './analysis'
-import { DataKindBadge, EligibilityBadge, Explain, ProvenanceTag, RankBadge, ScenarioChip } from './ui'
+import { METRICS, bestIds, deltaVsBaseline, eligibilityOf, fmtDeltaValue, fmtMetric, groupCountOf, rankText, requirementMatrix, type Entry, type MetricDef } from './analysis'
+import { DataKindBadge, EligibilityBadge, Explain, ProvenanceTag, RankBadge, ReqIcon, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
+
+const DIRECTION: Record<'higher' | 'lower', { mark: string; text: string }> = {
+  higher: { mark: '↑', text: 'higher is better' },
+  lower: { mark: '↓', text: 'lower is better' },
+}
 
 const GROUPS: { id: MetricDef['group']; title: string; note?: string }[] = [
   { id: 'solar', title: 'Solar power' },
@@ -15,7 +20,8 @@ const GROUPS: { id: MetricDef['group']; title: string; note?: string }[] = [
 export function MetricsTable({ entries }: { entries: Entry[] }) {
   const groupCount = groupCountOf(entries)
   const baselineId = useCompareStore((s) => s.baselineId)
-  const [open, setOpen] = useState<Record<string, boolean>>({ solar: true, power: true, earth: true, mission: true })
+  const [open, setOpen] = useState<Record<string, boolean>>({ requirements: true, solar: true, power: true, earth: true, mission: true })
+  const requirements = requirementMatrix(entries)
   const base = entries.find((e) => e.scenario.id === baselineId)
   const cols = entries.length
 
@@ -38,6 +44,58 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
             </tr>
           </thead>
           <tbody>
+            {/* Status first: the engine's verdict on every applicable mission requirement. */}
+            <tr>
+              <th colSpan={cols + 1} scope="colgroup" className="pt-1 text-left">
+                <button type="button" className="text-sm font-medium text-ink" aria-expanded={open.requirements}
+                  onClick={() => setOpen({ ...open, requirements: !open.requirements })}>
+                  {open.requirements ? '▾' : '▸'} Mission requirements (canonical viability engine)
+                </button>
+                {open.requirements && (
+                  <div className="text-[11px] font-normal text-slate-500">
+                    Measured value against the requirement, as judged by the engine. A cross is a proven violation; a question mark means the data cannot decide it.
+                  </div>
+                )}
+              </th>
+            </tr>
+            {open.requirements && (
+              <tr>
+                <th scope="row" className="sticky left-0 bg-surface py-1 text-left text-xs font-normal text-slate-300">Eligibility · canonical rank</th>
+                {entries.map((e) => (
+                  <td key={e.scenario.id} className="py-1 pl-3 text-xs">
+                    {eligibilityOf(e) ? (
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        <EligibilityBadge eligibility={eligibilityOf(e)!} />
+                        {rankText(e.ranking, groupCount) && <RankBadge text={rankText(e.ranking, groupCount)!} />}
+                      </span>
+                    ) : <span className="text-slate-500" title="No canonical assessment">—</span>}
+                  </td>
+                ))}
+              </tr>
+            )}
+            {open.requirements && requirements.map((row) => (
+              <tr key={row.id} className="hover:bg-inset">
+                <th scope="row" className="sticky left-0 bg-surface py-1 pr-2 text-left text-xs font-normal text-slate-300">{row.name}</th>
+                {entries.map((e) => {
+                  const c = row.cells[e.scenario.id]
+                  return (
+                    <td key={e.scenario.id} className="py-1 pl-3 align-top text-xs tabular-nums" title={c?.message}>
+                      {!c ? <span className="text-slate-500">—</span> : c.status === 'not_applicable' ? (
+                        <span className="text-slate-500">not required</span>
+                      ) : (
+                        <span className="inline-flex items-start gap-1">
+                          <ReqIcon status={c.status} />
+                          <span>
+                            <span className={c.status === 'fail' ? 'text-red-300' : 'text-slate-200'}>{c.measured}</span>
+                            {c.threshold && <span className="text-slate-500"> (required {c.threshold})</span>}
+                          </span>
+                        </span>
+                      )}
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
             {GROUPS.map((g) => (
               <Fragment key={g.id}>
                 <tr>
@@ -49,29 +107,16 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                     {g.note && open[g.id] && <div className="text-[11px] font-normal text-slate-500">{g.note}</div>}
                   </th>
                 </tr>
-                {open[g.id] && g.id === 'mission' && (
-                  <tr>
-                    <th scope="row" className="sticky left-0 bg-surface py-1 text-left text-xs font-normal text-slate-300">Eligibility · canonical rank</th>
-                    {entries.map((e) => {
-                      return (
-                        <td key={e.scenario.id} className="py-1 pl-3 text-xs">
-                          {eligibilityOf(e) ? (
-                            <span className="inline-flex flex-wrap items-center gap-1">
-                              <EligibilityBadge eligibility={eligibilityOf(e)!} />
-                              {rankText(e.ranking, groupCount) && <RankBadge text={rankText(e.ranking, groupCount)!} />}
-                            </span>
-                          ) : <span className="text-slate-500" title="No canonical assessment">—</span>}
-                        </td>
-                      )
-                    })}
-                  </tr>
-                )}
                 {open[g.id] && METRICS.filter((m) => m.group === g.id).map((m) => {
                   const best = bestIds(entries, m)
                   return (
                     <tr key={m.id} className="hover:bg-inset">
                       <th scope="row" title={m.hint} className="sticky left-0 bg-surface py-1 pr-2 text-left text-xs font-normal text-slate-300">
-                        <span className="mr-1.5">{m.label}</span><ProvenanceTag p={m.provenance} />
+                        <span className="mr-1">{m.label}</span>
+                        {m.better && (
+                          <span className="mr-1.5 text-slate-500" title={DIRECTION[m.better].text} aria-label={DIRECTION[m.better].text}>{DIRECTION[m.better].mark}</span>
+                        )}
+                        <ProvenanceTag p={m.provenance} />
                       </th>
                       {entries.map((e) => {
                         const v = e.result ? m.get(e.result, e.scenario) : null
@@ -80,10 +125,11 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                         return (
                           <td key={e.scenario.id} className="py-1 pl-3 align-top tabular-nums">
                             <span className={isBest ? 'font-medium text-slate-50' : 'text-slate-300'}>{(e.result && m.text?.(e.result, e.scenario)) ?? fmtMetric(v, m.unit)}</span>
-                            {isBest && <span className="ml-1 text-xs text-emerald-300" title="Best among compared real-data scenarios">best</span>}
+                            {isBest && <span className="ml-1 text-xs text-emerald-300" title="Best among compared real-data scenarios, ahead by a meaningful margin">best</span>}
                             {d && (
                               <span className={`block text-[11px] ${d.better === null ? 'text-slate-500' : d.better ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {d.better === null ? '' : d.better ? '▲ ' : '▼ '}{fmtDeltaValue(d.value, m.unit)} vs {base!.scenario.label}
+                                {d.better === null ? (m.better && !d.meaningful && Math.abs(d.value) > 1e-9 ? '≈ ' : '') : d.better ? '▲ better ' : '▼ worse '}
+                                {fmtDeltaValue(d.value, m.unit)} vs {base!.scenario.label}
                               </span>
                             )}
                           </td>
@@ -100,6 +146,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
       <p className="mt-2 text-[11px] text-slate-500">
         Tags: <b>ephemeris</b> = JPL Horizons Sun/Earth positions · <b>derived</b> = computed from the Horizons + LOLA timeline ·{' '}
         <b>idealised</b> = geometric upper bound · <b>viability</b> = team viability evaluator · <b>config</b> = your inputs.
+        {' '}↑ / ↓ = which direction is better. “best” is only shown when the lead is meaningful (e.g. ≥ 1 percentage point, ≥ 2 h); ≈ marks a negligible difference.
         {!base && ' Set a baseline scenario to see improvements (▲) and regressions (▼).'}
       </p>
       <Explain title="What do these metrics mean?">
