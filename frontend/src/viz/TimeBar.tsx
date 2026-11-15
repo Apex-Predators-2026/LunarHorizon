@@ -7,6 +7,7 @@ import { DatePopup } from './DatePopup'
 import { HOUR_MS, longestRun, parseUtc, roundHour, runs, sunUp, toIsoMinute } from './timeline'
 import { useTutorialStore } from '../features/tutorial'
 
+const MISSING_COLOR = '#9ca3af' // unknown data: neutral grey, distinct from darkness and blackout
 const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', dark: '#111a2e', gap: '#d03b3b', grid: '#22304d', axis: '#5b6168' }
 const SPEEDS = [
   { label: '1 h/s', hoursPerSec: 1 },
@@ -110,12 +111,18 @@ function Strip({
     // terrain) neither extend nor break a gap's "known" status.
     const dark = steps.map((s) => s.sun.visible_fraction !== null && !sunUp(s.sun))
     const blocked = steps.map((s) => s.earth.visible === false)
-    return { t, earthRuns: runs(earth), longDark: longestRun(dark), longBlackout: longestRun(blocked) }
+    const sunUnknown = steps.map((s) => s.sun.visible_fraction === null || s.sun.visible === null)
+    const earthUnknown = steps.map((s) => s.earth.visible === null)
+    return {
+      t, earthRuns: runs(earth), longDark: longestRun(dark), longBlackout: longestRun(blocked),
+      sunUnknownRuns: runs(sunUnknown), earthUnknownRuns: runs(earthUnknown),
+    }
   }, [steps])
 
+  // A run of samples covers [first sample, last sample + 1 h): each sample holds until the next (sample-and-hold).
   const span = (r: [number, number]) => {
-    const a = data.t[r[0]] - HOUR_MS / 2
-    const b = (data.t[r[1] - 1] ?? data.t[r[0]]) + HOUR_MS / 2
+    const a = data.t[r[0]]
+    const b = (data.t[r[1] - 1] ?? data.t[r[0]]) + HOUR_MS
     return { x: x(a), w: Math.max(1, x(b) - x(a)), hours: (b - a) / HOUR_MS }
   }
 
@@ -123,8 +130,11 @@ function Strip({
     if (!data.t.length) return ''
     const pts: string[] = []
     data.t.forEach((t, i) => {
-      const y = SUN_H - (steps[i].sun.visible_fraction ?? 0) * SUN_H
-      pts.push(`${x(t - HOUR_MS / 2).toFixed(1)},${y.toFixed(1)}`, `${x(t + HOUR_MS / 2).toFixed(1)},${y.toFixed(1)}`)
+      const f = steps[i].sun.visible_fraction
+      // Unknown draws no sunlight (the unknown band marks it); a visible sliver that rounds to 0 is not darkness.
+      const frac = f === null ? 0 : f === 0 && steps[i].sun.visible === true ? 0.03 : f
+      const y = SUN_H - frac * SUN_H
+      pts.push(`${x(t).toFixed(1)},${y.toFixed(1)}`, `${x(t + HOUR_MS).toFixed(1)},${y.toFixed(1)}`)
     })
     return `M${pts[0].split(',')[0]},${SUN_H} L${pts.join(' L')} L${pts[pts.length - 1].split(',')[0]},${SUN_H} Z`
     // x depends on win and width
@@ -203,6 +213,15 @@ function Strip({
           const s = span(r)
           return <rect key={r[0]} x={s.x} y={earthTop} width={s.w} height={EARTH_H} fill={COLORS.earth} opacity={0.85} />
         })}
+        {/* Unknown data: its own labelled band, never drawn as darkness or blackout */}
+        {data.sunUnknownRuns.map((r) => {
+          const s = span(r)
+          return <rect key={`su${r[0]}`} data-testid="strip-unknown" x={s.x} y={0} width={s.w} height={SUN_H} fill={MISSING_COLOR} opacity={0.55}><title>Sun unknown (missing data, not darkness)</title></rect>
+        })}
+        {data.earthUnknownRuns.map((r) => {
+          const s = span(r)
+          return <rect key={`eu${r[0]}`} data-testid="strip-unknown" x={s.x} y={earthTop} width={s.w} height={EARTH_H} fill={MISSING_COLOR} opacity={0.55}><title>Earth unknown (missing data, not a blackout)</title></rect>
+        })}
         {dark && (
           <g>
             <rect x={dark.x} y={-0.5} width={dark.w} height={SUN_H + 1} fill="none" stroke={COLORS.gap} strokeWidth={1.5} rx={2}>
@@ -265,6 +284,9 @@ function Strip({
           {mission && (
             <span><span className="mr-1 inline-block h-2 w-3 border border-dashed align-middle" style={{ borderColor: '#ff634a' }} />
               Mission{mission.failures.length ? <> · <span className="text-red-400">▼</span> requirement broken</> : ''}</span>
+          )}
+          {(data.sunUnknownRuns.length > 0 || data.earthUnknownRuns.length > 0) && (
+            <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: MISSING_COLOR, opacity: 0.55 }} />Unknown (missing data: neither dark nor blocked)</span>
           )}
         </div>
         {rightSlot}
