@@ -82,15 +82,15 @@ export interface SolarStats {
   max_elevation_deg: number
   min_elevation_lit_deg: number | null
   mean_clearance_lit_deg: number | null
-  longest_dark_hours: number
-  windows_count: number
+  longest_dark_hours: number | null
+  windows_count: number | null
 }
 
 export interface EarthStats {
   visible_hours: number
   visible_fraction: number
-  longest_blackout_hours: number
-  windows_count: number
+  longest_blackout_hours: number | null
+  windows_count: number | null
   mean_elevation_visible_deg: number | null
   min_elevation_visible_deg: number | null
   mean_margin_visible_deg: number | null

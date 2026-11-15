@@ -60,6 +60,16 @@ Policy differences and contract limits (verified in tests; not approximated away
   have no such sample.
 * ``ViabilityResult`` has no data-basis or risk fields; ``data_source`` names the timeline source
   (``precomputed:*`` / ``synthetic-placeholder``) and the assessment keeps the rest.
+
+Performance (sample cache, 2026-11-14; output and ``COMPAT_VERSION`` unchanged). Rescue slices one timeline per
+site into many overlapping missions, so each hourly sample is converted again for every mission that contains it
+(about 20 times in a default search). Converting and validating a sample is pure: its result depends only on that
+sample's own values. So validated ``ScientificSample`` objects are cached under the exact bit pattern of those
+values (time, the eight angle and fraction values, the Earth-visibility flag). An identical input therefore yields
+the identical, immutable object. Each series is still validated as a whole (time order, coverage, visibility
+consistency) on every call, and the engine runs unchanged. A sample whose conversion fails is never cached: the
+uncached reference path then runs and raises exactly the error it always raised. The cache is bounded (LRU,
+``SAMPLE_CACHE_SIZE``) and thread-safe; ``clear_sample_cache`` / ``sample_cache_info`` manage it.
 """
 
 from __future__ import annotations
@@ -67,12 +77,15 @@ from __future__ import annotations
 import json
 import math
 import re
-from collections.abc import Callable
+import struct
+import threading
+from collections import OrderedDict
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final, Literal
+from typing import TYPE_CHECKING, Any, Final, Literal, NamedTuple
 
 from pydantic import ValidationError
 
@@ -99,14 +112,16 @@ from ..enums import (
     Unit,
     VisibilityCriterion,
 )
-from ..inputs import ScientificTimeSeries
+from ..inputs import ScientificSample, ScientificTimeSeries
 from ..mission import LandingSite, MissionRequirements, MissionScenario, SpacecraftConfiguration
 from ..outputs import ConstraintEvaluation, Metric, ViabilityAssessment
 
 if TYPE_CHECKING:  # rescue's Timeline pulls in numpy; only needed for type checking
     from ...rescue.timeline.base import Timeline
 
-COMPAT_VERSION: Final = "rescue-compat/0.3.0"
+# 0.4.0: optional authoritative sun_visible flag carried through (a sliver written as fraction 0.0 stays visible).
+# Output is unchanged for timelines without the flag.
+COMPAT_VERSION: Final = "rescue-compat/0.4.0"
 SOURCE: Final = f"viability-engine/{ENGINE_VERSION}"
 DEFAULT_MAX_GAP_FACTOR: Final = 1.5
 # Rescue passes round(duration / step) samples, so mission end lies at most 1.5 steps after the last one.
@@ -283,17 +298,160 @@ def precomputed_file_info(source: str, data_dir: Path | None = None) -> Precompu
         from ...rescue.timeline.precomputed import DEFAULT_DATA_DIR  # numpy is loaded with any Timeline
 
         data_dir = DEFAULT_DATA_DIR
-    root = Path(data_dir).resolve()
-    path = (root / source.removeprefix("precomputed:")).resolve()
-    if not path.is_relative_to(root) or not path.is_file():
+    resolved = _resolve_source_path(str(data_dir), source.removeprefix("precomputed:"))
+    if resolved is None:
         return None
-    return _file_info(str(path), path.stat().st_mtime_ns)
+    path = Path(resolved)
+    if not path.is_file():
+        return None
+    return _file_info(resolved, path.stat().st_mtime_ns)
+
+
+@lru_cache(maxsize=256)
+def _resolve_source_path(data_dir: str, relative: str) -> str | None:
+    """Resolved path of ``relative`` under ``data_dir``; None if it escapes the directory. Existence and
+    modification time are still checked on every call (``precomputed_file_info``)."""
+    root = Path(data_dir).resolve()
+    path = (root / relative).resolve()
+    return str(path) if path.is_relative_to(root) else None
 
 
 def precomputed_dataset_end(source: str, data_dir: Path | None = None) -> datetime | None:
     """Last sample time of the precomputed file behind a rescue ``source``; None if not known."""
     info = precomputed_file_info(source, data_dir)
     return None if info is None else info.last_sample_utc
+
+
+# --- validated-sample cache (see "Performance" in the module docstring) --------------------------------------------
+
+SAMPLE_CACHE_SIZE: Final = 50_000  # ~3.1 KB per sample (~155 MB full); a default rescue request uses ~9 000
+# Columns whose values, with the time and the Earth-visibility flag, are the complete input of one sample's
+# conversion (``sun_observation`` / ``earth_observation`` read nothing else for a rescue timeline).
+_KEY_COLUMNS: Final = (
+    "sun_azimuth_deg",
+    "sun_elevation_deg",
+    "sun_horizon_deg",
+    "sun_visible_fraction",
+    "earth_azimuth_deg",
+    "earth_elevation_deg",
+    "earth_horizon_deg",
+    "earth_margin_deg",
+)
+# int64 seconds, eight IEEE doubles (bit-exact: -0.0 and 0.0 differ, NaN payloads kept), visibility 0/1/2=None.
+_SAMPLE_KEY: Final = struct.Struct("<q8dB")
+
+
+class SampleCacheInfo(NamedTuple):
+    hits: int
+    misses: int
+    size: int
+    maxsize: int
+
+
+class _SampleCache:
+    """Bounded, thread-safe LRU map: exact sample input bytes -> validated, immutable ``ScientificSample``."""
+
+    def __init__(self, maxsize: int) -> None:
+        self.maxsize = maxsize
+        self._data: OrderedDict[bytes, ScientificSample] = OrderedDict()
+        self._lock = threading.Lock()
+        self.hits = 0
+        self.misses = 0
+
+    def get_many(self, keys: Sequence[bytes]) -> list[ScientificSample | None]:
+        with self._lock:
+            out: list[ScientificSample | None] = []
+            for key in keys:
+                sample = self._data.get(key)
+                if sample is not None:
+                    self._data.move_to_end(key)
+                out.append(sample)
+            found = sum(s is not None for s in out)
+            self.hits += found
+            self.misses += len(out) - found
+            return out
+
+    def put_many(self, items: Sequence[tuple[bytes, ScientificSample]]) -> None:
+        with self._lock:
+            for key, sample in items:
+                self._data[key] = sample
+                self._data.move_to_end(key)
+            while len(self._data) > self.maxsize:
+                self._data.popitem(last=False)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._data.clear()
+            self.hits = self.misses = 0
+
+    def info(self) -> SampleCacheInfo:
+        with self._lock:
+            return SampleCacheInfo(self.hits, self.misses, len(self._data), self.maxsize)
+
+
+_SAMPLE_CACHE: Final = _SampleCache(SAMPLE_CACHE_SIZE)
+
+
+def clear_sample_cache() -> None:
+    """Drop every cached sample and reset the counters."""
+    _SAMPLE_CACHE.clear()
+
+
+def sample_cache_info() -> SampleCacheInfo:
+    return _SAMPLE_CACHE.info()
+
+
+def _float_columns(timeline: Timeline) -> bool:
+    """True if every numeric source array is floating point, so a key's doubles are exactly the values the
+    converters read (an integer or boolean array is converted on the reference path, uncached)."""
+    arrays = (
+        timeline.sun_az,
+        timeline.sun_el,
+        timeline.sun_horizon,
+        timeline.sun_visible_fraction,
+        timeline.earth_az,
+        timeline.earth_el,
+        timeline.earth_horizon,
+    )
+    return all(getattr(getattr(a, "dtype", None), "kind", None) == "f" for a in arrays)
+
+
+def _reference_samples(times_s: Any, columns: dict[str, list[Any]], n: int) -> list[dict[str, Any]]:
+    """The uncached conversion (reference path); raises ``SiteFileError`` for invalid values."""
+    columns = {"time_utc": [str(t) + "Z" for t in times_s], **columns}
+    times = parse_times(columns["time_utc"])
+    return [
+        {"time_utc": times[i], "sun": sun_observation(columns, i), "earth": earth_observation(columns, i)}
+        for i in range(n)
+    ]
+
+
+def _cached_samples(times_s: Any, columns: dict[str, list[Any]]) -> list[ScientificSample] | None:
+    """Validated samples from the cache, converting (and caching) only new ones. None if any conversion fails,
+    so the caller can run the reference path and report the exact same error."""
+    seconds = times_s.astype("int64").tolist()
+    # One byte for both flags: Earth 0/1/2=None, plus 3 x the Sun flag (0 = no flag column, 1 false, 2 true, 3 None).
+    sun = columns.get("sun_visible")
+    sun_codes = [0] * len(seconds) if sun is None else [3 if v is None else 1 + int(v) for v in sun]
+    visible = [(2 if v is None else int(v)) + 3 * s for v, s in zip(columns["earth_visible"], sun_codes, strict=True)]
+    keys = [_SAMPLE_KEY.pack(*row) for row in zip(seconds, *(columns[c] for c in _KEY_COLUMNS), visible, strict=True)]
+    found = _SAMPLE_CACHE.get_many(keys)
+    new: list[tuple[bytes, ScientificSample]] = []
+    out: list[ScientificSample] = []
+    for i, sample in enumerate(found):
+        if sample is None:
+            try:
+                time_utc = parse_times([str(times_s[i]) + "Z"])[0]
+                sample = ScientificSample.model_validate(
+                    {"time_utc": time_utc, "sun": sun_observation(columns, i), "earth": earth_observation(columns, i)}
+                )
+            except (SiteFileError, ValidationError):
+                return None
+            new.append((keys[i], sample))
+        out.append(sample)
+    if new:
+        _SAMPLE_CACHE.put_many(new)
+    return out
 
 
 def timeline_to_series(
@@ -329,9 +487,9 @@ def timeline_to_series(
     info = _classify_source(timeline.source)
     if not timeline.step_hours > 0:
         raise RescueCompatError(f"timeline.step_hours must be positive, got {timeline.step_hours}")
+    times_s = timeline.times.astype("datetime64[s]")
     margin = timeline.earth_el - timeline.earth_horizon
     columns: dict[str, list[Any]] = {
-        "time_utc": [str(t) + "Z" for t in timeline.times.astype("datetime64[s]")],
         "sun_azimuth_deg": timeline.sun_az.tolist(),
         "sun_elevation_deg": timeline.sun_el.tolist(),
         "sun_horizon_deg": timeline.sun_horizon.tolist(),
@@ -345,22 +503,31 @@ def timeline_to_series(
             for v, m in zip(timeline.earth_visible.tolist(), margin.tolist(), strict=True)
         ],
     }
+    flags = getattr(timeline, "sun_visible", None)
+    if flags is not None:  # authoritative any-disk flag (NaN = unknown); see Timeline.sun_visible
+        columns["sun_visible"] = [None if math.isnan(float(v)) else bool(v) for v in flags.tolist()]
     site = timeline.site
-    lengths = {name: len(col) for name, col in columns.items()}
+    lengths = {"time_utc": len(times_s), **{name: len(col) for name, col in columns.items()}}
     if len(set(lengths.values())) != 1:
         detail = ", ".join(f"{k}={v}" for k, v in lengths.items())
         raise RescueCompatError(f"timeline for site {site.id!r}: arrays have inconsistent lengths: {detail}")
     n = lengths["time_utc"]
     if n == 0:
         raise RescueCompatError(f"timeline for site {site.id!r} has no samples")
-    try:
-        times = parse_times(columns["time_utc"])
-        samples = [
-            {"time_utc": times[i], "sun": sun_observation(columns, i), "earth": earth_observation(columns, i)}
-            for i in range(n)
-        ]
-    except SiteFileError as e:
-        raise RescueCompatError(f"timeline for site {site.id!r}: {e}") from e
+    # Validated samples from the cache. Otherwise the reference path converts them afresh and raises any
+    # conversion error exactly as before; contract violations still surface in the series validation below.
+    cached = _cached_samples(times_s, columns) if _float_columns(timeline) else None
+    samples: list[ScientificSample] | list[dict[str, Any]]
+    if cached is not None:
+        samples = cached
+        times = [s.time_utc for s in cached]
+    else:
+        try:
+            reference = _reference_samples(times_s, columns, n)
+        except SiteFileError as e:
+            raise RescueCompatError(f"timeline for site {site.id!r}: {e}") from e
+        samples = reference
+        times = [s["time_utc"] for s in reference]
     lon = rescue_longitude(site.lon)
 
     step_s = timeline.step_hours * _HOUR_S
@@ -423,9 +590,11 @@ def timeline_to_series(
             "generator": f"app.rescue timeline provider -> {COMPAT_VERSION}",
             "notes": (
                 f"Converted by {COMPAT_VERSION} from rescue Timeline (source={timeline.source!r}, "
-                f"site.id={site.id!r}, site.lon={site.lon}). Rescue samples are hourly bins starting "
-                f"at landing; the last sample starts the final bin. {bin_note} Rescue's Timeline has no "
-                f"sun_visible flag: disk state comes from the rounded fraction.{precision_note}"
+                f"site.id={site.id!r}, site.lon={site.lon}). Samples are held until the next one "
+                f"(sample-and-hold); the last sample starts the final bin. {bin_note} "
+                + ("Disk state from the source's sun_visible flag and fraction." if flags is not None else
+                   "Rescue's Timeline has no sun_visible flag: disk state comes from the rounded fraction.")
+                + precision_note
             ),
         },
         "fraction_decimals": None if file_info is None else file_info.fraction_decimals,
@@ -600,7 +769,25 @@ def assessment_to_result(assessment: ViabilityAssessment, scenario: Scenario, da
         headroom=build_operational_headroom(assessment),
         source=SOURCE,
         data_source=data_source,
+        **_ranking_metadata(assessment),
     )
+
+
+def _ranking_metadata(assessment: ViabilityAssessment) -> dict[str, Any]:
+    """Canonical score state, interval and configuration key, copied (never recomputed)."""
+    sc = assessment.score
+    bounds: dict[str, float] | None = None
+    b = sc.score_bounds
+    if b is not None:
+        if b.value is not None:
+            bounds = {"lower": b.value, "upper": b.value}
+        elif b.lower is not None and b.upper is not None:
+            bounds = {"lower": b.lower, "upper": b.upper}
+    return {
+        "score_status": sc.status.value if sc.status is not None else None,
+        "score_bounds": bounds,
+        "configuration_key": sc.configuration_key,
+    }
 
 
 # --- rescue-facing entry points -----------------------------------------------------------
@@ -655,10 +842,13 @@ def make_evaluate_fn(
 __all__ = [
     "COMPAT_VERSION",
     "CONSTRAINT_TO_RESCUE",
+    "SAMPLE_CACHE_SIZE",
     "SOURCE",
     "PrecomputedFileInfo",
     "RescueCompatError",
+    "SampleCacheInfo",
     "assessment_to_result",
+    "clear_sample_cache",
     "evaluate_timeline",
     "evaluate_timeline_detailed",
     "internal_site_id",
@@ -668,6 +858,7 @@ __all__ = [
     "precomputed_file_info",
     "requirements_to_canonical",
     "rescue_longitude",
+    "sample_cache_info",
     "scenario_to_mission",
     "timeline_to_series",
 ]
