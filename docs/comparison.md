@@ -104,6 +104,40 @@ requirements"; with no pass and any UNKNOWN there is no conclusion; with all FAI
 - The trade-off ranking is the user's preference weighting, not a mission assessment, and always
   shows the measured values behind each score.
 
+## Requirement evidence on the timeline
+
+`assessment.constraints[].evidence_windows` carries the windows the engine cites for each verdict (hours after
+landing and UTC; `clipped_at_start` = already in progress at landing). The synchronized timeline outlines the windows
+behind a **failed** requirement in red and behind an **undecided** one dashed, on the Sun or Earth lane, with a
+"Go to first violation" button. The measured longest gaps stay as neutral dashed outlines.
+
+## Mission Rescue -> comparison
+
+"Compare original, changed plan and top alternatives" (in the scenario workspace once Rescue has results) imports
+the original plan (when the change produced a different plan), the changed plan (set as baseline) and Rescue's
+top alternatives, up to four. Every plan is re-assessed by the canonical engine, and the **Mission Rescue: from
+problem to decision** panel shows: original plan -> what changed -> the problem (failed / undecided requirements)
+-> each alternative's verified outcome (confirmed fix, passes but not comparable, cannot be decided, still fails),
+what it fixes, Rescue's own note, any disagreement with Rescue's verdict -> the decision. Rescue's rank and the
+canonical rank can differ (Rescue's ordering also weighs date shift and distance); the decision uses the canonical
+ranking. Logic: `frontend/src/features/compare/rescueFlow.ts`.
+
+## Export (CSV / JSON)
+
+"Export JSON" / "Export CSV" in the comparison summary save the comparison exactly as displayed (enabled once the
+selection has been ranked). Built in the browser from the same data (`frontend/src/features/compare/export.ts`,
+format `comparison-export-v1`); nothing is recomputed and nothing is sent anywhere.
+
+- JSON: per scenario the plan and requirements, data provenance (kind, source, dataset, engine and scoring
+  versions, coverage), eligibility, canonical rank and group, `recommended`, score (status, exact, bounds), risk,
+  failed / undecided requirements, every requirement verdict, the canonical metrics with their status, and the
+  engine's ranking explanation; plus the ranking groups, the decision per group and the notes.
+- CSV: one row per scenario; each metric has `value`, `_lower`, `_upper` and `_status` columns.
+- Integrity: missing values are `null` / empty cells with a status, never 0; UNKNOWN stays `unknown`; a rank is only
+  exported for a PASS scenario (any other rank is dropped and listed under `warnings`); `recommended` is only true
+  for the scenario the decision panel recommends.
+- Shareable links were not added: the workspace is session-only and there is no sharing backend to build on.
+
 ## Integration points
 
 **Mission Rescue → comparison** (Member 5 / Arush). The scenario workspace shows an *Import from
