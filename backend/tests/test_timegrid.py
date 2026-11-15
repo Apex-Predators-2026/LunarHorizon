@@ -75,3 +75,49 @@ def test_planner_readout_uses_the_same_hour():
     half = client.get("/api/sites/connecting-ridge/status", params={"time": "2027-02-08T00:30Z"}).json()
     one = client.get("/api/sites/connecting-ridge/status", params={"time": "2027-02-08T01:00Z"}).json()
     assert half["time_utc"] == one["time_utc"]  # half an hour rounds up, as everywhere else
+
+
+# ---- the final dataset boundary: every screen lets the canonical engine judge a mission that starts inside the
+# data and runs past its end (a provable fail, otherwise unknown, never a pass)
+
+def _three_ways(landing, days):
+    c = _compare(landing, days)
+    r = Evaluator(cache_size=0).evaluate(Scenario(site=Site(**CR), landing_utc=datetime.fromisoformat(landing.replace("Z", "+00:00")),
+                                                  duration_days=days))
+    a = client.post("/api/atlas", json={"site_id": "connecting-ridge", "start_utc": landing, "count": 1,
+                                        "durations_days": [days]}).json()["cells"][0][0]
+    return c, r, a
+
+
+def _iso(dt):
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def test_screens_agree_at_the_end_of_the_data():
+    from datetime import timedelta
+    from tests.data_range import data_range
+    _, last = data_range("connecting-ridge")
+    for landing, days in [(last - timedelta(hours=23), 1), (last - timedelta(days=2), 7), (last - timedelta(hours=12), 28)]:
+        c, r, a = _three_ways(_iso(landing), days)
+        verdict = c["viability"]["eligibility"]
+        assert verdict in ("fail", "unknown")  # never a pass on missing hours
+        assert r.eligibility == verdict and a["status"] == verdict
+        assert r.data_source.startswith("precomputed")  # real samples only, never the synthetic fallback
+        assert r.score is None and c["viability"]["score"] is None
+
+
+def test_comparison_withholds_window_stats_past_the_data():
+    from datetime import timedelta
+    from tests.data_range import data_range
+    _, last = data_range("connecting-ridge")
+    c = _compare(_iso(last - timedelta(days=2)), 7)
+    assert c["solar"] is None and "Real data ends at" in c["message"]
+
+
+def test_entirely_after_the_data_is_never_judged():
+    from datetime import timedelta
+    from tests.data_range import data_range
+    _, last = data_range("connecting-ridge")
+    landing = _iso(last + timedelta(days=1))
+    c, r, a = _three_ways(landing, 1)
+    assert c["status"] == "unavailable" and r.eligibility == "unknown" and a["status"] == "not_evaluated"

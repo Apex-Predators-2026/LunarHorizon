@@ -169,9 +169,15 @@ class Evaluator:
         # Covered = the whole mission lies inside the real data: it starts at or after the first
         # sample and ends by the last one. The last sample is an instant, not one more hour of data
         # (same rule as the canonical engine).
+        # Partial = it starts inside the data but runs past its end. Like the Comparison and the Atlas
+        # (one policy, app.timegrid), the canonical engine judges it on the real hours that exist: it can
+        # prove a fail, never a pass, and otherwise says unknown. Only real samples are passed, never
+        # the synthetic fallback.
         cov = self.coverage(site)
         covered = [] if cov is None else [k for k, t in enumerate(starts)
                                           if cov[0] <= _np(t) and _np(t + end) <= cov[1]]
+        partial = [] if cov is None or sim else [k for k, t in enumerate(starts)
+                                                 if cov[0] <= _np(t) < cov[1] and _np(t + end) > cov[1]]
         groups = [covered]
         if sim:  # simulation mode: the rest goes to the synthetic fallback, in its own fetch so it
             in_cov = set(covered)  # can't turn the covered starts synthetic too
@@ -182,7 +188,7 @@ class Evaluator:
         if self.cache_size:
             base = (site.id, site.name, round(site.lat, 9), round(site.lon, 9), duration_days,
                     req.model_dump_json(), sim)
-            for k in covered if not sim else range(len(starts)):
+            for k in [*covered, *partial] if not sim else range(len(starts)):
                 keys[k] = (*base, starts[k])
                 hit = self._cache_get(keys[k])
                 if hit is not None:
@@ -208,6 +214,20 @@ class Evaluator:
                     self.evaluations += 1
                 if k in keys:
                     self._cache_put(keys[k], res)  # stores its own copy; res is fresh and unshared
+                results[k] = res
+        todo = [k for k in partial if k not in results]
+        if todo:
+            data_end = cov[1].astype("datetime64[s]").astype(datetime).replace(tzinfo=timezone.utc)
+            tl = self.provider.timeline(site, min(starts[k] for k in todo), data_end, step)  # real samples only
+            for k in todo:
+                t = starts[k]
+                i = tl.index_of(t)
+                scen = Scenario(site=site, landing_utc=t, duration_days=duration_days, requirements=req)
+                res = self.evaluate_fn(scen, tl.slice(i, min(i + n, len(tl.times))))
+                with self._lock:
+                    self.evaluations += 1
+                if k in keys:
+                    self._cache_put(keys[k], res)
                 results[k] = res
         return [results[k] if k in results else no_data_result(site, t, duration_days, req, cov)
                 for k, t in enumerate(starts)]
