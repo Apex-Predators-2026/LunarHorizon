@@ -26,8 +26,8 @@ export function JplHorizonsCard({
       role="region"
       aria-label="Live check against JPL Horizons"
       className={`lp-light md-reveal pointer-events-auto relative flex flex-col overflow-hidden rounded-[18px] border border-opal-300 bg-opal-50 text-xs text-slate-200 transition-shadow ${
-        dragging ? 'shadow-2xl shadow-black/50 ring-1 ring-coral/50' : 'shadow-lg shadow-black/30'
-      }`}
+        fixed ? '' : 'recede-behind-menu'
+      } ${dragging ? 'shadow-2xl shadow-black/50 ring-1 ring-coral/50' : 'shadow-lg shadow-black/30'}`}
       style={
         fixed
           ? {
