@@ -40,7 +40,7 @@ Verified result (2026-11-15, engine `0.6.0-phase6`, scoring `desirability-v1`, s
 
 Two real-data candidates already in the repository were replayed through the API (no exhaustive search):
 
-1. `backend/app/rescue/demo_scenario.json` — Connecting Ridge, 2027-02-08, 7 days, +5 days → fails power darkness
+1. `backend/app/rescue/demo_scenario.json` - Connecting Ridge, 2027-02-08, 7 days, +5 days → fails power darkness
    (63 h vs 50 h), Rescue moves to Malapert 3.5 days later. Reproduces, but the original plan scores 100 and stays
    ranked above the recovery in the comparison, which makes the final decision read oddly ("the plan you can no
    longer fly is ranked first").
@@ -113,7 +113,7 @@ evidence, preferences (labelled as preferences), sources, limitations and the re
 
 ## Environments
 
-- **Verified (2026-11-15):** local offline demonstration — backend with `LUNAR_OFFLINE=1` on the committed
+- **Verified (2026-11-15):** local offline demonstration - backend with `LUNAR_OFFLINE=1` on the committed
   `data/sites/` files, production frontend build served by `vite preview` (and the dev server), Chrome 1366×768 and
   1920×1080, `frontend/scripts/e2e-guided.mjs` 46/46 including A4 and Letter PDFs of the report. No live JPL Horizons
   request is needed anywhere in the story. 3D terrain tiles come from the local tile cache or Moon Trek (see

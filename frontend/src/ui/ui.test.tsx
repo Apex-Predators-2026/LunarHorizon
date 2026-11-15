@@ -28,7 +28,7 @@ describe('Value', () => {
     const html = renderToString(<Value value={0} unit="h" digits={0} />)
     expect(html).toContain('0')
     expect(html).toContain('h')
-    expect(html).not.toContain(UNAVAILABLE)
+    expect(html).not.toContain(`>${UNAVAILABLE}<`)
   })
 })
 
