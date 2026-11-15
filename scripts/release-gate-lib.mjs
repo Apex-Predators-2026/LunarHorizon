@@ -82,6 +82,7 @@ export const SMOKE_STEPS = [
   'Assess a site: Sun/Earth status, next events and the timeline',
   'Plan two missions (New plan dialog)',
   'Run a plan: it becomes the active mission and its card shows the canonical assessment',
+  'Plan assessment dialog: Show in 3D, then Back returns to the same dialog',
   "Investigate: the lander's-eye Sun view, the sky plot and the map layers",
   'Rescue: a 10-day launch slip, find alternatives',
   'Compare the two plans side by side',

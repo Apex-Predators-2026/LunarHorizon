@@ -160,4 +160,15 @@ describe('Mission Report Card', () => {
     expect(c.disclaimer).toMatch(/not an official NASA mission approval/)
     expect(c.executive_summary).toMatch(/^This report evaluates 3 lunar south-pole mission plans/)
   })
+
+  it('cites Gracy & Lee as the source of two site coordinates, never as a validation of the model', () => {
+    const nasa = buildReportCard(snapshot(['A', 'B'])).sources.nasa
+    const gl = nasa.filter((x) => /Gracy/.test(x))
+    expect(gl).toHaveLength(1)
+    expect(gl[0]).toMatch(/source of the Connecting Ridge and Peak Near Shackleton coordinates/)
+    expect(gl[0]).toMatch(/not a validation/)
+    expect(nasa.join(' ')).not.toMatch(/Validation reference/i)
+    // The LROC map is something the model is compared with; this report does not claim more than the Methodology view does.
+    expect(nasa.join(' ')).toMatch(/LROC[^.]*compared with/)
+  })
 })

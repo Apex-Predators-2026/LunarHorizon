@@ -267,7 +267,7 @@ export function PlanCard({
       >
         Full assessment: why, margins, evidence
       </button>
-      {details && <AssessmentDialog title={plan.name} scenario={sc} onClose={() => setDetails(false)} />}
+      {details && <AssessmentDialog title={plan.name} scenario={sc} onClose={() => setDetails(false)} onReopen={() => setDetails(true)} />}
       <div className="plan-card-actions mt-2 flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-3 text-xs text-slate-400" data-tip="Tick two or more plans, then press Compare to see them side by side.">
           <input type="checkbox" checked={compare} onChange={() => toggle(plan.id)} />
