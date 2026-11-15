@@ -153,6 +153,8 @@ function Strip({
       sunUnknownRuns: runs(sunKnownFlags, false),
       earthUnknownRuns: runs(earthKnownFlags, false),
       sunUnknownHours: sunKnownFlags.filter((k) => !k).length,
+      sunKnownHours: sunKnownFlags.filter(Boolean).length,
+      sunLitHours: steps.filter((st, i) => sunKnownFlags[i] && sunUp(st.sun)).length,
       earthUnknownHours: earthKnownFlags.filter((k) => !k).length,
       longDark: longestRun(dark),
       longBlackout: longestRun(blocked),
@@ -363,6 +365,11 @@ function Strip({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
           <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: COLORS.sun }} />Sunlight (height = % of solar disk visible)</span>
           <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: COLORS.earth }} />Earth in view</span>
+          {data.sunKnownHours > 0 && data.sunLitHours === 0 && (
+            <span className="text-amber-300" data-testid="no-sunlight-note">
+              No sunlight in this window: the Sun stays below the terrain horizon (shadow, not missing data). Try another date or site.
+            </span>
+          )}
           {(data.sunUnknownHours > 0 || data.earthUnknownHours > 0) && (
             <span>
               <span

@@ -1,8 +1,6 @@
 // Multi-Scenario Comparison dashboard (Member 4). Page layout and data wiring only; each section is
 // its own component and all comparison logic lives in analysis.ts.
-import { useEffect, useMemo, useRef } from 'react'
-
-import { routeHash } from '../../appRoute'
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 
 import { GlassSurface } from '../../ui/GlassSurface'
 
@@ -19,16 +17,16 @@ import { buildEntries } from './entries'
 import { resultKey, selectionKey, validateScenario } from './scenario'
 import { DecisionOverview } from './DecisionOverview'
 import { RescueStory } from './RescueStory'
-import { ScenarioManager } from './ScenarioManager'
 import { SummaryPanel } from './SummaryPanel'
 import { SyncTimeline } from './SyncTimeline'
 import { TradeoffPanel } from './TradeoffPanel'
-import { SelectField } from '../../ui/MdFields'
+import { Disclosure, TabPanel, Tabs, useReveal } from './disclosure'
+import { ScenarioStrip } from './ScenarioStrip'
 import './compare.css'
 import { Empty, Explain, Icon, Section } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { useView } from './useTimeAxis'
-import { COMPARE_SECTIONS } from './sections'
+import { COMPARE_TABS, TAB_ENTRY, tabOfSection, useCompareView } from './sections'
 import { MissionAssistant } from './assistant/MissionAssistant'
 import { useAssistantLayout } from './assistant/layout'
 import { useAssistant } from './assistant/useAssistant'
@@ -36,24 +34,7 @@ import { CompareTour } from './tour/CompareTour'
 import { TourButton, TourOffer } from './tour/TourButton'
 import { ReportHeaderAction } from './ReportHeaderAction'
 
-// Reading order: choose plans -> the answer -> the evidence -> when it happens -> ranking -> deeper analysis.
-const NAV = COMPARE_SECTIONS
-
 const originOf = (e: Entry) => axisPlacement(missionTime(e)).landingMs
-
-/** An M3 switch row, the same markup as the planner's layer switches (md-row + md-switch). */
-function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint: string }) {
-  return (
-    <button type="button" role="switch" aria-checked={checked} data-tip={hint} data-no-ripple
-      onClick={() => onChange(!checked)}
-      className="md-row flex h-10 items-center gap-3 rounded-full px-3 text-sm text-ink-2">
-      <span className="md-switch" aria-hidden="true">
-        <span className="md-switch-handle"><Icon name="check" size={16} /></span>
-      </span>
-      {label}
-    </button>
-  )
-}
 
 /**
  * `onOpen3D` switches the app to the 3D view; the selected site/time are already in the shared app store.
@@ -64,17 +45,16 @@ function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange
 export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   onOpen3D?: () => void
   section?: string | null
-  onSection?: (id: string) => void
+  onSection?: (id: string | null) => void
 } = {}) {
   const scenarios = useCompareStore((s) => s.scenarios)
   const selectedIds = useCompareStore((s) => s.selectedIds)
   const results = useCompareStore((s) => s.results)
   const allowDemo = useCompareStore((s) => s.allowDemo)
   const align = useCompareStore((s) => s.align)
-  const educational = useCompareStore((s) => s.educational)
   const notes = useCompareStore((s) => s.notes)
   const sitesStatus = useCompareStore((s) => s.sitesStatus)
-  const { setAllowDemo, setEducational, setAlign, loadSites, refresh } = useCompareStore.getState()
+  const { loadSites, refresh } = useCompareStore.getState()
   const assistantIsOpen = useAssistant((s) => s.open)
   const assistantLayout = useAssistantLayout((s) => s.layout)
   const assistantOpen = assistantIsOpen && assistantLayout === 'side' // the page only makes room for the side panel
@@ -114,13 +94,23 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
 
   const timelineProps = { entries, full, view, align, originMs }
 
+  const tab = useCompareView((s) => s.tab)
+  const setTab = useCompareView((s) => s.setTab)
+  const reveal = useReveal((s) => s.reveal)
+  /** Open whatever hides a section (its view, then its expandable block) so it can be scrolled to. */
+  const revealSection = (id: string) => {
+    const t = tabOfSection(id)
+    if (t) setTab(t)
+    reveal(id)
+  }
+
   const pageRef = useRef<HTMLDivElement>(null)
   const sectionBarRef = useRef<HTMLElement>(null)
   /** Scroll the page so the section's heading sits just below the sticky section bar. */
   const scrollToSection = (id: string, behavior: ScrollBehavior) => {
     const el = document.getElementById(id)
     const bar = sectionBarRef.current
-    if (!el || !bar) return
+    if (!el || !bar || el.getClientRects().length === 0) return // hidden (its view is not open yet): the next layout pass retries
     let scroller = el.parentElement
     while (scroller && !(scroller.scrollHeight > scroller.clientHeight && /auto|scroll/.test(getComputedStyle(scroller).overflowY))) scroller = scroller.parentElement
     const box = scroller ?? document.scrollingElement ?? document.documentElement
@@ -131,6 +121,10 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   }
   // The section from the URL (refresh, Back / Forward): shown, and kept in view while the results load
   // and the page above it grows, until the user scrolls or clicks, or after a few seconds.
+  useLayoutEffect(() => {
+    if (section) revealSection(section)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the URL's section changes
+  }, [section])
   useEffect(() => {
     if (!section) return
     let active = true
@@ -155,145 +149,138 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the URL's section changes
   }, [section])
   const jumpTo = (id: string) => {
-    scrollToSection(id, 'smooth')
+    revealSection(id)
+    // Let the revealed view / block lay out before measuring where to scroll.
+    requestAnimationFrame(() => requestAnimationFrame(() => scrollToSection(id, 'smooth')))
     onSection?.(id)
+  }
+  const chooseTab = (t: typeof tab) => {
+    setTab(t)
+    onSection?.(TAB_ENTRY[t]) // the URL remembers the view (no history step)
   }
 
   return (
     <div ref={pageRef} data-tour="compare-dashboard" className="cmp-page lp-light md-host min-h-full">
       {/* With the Mission Assistant open on a wide screen, the page makes room for it instead of being covered. */}
-      <div className="cmp-dashboard-content mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8" data-assistant-open={assistantOpen}>
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-6">
+      <div className="cmp-dashboard-content mx-auto max-w-[1500px] px-6 pb-16 pt-6 lg:px-8" data-assistant-open={assistantOpen}>
+        <header className="mb-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <div className="max-w-2xl">
-            <h1 className="text-[28px] font-medium leading-tight text-ink">Scenario comparison</h1>
-            <p className="mt-2 text-base text-ink-3">Sunlight, Earth contact and outages for each landing plan, side by side, from the same JPL Horizons and LOLA data</p>
+            <h1 className="text-2xl font-medium leading-tight text-ink">Scenario comparison</h1>
+            <p className="mt-1 text-sm text-ink-3">Sunlight, Earth contact and outages for each landing plan, side by side, from the same JPL Horizons and LOLA data</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <TourButton />
             <ReportHeaderAction />
-            <SelectField label="Align timelines by" value={align} fieldClassName="w-60"
-              tip="Line the scenarios up by time since landing, or by calendar date"
-              onChange={(e) => setAlign(e.target.value as 'met' | 'utc')}>
-              <option value="met">Mission elapsed time</option>
-              <option value="utc">Calendar date (UTC)</option>
-            </SelectField>
-            <Toggle checked={educational} onChange={setEducational} label="Educational mode" hint="Show short explanations of the science behind each panel" />
-            <Toggle checked={allowDemo} onChange={setAllowDemo} label="Allow demonstration data"
-              hint="Where no real Horizons + LOLA data exists (other dates/sites), show a clearly labelled synthetic illustration instead of nothing" />
           </div>
         </header>
 
-        {/* Section bar: a glass pill, sticky just below the app header. */}
-        <nav ref={sectionBarRef} aria-label="Comparison sections" className="sticky top-2 z-40 mb-6">
-          <div>
-            <GlassSurface radius="9999px" className="flex items-center gap-1 overflow-x-auto px-4 py-1">
-              {NAV.map(([id, label]) => (
-                <a key={id} href={routeHash('compare', id)} className="cmp-navlink"
-                  onClick={(e) => {
-                    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return // new tab etc.: the link itself
-                    e.preventDefault()
-                    jumpTo(id)
-                  }}>{label}</a>
-              ))}
-              <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap pl-4 text-xs" aria-live="polite">
-                {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-700" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
-              </span>
-            </GlassSurface>
-          </div>
+        <ScenarioStrip />
+
+        {/* The three views. Sticky just below the app header; the link to each section still works (it opens the
+            view and block that hold it first). */}
+        <nav ref={sectionBarRef} aria-label="Comparison views" className="sticky top-2 z-40 my-4">
+          <GlassSurface radius="9999px" className="px-3 py-1">
+            <Tabs base="cmp" label="Comparison views" tabs={COMPARE_TABS} value={tab} onChange={chooseTab}
+              trailing={
+                <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap pl-4 text-xs" aria-live="polite">
+                  {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-700" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
+                </span>
+              } />
+          </GlassSurface>
         </nav>
 
         <TourOffer />
         {hasDemo && (
-          <div role="alert" className="mb-6 flex gap-3 rounded-xl bg-amber-950 p-4 text-sm text-amber-200">
+          <div role="alert" className="mb-4 flex gap-3 rounded-xl bg-amber-950 p-4 text-sm text-amber-200">
             <Icon name="warning" className="mt-0.5" /><p><span className="font-medium">Demonstration data in use.</span> Scenarios tagged “Demonstration data” use a synthetic placeholder (approximate Sun/Earth motion, invented terrain). They are ranked separately and must not be used for planning.</p>
           </div>
         )}
         {backendDown && (
-          <div role="alert" className="mb-6 rounded-xl bg-red-950 p-4 text-sm text-red-200">
+          <div role="alert" className="mb-4 rounded-xl bg-red-950 p-4 text-sm text-red-200">
             The backend is not reachable, so no scientific data can be shown. Start it with <code>uvicorn app.main:app --port 8000</code> in <code>backend/</code>. Scenarios are kept for this session.
           </div>
         )}
 
-        <div className="space-y-6">
-          <Section id="cmp-scenarios" title="Scenario workspace">
-            <ScenarioManager />
-            <Explain title="How to compare">
-              <p>Tick 2–4 scenarios. Use <b>Duplicate &amp; shift date</b> to see what a launch delay does at the same site, or <b>Same date, 3 sites</b> to compare locations. Set a <b>baseline</b> to see how much every other scenario improves or worsens it.</p>
-            </Explain>
-          </Section>
+        {selected.length === 0 ? (
+          <Empty>Select at least two scenarios above to start comparing.</Empty>
+        ) : (
+          <div className="space-y-6">
+            <TabPanel base="cmp" id="overview" value={tab}>
+              <div className="space-y-6">
+                <Section id="cmp-overview" title={`At a glance${sameSite && differentDates ? ': landing dates' : !differentDates && !sameSite ? ': landing sites' : ''}`}>
+                  {/* Decision first: the supported recommendation (or why there is none), the decisive requirement, the next action. */}
+                  <div className="mb-6" data-tour="compare-decision">
+                    <DecisionOverview entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
+                      rankingCurrent={rankingCurrent} notes={notes} />
+                  </div>
+                  <AtAGlance entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
+                    ready={rankingCurrent} onJump={jumpTo} />
+                  <RescueStory entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
+                  <OverviewCards entries={entries} />
+                </Section>
 
-          {selected.length === 0 ? (
-            <Empty>Select at least two scenarios above to start comparing.</Empty>
-          ) : (
-            <>
-              <Section id="cmp-overview" title={`At a glance${sameSite && differentDates ? ': landing dates' : !differentDates && !sameSite ? ': landing sites' : ''}`}>
-                {/* Decision first: the supported recommendation (or why there is none), the decisive requirement, the next action. */}
-                <div className="mb-6" data-tour="compare-decision">
-                  <DecisionOverview entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
-                    rankingCurrent={rankingCurrent} notes={notes} />
-                </div>
-                <AtAGlance entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
-                  ready={rankingCurrent} onJump={jumpTo} />
-                <RescueStory entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
-                <OverviewCards entries={entries} />
-              </Section>
-
-              <Section id="cmp-metrics" title="Key metrics and requirements">
-                {anyData ? <MetricsTable entries={entries} /> : <Empty>No scientific data for the selected scenarios yet.</Empty>}
-              </Section>
-
-              <Section id="cmp-summary" title="Decision and trade-offs">
-                <SummaryPanel entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
-              </Section>
-
-              <Section id="cmp-timeline" title="Solar availability and Earth communication timeline">
-                {anyData ? (
-                  <>
-                    <SyncTimeline {...timelineProps} />
-                    <div className="mt-6 border-t border-line pt-6">
-                      <h3 className="mb-3 text-sm font-medium text-ink">Conditions at the selected time</h3>
-                      <ConditionsPanel entries={entries} align={align} originMs={originMs} onOpen3D={onOpen3D} />
-                    </div>
-                    <Explain title="Why can Earth disappear below the local horizon?">
-                      <p>From the Moon, Earth stays in nearly the same spot in the sky, but near the south pole that spot is only a few degrees above the horizon. Libration makes Earth wobble by several degrees over a month, so at some sites it periodically dips behind nearby terrain, causing a direct-to-Earth blackout that lasts until it rises again.</p>
-                    </Explain>
-                  </>
-                ) : <Empty>Timelines appear once scenarios have data.</Empty>}
-              </Section>
-
-              <Section id="cmp-performance" title="Ranking, availability and outages">
-                <AvailabilityCharts entries={entries} />
-                <div className="mt-6 border-t border-line pt-6">
-                  <MissionPerformance entries={entries} groups={rankingCurrent ? rankingGroups : []} ranking={!rankingCurrent && entries.some((e) => e.result) ? 'updating' : 'ready'} />
-                </div>
-              </Section>
-
-              <div className="flex items-center gap-3 pt-4">
-                <h2 className="text-sm font-medium uppercase tracking-wide text-ink-3">Detailed analysis</h2>
-                <span className="h-px flex-1 bg-line" aria-hidden="true" />
+                <Disclosure id="cmp-summary" card level={2} title="Decision and trade-offs"
+                  summary="The reasoning behind the decision: who wins on what, and what is still uncertain">
+                  <SummaryPanel entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
+                </Disclosure>
               </div>
+            </TabPanel>
 
-              <Section id="cmp-charts" title="Solar and Earth elevation over time">
-                {anyData ? <ElevationCharts entries={entries} view={view} align={align} originMs={originMs} /> : <Empty>No data to chart.</Empty>}
-              </Section>
+            <TabPanel base="cmp" id="evidence" value={tab}>
+              <div className="space-y-6">
+                <Section id="cmp-metrics" title="Key metrics and requirements">
+                  {anyData ? <MetricsTable entries={entries} /> : <Empty>No scientific data for the selected scenarios yet.</Empty>}
+                </Section>
 
-              <Section id="cmp-terrain" title="Terrain horizon and Sun/Earth position">
-                <HorizonCompare entries={entries} />
-              </Section>
+                <Section id="cmp-timeline" title="Solar availability and Earth communication timeline">
+                  {anyData ? (
+                    <>
+                      <SyncTimeline {...timelineProps} />
+                      <div className="mt-6 border-t border-line pt-6">
+                        <h3 className="mb-3 text-sm font-medium text-ink">Conditions at the selected time</h3>
+                        <ConditionsPanel entries={entries} align={align} originMs={originMs} onOpen3D={onOpen3D} />
+                      </div>
+                      <Explain title="Why can Earth disappear below the local horizon?">
+                        <p>From the Moon, Earth stays in nearly the same spot in the sky, but near the south pole that spot is only a few degrees above the horizon. Libration makes Earth wobble by several degrees over a month, so at some sites it periodically dips behind nearby terrain, causing a direct-to-Earth blackout that lasts until it rises again.</p>
+                      </Explain>
+                    </>
+                  ) : <Empty>Timelines appear once scenarios have data.</Empty>}
+                </Section>
 
-              <Section id="cmp-tradeoff" title="Trade-off analysis">
-                <TradeoffPanel entries={entries} />
-              </Section>
+                <Section id="cmp-performance" title="Ranking, availability and outages">
+                  <AvailabilityCharts entries={entries} />
+                  <div className="mt-6 border-t border-line pt-6">
+                    <MissionPerformance entries={entries} groups={rankingCurrent ? rankingGroups : []} ranking={!rankingCurrent && entries.some((e) => e.result) ? 'updating' : 'ready'} />
+                  </div>
+                </Section>
+              </div>
+            </TabPanel>
 
-              {notes.length > 0 && (
-                <footer className="px-1 text-xs leading-relaxed text-ink-4">
-                  <h2 className="mb-2 text-sm font-medium text-ink-3">Data sources and assumptions</h2>
-                  <ul className="list-disc space-y-1 pl-4">{notes.map((n) => <li key={n}>{n}</li>)}</ul>
-                </footer>
-              )}
-            </>
-          )}
-        </div>
+            <TabPanel base="cmp" id="detail" value={tab}>
+              <div className="space-y-4">
+                <Disclosure id="cmp-charts" card lazy level={2} defaultOpen title="Solar and Earth elevation over time"
+                  summary="Sun and Earth elevation for each scenario, on the shared timeline">
+                  {anyData ? <ElevationCharts entries={entries} view={view} align={align} originMs={originMs} /> : <Empty>No data to chart.</Empty>}
+                </Disclosure>
+                <Disclosure id="cmp-terrain" card lazy level={2} title="Terrain horizon and Sun/Earth position"
+                  summary="Why a site is shadowed: the local horizon against the Sun and Earth">
+                  <HorizonCompare entries={entries} />
+                </Disclosure>
+                <Disclosure id="cmp-tradeoff" card lazy level={2} title="Trade-off analysis"
+                  summary="Scenarios compared across several measures at once">
+                  <TradeoffPanel entries={entries} />
+                </Disclosure>
+              </div>
+            </TabPanel>
+
+            {notes.length > 0 && (
+              <footer className="px-1 text-xs leading-relaxed text-ink-4">
+                <h2 className="mb-2 text-sm font-medium text-ink-3">Data sources and assumptions</h2>
+                <ul className="list-disc space-y-1 pl-4">{notes.map((n) => <li key={n}>{n}</li>)}</ul>
+              </footer>
+            )}
+          </div>
+        )}
       </div>
       <MissionAssistant entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
         notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} onJump={jumpTo} />
