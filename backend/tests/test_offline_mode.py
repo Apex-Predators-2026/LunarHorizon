@@ -41,3 +41,17 @@ def test_terrain_blocks_fail_at_once_offline(tmp_path, monkeypatch):
     with pytest.raises(net.OfflineError):
         store.get(src, 0, 0, 0)
     assert time.time() - t0 < 1
+
+
+def test_live_jpl_check_says_it_needs_the_internet_when_offline(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    import app.main as main
+
+    def offline(*_):
+        raise net.OfflineError("offline mode (LUNAR_OFFLINE=1), not in the cache: https://ssd.jpl.nasa.gov/...")
+
+    monkeypatch.setattr(main, "verify", offline)
+    r = TestClient(main.app).get("/api/sites/connecting-ridge/verify", params={"time": "2027-01-12T03:00Z"})
+    assert r.status_code == 503
+    assert "internet connection" in r.json()["detail"] and "https://" not in r.json()["detail"]
