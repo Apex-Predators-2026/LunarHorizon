@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { TUTORIAL_STEPS, useTutorialStore } from '../features/tutorial'
 import { GlassSurface } from '../ui/GlassSurface'
 import type { Horizon, SiteInfo, TimelineStep } from '../types'
 import type { SiteFrame } from './globe/cubeSphere'
@@ -30,6 +31,22 @@ export function MiniMapPanel(props: {
   const cardRef = useRef<HTMLDivElement>(null)
   const { pos, size, dragging, handlers } = useDraggable(cardRef)
   const [tab, setTab] = useState<Tab>('map')
+  useEffect(() => {
+    let lastNonce = -1
+    const sync = () => {
+      const st = useTutorialStore.getState()
+      if (!st.open || st.prepNonce === lastNonce) return
+      lastNonce = st.prepNonce
+      const nextTab = TUTORIAL_STEPS[st.stepIndex]?.prep?.miniMapTab
+      if (nextTab) setTab(nextTab)
+    }
+    const id = setTimeout(sync, 0)
+    const unsub = useTutorialStore.subscribe(sync)
+    return () => {
+      clearTimeout(id)
+      unsub()
+    }
+  }, [])
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({})
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
   useLayoutEffect(() => {
@@ -42,6 +59,7 @@ export function MiniMapPanel(props: {
       <div
         ref={cardRef}
         {...handlers}
+        data-tour="minimap-panel"
         data-tip="Drag to move"
         className={`lp-light pointer-events-auto flex touch-none select-none flex-col items-center rounded-[20px] ${dragging ? 'cursor-grabbing' : 'cursor-grab'}`}
         style={pos && size ? { position: 'fixed', left: pos.x, top: pos.y, width: size.w, zIndex: 20 } : undefined}
@@ -67,7 +85,10 @@ export function MiniMapPanel(props: {
                 aria-selected={tab === t.id}
                 data-tip={t.tip}
                 onPointerDown={(e) => e.stopPropagation()} // a click on a tab, not a drag of the card
-                onClick={() => setTab(t.id)}
+                onClick={() => {
+                  setTab(t.id)
+                  useTutorialStore.getState().recordInteraction('minimap-tab')
+                }}
                 className={`relative z-10 h-8 min-w-20 rounded-full px-4 text-sm transition-colors ${tab === t.id ? 'font-semibold text-white' : 'text-white/75 hover:text-white'}`}
               >
                 {t.label}

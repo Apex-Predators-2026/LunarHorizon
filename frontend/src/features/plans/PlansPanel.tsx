@@ -16,6 +16,7 @@ import { fmtUtc, fromUtcInput, toUtcInput } from '../rescue/format'
 import { REQUIREMENT_FIELDS, REQUIREMENT_TIPS } from '../rescue/PlanForm'
 import type { RescueCatalog } from '../rescue/types'
 import { useRescueStore } from '../rescue/useRescueStore'
+import { useTutorialStore } from '../tutorial'
 import { usePlanDialog, usePlansStore, type Plan } from './usePlansStore'
 
 const MAX_COMPARE = 6
@@ -243,16 +244,18 @@ export function PlansPanel({ onCompare }: { onCompare: () => void }) {
     app.setSite(p.scenario.site.id)
     app.setTime(p.scenario.landing_utc)
     setActive(p.id)
+    useTutorialStore.getState().recordInteraction('plan-play')
     showSnackbar(`Running ${p.name}`, 'success')
   }
   const picked = plans.filter((p) => compareIds.includes(p.id)).slice(0, MAX_COMPARE)
   const compare = () => {
     sendToComparison(picked.map((p) => p.scenario), { origin: 'user', names: picked.map((p) => p.name), replaceSelection: true, baselineIndex: 0 })
+    useTutorialStore.getState().recordInteraction('compare-open')
     onCompare()
   }
 
   return (
-    <section aria-label="Plans">
+    <section aria-label="Plans" data-tour="plans-panel">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100">Plans</h2>
         {picked.length >= 2 && (
@@ -298,8 +301,12 @@ export function PlanFab() {
     <button
       type="button"
       aria-label="New plan"
+      data-tour="plan-fab"
       data-tip="New plan: create a mission plan, then run it from the sidebar or compare it with others"
-      onClick={() => show(null)}
+      onClick={() => {
+        useTutorialStore.getState().recordInteraction('plan-create')
+        show(null)
+      }}
       className="md-pop-fab flex h-[clamp(72px,8.7vw,125px)] w-[clamp(72px,8.7vw,125px)] items-center justify-center rounded-[20%] bg-opal-50 text-coral shadow-lg shadow-black/40"
     >
       {/* The plus is cut out of the mango mesh. */}

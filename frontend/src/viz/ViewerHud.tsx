@@ -7,6 +7,7 @@ import { LoadingIndicator } from '../ui/LoadingIndicator'
 import { SelectField } from '../ui/MdFields'
 import { DatePopup } from './DatePopup'
 import { fmtDeg, fmtPct, sunUp } from './timeline'
+import { useTutorialStore } from '../features/tutorial'
 
 // No next event = none before the site's data ends (the backend only searches the data it has).
 const fmt = (iso: string | null, dataStop: string | null | undefined) =>
@@ -47,8 +48,16 @@ export function useViewerSetup(sites: SiteInfo[] | null) {
 export function SiteSelect({ sites, error, loading }: { sites: SiteInfo[] | null; error: string | null; loading: boolean }) {
   const { siteId, setSite } = useAppStore()
   return (
-    <div className="space-y-2 text-xs">
-      <SelectField label="Site" tip="The landing site shown in the 3D view and used for the timeline." value={siteId ?? ''} onChange={(e) => setSite(e.target.value)}>
+    <div data-tour="site-select" className="space-y-2 text-xs">
+      <SelectField
+        label="Site"
+        tip="The landing site shown in the 3D view and used for the timeline."
+        value={siteId ?? ''}
+        onChange={(e) => {
+          setSite(e.target.value)
+          useTutorialStore.getState().recordInteraction('site-select')
+        }}
+      >
         {SITE_GROUPS.map(([kind, label, inGroup]) => {
           const group = sites?.filter(inGroup) ?? []
           return group.length ? (
