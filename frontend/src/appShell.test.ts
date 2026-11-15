@@ -18,6 +18,34 @@ describe('tooltips', () => {
   })
 })
 
+describe('phone width (375 px)', () => {
+  it('the planner toolbar wraps instead of pushing Play and More off-screen, and does not scroll (menus open above it)', async () => {
+    const tools = await source('./viz/MapTools.tsx')
+    const bar = tools.match(/role="toolbar" aria-label="Map tools" className="([^"]+)"/)?.[1] ?? ''
+    expect(bar.split(' ')).toEqual(expect.arrayContaining(['flex-wrap', 'max-w-full']))
+    expect(bar).not.toMatch(/overflow-(x-)?(auto|scroll)/)
+  })
+
+  it('the + button clears the toolbar wherever they share the bottom strip (phones, or a wrapped toolbar on a tablet)', async () => {
+    const scene = await source('./viz/Scene.tsx')
+    expect(scene).toContain('const aboveTools = (barHidden ? 44 : barNow) + 8 + toolsNow + 16')
+    expect(scene).toMatch(/\['--fab-b' as string\]: `\$\{toolsNow > 64 \? aboveTools :/)
+    expect(scene).toContain('bottom-[var(--fab-b)]')
+    expect(scene).toContain('max-md:bottom-[var(--fab-b-sm)]')
+  })
+
+  it('the larger planner logo applies from lg up only, so "Try a mission" stays on the first line at tablet width', async () => {
+    const app = await source('./App.tsx')
+    expect(app).toContain("w-[clamp(144px,15vw,178px)] ${view === 'planner' ? 'lg:w-[clamp(176px,20vw,240px)]' : ''}")
+  })
+
+  it('the Methodology check grid has a shrinkable column, so wide cards do not scroll the page sideways', async () => {
+    const view = await source('./features/methodology/MethodologyView.tsx')
+    expect(view).toContain('<div className="grid grid-cols-1 gap-4 xl:grid-cols-2">')
+    expect(view).toContain('<article className="min-w-0 rounded-2xl bg-inset p-5">')
+  })
+})
+
 describe('M3 fields', () => {
   it('the Drop pin coordinate form uses the shared outlined TextField, not raw inputs', async () => {
     const tools = await source('./viz/MapTools.tsx')
