@@ -11,7 +11,7 @@ const ICONS = {
 /** Standalone look at the glass over the animated gradient: open the app with #glass at the end of the address. */
 export function GlassDemo() {
   return (
-    <div className="relative h-full overflow-hidden" style={{ fontFamily: 'var(--font-inter)' }}>
+    <div className="lp-light relative h-full overflow-hidden" style={{ fontFamily: 'var(--font-inter)' }}>
       <InteractiveGrainGradient fill patternScale={0.6} />
       <div className="relative flex h-full flex-col items-center justify-center gap-10 p-8 text-calcite-ink">
         <GlassToolbar role="toolbar" aria-label="Demo toolbar" className="gap-1 p-2">

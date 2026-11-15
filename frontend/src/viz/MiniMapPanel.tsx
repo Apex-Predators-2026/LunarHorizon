@@ -72,8 +72,8 @@ export function MiniMapPanel(props: {
               radius="9999px"
               interactive={false}
               aria-hidden
-              className="glass-slide pointer-events-none absolute inset-y-0"
-              style={{ left: pill?.left ?? 0, width: pill?.width ?? 0, opacity: pill ? 1 : 0, background: 'linear-gradient(135deg, rgba(255,255,255,0.5), rgba(255,255,255,0.22))' }}
+              className="glass-slide glass-selection pointer-events-none absolute inset-y-0"
+              style={{ left: pill?.left ?? 0, width: pill?.width ?? 0, opacity: pill ? 1 : 0 }}
             />
             {TABS.map((t) => (
               <button

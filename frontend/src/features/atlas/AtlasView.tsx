@@ -39,10 +39,10 @@ import { atlasSession, normalizeRequest, requestDiffs, transferFor } from './ses
 import { openInPlanner } from './transfer'
 
 const COLOR: Record<CellStatus, { bg: string; fg: string }> = {
-  pass: { bg: '#2f9e62', fg: '#ffffff' },
-  fail: { bg: '#d4493f', fg: '#ffffff' },
-  unknown: { bg: '#e6b13a', fg: '#3b2a00' },
-  not_evaluated: { bg: '#d5dbe3', fg: '#4b5563' },
+  pass: { bg: 'var(--cmp-atlas-pass)', fg: '#ffffff' },
+  fail: { bg: 'var(--cmp-atlas-fail)', fg: '#ffffff' },
+  unknown: { bg: 'var(--cmp-atlas-unknown)', fg: 'var(--cmp-atlas-unknown-ink)' },
+  not_evaluated: { bg: 'var(--cmp-atlas-unevaluated)', fg: 'var(--cmp-atlas-unevaluated-ink)' },
 }
 // Not evaluated is also hatched, so it never reads as just a lighter colour.
 const HATCH = 'repeating-linear-gradient(135deg, rgba(0,0,0,0.12) 0 2px, transparent 2px 6px)'
