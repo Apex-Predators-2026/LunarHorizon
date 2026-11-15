@@ -263,6 +263,7 @@ export function AtlasView() {
               {error && <p role="alert" className="rounded border border-red-900 bg-red-950/40 p-2 text-xs text-red-300">The Atlas couldn't be made: {error}</p>}
               {result && (
                 <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'} aria-busy={loading}>
+                  {result.time_note && <p className="mb-2 text-xs text-slate-400">{result.time_note}</p>}
                   <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1" aria-label="Legend">
                     {(['pass', 'fail', 'unknown', 'not_evaluated'] as const).map((st) => <StatusChip key={st} status={st} count={result.counts[st]} />)}
                   </div>

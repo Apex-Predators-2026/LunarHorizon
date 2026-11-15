@@ -82,8 +82,9 @@ class AtlasResponse(BaseModel):
     site_name: str
     data_start_utc: str
     data_stop_utc: str
-    start_utc: str
+    start_utc: str  # first landing evaluated (hourly data grid)
     step_hours: float
+    time_note: str | None = None  # plain note when the grid moved the start or a length
     landing_utc: list[str]  # columns
     durations_days: list[float]  # rows
     requirements_input: MissionRequirements
