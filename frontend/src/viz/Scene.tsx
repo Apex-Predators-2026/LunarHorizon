@@ -48,6 +48,7 @@ import { SnackbarHost } from './Snackbar'
 import { TerrainLoadingOverlay, TerrainProgressBar } from './TerrainProgress'
 import { CoverageBadge } from './CoverageBadge'
 import { TooltipHost } from './TooltipHost'
+import { TUTORIAL_STEPS, useTutorialStore } from '../features/tutorial'
 import { showSnackbar } from './snackbarStore'
 import { playBubblePop, playBubbleRemove } from './sfx'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
@@ -228,6 +229,21 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   const [barHidden, setBarHidden] = useState(false)
   const [barH, setBarH] = useState(0)
   const [barNow, setBarNow] = useState(0) // live height of the timeline panel, so the + button sits just above it
+  useEffect(() => {
+    let lastNonce = -1
+    const sync = () => {
+      const st = useTutorialStore.getState()
+      if (!st.open || st.prepNonce === lastNonce) return
+      lastNonce = st.prepNonce
+      if (TUTORIAL_STEPS[st.stepIndex]?.prep?.showTimeBar) setBarHidden(false)
+    }
+    const id = setTimeout(sync, 0)
+    const unsub = useTutorialStore.subscribe(sync)
+    return () => {
+      clearTimeout(id)
+      unsub()
+    }
+  }, [])
 
   const sunLabel = useRef<HTMLDivElement>(null)
   const earthLabel = useRef<HTMLDivElement>(null)
@@ -390,6 +406,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   // zooms the 3D view, as if the label weren't there. Native and non-passive, so a pinch over a label
   // doesn't zoom the page instead.
   const sceneRef = useRef<HTMLDivElement>(null)
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null)
   useEffect(() => {
     const root = sceneRef.current
     if (!root) return
@@ -416,7 +433,26 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   }, [])
 
   return (
-    <div ref={sceneRef} className={`absolute inset-0 overflow-hidden ${pin.phase === 'armed' ? 'pin-cursor' : measureArmed ? 'measure-cursor' : ''}`}>
+    <div
+      ref={sceneRef}
+      onPointerDownCapture={(e) => {
+        if ((e.target as HTMLElement).tagName === 'CANVAS') {
+          dragStartRef.current = { x: e.clientX, y: e.clientY }
+        } else {
+          dragStartRef.current = null
+        }
+      }}
+      onPointerUpCapture={(e) => {
+        const start = dragStartRef.current
+        dragStartRef.current = null
+        if (start && pin.phase === 'idle' && !measureArmed) {
+          if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) {
+            useTutorialStore.getState().recordInteraction('orbit-3d')
+          }
+        }
+      }}
+      className={`absolute inset-0 overflow-hidden ${pin.phase === 'armed' ? 'pin-cursor' : measureArmed ? 'measure-cursor' : ''}`}
+    >
       {/* Renders only when something changes (camera, time, tiles arriving): an idle view costs
           nothing. Components that animate on their own must call invalidate(). */}
       {/* A new graphics preset gets a fresh canvas: anti-aliasing is fixed when the WebGL context is made. */}
@@ -796,6 +832,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           {site && win && (
             <div
               ref={barRef}
+              data-tour="time-bar"
               className={`md-slide relative transition-[transform,margin] ${
                 barHidden ? 'duration-[250ms] ease-[var(--md-ease-emph-accel)]' : 'duration-[400ms] ease-[var(--md-ease-emph-decel)]'
               }`}
