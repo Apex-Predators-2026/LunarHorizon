@@ -82,7 +82,7 @@ function Check({ label, scope, reference, children, limitation, detail }: {
   detail?: { title: string; summary: string; children: React.ReactNode }
 }) {
   return (
-    <article className="rounded-2xl bg-inset p-5">
+    <article className="min-w-0 rounded-2xl bg-inset p-5">
       <h3 className="text-base font-medium text-ink">{label}</h3>
       <div className="mt-3 text-sm text-ink-2">{children}</div>
       <Disclosure level={4} className="mt-3" title="Scope, reference and limitation" summary="what was compared, against what, and where it falls short">
@@ -176,7 +176,8 @@ export function Checks({ s }: { s: ValidationSummary }) {
   const h = s.horizon_method
   const il = s.illumination_observed
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
+    // grid-cols-1 = minmax(0, 1fr): the implicit auto column grew to its widest card and scrolled sideways at 375 px.
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       {e && (
         <Check label="Sun and Earth positions vs an independent ephemeris" scope={e.scope} reference={e.reference} limitation={e.limitation}>
           <p>
