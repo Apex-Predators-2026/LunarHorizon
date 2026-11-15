@@ -71,6 +71,24 @@ describe('comparison context', () => {
     }
   })
 
+  it('says why figures are unavailable when the backend withheld them (partial data), never as zero', () => {
+    const why = 'Real data ends at 2031-01-01T00:00Z: it covers 100 h of this 336 h mission.'
+    const e = all().slice(0, 2)
+    const r = { ...e[0].result!, withheld: { solar: why, power: why } }
+    e[0] = { ...e[0], result: r, state: { state: 'done', result: r } }
+    const c = ctx(e)
+    expect(c.scenarios[0].figures_withheld).toEqual([{ blocks: 'Solar statistics and Power statistics', reason: why }])
+    expect(c.scenarios[1].figures_withheld).toEqual([])
+    const t = basicSummary(c)
+    expect(t).toContain(`- Scenario A: solar statistics and power statistics withheld, not zero. ${why}`)
+    expect(t.split('### Communication')[1]).not.toContain('withheld') // only under the block it belongs to
+  })
+
+  it('does not call figures equal when fewer than two scenarios have one', () => {
+    const t = basicSummary(ctx([entry('D'), entry('D')].map((x, i) => ({ ...x, scenario: { ...x.scenario, id: `d${i}`, label: i ? 'E' : 'D' } }))))
+    expect(t).not.toContain('no meaningful difference')
+  })
+
   it('marks a metric best only when the page does', () => {
     for (const row of ctx().key_metrics) {
       if (row.better === 'no preferred direction') expect(row.best).toEqual([])
