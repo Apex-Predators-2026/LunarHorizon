@@ -115,28 +115,6 @@ production and offline checks, so it is **not** a full release pass.
 Known: 7 backend tests in `tests/viability/` (Phase-6 rescue compatibility) fail on `main`. They are recorded in
 [`TEAM_HANDOFF.md`](TEAM_HANDOFF.md) as pre-existing.
 
-## Validation, and what it does not establish
-
-- **Independent scientific validation** ([`docs/validation-engine.md`](docs/validation-engine.md)): Sun and Earth
-  directions agree with an independent ephemeris (Skyfield + JPL DE421) to well under 0.001°; the horizon geometry
-  agrees with an independent method on the same DEM; modelled sunlight is compared with the LROC
-  `WAC_POLE_ILL_TWI_SOUTH` map around each comparable site. The in-app Methodology view shows the stored numbers.
-- **Software verification** ([`docs/member2-part2-validation.md`](docs/member2-part2-validation.md)): the viability
-  engine's suite (cases, invariants, dataset hashes, currency against the running code) checks that the engine
-  follows its own rules. It is not a scientific validation. Regenerate it with
-  `cd backend; python -m app.viability.validation --out ../data/validation/viability_validation.json`.
-
-**Limitations**:
-
-- Sunlight is not electrical power: no array, efficiency, battery state-of-charge or thermal model.
-- Earth line of sight is not a radio link: no antenna, link budget or ground-station model.
-- Earth uses its centre point.
-- Hourly samples mean rises and sets are known to about ±30 min.
-- Terrain finer than the 5–200 m DEM tiers is smoothed.
-- UNKNOWN bounds cover missing data only, not terrain, landing-position or model uncertainty.
-- It is not an assessment of landing safety (slopes, hazards).
-- The 3D view's shadows depend on the graphics setting; the numbers always use the engine's ~300 km horizon.
-
 ## NASA data and references
 
 | Source | Used for |
@@ -156,36 +134,11 @@ Full detail, frames and caveats: [`docs/data-sources.md`](docs/data-sources.md).
 
 ## AI assistance
 
-- **In the product:** the optional *Mission Assistant* in Comparison sends the comparison's own numbers to an LLM
+- The optional *Mission Assistant* in Comparison sends the comparison's own numbers to an LLM
   through OpenRouter (default model `openai/gpt-4o-mini`, set by `OPENROUTER_MODEL`). It runs only when the server
   has `OPENROUTER_API_KEY` (in `backend/.env` or the environment); otherwise it says it isn't configured. It explains
   results; it never decides verdicts, scores or rankings.
-- **In development:** the team used AI coding assistants, including Anthropic's Claude (Claude Code). Thirteen
-  commits carry a Claude co-author trailer, and other AI-assisted work does not. The exact list of tools and uses
-  per member still needs each member's confirmation before submission (see
-  [`docs/submission.md`](docs/submission.md)).
-
-## Licence and assets
-
-**No open-source licence has been chosen yet.** The Space Apps rules require one for global judging. Several bundled
-assets have unresolved or restrictive terms (notably the rover 3D model and the `BabyDoll.ttf` font). See
-[`docs/assets-and-licensing.md`](docs/assets-and-licensing.md) for the evidence and the open decisions before adding
-a `LICENSE` file.
-
+  
 ## Team
 
-Apex Predators (Space Apps 2026). Responsibilities: [`IdeasWorkdistribution.md`](IdeasWorkdistribution.md).
-Submission material: [`docs/submission.md`](docs/submission.md) and
-[`docs/judging-and-submission.md`](docs/judging-and-submission.md).
-
-## To verify after the guided journey and report are integrated
-
-These sections describe this branch. Re-check them once the MDR *guided mission journey* ("Explore a mission") and
-the *mission decision report* (source commits `983e54d` and `efac9bf`, not integrated) are merged:
-
-- [ ] **What it does:** add the journey and the report rows; confirm the tutorial row still applies.
-- [ ] **Testing:** the release-gate "Report" check currently means the Comparison CSV/JSON export
-      (`src/features/compare/export.test.tsx`); update it if the report adds its own tests or steps.
-- [ ] **Prepared and offline demonstration:** re-run `demo-tour.mjs --verify` and `smoke-prod.mjs` over the journey.
-- [ ] **Architecture:** add the report's module and endpoint.
-- [ ] **Testing:** replace the release-gate note with a full `--full` pass on the release commit.
+Apex Predators (Space Apps 2026). 
