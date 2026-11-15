@@ -1,17 +1,18 @@
-// Validation & Methodology: scientific credibility in layers (review item #19).
-//   1. Where an answer comes from: NASA data and the model inputs.
-//   2. How it was checked: independent scientific validation, with the stored report's own numbers (/api/validation).
-//   3. How the viability engine was verified: software verification from its stored report
-//      (/api/viability/validation-summary, ViabilityChecks.tsx); missing / stale / failed reports are said to be so.
-//   4. What it can establish: assumptions, coverage, resolution and limitations.
-// Plus one reproducible mission. Wording follows docs/validation-engine.md; numbers come from the API, never typed in.
+// Validation & Methodology: scientific credibility in layers (review item #19). A compact overview first (what was
+// checked, how fresh the reports are, the material limitations), then three views:
+//   Scientific validation: independent checks with the stored report's own numbers (/api/validation).
+//   Engine verification: software verification from its stored report (/api/viability/validation-summary,
+//      ViabilityChecks.tsx); missing / stale / failed reports are said to be so.
+//   Methods & sources: where an answer comes from, what it can establish, a reproducible mission, sources.
+// Tables, plots and methodology sit behind explicit disclosures. Wording follows docs/validation-engine.md; numbers come from the API, never typed in.
 import { useEffect, useState } from 'react'
 
 import '../compare/compare.css'
-import { Section } from '../compare/ui'
+import { Disclosure, TabPanel, Tabs, useReveal, type TabDef } from '../compare/disclosure'
 import {
   fetchValidation,
   fetchViabilityValidation,
+  reportVerdict,
   siteName,
   type IlluminationCheck,
   type ValidationSummary,
@@ -71,22 +72,31 @@ const SOURCES = [
   { name: 'Speyerer & Robinson 2013, Icarus 222, 122–136', url: 'https://doi.org/10.1016/j.icarus.2012.10.010' },
 ]
 
-function Check({ label, scope, reference, children, limitation }: {
+function Check({ label, scope, reference, children, limitation, detail }: {
   label: string
   scope: string
   reference: string
   children: React.ReactNode
   limitation: string
+  /** Plots and tables: available on demand, after the summary. */
+  detail?: { title: string; summary: string; children: React.ReactNode }
 }) {
   return (
     <article className="rounded-2xl bg-inset p-5">
       <h3 className="text-base font-medium text-ink">{label}</h3>
       <div className="mt-3 text-sm text-ink-2">{children}</div>
-      <dl className="mt-4 space-y-1 text-xs text-ink-3">
-        <div><dt className="inline font-medium text-ink-2">Scope: </dt><dd className="inline">{scope}</dd></div>
-        <div><dt className="inline font-medium text-ink-2">Reference: </dt><dd className="inline">{reference}</dd></div>
-        <div><dt className="inline font-medium text-ink-2">Limitation: </dt><dd className="inline">{limitation}</dd></div>
-      </dl>
+      <Disclosure level={4} className="mt-3" title="Scope, reference and limitation" summary="what was compared, against what, and where it falls short">
+        <dl className="space-y-1 text-xs text-ink-3">
+          <div><dt className="inline font-medium text-ink-2">Scope: </dt><dd className="inline">{scope}</dd></div>
+          <div><dt className="inline font-medium text-ink-2">Reference: </dt><dd className="inline">{reference}</dd></div>
+          <div><dt className="inline font-medium text-ink-2">Limitation: </dt><dd className="inline">{limitation}</dd></div>
+        </dl>
+      </Disclosure>
+      {detail && (
+        <Disclosure level={4} className="mt-1" title={detail.title} summary={detail.summary}>
+          {detail.children}
+        </Disclosure>
+      )}
     </article>
   )
 }
@@ -188,14 +198,17 @@ export function Checks({ s }: { s: ValidationSummary }) {
       )}
       {il && (
         <div className="xl:col-span-2">
-          <Check label="Sunlight vs what LROC observed from orbit" scope={il.scope} reference={il.reference} limitation={il.limitation}>
-            <p className="mb-3">
+          <Check label="Sunlight vs what LROC observed from orbit" scope={il.scope} reference={il.reference} limitation={il.limitation}
+            detail={{
+              title: 'Model vs LROC plot and area table',
+              summary: 'each comparable site, and the correlation and bias around it',
+              children: <><LrocChart data={il} /><AreaTable data={il} /></>,
+            }}>
+            <p>
               Over the area around each site the patterns correlate and the bias is a few percentage points. At a single point on a
               light/dark edge the model and one 100 m camera pixel can disagree a lot: see Connecting Ridge, where LROC’s own
               neighbourhood spans a wide range. These are observed discrepancies at a few sites, not an error bar.
             </p>
-            <LrocChart data={il} />
-            <AreaTable data={il} />
           </Check>
         </div>
       )}
@@ -203,9 +216,44 @@ export function Checks({ s }: { s: ValidationSummary }) {
   )
 }
 
-export function MethodologyView() {
+export type MethodTab = 'science' | 'engine' | 'methods'
+const METHOD_TABS: readonly TabDef<MethodTab>[] = [
+  { id: 'science', label: 'Scientific validation', hint: 'Independent checks of the inputs and results against other references' },
+  { id: 'engine', label: 'Engine verification', hint: 'Software checks that the viability engine applies its own rules correctly' },
+  { id: 'methods', label: 'Methods & sources', hint: 'How an answer is made, what it can and cannot establish, a reproducible mission and the sources' },
+]
+
+/** How the engine's stored report stands, in words and a status colour: never a success it did not record. */
+function engineStatus(state: ViabilityValidationState): { tone: 'ok' | 'warn' | 'bad' | 'none'; text: string } {
+  if (state.status === 'loading') return { tone: 'none', text: 'Loading the stored report…' }
+  if (state.status === 'missing') return { tone: 'none', text: 'No report has been generated, so no verification result is shown.' }
+  if (state.status === 'unavailable') return { tone: 'none', text: 'The report could not be loaded, so no verification result is shown.' }
+  const s = state.summary
+  const v = reportVerdict(s)
+  const date = s.generated_utc.slice(0, 10)
+  if (v === 'failed') return { tone: 'bad', text: `The report records failures: ${int(s.totals.failed)} of ${int(s.totals.checks)} checks failed (${date}).` }
+  if (v === 'stale_pass') return { tone: 'warn', text: `Out of date: ${int(s.totals.checks)} checks passed on ${date}, but the report no longer matches the running engine or data.` }
+  return { tone: 'ok', text: `All ${int(s.totals.checks)} recorded checks passed (${date}) and the report is current.` }
+}
+
+const TONE: Record<'ok' | 'warn' | 'bad' | 'none', string> = {
+  ok: 'border-l-emerald-600', warn: 'border-l-amber-500', bad: 'border-l-red-600', none: 'border-l-slate-400',
+}
+
+function Fact({ title, tone = 'none', children }: { title: string; tone?: 'ok' | 'warn' | 'bad' | 'none'; children: React.ReactNode }) {
+  return (
+    <div className={`min-w-0 rounded-xl border border-l-4 border-line bg-inset p-3 ${TONE[tone]}`}>
+      <h3 className="text-[11px] font-medium uppercase tracking-wide text-ink-3">{title}</h3>
+      <div className="mt-1 text-sm text-ink-2">{children}</div>
+    </div>
+  )
+}
+
+export function MethodologyView({ initialTab = 'science' }: { initialTab?: MethodTab } = {}) {
   const [state, setState] = useState<{ data?: ValidationSummary; error?: string }>({})
   const [engine, setEngine] = useState<ViabilityValidationState>({ status: 'loading' })
+  const [tab, setTab] = useState<MethodTab>(initialTab)
+  const reveal = useReveal((s) => s.reveal)
   useEffect(() => {
     const ctrl = new AbortController()
     fetchValidation(ctrl.signal)
@@ -221,107 +269,157 @@ export function MethodologyView() {
     return () => ctrl.abort()
   }, [])
   const run = state.data?.run
+  const checkCount = state.data ? [state.data.ephemeris_agreement, state.data.horizon_method, state.data.illumination_observed].filter(Boolean).length : 0
+  const eng = engineStatus(engine)
+  const open = (t: MethodTab, id?: string) => {
+    setTab(t)
+    if (id) reveal(id)
+    requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById(id ?? `meth-tab-${t}`)?.scrollIntoView({ block: 'start', behavior: 'auto' })))
+  }
 
   return (
     <div className="cmp-page lp-light md-host min-h-full">
-      <div className="mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8">
-        <header className="mb-6 max-w-3xl">
-          <h1 className="text-[28px] font-medium leading-tight text-ink">Validation & Methodology</h1>
-          <p className="mt-2 text-base text-ink-3">
+      <div className="mx-auto max-w-[1500px] px-6 pb-16 pt-6 lg:px-8">
+        <header className="mb-4 max-w-3xl">
+          <h1 className="text-2xl font-medium leading-tight text-ink">Validation & Methodology</h1>
+          <p className="mt-1 text-sm text-ink-3">
             Where each answer comes from, how it was checked, and what it can and cannot establish.
           </p>
         </header>
 
-        <div className="space-y-6">
-          <Section title="1. Where an answer comes from">
-            <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-              {PIPELINE.map((p, i) => (
-                <li key={p.title} className="rounded-2xl bg-inset p-4">
-                  <p className="text-xs text-ink-3">Step {i + 1}</p>
-                  <h3 className="mt-1 text-sm font-medium text-ink">{p.title}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-ink-2">{p.body}</p>
-                </li>
-              ))}
-            </ol>
-            <p className="mt-4 text-xs text-ink-3">
-              {run
-                ? `This data set: ${run.sites} precomputed sites, ${run.data_range}, site files generator ${run.site_generator_versions.join(', ')}. Validation run ${run.run_utc.slice(0, 10)} on code ${run.code_commit}.`
-                : 'This data set: 24 precomputed sites, 2026-01-01 to 2031-01-01 (validation details load from the backend).'}
-            </p>
-          </Section>
-
-          <Section title="2. How it was checked">
-            <p className="mb-4 max-w-3xl text-sm text-ink-2">
-              <b className="font-medium text-ink">Independent scientific validation.</b> The model’s inputs and results are
-              compared with independent references: another ephemeris, another horizon method, and sunlight that the LROC
-              camera observed from orbit.
-            </p>
-            {state.error && (
-              <p role="status" className="rounded-xl bg-inset p-4 text-sm text-ink-2">
-                The validation results could not be loaded ({state.error}). The method and limitations below still apply; the full
-                report is in docs/validation-engine.md.
-              </p>
-            )}
-            {!state.data && !state.error && <p className="text-sm text-ink-3">Loading the stored validation results…</p>}
-            {state.data && <Checks s={state.data} />}
-          </Section>
-
-          <Section title="3. How the viability engine was verified">
-            <p className="mb-4 max-w-3xl text-sm text-ink-2">
-              <b className="font-medium text-ink">Software verification, not scientific validation.</b> These checks confirm that
-              the engine applies its own rules correctly on the committed site files: PASS, FAIL and UNKNOWN verdicts, bounds for
-              missing data, scores and ranking. They show the software does what it specifies; they do not show the data or the
-              model match the real Moon (that is section 2).
-            </p>
-            <ViabilityChecks state={engine} />
-          </Section>
-
-          <Section title="4. What it can and cannot establish">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div>
-                <h3 className="text-sm font-medium text-ink">Supported by the checks</h3>
-                <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-                  {ESTABLISHED.map((t) => <li key={t}>{t}</li>)}
-                </ul>
-              </div>
-              <div>
-                <h3 className="text-sm font-medium text-ink">Not established (limitations)</h3>
-                <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-ink-2">
-                  {NOT_ESTABLISHED.map((t) => <li key={t}>{t}</li>)}
-                </ul>
-              </div>
-            </div>
-          </Section>
-
-          <Section title="5. A mission you can reproduce">
-            <div className="max-w-3xl text-sm text-ink-2">
+        {/* The credibility overview: what was checked, how fresh the reports are, and what remains uncertain. */}
+        <section aria-labelledby="meth-overview-h" className="cmp-section !p-4">
+          <h2 id="meth-overview-h" className="mb-3 text-base font-medium text-ink">What was checked</h2>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <Fact title="Scientific validation">
+              {state.error
+                ? <p role="status">The stored results could not be loaded ({state.error}); the method and limitations still apply.</p>
+                : !state.data
+                  ? <p>Loading the stored validation results…</p>
+                  : <p>{checkCount} independent {checkCount === 1 ? 'check' : 'checks'} against another ephemeris, another horizon method and LROC sunlight observations.</p>}
+            </Fact>
+            <Fact title="Engine verification (software)" tone={eng.tone}>
+              <p role="status">{eng.text}</p>
+            </Fact>
+            <Fact title="Scope and freshness">
               <p>
-                Connecting Ridge, landing 2027-02-08 00:00 UTC, 7 days, default requirements. As planned it passes (score 100).
-                After a 5-day launch delay it fails: the longest power gap is 63 h against a 50 h battery limit. Mission Rescue
-                then finds passing alternatives; the top one lands at Malapert Massif on 2027-02-16 12:00 UTC (score 100).
+                {run
+                  ? `${run.sites} precomputed sites, ${run.data_range}. Scientific validation run ${run.run_utc.slice(0, 10)} on code ${run.code_commit}.`
+                  : '24 precomputed sites, 2026-01-01 to 2031-01-01 (validation details load from the backend).'}
+                {engine.status === 'loaded' && ` Engine report generated ${engine.summary.generated_utc.slice(0, 10)}.`}
               </p>
-              <p className="mt-2 text-ink-3">
-                Reproduce it: in the Mission Planner create that plan, press Run, set Launch delay to 5 days and press Find alternatives.
-                The same outcome is checked by an automated test (backend/tests/test_rescue_real_data.py) on every run of the test suite.
-              </p>
-            </div>
-          </Section>
+            </Fact>
+            <Fact title="Material limitations" tone="warn">
+              <ul className="list-disc space-y-1 pl-4 text-xs">
+                {NOT_ESTABLISHED.slice(0, 3).map((t) => <li key={t}>{t}</li>)}
+              </ul>
+              <button type="button" className="cmp-btn-text mt-1 !h-8" onClick={() => open('methods', 'meth-limits')}>All {NOT_ESTABLISHED.length} limitations</button>
+            </Fact>
+          </div>
+          <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-3">
+            <span>Independent scientific validation and software verification are different things: each has its own tab below.</span>
+            <button type="button" className="cmp-btn-text !h-8" onClick={() => open('methods', 'meth-repro')}>Reproduce a mission</button>
+            <button type="button" className="cmp-btn-text !h-8" onClick={() => open('methods', 'meth-sources')}>Sources</button>
+          </p>
+        </section>
 
-          <Section title="Sources">
-            <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-              {SOURCES.map((s) => (
-                <li key={s.url}>
-                  <a className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-current" href={s.url} target="_blank" rel="noopener noreferrer">
-                    {s.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-xs text-ink-3">
-              Full method, earlier superseded runs and suggested follow-ups: docs/validation-engine.md. Re-run the checks with
-              backend/scripts/validate_engine.py.
-            </p>
-          </Section>
+        <Tabs base="meth" label="Validation and methodology" tabs={METHOD_TABS} value={tab} onChange={setTab} className="mt-4" />
+
+        <div className="mt-3 space-y-4">
+          <TabPanel base="meth" id="science" value={tab}>
+            <section aria-labelledby="meth-science-h" className="cmp-section">
+              <h2 id="meth-science-h" className="text-lg font-medium text-ink">Scientific validation</h2>
+              <p className="mb-4 mt-1 max-w-3xl text-sm text-ink-2">
+                <b className="font-medium text-ink">Independent scientific validation.</b> The model’s inputs and results are
+                compared with independent references: another ephemeris, another horizon method, and sunlight that the LROC
+                camera observed from orbit.
+              </p>
+              {state.error && (
+                <p role="status" className="rounded-xl bg-inset p-4 text-sm text-ink-2">
+                  The validation results could not be loaded ({state.error}). The method and limitations still apply; the full
+                  report is in docs/validation-engine.md.
+                </p>
+              )}
+              {!state.data && !state.error && <p className="text-sm text-ink-3">Loading the stored validation results…</p>}
+              {state.data && <Checks s={state.data} />}
+            </section>
+          </TabPanel>
+
+          <TabPanel base="meth" id="engine" value={tab}>
+            <section aria-labelledby="meth-engine-h" className="cmp-section">
+              <h2 id="meth-engine-h" className="text-lg font-medium text-ink">Engine verification</h2>
+              <p className="mb-4 mt-1 max-w-3xl text-sm text-ink-2">
+                <b className="font-medium text-ink">Software verification, not scientific validation.</b> These checks confirm that
+                the engine applies its own rules correctly on the committed site files: PASS, FAIL and UNKNOWN verdicts, bounds for
+                missing data, scores and ranking. They show the software does what it specifies; they do not show the data or the
+                model match the real Moon (that is the Scientific validation tab).
+              </p>
+              <ViabilityChecks state={engine} />
+            </section>
+          </TabPanel>
+
+          <TabPanel base="meth" id="methods" value={tab}>
+            <div className="space-y-4">
+              <Disclosure id="meth-pipeline" card level={2} defaultOpen title="Where an answer comes from" summary="Five steps, from NASA data to a verdict">
+                <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                  {PIPELINE.map((p, i) => (
+                    <li key={p.title} className="rounded-2xl bg-inset p-4">
+                      <p className="text-xs text-ink-3">Step {i + 1}</p>
+                      <h3 className="mt-1 text-sm font-medium text-ink">{p.title}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-ink-2">{p.body}</p>
+                    </li>
+                  ))}
+                </ol>
+              </Disclosure>
+
+              <Disclosure id="meth-limits" card level={2} defaultOpen title="What it can and cannot establish" summary="Supported by the checks, and the limitations">
+                <div className="grid gap-6 lg:grid-cols-2">
+                  <div>
+                    <h3 className="text-sm font-medium text-ink">Supported by the checks</h3>
+                    <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+                      {ESTABLISHED.map((t) => <li key={t}>{t}</li>)}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-ink">Not established (limitations)</h3>
+                    <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm text-ink-2">
+                      {NOT_ESTABLISHED.map((t) => <li key={t}>{t}</li>)}
+                    </ul>
+                  </div>
+                </div>
+              </Disclosure>
+
+              <Disclosure id="meth-repro" card level={2} title="A mission you can reproduce" summary="Connecting Ridge, a launch delay, and the rescue that follows">
+                <div className="max-w-3xl text-sm text-ink-2">
+                  <p>
+                    Connecting Ridge, landing 2027-02-08 00:00 UTC, 7 days, default requirements. As planned it passes (score 100).
+                    After a 5-day launch delay it fails: the longest power gap is 63 h against a 50 h battery limit. Mission Rescue
+                    then finds passing alternatives; the top one lands at Malapert Massif on 2027-02-16 12:00 UTC (score 100).
+                  </p>
+                  <p className="mt-2 text-ink-3">
+                    Reproduce it: in the Mission Planner create that plan, press Run, set Launch delay to 5 days and press Find alternatives.
+                    The same outcome is checked by an automated test (backend/tests/test_rescue_real_data.py) on every run of the test suite.
+                  </p>
+                </div>
+              </Disclosure>
+
+              <Disclosure id="meth-sources" card level={2} defaultOpen title="Sources" summary="NASA JPL Horizons, Moon Trek (LOLA), LROC QuickMap, Speyerer & Robinson 2013">
+                <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+                  {SOURCES.map((s) => (
+                    <li key={s.url}>
+                      <a className="text-ink underline decoration-line-strong underline-offset-4 hover:decoration-current" href={s.url} target="_blank" rel="noopener noreferrer">
+                        {s.name}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-ink-3">
+                  Full method, earlier superseded runs and suggested follow-ups: docs/validation-engine.md. Re-run the checks with
+                  backend/scripts/validate_engine.py.
+                </p>
+              </Disclosure>
+            </div>
+          </TabPanel>
         </div>
       </div>
     </div>
