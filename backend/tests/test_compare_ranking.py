@@ -177,3 +177,44 @@ def test_endpoint_different_duration_is_a_separate_group():
     other = next(g for g in body["ranking_groups"] if not g["primary"])
     assert "duration" in other["separate_reason"]
     assert any("separate ranking groups" in n for n in body["notes"])
+
+
+# ---------- pairwise evidence (engine's compare_scenarios) ----------
+
+from app.compare.ranking import pairwise_evidence  # noqa: E402
+
+
+def test_pairwise_evidence_restates_the_engine():
+    items = [Assessed("pass", _assess(PASS_EXACT, "p")), Assessed("fail", _assess(FAIL, "f")),
+             Assessed("unknown", _assess(UNKNOWN, "u")), Assessed("other", _assess(OTHER_GROUP_PASS, "o"))]
+    ev = {(e.selected, e.competitor): e for e in pairwise_evidence(items)}
+    # PASS above FAIL and UNKNOWN, decided by eligibility, never by score.
+    pf = ev[("pass", "fail")]
+    assert pf.comparable and pf.higher == "pass" and pf.deciding_criterion == "eligibility"
+    pu = ev[("pass", "unknown")]
+    assert pu.higher == "pass" and pu.score_difference.status == "unavailable"  # UNKNOWN is never scored
+    # Different configuration/duration: no order, no score difference.
+    po = ev[("pass", "other")] if ("pass", "other") in ev else ev[("other", "pass")]
+    assert not po.comparable and po.higher is None and po.score_difference.status == "not_comparable"
+    assert po.comparability_issues and po.components == []
+    for e in ev.values():
+        assert e.selected_id in e.explanation or e.competitor_id in e.explanation
+
+
+def test_pairwise_evidence_between_two_passes_reports_the_score_difference():
+    ev = pairwise_evidence([Assessed("exact", _assess(PASS_EXACT, "e")), Assessed("bounded", _assess(PASS_BOUNDED, "b"))])
+    assert len(ev) == 1
+    e = ev[0]
+    assert e.comparable and e.higher in ("exact", "bounded")
+    assert e.score_difference.status in ("selected_higher", "competitor_higher", "not_established")
+    assert e.deciding_criterion in ("score_lower_bound", "scored_before_unscored", "exact_before_bounded")
+    assert e.policy_tie_break == (e.deciding_criterion == "exact_before_bounded")
+
+
+def test_endpoint_returns_pairwise_evidence():
+    res, body = _post([_item("p1", "malapert-massif", req=LENIENT), _item("p2", "connecting-ridge", req=LENIENT),
+                       _item("gone", "malapert-massif", landing="2035-01-01T00:00:00Z")])
+    pairs = body["pairwise"]
+    assert len(pairs) == 1  # only assessed scenarios are compared; "gone" has no assessment
+    assert {pairs[0]["selected"], pairs[0]["competitor"]} == {"p1", "p2"}
+    assert pairs[0]["higher"] == next(k for k in ("p1", "p2") if res[k]["ranking"]["rank"] == 1)
