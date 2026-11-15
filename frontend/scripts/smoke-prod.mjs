@@ -313,11 +313,11 @@ await step('Feasibility Atlas: map dates x lengths, explain a cell, check neighb
   // A helpful state when nothing is feasible.
   await openDisclosure(/Spacecraft requirements/)
   await page.getByLabel('Sunlight needed after landing (h)').fill('5000') // longer than any tested mission
-  await page.getByRole('button', { name: 'Map these missions' }).click()
+  await page.getByRole('button', { name: 'Map these plans' }).click()
   await waitForText(/No tested mission meets every requirement here|Passes \(0\)/, 60_000)
   await page.screenshot({ path: join(OUT, '6-atlas-none.png') })
   await page.getByRole('button', { name: 'Default requirements' }).click()
-  await page.getByRole('button', { name: 'Map these missions' }).click()
+  await page.getByRole('button', { name: 'Map these plans' }).click()
   await page.waitForFunction(() => !document.querySelector('[aria-busy=true]') && document.querySelector('[role=gridcell][data-status=pass]'), null, { timeout: 60_000 })
   // One click: that exact mission becomes a running plan in the Planner.
   const pass = grid.locator('[role=gridcell][data-status=pass]').first()

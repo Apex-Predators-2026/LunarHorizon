@@ -80,7 +80,7 @@ describe('comparison context', () => {
     expect(c.scenarios[0].figures_withheld).toEqual([{ blocks: 'Solar statistics and Power statistics', reason: why }])
     expect(c.scenarios[1].figures_withheld).toEqual([])
     const t = basicSummary(c)
-    expect(t).toContain(`- Scenario A: solar statistics and power statistics withheld, not zero. ${why}`)
+    expect(t).toContain(`- Plan A: solar statistics and power statistics withheld, not zero. ${why}`)
     expect(t.split('### Communication')[1]).not.toContain('withheld') // only under the block it belongs to
   })
 
@@ -122,7 +122,7 @@ describe('comparison context', () => {
   })
 
   it('describes what it is reading in one line', () => {
-    expect(contextLine(ctx([]))).toBe('No scenarios selected')
+    expect(contextLine(ctx([]))).toBe('No plans selected')
     expect(contextLine(ctx(all().slice(0, 2)))).toMatch(/^A \(Malapert Massif\), B \(Malapert Massif\) · results up to date$/)
   })
 })
@@ -131,10 +131,10 @@ describe('basic answers without AI', () => {
   it('summarize with the same sections, from the page’s own verdicts and figures', () => {
     const t = basicSummary(ctx())
     for (const h of ['Overall assessment', 'Solar conditions', 'Communication', 'Mission requirements', 'Main trade-off', 'Conclusion']) expect(t).toContain(`### ${h}`)
-    expect(t).toMatch(/Scenario A\*\* \(Malapert Massif\): FAIL/)
-    expect(t).toMatch(/Scenario D\*\* \(Malapert Massif\): UNKNOWN: not a failure/)
-    expect(t).toMatch(/Scenario B\*\* \(Malapert Massif\): PASS, rank 1, recommended/)
-    expect(t).toContain('recommends Scenario B')
+    expect(t).toMatch(/Plan A\*\* \(Malapert Massif\): FAIL/)
+    expect(t).toMatch(/Plan D\*\* \(Malapert Massif\): UNKNOWN: not a failure/)
+    expect(t).toMatch(/Plan B\*\* \(Malapert Massif\): PASS, rank 1, recommended/)
+    expect(t).toContain('recommends Plan B')
     expect(t).toMatch(/D not assessed/)
     expect(t).not.toMatch(/D 0(\.0)?%/)
   })
@@ -154,7 +154,7 @@ describe('basic answers without AI', () => {
     const t = basicSummary(ctx(all(), false))
     expect(t).toMatch(/being recomputed/)
     expect(t).not.toMatch(/rank \d|recommends/)
-    expect(basicAnswer('Summarize', ctx([]))).toMatch(/tick two to four scenarios/)
+    expect(basicAnswer('Summarize', ctx([]))).toMatch(/tick two to four plans/)
   })
 
   it('record the page verdicts shown under each answer', () => {
@@ -164,7 +164,7 @@ describe('basic answers without AI', () => {
 
 describe('suggested questions', () => {
   it('leads with getting started when nothing is selected, and with the comparison otherwise', () => {
-    expect(suggestedQuestions(ctx([]))[0]).toMatch(/select scenarios/)
+    expect(suggestedQuestions(ctx([]))[0]).toMatch(/select plans/)
     const q = suggestedQuestions(ctx())
     expect(q[0]).toBe('Summarize my current comparison.')
     expect(q.length).toBeLessThanOrEqual(6)
@@ -172,10 +172,10 @@ describe('suggested questions', () => {
 
   it('name the scenarios that matter in this comparison', () => {
     const q = suggestedQuestions(ctx(), 10)
-    expect(q).toContain('Why is Scenario B recommended?')
-    expect(q).toContain('Why did Scenario A fail?')
-    expect(q).toContain('Why is Scenario D UNKNOWN?')
-    expect(q).toContain('Why are some scenarios ranked separately?')
+    expect(q).toContain('Why is Plan B recommended?')
+    expect(q).toContain('Why did Plan A fail?')
+    expect(q).toContain('Why is Plan D UNKNOWN?')
+    expect(q).toContain('Why are some plans ranked separately?')
     expect(suggestedQuestions(ctx(all(), false), 10).some((x) => /recommended/.test(x))).toBe(false) // nothing stated while updating
   })
 })
@@ -221,9 +221,9 @@ describe('navigation help', () => {
 
   it('answers navigation questions without AI, even with nothing selected', () => {
     expect(isNavigationQuestion('How do I restart the tutorial?')).toBe(true)
-    expect(isNavigationQuestion('Why did Scenario A fail?')).toBe(false)
+    expect(isNavigationQuestion('Why did Plan A fail?')).toBe(false)
     const tour = basicAnswer('How do I restart the tutorial?', ctx([]))
-    expect(tour).toContain('How to compare missions')
+    expect(tour).toContain('How to compare plans')
     expect(tour).toContain('[[go:tour]]')
     expect(basicAnswer('Where can I see the longest blackout?', ctx())).toContain('Go to longest blackout')
     expect(basicAnswer('Summarize', ctx([]))).toMatch(/tick two to four/)
@@ -262,9 +262,9 @@ describe('Mission Rescue in the assistant', () => {
   it('suggests the rescue question and answers it without AI', () => {
     expect(suggestedQuestions(withRescue())).toContain('How does the rescued mission differ from my original plan?')
     const t = basicAnswer('How does the rescued mission differ from my original plan?', withRescue())
-    expect(t).toMatch(/Changed plan:\*\* Scenario A, FAIL/)
-    expect(t).toMatch(/Scenario B\):\*\* Passes every requirement here: a confirmed fix/)
-    expect(t).toMatch(/Scenario D\):\*\* Not assessed here \(no data\): not a confirmed fix.*Mission Rescue reported PASS/)
+    expect(t).toMatch(/Changed plan:\*\* Plan A, FAIL/)
+    expect(t).toMatch(/Plan B\):\*\* Passes every requirement here: a confirmed fix/)
+    expect(t).toMatch(/Plan D\):\*\* Not assessed here \(no data\): not a confirmed fix.*Mission Rescue reported PASS/)
     expect(basicAnswer('How does the rescued mission differ from my original plan?', ctx())).toMatch(/No Mission Rescue plans/)
   })
 })
@@ -335,7 +335,7 @@ describe('conversation', () => {
     expect(s.error).toBeNull()
     const last = s.messages[s.messages.length - 1]
     expect(last.role).toBe('basic')
-    expect(last.content).toMatch(/Scenario A.*FAIL/)
+    expect(last.content).toMatch(/Plan A.*FAIL/)
   })
 
   it('answers from the page when the AI is unavailable, and never sends basic answers to the AI', async () => {

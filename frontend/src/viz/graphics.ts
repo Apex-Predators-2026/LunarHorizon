@@ -2,9 +2,9 @@
 // usable on weak hardware (Chromebooks, old laptops with integrated graphics).
 // Nothing here changes the science: the engine's numbers, the skyline and the lighting at the
 // lander are the same in every preset; only how much terrain detail and effects are drawn.
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 
-export type GraphicsQuality = 'high' | 'low'
+export type GraphicsQuality = 'high' | 'low' | 'xlow'
 
 export interface GraphicsSettings {
   label: string
@@ -18,6 +18,7 @@ export interface GraphicsSettings {
   stars: number // the brightest this many of the ~8,800 catalogue stars (sky/stars.ts)
   material: 'standard' | 'lambert' // terrain shading: physically based, or cheaper diffuse-only
   detailedModels: boolean // the rover model (11 MB, textured) instead of a simple primitive lander
+  lite: boolean // Extra low: no mango-mesh shader, no liquid glass, and (almost) no UI animation (data-gfx on <html>)
 }
 
 export const GRAPHICS: Record<GraphicsQuality, GraphicsSettings> = {
@@ -33,6 +34,7 @@ export const GRAPHICS: Record<GraphicsQuality, GraphicsSettings> = {
     stars: 9000, // all of them: the naked-eye sky to magnitude 6.5
     material: 'standard',
     detailedModels: true,
+    lite: false,
   },
   low: {
     label: 'Low',
@@ -46,13 +48,53 @@ export const GRAPHICS: Record<GraphicsQuality, GraphicsSettings> = {
     stars: 1500, // to about magnitude 4.8
     material: 'lambert',
     detailedModels: false,
+    lite: false,
+  },
+  xlow: {
+    label: 'Extra low',
+    hint: 'Maximum speed: lowest 3D detail, no shadows, no mango gradient, no glass blur and almost no animation',
+    dpr: 0.75,
+    antialias: false,
+    shadows: false,
+    shadowMapSize: 512, // unused while shadows are off
+    lodThresholdPx: 18,
+    maxCachedMeshes: 100,
+    stars: 400, // to about magnitude 3.5
+    material: 'lambert',
+    detailedModels: false,
+    lite: true,
   },
 }
 
 export const DEFAULT_GRAPHICS: GraphicsQuality = 'high'
 const STORAGE_KEY = 'lunar-navigator.graphics'
 
-const isQuality = (v: unknown): v is GraphicsQuality => v === 'high' || v === 'low'
+const isQuality = (v: unknown): v is GraphicsQuality => v === 'high' || v === 'low' || v === 'xlow'
+
+export const LITE_EVENT = 'lunar-gfx-change'
+
+/** Mirror the preset on <html data-gfx="..."> so CSS can switch off glass, blur and animation, and tell
+ *  JS-driven effects (the mango shader, the glass cursor light, button ripples) to stand down. */
+export function applyGraphicsAttribute(q: GraphicsQuality) {
+  if (typeof document === 'undefined') return
+  document.documentElement.dataset.gfx = q
+  window.dispatchEvent(new Event(LITE_EVENT))
+}
+
+/** True while the Extra low preset is on (non-reactive; read it when an effect starts). */
+export const isLiteUi = () => typeof document !== 'undefined' && document.documentElement.dataset.gfx === 'xlow'
+
+/** Reactive version of isLiteUi(). */
+export function useLiteUi(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      window.addEventListener(LITE_EVENT, cb)
+      return () => window.removeEventListener(LITE_EVENT, cb)
+    },
+    isLiteUi,
+    () => false,
+  )
+}
 
 function loadQuality(): GraphicsQuality {
   try {
@@ -87,11 +129,15 @@ export function useStoredFlag(key: string, initial: boolean): [boolean, (on: boo
   return [on, set]
 }
 
+// Applied at load so the landing page, Comparison, Atlas and Methodology honour the saved preset too.
+applyGraphicsAttribute(loadQuality())
+
 /** The chosen preset, remembered in this browser. */
 export function useGraphicsQuality(): [GraphicsQuality, (q: GraphicsQuality) => void] {
   const [quality, setQuality] = useState<GraphicsQuality>(loadQuality)
   const set = useCallback((q: GraphicsQuality) => {
     setQuality(q)
+    applyGraphicsAttribute(q)
     try {
       window.localStorage.setItem(STORAGE_KEY, q)
     } catch {

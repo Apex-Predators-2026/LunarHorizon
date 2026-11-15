@@ -463,7 +463,7 @@ function base(status: StageStatus, lead: string, extra: Partial<StageModel> = {}
   return { status, lead, facts: [], rows: [], note: null, primary: { label: 'Next', action: 'next' }, secondary: [], ...extra }
 }
 
-const VIEW_LABEL: Record<View, string> = { planner: 'Mission Planner', compare: 'Scenario Comparison', atlas: 'Atlas', method: 'Validation' }
+const VIEW_LABEL: Record<View, string> = { planner: 'Mission Planner', compare: 'Plan Comparison', atlas: 'Atlas', method: 'Validation' }
 
 /** The card's content for the current stage, from the live stores only. */
 export function stageModel(s: Snapshot): StageModel {
@@ -601,7 +601,7 @@ export function stageModel(s: Snapshot): StageModel {
       const c = s.comparison
       const errs = c.entries.filter((e) => e.state?.state === 'error')
       if (errs.length) return failed(`The comparison could not assess ${errs.map((e) => e.scenario.name).join(', ')}: ${errs[0].state?.state === 'error' ? errs[0].state.message : ''}`)
-      if (!c.settled) return working('Scenario Comparison is re-assessing the three plans together…')
+      if (!c.settled) return working('Plan Comparison is re-assessing the three plans together…')
       const roles = ['Original', 'After the delay', 'Recovery']
       const byId = (id: string) => c.entries.find((e) => e.scenario.id === id)
       const ents = s.guide.compareIds.map(byId)
@@ -618,7 +618,7 @@ export function stageModel(s: Snapshot): StageModel {
         tone: tone(els[i]),
       }))
       const rec = ents[2]!
-      const named = (t: string) => ents.reduce((acc, e, i) => acc.split(`Scenario ${e!.scenario.label}`).join(`Scenario ${e!.scenario.label} (${roles[i].toLowerCase()})`), t)
+      const named = (t: string) => ents.reduce((acc, e, i) => acc.split(`Plan ${e!.scenario.label}`).join(`Plan ${e!.scenario.label} (${roles[i].toLowerCase()})`), t)
       const n = c.groups.find((x) => x.primary)?.ranked_keys.length ?? 0
       if (stage.id === 'compare')
         return base('ready', `The comparison recommends the recovery, ${rec.scenario.label}: ${rec.scenario.site.name} on ${utc(rec.scenario.landing_utc)}. It passes every requirement and holds canonical rank 1 of ${n} passing plans in one comparable group. ${named(decision.evidence[0] ?? '')} The original plan stays as the reference: after the delay it can no longer be flown.`.replace(/\s+/g, ' ').trim(), {

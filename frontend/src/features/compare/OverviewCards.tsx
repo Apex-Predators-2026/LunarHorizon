@@ -72,7 +72,7 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
         const req = requirementSummary(e)
         const mt = missionTime(e)
         return (
-          <article key={s.id} aria-label={`Scenario ${s.label} overview`}
+          <article key={s.id} aria-label={`Plan ${s.label} overview`}
             className={`relative flex flex-col overflow-hidden rounded-xl border bg-surface p-3 ${activeId === s.id ? 'border-cyan-600' : 'border-line'}`}>
             <div className="absolute inset-x-0 top-0 h-0.5" style={{ background: seriesColor(s.colorSlot) }} aria-hidden="true" />
             <header className="flex items-start gap-2">

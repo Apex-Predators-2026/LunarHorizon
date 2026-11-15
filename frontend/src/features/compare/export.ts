@@ -207,7 +207,7 @@ export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: Pai
     const el = eligibilityOf(e)
     let rank = rk?.rank ?? null
     if (rank !== null && el !== 'pass') {
-      warnings.push(`Scenario ${e.scenario.label}: a rank was reported for a ${el ?? 'non-assessed'} scenario and was not exported.`)
+      warnings.push(`Plan ${e.scenario.label}: a rank was reported for a ${el ?? 'non-assessed'} plan and was not exported.`)
       rank = null
     }
     const req = requirementSummary(e)

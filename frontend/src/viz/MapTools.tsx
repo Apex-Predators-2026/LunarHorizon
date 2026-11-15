@@ -424,7 +424,7 @@ export function MapTools({
         />
         <ToolButton
           tourId="play-mission"
-          label={mission.active ? 'Stop the mission playback' : mission.available ? `Play mission: ${mission.reason.replace(/^Play the plan: /, '')}` : `Play mission: ${mission.reason}`}
+          label={mission.active ? 'Stop plan playback' : mission.available ? `Play plan: ${mission.reason.replace(/^Play the plan: /, '')}` : `Play plan: ${mission.reason}`}
           icon={ICON.flag}
           selected={mission.active}
           disabled={!mission.active && !mission.available}
@@ -574,7 +574,7 @@ export function MapTools({
                 data-tip={
                   farShadowsAvailable
                     ? 'Shadows from all terrain on screen, not just ~6 km around the lander (cascaded shadow maps; more GPU work while the camera moves)'
-                    : 'Not available in the Low graphics setting (no shadows)'
+                    : 'Not available in the Low or Extra low graphics settings (no shadows)'
                 }
                 data-no-ripple
                 onClick={() => {

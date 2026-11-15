@@ -89,11 +89,11 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
 
       <div className="min-w-0 space-y-4">
         {rows.length < 2 ? (
-          <p className="text-xs text-slate-500">Needs at least two scenarios with comparable data.</p>
+          <p className="text-xs text-slate-500">Needs at least two plans with comparable data.</p>
         ) : (
           <>
             <div className="grid gap-4 xl:grid-cols-2">
-              <div style={{ height: 260 }} role="img" aria-label="Radar chart of criterion scores per scenario">
+              <div style={{ height: 260 }} role="img" aria-label="Radar chart of criterion scores per plan">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={radar} outerRadius="72%">
                     <PolarGrid stroke={STATE.grid} />
@@ -121,7 +121,7 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                   <h3 className="mb-1 text-xs font-medium text-slate-200">Recommended feasible options</h3>
                   {feasible.length === 0 ? (
                     <p className="text-xs text-slate-400">
-                      None of these scenarios meets every requirement, so none can be recommended. The options below show only
+                      None of these plans meets every requirement, so none can be recommended. The options below show only
                       how your priorities rate them.
                     </p>
                   ) : (
@@ -158,7 +158,7 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                 <caption className="mb-1 text-left text-[11px] text-slate-400">Underlying values (score 0–100 in brackets)</caption>
                 <thead>
                   <tr className="text-left text-slate-500">
-                    <th className="py-1 font-normal">Scenario</th>
+                    <th className="py-1 font-normal">Plan</th>
                     {CRITERIA.map((c) => <th key={c.key} className="py-1 pl-2 font-normal">{c.label}</th>)}
                   </tr>
                 </thead>

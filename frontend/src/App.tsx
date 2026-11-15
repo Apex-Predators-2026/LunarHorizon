@@ -54,7 +54,7 @@ function openGuidedTour() {
 
 const VIEWS = [
   { id: 'planner', label: 'Mission Planner' },
-  { id: 'compare', label: 'Scenario Comparison' }, // Member 4
+  { id: 'compare', label: 'Plan Comparison' }, // Member 4
   { id: 'atlas', label: 'Feasibility Atlas' },
   { id: 'method', label: 'Methodology' },
 ] as const

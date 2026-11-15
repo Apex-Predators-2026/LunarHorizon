@@ -56,7 +56,7 @@ function AssessmentFor({ entries, picked, part }: { entries: Entry[]; picked: En
     <div>
       <PlanPicker entries={entries} picked={picked} label={part === 'assessment' ? 'Plan to assess' : 'Plan whose data to show'} />
       <AssessmentPanel state={state} part={part}
-        origin={{ kind: 'comparison', label: `Scenario ${picked.scenario.label}`, section: part === 'assessment' ? 'cmp-assessment' : 'cmp-assumptions' }} />
+        origin={{ kind: 'comparison', label: `Plan ${picked.scenario.label}`, section: part === 'assessment' ? 'cmp-assessment' : 'cmp-assumptions' }} />
     </div>
   )
 }
@@ -64,14 +64,14 @@ function AssessmentFor({ entries, picked, part }: { entries: Entry[]; picked: En
 /** The engine's full assessment (verdict, every requirement with its evidence, screening risks) for the picked plan. */
 export function MissionAssessmentBlock({ entries }: { entries: Entry[] }) {
   const picked = usePicked(entries)
-  if (!picked) return <Empty>Select a scenario to see its mission assessment.</Empty>
+  if (!picked) return <Empty>Select a plan to see its mission assessment.</Empty>
   return <AssessmentFor entries={entries} picked={picked} part="assessment" />
 }
 
 /** The data behind that assessment: provenance, coverage, assumptions, limitations and method versions. */
 export function DataAssumptionsBlock({ entries }: { entries: Entry[] }) {
   const picked = usePicked(entries)
-  if (!picked) return <Empty>Select a scenario to see the data and assumptions behind its assessment.</Empty>
+  if (!picked) return <Empty>Select a plan to see the data and assumptions behind its assessment.</Empty>
   return <AssessmentFor entries={entries} picked={picked} part="data" />
 }
 
@@ -79,7 +79,7 @@ export function DataAssumptionsBlock({ entries }: { entries: Entry[] }) {
 export function ScienceVsEngineeringBlock({ entries }: { entries: Entry[] }) {
   const picked = usePicked(entries)
   const sc: Scenario | null = useMemo(() => (picked ? toTeamScenario(picked.scenario) : null), [picked])
-  if (!picked) return <Empty>Select a scenario to look for a science / engineering compromise around it.</Empty>
+  if (!picked) return <Empty>Select a plan to look for a science / engineering compromise around it.</Empty>
   return (
     <div>
       <p className="mb-3 max-w-2xl text-sm text-ink-3">
