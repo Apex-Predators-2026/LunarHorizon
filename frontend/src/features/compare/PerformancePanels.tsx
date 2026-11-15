@@ -7,10 +7,11 @@ import type { MarginMetricValue, MarginStatus } from '../../types'
 import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
 import { canonicalRanking, cm, comparableEntries, constraintMarginById, fmtMetric, headroomOfEntry, humanizeSeconds, inexactText, isLimitedHeadroom, knownValue, okEntries, scoreText, type Entry, type MetricDef } from './analysis'
 import { STATE, seriesColor } from './palette'
+import { scenarioDisplayName } from './scenario'
 import type { ConstraintItem, RankingGroup } from './types'
 import { compareEvidence, constraintForViolation } from './evidence'
 import { openEvidence } from '../../viz/evidence'
-import { DataKindBadge, EligibilityBadge, Explain, Icon, ScenarioChip } from './ui'
+import { DataKindBadge, EligibilityBadge, Explain, Icon, ScenarioChip, ScenarioLegend } from './ui'
 
 interface BarRow {
   id: string
@@ -35,7 +36,7 @@ function ScenarioBars({ rows, unit, title, max, format, limitLabel, notPlotted =
   return (
     <div>
       <h3 className="mb-1 text-xs font-medium text-slate-200">{title}</h3>
-      <div style={{ height: 46 + rows.length * 34 }} role="img" aria-label={`${title}: ${rows.map((r) => `${r.name} ${format(r.value)}`).join(', ')}`}>
+      <div style={{ height: 46 + rows.length * 34 }} role="img" aria-label={`${title}: ${rows.map((r) => `${r.name} · ${scenarioDisplayName(r.entry.scenario)}: ${format(r.value)}`).join(', ')}`}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 70, bottom: 4, left: 4 }} barCategoryGap={8}>
             <CartesianGrid stroke={STATE.grid} horizontal={false} />
@@ -48,7 +49,7 @@ function ScenarioBars({ rows, unit, title, max, format, limitLabel, notPlotted =
                 if (!r) return null
                 return (
                   <div className="cmp-tip">
-                    <div className="flex items-center gap-2"><ScenarioChip s={r.entry.scenario} size="sm" /> {r.entry.scenario.name}</div>
+                    <div className="flex items-center gap-2"><ScenarioChip s={r.entry.scenario} size="sm" /> {scenarioDisplayName(r.entry.scenario)}</div>
                     <div className="mt-1 tabular-nums text-slate-200">{format(r.value)}{r.limit !== undefined && ` (${limitLabel ?? 'limit'} ${format(r.limit)})`}</div>
                   </div>
                 )
@@ -101,7 +102,7 @@ function ScenarioBars({ rows, unit, title, max, format, limitLabel, notPlotted =
         <ul className="mt-1 space-y-0.5 text-[11px] text-slate-400" aria-label="Values not plotted">
           {notPlotted.map(({ entry, text }) => (
             <li key={entry.scenario.id} className="flex items-center gap-1.5">
-              <ScenarioChip s={entry.scenario} size="sm" /> {text}. Not plotted: the engine could not determine an exact value.
+              <ScenarioChip s={entry.scenario} size="sm" /> {scenarioDisplayName(entry.scenario)}. {text}. Not plotted: the engine could not determine an exact value.
             </li>
           ))}
         </ul>
@@ -151,6 +152,7 @@ export function AvailabilityCharts({ entries }: { entries: Entry[] }) {
   const black = chart('longest_blackout_h', 'h', (e) => e.scenario.requirements.max_comms_gap_hours, 'max_communication_blackout')
   return (
     <div className="grid gap-5 lg:grid-cols-2">
+      {ok.length > 0 && <ScenarioLegend scenarios={ok.map((e) => e.scenario)} className="lg:col-span-2" />}
       {left.length > 0 && (
         <p className="text-[11px] text-amber-300 lg:col-span-2">
           <Icon name="warning" size={14} className="mr-1 align-[-2px]" />{left.map((e) => e.scenario.label).join(', ')} {left.length > 1 ? 'use' : 'uses'} demonstration data and {left.length > 1 ? 'are' : 'is'} left out of these real-data charts.

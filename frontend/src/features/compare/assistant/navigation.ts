@@ -54,6 +54,7 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     keywords: /\b(remove|delete|edit|change|modify)\b.*\b(scenario|plan|date|site|requirement)/i,
     steps: [
       'In **Plans**, each plan row has **Edit** (opens the editor: site, landing date, duration, requirements, solar panel), **Duplicate**, **Duplicate & shift date ▾**, **Set baseline** and **Remove**.',
+      'Edits and removals also apply in **Mission Planner**.',
       'Untick the checkbox to leave a plan out of the comparison without deleting it.',
     ],
     go: ['cmp-scenarios'],
