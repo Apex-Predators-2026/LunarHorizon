@@ -170,9 +170,10 @@ class Evaluator:
         # sample and ends by the last one. The last sample is an instant, not one more hour of data
         # (same rule as the canonical engine).
         # Partial = it starts inside the data but runs past its end. Like the Comparison and the Atlas
-        # (one policy, app.timegrid), the canonical engine judges it on the real hours that exist: it can
-        # prove a fail, never a pass, and otherwise says unknown. Only real samples are passed, never
-        # the synthetic fallback.
+        # (one policy, app.timegrid), the canonical engine judges it on the real hours that exist and
+        # bounds the missing ones: a verdict only where the bounds prove it (usually a fail; a pass only
+        # when even the worst case for the missing hours meets every requirement), otherwise unknown,
+        # and never an exact score. Only real samples are passed, never the synthetic fallback.
         cov = self.coverage(site)
         covered = [] if cov is None else [k for k, t in enumerate(starts)
                                           if cov[0] <= _np(t) and _np(t + end) <= cov[1]]
