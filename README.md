@@ -1,4 +1,4 @@
-# Lunar Landing Site Navigator
+# Lunar Horizon
 
 A web tool for the 2026 NASA Space Apps Challenge *Lunar Landing Site Navigator*. It helps mission planners,
 educators and the public compare Moon south-pole landing sites and dates by showing, hour by hour, whether the Sun
