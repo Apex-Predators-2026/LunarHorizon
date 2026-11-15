@@ -1,6 +1,6 @@
 // Section 2: one card per compared scenario with its data status and headline numbers.
 import { fmtUtc } from '../rescue/format'
-import { eligibilityOf, fmtMetric, groupCountOf, rankText, scoreText, type Entry } from './analysis'
+import { cm, eligibilityOf, fmtMetric, groupCountOf, knownValue, rankText, scoreText, type Entry } from './analysis'
 import { seriesColor } from './palette'
 import { DataKindBadge, EligibilityBadge, RankBadge, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
@@ -51,8 +51,8 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
                 <Stat label="Sunlit" value={fmtMetric(r.solar.sunlit_fraction * 100, '%')} />
                 <Stat label="Earth in view" value={fmtMetric(r.earth.visible_fraction * 100, '%')} />
                 <Stat label="Score" value={scoreText(e.ranking, v.score)} />
-                <Stat label="Longest dark" value={fmtMetric(r.solar.longest_dark_hours, 'h')} warn={v.metrics.longest_dark_gap_hours > s.requirements.battery_hours} />
-                <Stat label="Longest blackout" value={fmtMetric(r.earth.longest_blackout_hours, 'h')} warn={r.earth.longest_blackout_hours > s.requirements.max_comms_gap_hours} />
+                <Stat label="Longest dark" value={fmtMetric(r.solar.longest_dark_hours, 'h')} warn={(knownValue(cm(r, 'longest_power_darkness_h')) ?? -Infinity) > s.requirements.battery_hours} />
+                <Stat label="Longest blackout" value={fmtMetric(r.earth.longest_blackout_hours, 'h')} warn={(knownValue(cm(r, 'longest_blackout_h')) ?? -Infinity) > s.requirements.max_comms_gap_hours} />
                 <Stat label="Mean Sun el." value={fmtMetric(r.solar.mean_elevation_deg, 'deg')} />
               </div>
             ) : (
