@@ -132,7 +132,7 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                           : 'The only option that meets every requirement with complete data: nothing to rank it against.'}
                       </p>
                       <ol className="space-y-2">
-                        {feasible.map((r) => <OptionRow key={r.entry.scenario.id} r={r} label={ranked.length > 1 && r.rank !== null ? `#${r.rank}` : r.rank === null ? '—' : null} />)}
+                        {feasible.map((r) => <OptionRow key={r.entry.scenario.id} r={r} label={ranked.length > 1 && r.rank !== null ? `#${r.rank}` : r.rank === null ? '-' : null} />)}
                       </ol>
                     </>
                   )}
@@ -168,7 +168,7 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                       <td className="py-1"><ScenarioChip s={r.entry.scenario} size="sm" /></td>
                       {CRITERIA.map((c) => (
                         <td key={c.key} className="py-1 pl-2 text-slate-300">
-                          {r.raw[c.key]} <span className="tabular-nums text-slate-500">[{r.scores[c.key] === null ? '—' : Math.round(r.scores[c.key]! * 100)}]</span>
+                          {r.raw[c.key]} <span className="tabular-nums text-slate-500">[{r.scores[c.key] === null ? '-' : Math.round(r.scores[c.key]! * 100)}]</span>
                         </td>
                       ))}
                     </tr>

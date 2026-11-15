@@ -92,7 +92,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                           <PassHeadroomBadge headroom={hr} eligibility={elig} surface="compare" />
                           {rankText(e.ranking, groupCount) && <RankBadge text={rankText(e.ranking, groupCount)!} />}
                         </span>
-                      ) : <span className="text-slate-500" title="No canonical assessment">—</span>}
+                      ) : <span className="text-slate-500" title="No canonical assessment">-</span>}
                     </td>
                   )
                 })}
@@ -113,7 +113,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                           </span>
                           <span className="text-[11px] text-slate-500">{marginStatusClassLabel(closest.margin_class)}</span>
                         </span>
-                      ) : <span className="text-slate-500">—</span>}
+                      ) : <span className="text-slate-500">-</span>}
                     </td>
                   )
                 })}
@@ -127,7 +127,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                   const most = r !== null && mostMet.has(e.scenario.id)
                   return (
                     <td key={e.scenario.id} className="py-1 pl-3 text-xs tabular-nums">
-                      {r ? <span className={most ? 'font-medium text-slate-50' : 'text-slate-300'}>{r.passed} of {r.applicable}</span> : <span className="text-slate-500">—</span>}
+                      {r ? <span className={most ? 'font-medium text-slate-50' : 'text-slate-300'}>{r.passed} of {r.applicable}</span> : <span className="text-slate-500">-</span>}
                       {most && <span className="ml-1 text-xs text-emerald-300" title="Meets more requirements than every other compared scenario">most</span>}
                     </td>
                   )
@@ -149,7 +149,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                   const isNarrow = c ? (c.marginClass === 'narrow' || c.marginClass === 'at_threshold') : false
                   return (
                     <td key={e.scenario.id} className="py-1 pl-3 align-top text-xs tabular-nums" title={c?.narrowReason ?? c?.message}>
-                      {!c ? <span className="text-slate-500">—</span> : c.status === 'not_applicable' ? (
+                      {!c ? <span className="text-slate-500">-</span> : c.status === 'not_applicable' ? (
                         <span className="text-slate-500">not required</span>
                       ) : (
                         <span className="inline-flex items-start gap-1">

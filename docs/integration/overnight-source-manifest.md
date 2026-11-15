@@ -1,4 +1,4 @@
-# Overnight recovery — source manifest
+# Overnight recovery - source manifest
 
 Frozen at session start, 2026-11-15 (~01:25 local). All audit work uses these SHAs, not branch names.
 
@@ -43,9 +43,9 @@ of main's `3c1208e` and are **not** on MDR (they were written against main, in p
 
 `git rev-list --count efac9bf..d200087` = 158, but most of that is a **duplicate lineage**: main contains both
 `16de7cf` and a rebased copy `a86db2f` with an **identical tree** (`a9a92727…`). The genuine teammate delta that
-MDR has not seen is `git diff 16de7cf d200087` — **39 files** (Mission Assistant, landing polish, the
+MDR has not seen is `git diff 16de7cf d200087` - **39 files** (Mission Assistant, landing polish, the
 `timegrid` one-time-policy work, atlas/compare/rescue time-policy edits). MDR's own net contribution is
-`git diff 16de7cf efac9bf` — **182 files, +49 706 / −1 070** (most of the line count is JSON fixtures and
+`git diff 16de7cf efac9bf` - **182 files, +49 706 / −1 070** (most of the line count is JSON fixtures and
 `data/validation/viability_validation.json`).
 
 A non-destructive trial merge (`git merge-tree --write-tree d200087 efac9bf`) conflicts in only 6 files:
@@ -64,12 +64,12 @@ reference for how PLN/EVT apply to main. Its correctness is verified independent
 
 | Worktree | Branch / HEAD | Uncommitted / untracked | Disposition |
 |---|---|---|---|
-| `Nasa-Space-Apps-Challenge` (main checkout) | MDR `efac9bf` | none | — |
-| `.claude/worktrees/evidence-time-missing` | ETM `ba0a6dd` | 18 untracked files under `.e2e-output/` (PNG screenshots + `report.json`) | Generated e2e output — not recovered |
-| `.claude/worktrees/member2-post-audit` | M2 `a932116` | none | — |
-| `Nasa-Space-Apps-Challenge-planner` | PLN `2432dba` | none | — |
-| `Nasa-Space-Apps-Challenge-times` | EVT `74ab073` | none | — |
-| `nasa-run` | detached `983e54d` (an MDR commit) | `backend.log`, `frontend.log` | Run logs — not recovered |
+| `Nasa-Space-Apps-Challenge` (main checkout) | MDR `efac9bf` | none | - |
+| `.claude/worktrees/evidence-time-missing` | ETM `ba0a6dd` | 18 untracked files under `.e2e-output/` (PNG screenshots + `report.json`) | Generated e2e output - not recovered |
+| `.claude/worktrees/member2-post-audit` | M2 `a932116` | none | - |
+| `Nasa-Space-Apps-Challenge-planner` | PLN `2432dba` | none | - |
+| `Nasa-Space-Apps-Challenge-times` | EVT `74ab073` | none | - |
+| `nasa-run` | detached `983e54d` (an MDR commit) | `backend.log`, `frontend.log` | Run logs - not recovered |
 
 `integration/final-release` has no checked-out worktree.
 

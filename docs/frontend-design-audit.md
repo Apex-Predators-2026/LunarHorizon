@@ -1,8 +1,8 @@
 # Lunar Landing Site Navigator: Master Frontend Design Audit & Awwwards Elevation Blueprint
 
-**Document Version:** 1.2.0 (Certified Master Release — Verification-Hardened)  
+**Document Version:** 1.2.0 (Certified Master Release - Verification-Hardened)  
 **Classification:** Systems Architecture & Design Engineering Specification  
-**Project:** Lunar Landing Site Navigator — NASA Space Apps Challenge 2026 ("The Next Frontier")  
+**Project:** Lunar Landing Site Navigator - NASA Space Apps Challenge 2026 ("The Next Frontier")  
 **Target File:** `docs/frontend-design-audit.md`  
 **Date:** November 14, 2026  
 **Auditor:** Lead Design Auditor & Systems Architect (worker_3)  
