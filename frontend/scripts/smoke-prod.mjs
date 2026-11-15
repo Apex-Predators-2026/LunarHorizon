@@ -10,11 +10,12 @@
 //
 // Unlike scripts/demo-tour.mjs (a terrain-cache diagnostic on the dev server that steers the app through its
 // stores), this only clicks, types and reads what a user sees: open the app, assess a site, plan two missions,
-// investigate one in 3D, rescue it after a launch slip, and compare the two. It fails (exit 1) on any failed
+// investigate one in 3D, rescue it after a launch slip, compare the two, and find a landing date in the
+// Feasibility Atlas and send it to the Planner. It fails (exit 1) on any failed
 // step, any uncaught page error and any 5xx from the API. A journey step the app doesn't offer at all is
 // reported as MISSING (and fails the run with --strict).
 import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium } from 'playwright-core'
 
@@ -214,27 +215,73 @@ await step('Compare the two plans side by side', async () => {
   await page.screenshot({ path: join(OUT, '4-compare.png') })
 })
 
-await step('Export the mission (a file the user can keep)', async () => {
-  // Look for anything that offers an export or download, anywhere the user would look.
-  const offer = page.getByRole('button', { name: /export|download|save as|report/i })
-    .or(page.getByRole('link', { name: /export|download/i }))
-  if ((await offer.count()) === 0) {
-    await page.getByRole('button', { name: 'Mission Planner' }).click()
-    await sleep(1500)
+await step('Export the comparison (JSON and CSV files the user can keep)', async () => {
+  const files = {}
+  for (const kind of ['JSON', 'CSV']) {
+    const button = page.getByRole('button', { name: `Export ${kind}` })
+    if ((await button.count()) === 0) return MISSING
+    await page.waitForFunction((k) => [...document.querySelectorAll('button')].some((b) => b.textContent.trim() === `Export ${k}` && !b.disabled), kind, { timeout: 60_000 })
+    const download = page.waitForEvent('download', { timeout: 30_000 })
+    await button.click()
+    const file = await download
+    const path = join(OUT, file.suggestedFilename())
+    await file.saveAs(path)
+    files[kind] = readFileSync(path, 'utf8')
   }
-  if ((await offer.count()) === 0) return MISSING
-  const download = page.waitForEvent('download', { timeout: 30_000 })
-  await offer.first().click()
-  const file = await download
-  const path = join(OUT, file.suggestedFilename())
-  await file.saveAs(path)
+  const json = JSON.parse(files.JSON)
+  if (!JSON.stringify(json).includes('Malapert Massif') || !JSON.stringify(json).includes('Connecting Ridge')) throw new Error('the JSON export lacks the compared sites')
+  if (!/Malapert Massif/.test(files.CSV) || files.CSV.split('\n').length < 3) throw new Error('the CSV export looks empty')
+})
+
+await step('Feasibility Atlas: map dates x lengths, explain a cell, check neighbours, open it in the Planner', async () => {
+  await page.getByRole('button', { name: 'Feasibility Atlas' }).click()
+  const grid = page.getByRole('grid')
+  await grid.waitFor({ timeout: 90_000 })
+  if (!page.url().includes('#app/atlas')) throw new Error(`unexpected URL ${page.url()}`)
+  await page.getByLabel('Legend').waitFor()
+  // Keyboard: the selected cell has focus handling; arrow right moves the selection and the explanation follows.
+  const selected = grid.locator('[role=gridcell][aria-selected=true]')
+  const before = await selected.getAttribute('aria-label')
+  await selected.focus()
+  await page.keyboard.press('ArrowRight')
+  const after = await grid.locator('[role=gridcell][aria-selected=true]').getAttribute('aria-label')
+  if (before === after) throw new Error('arrow key did not move the selection')
+  if (!(await page.evaluate(() => document.activeElement?.getAttribute('aria-selected') === 'true'))) throw new Error('focus did not follow the selection')
+  // Pick a failing cell if there is one: its explanation names the deciding requirement.
+  const fail = grid.locator('[role=gridcell][data-status=fail]').first()
+  if (await fail.count()) {
+    await fail.click()
+    await waitForText(/Fails: /, 5_000)
+    await page.getByLabel('deciding requirement').first().waitFor({ timeout: 5_000 })
+  }
+  await page.getByRole('list', { name: 'The same mission at the neighbouring tested landing dates' }).waitFor()
+  await waitForText(/Viable for \d+ consecutive|Viable only at this tested date|Not viable here/, 5_000)
+  await page.screenshot({ path: join(OUT, '5-atlas.png') })
+  // A helpful state when nothing is feasible.
+  await page.getByLabel('Sunlight needed after landing (h)').fill('5000') // longer than any tested mission
+  await page.getByRole('button', { name: 'Map these missions' }).click()
+  await waitForText(/No tested mission meets every requirement here|Passes \(0\)/, 60_000)
+  await page.screenshot({ path: join(OUT, '6-atlas-none.png') })
+  await page.getByRole('button', { name: 'Default requirements' }).click()
+  await page.getByRole('button', { name: 'Map these missions' }).click()
+  await page.waitForFunction(() => !document.querySelector('[aria-busy=true]') && document.querySelector('[role=gridcell][data-status=pass]'), null, { timeout: 60_000 })
+  // One click: that exact mission becomes a running plan in the Planner.
+  const pass = grid.locator('[role=gridcell][data-status=pass]').first()
+  await pass.click()
+  const label = await pass.getAttribute('aria-label') // "Landing 2027-01-05 00:00 UTC, 7 d mission: ..."
+  const [, day, len] = /Landing (\d{4}-\d{2}-\d{2}) \d\d:\d\d UTC, ([\d.]+ d) mission/.exec(label)
+  await page.getByRole('button', { name: 'Open this mission in the Planner' }).click()
+  await page.getByRole('toolbar', { name: 'Map tools' }).waitFor({ timeout: 30_000 })
+  const plan = page.getByRole('listitem', { name: new RegExp(`Plan Atlas: .* ${day} ${len}`) })
+  await plan.getByText('Running').waitFor({ timeout: 10_000 })
+  await waitForText(new RegExp(`${day} \\d\\d:\\d\\d UTC`), 10_000) // the simulation time is the landing
 })
 
 await step('Browser Back / Forward between the views; the 3D view is drawn again', async () => {
   if (!page.url().includes('#app/planner')) await page.getByRole('button', { name: 'Mission Planner' }).click()
   await page.getByRole('toolbar', { name: 'Map tools' }).waitFor({ timeout: 30_000 })
-  await page.goBack()
-  await page.locator('[data-tour="compare-dashboard"]').waitFor({ timeout: 10_000 })
+  await page.goBack() // to the page before (the Atlas, which sent the mission here)
+  await page.getByRole('grid').or(page.locator('[data-tour="compare-dashboard"]')).first().waitFor({ timeout: 30_000 })
   await page.goForward()
   await page.getByRole('toolbar', { name: 'Map tools' }).waitFor({ timeout: 30_000 })
   await sleep(4000)
