@@ -27,6 +27,8 @@ export interface EvidenceOrigin {
   kind: 'assessment' | 'comparison' | 'guide'
   label: string // e.g. "Scenario B" or "Mission assessment"
   section?: string // Comparison section to return to (appRoute, e.g. 'cmp-performance')
+  /** Restores the screen that asked (e.g. reopens a plan's assessment dialog). Called by Back; never serialised. */
+  returnTo?: () => void
 }
 
 export interface EvidenceRequest {

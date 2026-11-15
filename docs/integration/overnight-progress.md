@@ -1,3 +1,5 @@
+> **HISTORICAL: the overnight log.** Later work (core, workflow and UI/UX recovery, then the final recovery) superseded its "not done" list; see [final-recovery-progress.md](final-recovery-progress.md) and [final-recovery-ledger.md](final-recovery-ledger.md).
+
 # Overnight recovery - progress log
 
 Resume here. Baseline/SHAs: `docs/integration/overnight-source-manifest.md`. Per-commit disposition:

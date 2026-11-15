@@ -84,7 +84,7 @@ def test_simulation_mode_uses_synthetic_data_explicitly(ev):
 def test_rescue_past_the_end_of_data_never_offers_synthetic_alternatives(ev):
     r = rescue(RescueRequest(original=plan(DATA_END - timedelta(days=22)),
                              change=PlanChange(launch_delay_days=20)), ev)
-    assert r.changed.verdict in ("fail", "unknown")  # judged on the real hours left: never a pass
+    assert r.changed.verdict in ("fail", "unknown")  # judged on the real hours left (a long tail: a fail or unknown)
     assert r.alternatives == []  # every candidate date is past the data
     assert r.stats.undecided > 0
     assert "synthetic" not in r.data_source
@@ -155,7 +155,7 @@ def test_sensitivity_near_the_end_skips_slips_past_the_data(ev):
     s = sensitivity(SensitivityRequest(scenario=plan(DATA_END - timedelta(days=8)),
                                        date_offsets_hours=[-24, 24, 48, 72], position_offsets_km=[]), ev)
     assert [p.date_offset_hours for p in s.points] == [-24, 24, 48, 72]  # slips past the data stay listed
-    # Slips that run past the data are judged on the real hours left: a provable fail or unknown, never a pass.
+    # Slips that run past the data are judged on the real hours left: a verdict only where those hours prove it (here a fail or unknown).
     assert all(p.status in ("fail", "unknown") for p in s.points[2:])
     assert all(p.status in ("pass", "fail") for p in s.points[:2])
     assert s.counts.requested == 4 and s.counts.passed + s.counts.failed + s.counts.unknown == 4
