@@ -83,9 +83,7 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
   return (
     <div className="pointer-events-none flex flex-wrap items-center gap-x-[clamp(16px,3vw,44px)] gap-y-1">
       <a href="#" aria-label="Lunar Horizon Site Navigator: back to the project page" data-tip="Back to the project page" className="pointer-events-auto shrink-0">
-        {/* The larger planner logo from lg up only: at tablet width it pushed "Try a mission" onto a second line, over
-            the planner's time readout. */}
-        <LunarHorizonLogo className={`block h-auto w-[clamp(144px,15vw,178px)] ${view === 'planner' ? 'lg:w-[clamp(176px,20vw,240px)]' : ''}`} />
+        <LunarHorizonLogo className={`block h-auto ${view === 'planner' ? 'w-[clamp(176px,20vw,240px)]' : 'w-[clamp(144px,15vw,178px)]'}`} />
       </a>
       <nav ref={navRef} aria-label="Main" className="pointer-events-auto relative flex gap-[clamp(14px,2vw,32px)] pb-1">
         {VIEWS.map((v) => (
