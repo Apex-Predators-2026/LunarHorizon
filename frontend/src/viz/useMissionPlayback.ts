@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react'
 import { useRescueStore } from '../features/rescue'
 import { useAppStore } from '../store'
-import type { Scenario, SiteInfo, ViabilityResult } from '../types'
+import type { MissionRequirements, Scenario, SiteInfo, ViabilityResult } from '../types'
 import { fetchTimeline } from './api'
 import { missionTrack, missionWindow, type MissionTrack } from './mission'
 import type { StripMission } from './TimeBar'
@@ -17,11 +17,23 @@ export interface Run {
   acknowledged: number // failures already shown (index into track.failures)
 }
 
-const samePlan = (a: Scenario, b: Scenario) =>
-  a.site.id === b.site.id && parseUtc(a.landing_utc) === parseUtc(b.landing_utc) && a.duration_days === b.duration_days
+export const sameRequirements = (a: MissionRequirements, b: MissionRequirements): boolean =>
+  a.min_sunlight_fraction === b.min_sunlight_fraction &&
+  a.battery_hours === b.battery_hours &&
+  a.panel_threshold === b.panel_threshold &&
+  a.min_earth_visibility_fraction === b.min_earth_visibility_fraction &&
+  a.max_comms_gap_hours === b.max_comms_gap_hours &&
+  a.min_initial_sun_hours === b.min_initial_sun_hours &&
+  a.min_initial_comms_hours === b.min_initial_comms_hours
+
+export const samePlan = (a: Scenario, b: Scenario): boolean =>
+  a.site.id === b.site.id &&
+  parseUtc(a.landing_utc) === parseUtc(b.landing_utc) &&
+  a.duration_days === b.duration_days &&
+  sameRequirements(a.requirements, b.requirements)
 
 /** The engine's evaluation of this exact plan, from whichever rescue / compromise result has it. */
-function verdictFor(
+export function verdictFor(
   plan: Scenario,
   rescue: ReturnType<typeof useRescueStore.getState>['rescue'],
   compromise: ReturnType<typeof useRescueStore.getState>['compromise'],

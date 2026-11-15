@@ -2,12 +2,13 @@
 // D no data (UNKNOWN, not assessed) · E Malapert 3-day PASS in separate group G2.
 import { describe, expect, it } from 'vitest'
 
+import { SCREENING_NOTE } from '../../lib/headroom'
 import fixture from './__fixtures__/compare-response.json'
 import { canonicalRanking, eligibilityOf, type Entry } from './analysis'
 import { buildDecision } from './decision'
 import { buildExport, toCsv } from './export'
 import { makeScenario } from './scenario'
-import type { CompareResponse, CompareResult } from './types'
+import type { CanonicalMetric, CompareResponse, CompareResult } from './types'
 
 const res = fixture as unknown as CompareResponse
 const byKey = Object.fromEntries(res.results.map((r) => [r.key, r])) as Record<string, CompareResult>
@@ -120,5 +121,102 @@ describe('export', () => {
     expect(b.data.dataset_id).toBeTruthy()
     expect(b.data.engine_version).toBeTruthy()
     expect(b.ranking_explanation).not.toMatch(/rescue_/) // engine ids replaced by letters
+  })
+
+  it('exports comfortable vs limited PASS headroom, margins, initial sunset/Earthset, and screening note without collapsing bounded intervals', () => {
+    const withDark = (base: Entry, label: string, opts: {
+      darkHours: number
+      batteryHours: number
+      rank: number
+      boundedDark?: [number, number]
+    }): Entry => {
+      const r = base.result!
+      const a = r.assessment!
+      const v = r.viability!
+      const req = { ...v.scenario.requirements, battery_hours: opts.batteryHours, min_initial_sun_hours: 0, min_initial_comms_hours: 0 }
+      const darkMetric: CanonicalMetric = opts.boundedDark
+        ? { status: 'bounded', unit: 'h', value: null, lower: opts.boundedDark[0], upper: opts.boundedDark[1], reason: 'coverage gap' }
+        : { status: 'known', unit: 'h', value: opts.darkHours, lower: null, upper: null, reason: null }
+      const constraints = a.constraints.map((c) => (
+        c.id === 'max_continuous_darkness'
+          ? { ...c, threshold: opts.batteryHours, status: 'pass' as const, measured: darkMetric }
+          : c
+      ))
+      const metrics = {
+        ...a.metrics,
+        longest_power_darkness_h: darkMetric,
+        initial_sunlight_h: { status: 'known' as const, unit: 'h', value: 14, lower: null, upper: null, reason: null },
+        time_to_first_sunset_h: { status: 'known' as const, unit: 'h', value: 14, lower: null, upper: null, reason: null },
+        initial_earth_h: { status: 'known' as const, unit: 'h', value: 30, lower: null, upper: null, reason: null },
+        time_to_first_earthset_h: { status: 'known' as const, unit: 'h', value: 30, lower: null, upper: null, reason: null },
+      }
+      const margins = opts.boundedDark
+        ? [{
+            id: 'max_continuous_darkness',
+            name: 'Maximum continuous power-darkness',
+            short_label: 'Max continuous darkness',
+            unit: 'h',
+            measured: { status: 'bounded' as const, unit: 'h', value: null, lower: opts.boundedDark[0], upper: opts.boundedDark[1] },
+            margin_class: 'narrow' as const,
+            margin: { status: 'bounded' as const, unit: 'h', value: null, lower: 1, upper: 8 },
+            narrow_reason: 'Darkness headroom bounded within +[1..8] h against 50 h limit',
+            description: 'Longest power-dark period vs battery limit',
+          }]
+        : undefined
+      const ranking = { ...base.ranking!, eligibility: 'pass' as const, rank: opts.rank }
+      const result: CompareResult = {
+        ...r,
+        key: label,
+        ranking,
+        viability: {
+          ...v,
+          passes: true,
+          eligibility: 'pass',
+          headroom: undefined,
+          scenario: { ...v.scenario, requirements: req },
+          metrics: { ...v.metrics, longest_dark_gap_hours: opts.darkHours, initial_sun_hours: 14, hours_to_first_sunset: 14, initial_comms_hours: 30, hours_to_first_earthset: 30 },
+        },
+        assessment: { ...a, headroom: undefined, margins, constraints, metrics },
+      }
+      return { ...base, scenario: { ...base.scenario, id: `s-${label}`, label, requirements: req }, result, state: { state: 'done', result }, ranking }
+    }
+
+    const comf = withDark(entry('B'), 'B', { darkHours: 15, batteryHours: 50, rank: 1 })
+    const lim = withDark(entry('C'), 'C', { darkHours: 49, batteryHours: 50, rank: 2 })
+    const bnd = withDark(entry('B'), 'X', { darkHours: 49, batteryHours: 50, rank: 3, boundedDark: [42, 49] })
+    const exported = buildExport([comf, lim, bnd], res.ranking_groups.filter((g) => g.id === 'G1'), res.pairwise, [], new Date('2027-01-01T00:00:00Z'))
+    const s = byLabel(exported)
+
+    expect(s.B.headroom!.status).toBe('comfortable')
+    expect(s.B.headroom!.darkness_headroom!.value).toBe(35)
+    expect(s.C.headroom!.status).toBe('limited')
+    expect(s.C.headroom!.qualified_verdict).toContain('limited darkness margin')
+    expect(s.C.headroom!.closest_constraint!.label).toBe('Max continuous darkness')
+    expect(s.C.metrics.time_to_first_sunset_h.value).toBe(14)
+    expect(s.C.metrics.time_to_first_earthset_h.value).toBe(30)
+    expect(s.C.headroom!.screening_note).toBe(SCREENING_NOTE)
+    expect(exported.notes).toContain(SCREENING_NOTE)
+
+    expect(s.X.metrics.longest_power_darkness_h).toEqual({ status: 'bounded', unit: 'h', value: null, lower: 42, upper: 49 })
+    expect(s.X.margins[0].margin).toEqual({ status: 'bounded', unit: 'h', value: null, lower: 1, upper: 8 })
+    expect(s.X.headroom!.darkness_headroom).toEqual({ status: 'bounded', unit: 'h', value: null, lower: 1, upper: 8 })
+
+    const rows = parseCsv(toCsv(exported))
+    const [head, ...body] = rows
+    const col = (name: string) => head.indexOf(name)
+    const row = (label: string) => body.find((r) => r[col('label')] === label)!
+    expect(row('B')[col('headroom_status')]).toBe('comfortable')
+    expect(row('C')[col('headroom_status')]).toBe('limited')
+    expect(row('C')[col('darkness_headroom')]).toBe('1')
+    expect(row('C')[col('time_to_first_sunset_h')]).toBe('14')
+    expect(row('C')[col('time_to_first_earthset_h')]).toBe('30')
+    expect(row('C')[col('screening_note')]).toBe(SCREENING_NOTE)
+    expect(row('X')[col('darkness_headroom')]).toBe('')
+    expect(row('X')[col('darkness_headroom_lower')]).toBe('1')
+    expect(row('X')[col('darkness_headroom_upper')]).toBe('8')
+    expect(row('X')[col('darkness_headroom_status')]).toBe('bounded')
+    expect(row('X')[col('longest_power_darkness_h')]).toBe('')
+    expect(row('X')[col('longest_power_darkness_h_lower')]).toBe('42')
+    expect(row('X')[col('longest_power_darkness_h_upper')]).toBe('49')
   })
 })

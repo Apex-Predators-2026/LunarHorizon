@@ -175,6 +175,7 @@ calculation.
       "shortfall": 12, "relative_shortfall": 1.0, "is_unknown": false,
       "message": "Earth contact right after landing is 0 h, below the 12 h requirement." }
   ],
+  "headroom": { "status": "comfortable", "qualified_verdict": "...", "darkness": "...", "communication_blackout": "...", "initial_sunlight": "...", "initial_earth": "...", "closest_constraint": "..." },
   "source": "placeholder-v1",
   "data_source": "synthetic-placeholder"
 }

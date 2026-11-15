@@ -126,10 +126,19 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
 
     unknown_note = (f" {len(undecided)} option(s) could not be checked because data is missing."
                     if undecided else "")
+    changed_rob = quick_robustness(changed_sc, ev, sim) if changed.passes and opts.robustness_check else None
     if changed.passes:
         status = "still_viable"
-        summary = (f"The changed plan still works: {changed_sc.site.name} on {fmt_time(changed_sc.landing_utc)} "
-                   f"passes with score {fmt_score(changed.score)}.")
+        hr = getattr(changed, "headroom", None)
+        if hr is not None and hr.qualified_verdict:
+            verdict_phrase = hr.qualified_verdict[0].lower() + hr.qualified_verdict[1:]
+        else:
+            verdict_phrase = "passes declared requirements"
+        summary = (f"The changed plan stays within declared model limits: {changed_sc.site.name} on "
+                   f"{fmt_time(changed_sc.landing_utc)} — {verdict_phrase}, score {fmt_score(changed.score)}.")
+        if changed_rob and changed_rob.date_note:
+            summary += f" {changed_rob.date_note}"
+        summary += " Model screening only; not a survival guarantee."
         if (alternatives and alternatives[0].viability.score is not None and changed.score is not None
                 and alternatives[0].viability.score > changed.score + 5):
             summary += f" Better option available: {alternatives[0].headline}"
@@ -168,8 +177,8 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
         assumptions.append(f"Change reason given: {req.change.reason}")
 
     return RescueResponse(
-        status=status, summary=summary, original=original, changed=changed, alternatives=alternatives,
-        near_misses=near_misses, loosening=loosening,
+        status=status, summary=summary, original=original, changed=changed, changed_robustness=changed_rob,
+        alternatives=alternatives, near_misses=near_misses, loosening=loosening,
         stats=SearchStats(candidates_evaluated=len(cands), locations_considered=len(sites), passing=len(passing), undecided=len(undecided),
                           synthetic_candidates_excluded=excluded, date_range_start=times[0], date_range_end=times[-1]),
         data_source=", ".join(data_sources), assumptions=assumptions,

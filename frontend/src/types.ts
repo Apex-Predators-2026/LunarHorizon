@@ -184,6 +184,81 @@ export interface ViabilityMetrics {
 
 export type Eligibility = 'pass' | 'fail' | 'unknown'
 
+export type MarginStatus =
+  | 'comfortable'
+  | 'narrow'
+  | 'at_threshold'
+  | 'negative'
+  | 'uncertain'
+  | 'unsupported'
+  | 'not_applicable'
+
+export type HeadroomStatus =
+  | 'comfortable'
+  | 'limited'
+  | 'at_threshold'
+  | 'failed'
+  | 'uncertain'
+  | 'vacuous'
+
+export interface MarginMetricValue {
+  status: 'known' | 'bounded' | 'unavailable' | 'not_applicable'
+  unit: string
+  value?: number | null
+  lower?: number | null
+  upper?: number | null
+  reason?: string | null
+}
+
+export interface CanonicalMarginItem {
+  id: string
+  requirement_field?: string | null
+  name: string
+  short_label: string
+  comparison?: 'at_least' | 'at_most' | null
+  unit: string
+  threshold?: number | null
+  measured: MarginMetricValue
+  margin: MarginMetricValue
+  relative_margin?: MarginMetricValue | null
+  margin_class: MarginStatus
+  narrow_reason?: string | null
+  description: string
+}
+
+export interface InitialWindowSummary {
+  kind: 'sunlight' | 'earth'
+  duration: MarginMetricValue
+  first_end_hours: MarginMetricValue
+  requirement_hours?: number | null
+  headroom?: CanonicalMarginItem | null
+  summary_text: string
+}
+
+export interface ClosestRequirementInfo {
+  constraint_id: string
+  requirement_field?: string | null
+  label: string
+  margin_class: MarginStatus
+  unit: string
+  headroom_text: string
+  relative_pct?: number | null
+  summary_text: string
+}
+
+export interface OperationalHeadroom {
+  status: HeadroomStatus
+  qualified_verdict: string
+  limited_constraints: string[]
+  darkness?: CanonicalMarginItem | null
+  communication_blackout?: CanonicalMarginItem | null
+  initial_sunlight: InitialWindowSummary
+  initial_earth: InitialWindowSummary
+  closest_constraint?: ClosestRequirementInfo | null
+  constraints: CanonicalMarginItem[]
+  screening_note: string
+}
+
 export interface ViabilityResult {
   scenario: Scenario
   passes: boolean // true only when eligibility is 'pass'
@@ -191,6 +266,7 @@ export interface ViabilityResult {
   score: number | null // 0..100, null = not scored
   metrics: ViabilityMetrics
   violations: Violation[]
+  headroom?: OperationalHeadroom | null
   source: string // which viability implementation
   data_source: string // which timeline source (e.g. "synthetic-placeholder")
 }
