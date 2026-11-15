@@ -56,16 +56,20 @@ def _site_record(site_id: str):
 
 
 def real_timeline(scenario: Scenario) -> Timeline | None:
-    """Mission slice of the data engine's record, or None if the site/dates are not covered."""
+    """Mission slice of the data engine's record, or None if the site has no data or the mission starts outside it.
+
+    A mission that starts inside the data but runs past its end gets the samples that exist (fewer than the
+    mission needs): the canonical engine then judges it on those real hours, as the Atlas and Rescue do (one
+    policy, app.timegrid), proving a fail where it can and otherwise reporting unknown, never a pass."""
     d = _site_record(scenario.site.id)
     if d is None or len(d.times) < 2:
         return None
     step_h = float((d.times[1] - d.times[0]).astype("timedelta64[s]").astype(np.int64)) / 3600.0
     n = max(1, int(round(scenario.duration_days * 24 / step_h)))
     i = int(np.searchsorted(d.times, to_np_utc(scenario.landing_utc)))
-    if to_np_utc(scenario.landing_utc) < d.times[0] or i + n > len(d.times):
+    if to_np_utc(scenario.landing_utc) < d.times[0] or to_np_utc(scenario.landing_utc) >= d.times[-1]:
         return None
-    c, s = d.cols, slice(i, i + n)
+    c, s = d.cols, slice(i, min(i + n, len(d.times)))
     sun_frac = np.asarray(c["sun_visible_fraction"][s], float).copy()
     earth_horizon = np.asarray(c["earth_horizon_deg"][s], float).copy()
     # Unknown flags (null in the file) must stay unknown: rescue's Timeline encodes that as NaN, which the
@@ -294,7 +298,14 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
         notes.append(problem)
     f = incidence_factor(tl, item.spacecraft)
     stats: dict = {}
-    if sun_unknown.any() or earth_unknown.any():
+    covered_h = len(tl.times) * tl.step_hours
+    if kind == "real" and covered_h < sc.duration_days * 24 - 1e-9:
+        # The mission runs past the end of the real data: only part of it can be described. Window statistics
+        # would treat the missing hours as nothing; withhold them. The verdict comes from the hours that exist.
+        notes.append(f"Real data ends at {_iso(tl.times[-1])}: it covers {covered_h:g} h of this {sc.duration_days * 24:g} h "
+                     "mission. Window statistics are withheld; the viability verdict is judged on the covered hours "
+                     "only (it can show a fail, never a pass).")
+    elif sun_unknown.any() or earth_unknown.any():
         # Window statistics would have to treat unknown hours as dark or blocked. Withhold them; the canonical
         # metrics (assessment.metrics) report bounds instead.
         notes.append(f"Incomplete data: the Sun's state is unknown for {sun_unknown.sum() * tl.step_hours:g} h and "
