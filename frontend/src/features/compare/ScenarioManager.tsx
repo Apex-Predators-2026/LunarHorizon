@@ -1,4 +1,4 @@
-// Section 1: saved scenarios — add, duplicate (+ shift date), edit, remove, pick 2–4 to compare.
+// Section 1: saved scenarios: add, duplicate (+ shift date), edit, remove, pick 2–4 to compare.
 import { useState } from 'react'
 
 import { fmtUtc } from '../rescue/format'

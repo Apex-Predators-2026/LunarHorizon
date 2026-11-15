@@ -146,7 +146,7 @@ def compromise(req: CompromiseRequest, ev: Evaluator | None = None) -> Compromis
                 text += f" or allow a {needed} km traverse (currently {g.max_traverse_km:.0f} km)"
             suggestions.append(text + ".")
         else:
-            suggestions.append("No location passes the engineering requirements at all in this window — "
+            suggestions.append("No location passes the engineering requirements at all in this window: "
                                "widen the date window or relax engineering requirements first.")
         sci_ok_keys = {k for k, c in by_loc.items()
                        if _science_score(_science_distance(c.scenario.site, target, radius), req) >= g.min_science_score}

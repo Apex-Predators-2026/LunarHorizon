@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { guardDrag } from './dragGuard'
 
 const MARGIN = 8
 const CLICK_SLOP_PX = 4
@@ -48,6 +49,7 @@ export function useDraggable(rootRef: RefObject<HTMLElement | null>) {
   const onPointerDown = (e: React.PointerEvent<HTMLElement>) => {
     if (e.button !== 0 || !rootRef.current) return
     detachRef.current?.()
+    const releaseGuard = guardDrag()
     const rect = rootRef.current.getBoundingClientRect()
     const pointerId = e.pointerId
     drag.current = { pointerId, dx: e.clientX - rect.left, dy: e.clientY - rect.top, sx: e.clientX, sy: e.clientY, moved: false }
@@ -78,6 +80,7 @@ export function useDraggable(rootRef: RefObject<HTMLElement | null>) {
     }
 
     const cleanup = () => {
+      releaseGuard()
       window.removeEventListener('pointermove', onWindowMove)
       window.removeEventListener('pointerup', onWindowUp)
       window.removeEventListener('pointercancel', onWindowUp)
