@@ -2,7 +2,7 @@
 // Wheel = zoom, drag = pan, click = select a moment (every panel follows), arrow keys = step.
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
-import { fmtAxis, type Align, type Entry } from './analysis'
+import { fmtAxis, violationWindows, type Align, type Entry } from './analysis'
 import { STATE } from './palette'
 import type { TimelineColumns, Window } from './types'
 import { ScenarioChip, btn } from './ui'
@@ -68,8 +68,8 @@ const Lanes = memo(function Lanes({ e, top, x, view, w }: { e: Entry; top: numbe
         const b = rect(longDark)
         return (
           <g>
-            <rect x={b.x} y={top - 1} width={b.w} height={LANE + 2} fill="none" stroke={STATE.blackout} strokeWidth={1.5} rx={2}>
-              <title>Longest darkness: {fmtDur(longDark.duration_hours)} ({longDark.start_utc} → {longDark.end_utc})</title>
+            <rect x={b.x} y={top - 1} width={b.w} height={LANE + 2} fill="none" stroke={STATE.muted} strokeWidth={1} strokeDasharray="3 2" rx={2}>
+              <title>Longest darkness (no solar disk visible): {fmtDur(longDark.duration_hours)} ({longDark.start_utc} → {longDark.end_utc})</title>
             </rect>
             {b.w > 70 && <text x={b.x + b.w / 2} y={top + LANE / 2 + 4} textAnchor="middle" fontSize={10} fill="#ffb4b4">longest dark {fmtDur(longDark.duration_hours)}</text>}
           </g>
@@ -88,7 +88,7 @@ const Lanes = memo(function Lanes({ e, top, x, view, w }: { e: Entry; top: numbe
         const b = rect(longBlack)
         return (
           <g>
-            <rect x={b.x} y={earthTop - 1} width={b.w} height={LANE + 2} fill="none" stroke={STATE.blackout} strokeWidth={1.5} rx={2} />
+            <rect x={b.x} y={earthTop - 1} width={b.w} height={LANE + 2} fill="none" stroke={STATE.muted} strokeWidth={1} strokeDasharray="3 2" rx={2} />
             {b.w > 80 && <text x={b.x + b.w / 2} y={earthTop + LANE / 2 + 4} textAnchor="middle" fontSize={10} fill="#ffd0d0" style={{ paintOrder: 'stroke' }} stroke="#1a0b12" strokeWidth={3}>longest blackout {fmtDur(longBlack.duration_hours)}</text>}
           </g>
         )
@@ -105,6 +105,26 @@ const Lanes = memo(function Lanes({ e, top, x, view, w }: { e: Entry; top: numbe
             fill={sun ? STATE.sun : STATE.earth} stroke="#1f2326" strokeWidth={0.5}>
             <title>{ev.type} · {ev.time_utc}</title>
           </path>
+        )
+      })}
+      {/* Requirement evidence from the engine: the windows behind a failed (red) or undecided (dashed) verdict. */}
+      {violationWindows(r).map((v) => {
+        const vx = clipX(o + v.start_hour), vw = Math.max(1, clipX(o + v.end_hour) - vx)
+        const y = v.lane === 'sun' ? top : earthTop
+        const fail = v.status === 'fail'
+        return (
+          <g key={`${v.constraintId}-${v.start_hour}`}>
+            <rect x={vx} y={y - 2} width={vw} height={LANE + 4} fill="none" rx={2}
+              stroke={fail ? STATE.blackout : STATE.muted} strokeWidth={fail ? 2.5 : 1.5} strokeDasharray={fail ? undefined : '4 3'}>
+              <title>{v.text} · {v.start_utc} → {v.end_utc}</title>
+            </rect>
+            {vw > 14 && (
+              // Sun-lane labels sit above the Sun lane, Earth-lane labels below the Earth lane, so they never cover a lane.
+              <text x={vx + 3} y={v.lane === 'sun' ? y - 4 : y + LANE + 11} fontSize={9} fill={fail ? STATE.blackout : STATE.muted} fontWeight={600}>
+                {fail ? '✕' : '?'} {vw > 120 ? v.name : ''}
+              </text>
+            )}
+          </g>
         )
       })}
       {/* data-kind marker */}
@@ -164,6 +184,16 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
     ev.preventDefault()
   }
 
+  const violations = entries.flatMap((e) => violationWindows(e.result).map((v) => ({ e, v })))
+  const jumpToViolation = () => {
+    const first = [...violations].sort((a, b) => (a.e.offsetHours + a.v.start_hour) - (b.e.offsetHours + b.v.start_hour))[0]
+    if (!first) return
+    const a = first.e.offsetHours + first.v.start_hour, b = first.e.offsetHours + first.v.end_hour
+    const pad = (b - a) * 0.3 + 6
+    setView(clampView([a - pad, b + pad], full))
+    setCursor((a + b) / 2)
+  }
+
   const jumpToLongest = (kind: 'dark' | 'blackout') => {
     let best: { e: Entry; w: Window } | null = null
     for (const e of entries) {
@@ -189,6 +219,10 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
         <span className="mx-1 h-4 w-px bg-slate-700" aria-hidden="true" />
         <button type="button" className={btn} onClick={() => jumpToLongest('dark')}>Go to longest darkness</button>
         <button type="button" className={btn} onClick={() => jumpToLongest('blackout')}>Go to longest blackout</button>
+        <button type="button" className={btn} onClick={jumpToViolation} disabled={!violations.length}
+          title={violations.length ? 'Zoom to the first window the engine cites for a failed or undecided requirement' : 'No failed or undecided requirement has a time window'}>
+          Go to first violation{violations.length ? ` (${violations.length})` : ''}
+        </button>
         <span className="ml-auto text-[11px] text-slate-500">
           Showing {fmtAxis(view[0], align, originMs, span)} → {fmtAxis(view[1], align, originMs, span)} · wheel to zoom, drag to pan, click to select a time
         </span>
@@ -280,7 +314,9 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border border-slate-700" style={{ background: STATE.dark }} /> Darkness</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm" style={{ background: STATE.earth }} /> Earth in line of sight</span>
         <span className="flex items-center gap-1.5"><svg width="20" height="12"><rect width="20" height="12" fill="url(#hatch-blackout)" /></svg> Communication blackout</span>
-        <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border-2" style={{ borderColor: STATE.blackout }} /> Longest gap</span>
+        <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border border-dashed" style={{ borderColor: STATE.muted }} /> Longest gap (measured)</span>
+        <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border-2" style={{ borderColor: STATE.blackout }} /> ✕ Window behind a failed requirement</span>
+        <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border-2 border-dashed" style={{ borderColor: STATE.muted }} /> ? Window behind an undecided requirement</span>
         <span>▲ rise · ▼ set</span>
       </div>
     </div>

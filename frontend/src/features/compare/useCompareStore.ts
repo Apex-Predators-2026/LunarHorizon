@@ -14,6 +14,7 @@ import type { MissionRequirements, Scenario } from '../../types'
 import { WEIGHT_PRESETS, type Align, type Weights } from './analysis'
 import { errorMessage, fetchSites, postCompare } from './api'
 import { MAX_COMPARED } from './palette'
+import type { RescueContext } from './rescueFlow'
 import {
   FALLBACK_SITES,
   duplicateShifted,
@@ -52,6 +53,9 @@ export interface CompareState {
   rankingMethod: string | null
   rankingPairs: PairEvidence[] // the engine's pairwise evidence for the same set
   rankingSetKey: string | null
+  /** Set when the selection was imported from Mission Rescue: roles of each imported scenario and what changed. */
+  rescueContext: RescueContext | null
+  setRescueContext: (ctx: RescueContext | null) => void
   sites: SiteOption[]
   sitesStatus: Status
   sitesError: string | null
@@ -151,6 +155,8 @@ export const useCompareStore = create<CompareState>()(
       rankingMethod: null,
       rankingPairs: [],
       rankingSetKey: null,
+      rescueContext: null,
+      setRescueContext: (rescueContext) => set({ rescueContext }),
       sites: FALLBACK_SITES,
       sitesStatus: 'idle',
       sitesError: null,
@@ -366,6 +372,7 @@ export const useCompareStore = create<CompareState>()(
       partialize: (s) => ({
         scenarios: s.scenarios, selectedIds: s.selectedIds, activeId: s.activeId, baselineId: s.baselineId,
         allowDemo: s.allowDemo, educational: s.educational, align: s.align, weights: s.weights, traverseKm: s.traverseKm,
+        rescueContext: s.rescueContext,
       }),
     },
   ),
