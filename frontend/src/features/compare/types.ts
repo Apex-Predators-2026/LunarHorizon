@@ -64,7 +64,7 @@ export interface Window {
   end_utc: string
   open_start: boolean
   open_end: boolean
-  kind?: string | null // canonical window kind (e.g. darkness, sun_unknown)
+  kind?: string | null // canonical window kind (darkness, sun_unknown, earth_unknown, ...)
 }
 
 export interface MissionEvent {
@@ -83,14 +83,14 @@ export interface SolarStats {
   max_elevation_deg: number
   min_elevation_lit_deg: number | null
   mean_clearance_lit_deg: number | null
-  longest_dark_hours: number | null // the engine's longest_without_direct_sunlight (geometric)
+  longest_dark_hours: number | null
   windows_count: number | null
 }
 
 export interface EarthStats {
   visible_hours: number
   visible_fraction: number
-  longest_blackout_hours: number | null // the engine's longest_communication_blackout
+  longest_blackout_hours: number | null
   windows_count: number | null
   mean_elevation_visible_deg: number | null
   min_elevation_visible_deg: number | null
@@ -185,6 +185,9 @@ export interface EvidenceWindow {
 
 /** Canonical evidence beyond pass/fail and score: metric states, constraints, risk, coverage, versions. */
 export interface AssessmentInfo {
+  evaluated_start_utc?: string | null
+  evaluated_end_utc?: string | null
+  windows?: EvidenceWindow[] // every canonical window of the mission, unknown-data windows included
   engine_version: string
   scoring_method_version: string
   dataset_id: string
@@ -201,9 +204,6 @@ export interface AssessmentInfo {
   headroom?: OperationalHeadroom | null
   explanations: string[]
   limitations: string[]
-  evaluated_start_utc?: string | null // the mission interval the engine evaluated (UTC, hourly grid)
-  evaluated_end_utc?: string | null
-  windows?: EvidenceWindow[] // every canonical window of the mission, unknown-data windows included
 }
 
 /**
@@ -274,6 +274,13 @@ export interface CompareResult {
   evaluated_duration_days?: number | null
   /** Plain note when the evaluated landing time or length differs from the request. */
   time_note?: string | null
+  /** Site file the result came from (relative to data/sites) and its SHA-256 as evaluated; null for demonstration data. */
+  dataset_file?: string | null
+  dataset_sha256?: string | null
+  /** The interval evaluated (UTC, hourly grid). */
+  evaluated_start_utc?: string | null
+  evaluated_end_utc?: string | null
+  evaluated_hours?: number | null
   site_context: SiteContext | null
   science_context: ScienceContext | null
   viability: ViabilityResult | null
@@ -286,17 +293,15 @@ export interface CompareResult {
   dark_windows: Window[]
   earth_windows: Window[]
   blackout_windows: Window[]
-  unknown_windows?: Window[] // the engine's sun_unknown / earth_unknown windows
-  events: MissionEvent[] // observed rises/sets only (none at a mission edge or next to unknown data)
+  /** The engine's sun_unknown / earth_unknown windows: no data there, never darkness or a blackout. */
+  unknown_windows?: Window[]
+  events: MissionEvent[]
   timeline: TimelineColumns | null
-  evaluated_start_utc?: string | null // the exact mission interval evaluated (app/mission_time.py)
-  evaluated_end_utc?: string | null
-  evaluated_hours?: number | null
-  sun_known_hours?: number | null // mission hours with a known Sun state
+  /** Mission hours with a known Sun / Earth state (null when not assessed). */
+  sun_known_hours?: number | null
   earth_known_hours?: number | null
-  withheld?: Record<string, string> // solar / earth / power -> why that whole-mission block is withheld
-  dataset_file?: string | null // site file the result was computed from (relative to data/sites); null for demonstration data
-  dataset_sha256?: string | null // SHA-256 of that file as evaluated; null for demonstration data
+  /** solar / earth / power -> why that block of statistics is withheld (it is never shown as 0). */
+  withheld?: Record<string, string>
 }
 
 export interface CompareResponse {
@@ -306,7 +311,7 @@ export interface CompareResponse {
   pairwise: PairEvidence[]
   viability_source: string
   notes: string[]
-  time_policy?: string | null
+  time_policy?: string | null // the backend's mission-time policy for this request
 }
 
 /** Client-side state of one scenario's result. */

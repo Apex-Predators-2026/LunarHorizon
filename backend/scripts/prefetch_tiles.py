@@ -14,12 +14,15 @@ Run from backend/:
     also works offline.
 To check that a demo really needs nothing else, run the backend with LUNAR_OFFLINE=1 and go through it
 (frontend/scripts/demo-tour.mjs --verify does that automatically; see docs/demo-setup.md).
+--check downloads nothing: it goes through the same data offline (LUNAR_OFFLINE=1) and lists what is missing
+(terrain at full resolution, i.e. without the offline coarser-data fallback the server uses for tiles).
 Everything lands in data/cache/ (git-ignored; copy that folder to another machine to skip this).
 Safe to re-run: cached data is reused, and tiles that failed (e.g. Moon Trek hiccups) are listed
 so a second run can fill them in.
 """
 
 import argparse
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -105,7 +108,11 @@ def main():
     ap.add_argument("--limb-lat", type=float, default=-67.0, help="the wider ring reaches this latitude")
     ap.add_argument("--face-zoom", type=int, default=6, help="the whole south face (to ~35 S) down to this zoom")
     ap.add_argument("--no-imagery", action="store_true", help="skip the LRO imagery (the zoomed-out look of the 3D view)")
+    ap.add_argument("--check", action="store_true", help="download nothing: list what the cache is missing")
     args = ap.parse_args()
+    if args.check:
+        os.environ["LUNAR_OFFLINE"] = "1"  # every download fails at once: a failure = not cached
+        print("Checking the cache (offline, nothing is downloaded)", flush=True)
 
     failed: list[Tile] = []
     terrain = (
@@ -115,7 +122,7 @@ def main():
         | polar(args.face_zoom, 0.0)  # the whole south face: the limb seen from far above the pole
         | around_sites(args.site_zoom, respect_data=True)
     )
-    failed += warm("Terrain", terrain, lambda t: tile_heights(*t, pad=1))
+    failed += warm("Terrain", terrain, lambda t: tile_heights(*t, pad=1, coarser_if_offline=False))
 
     print("PSR / surface-ice overlay", flush=True)
     try:
@@ -142,8 +149,14 @@ def main():
         flush=True,
     )
     if failed:
-        print(f"{len(failed)} tiles failed (usually Moon Trek being busy): run this again to fill them in.")
+        if args.check:
+            print(f"{len(failed)} tiles are not cached: run this script without --check (online) to fetch them.")
+        else:
+            print(f"{len(failed)} tiles failed (usually Moon Trek being busy): run this again to fill them in.")
         sys.exit(1)
+    if args.check:
+        print("Cache complete: every tile above is stored, the demo needs no downloads for these areas.")
+        return
     print("All done: the demo can now run without Moon Trek for these areas.")
 
 

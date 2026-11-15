@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 
 import { headroomTone, resolveHeadroom } from '../../lib/headroom'
 import { usePlanVerdict } from '../../lib/planVerdict'
+import { AssessmentDialog } from '../assessment'
 import { useAppStore } from '../../store'
 import {
   DEFAULT_REQUIREMENTS,
@@ -205,6 +206,7 @@ export function PlanCard({
   const compare = usePlansStore((s) => s.compareIds.includes(plan.id))
   const toggle = usePlansStore((s) => s.toggleCompare)
   const remove = usePlansStore((s) => s.remove)
+  const [details, setDetails] = useState(false)
   const rescue = useRescueStore((s) => s.rescue)
   const compromise = useRescueStore((s) => s.compromise)
   const sc = plan.scenario
@@ -257,6 +259,15 @@ export function PlanCard({
           <span className="text-[10px] text-slate-500">· Screening only</span>
         </div>
       )}
+      <button
+        type="button"
+        className="mt-1.5 text-[11px] font-medium text-sky-400 underline decoration-dotted underline-offset-2 hover:text-sky-300"
+        data-tip="Every requirement with its measured value, margin and evidence, plus data provenance and limitations"
+        onClick={() => setDetails(true)}
+      >
+        Full assessment: why, margins, evidence
+      </button>
+      {details && <AssessmentDialog title={plan.name} scenario={sc} onClose={() => setDetails(false)} />}
       <div className="plan-card-actions mt-2 flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-3 text-xs text-slate-400" data-tip="Tick two or more plans, then press Compare to see them side by side.">
           <input type="checkbox" checked={compare} onChange={() => toggle(plan.id)} />

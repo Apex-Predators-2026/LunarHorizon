@@ -153,6 +153,15 @@ def create_custom_site(req: CustomSiteRequest) -> SiteInfo:
         return _site_model(store.create_custom_site(req.lat, req.lon, req.name))
     except ValueError as e:
         raise HTTPException(422, str(e))
+    except OfflineError:
+        # A pin away from the warmed areas needs LOLA terrain out to 300 km that isn't cached.
+        raise HTTPException(
+            503,
+            "A new pin here needs terrain that isn't stored yet, and the backend is in offline mode. Pick one "
+            "of the listed sites, or a point near one (their terrain is stored).",
+        )
+    except OSError as e:  # Moon Trek / JPL unreachable or too busy
+        raise HTTPException(502, f"Terrain or ephemeris source unavailable, try again shortly: {e}")
 
 
 @app.get("/api/sites/{site_id}")

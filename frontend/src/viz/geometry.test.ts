@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { azElToVector, buildHorizonCurtain, skyTrail } from './geometry'
+import { azElToVector, buildHorizonCurtain, earthIlluminatedFraction, skyTrail } from './geometry'
+
+describe('earthIlluminatedFraction', () => {
+  it('is full opposite the Sun, new next to it, half at 90 deg', () => {
+    expect(earthIlluminatedFraction({ azimuth_deg: 0, elevation_deg: 2 }, { azimuth_deg: 180, elevation_deg: -2 })).toBeCloseTo(1, 6)
+    expect(earthIlluminatedFraction({ azimuth_deg: 30, elevation_deg: 5 }, { azimuth_deg: 30, elevation_deg: 5 })).toBeCloseTo(0, 6)
+    expect(earthIlluminatedFraction({ azimuth_deg: 0, elevation_deg: 0 }, { azimuth_deg: 90, elevation_deg: 0 })).toBeCloseTo(0.5, 6)
+  })
+})
 
 // digits = decimal places; vertex buffers are Float32, so compare those more loosely.
 const close = (a: number[], b: number[], digits = 9) => a.forEach((v, i) => expect(v).toBeCloseTo(b[i], digits))
