@@ -168,6 +168,45 @@ into the shared `useAppStore` for the followed scenario; "View in 3D ↗" switch
 **Mission configuration (Member 3).** Scenarios are team `Scenario`s plus a `SpacecraftConfig`;
 `fromTeamScenario` / `toTeamScenario` convert between them.
 
+## Guided tour and Mission Assistant
+
+**Guided tour** (`frontend/src/features/compare/tour/`). "How to compare missions" in the page header starts a
+five-stop spotlight tour (select missions, viability, conditions, trade-offs, assistant). A one-time offer appears
+on first visit; completion and dismissal are remembered in `localStorage` (`lunar-compare-tour`). The page stays
+usable during the tour; Esc skips, arrow keys move between stops. It is separate from the Mission Planner's tour.
+
+**Mission Assistant** (`frontend/src/features/compare/assistant/`, `backend/app/assistant/`). A read-only chat panel
+that explains the comparison on screen and how to use the page. It cannot change scenarios, requirements, rankings or
+Rescue plans; links in its answers only scroll the page or start the tour.
+
+| Piece | What it does |
+|---|---|
+| `context.ts` | Builds what the assistant reads from the page itself: verdicts, ranks, groups and the recommendation from `buildExport()`; figures as the page displays them (At a glance, Key metrics, Requirements); why figures are withheld; the Mission Rescue story; the interface guide. Rebuilt on every change, so answers never use a stale comparison. While the ranking is updating, no rank or recommendation is sent. |
+| `navigation.ts` | Factual guide to the page's controls (checked against the components). The AI may describe only these, and `[[go:section]]` links only to real sections. |
+| `fallback.ts` | Basic answers without AI (summary, requirements, Rescue, how-to), assembled from the same context and labelled "Basic answer · not AI". Never sent to the AI. |
+| `backend/app/assistant/` | `GET /api/assistant/status`, `POST /api/assistant/chat`. Adds the system instruction and the API key and forwards to an OpenAI-compatible service (OpenRouter by default) using the Python standard library. Failures return 503 with a reason; no answer is ever made up. |
+
+**Setup.** Copy `backend/.env.example` to `backend/.env` and set `OPENROUTER_API_KEY` (optional: `OPENROUTER_MODEL`,
+default `openai/gpt-4o-mini`; `OPENROUTER_BASE_URL`; `ASSISTANT_TIMEOUT_S`). The file is read on every request, so
+press "Check again" in the panel; no restart is needed. `backend/.env` is git-ignored: each machine needs its own copy,
+and without it the panel says "not configured" and gives basic answers. The key never reaches the browser, a log or an
+error message. `LUNAR_OFFLINE=1` turns the assistant off (the comparison itself still works).
+
+**Answer rules** (system prompt in `backend/app/assistant/prompt.py`): the team's required instruction word for word,
+plus how to read the context. UNKNOWN is never FAIL, missing figures are never 0, only eligible PASS scenarios are
+ranked, the page's own recommendation is never overridden, demonstration data is flagged, and navigation answers use
+only the interface guide. Each answer shows the page's own verdict chips so it can be checked at a glance.
+
+**Privacy.** Each question sends the current comparison (scenarios, sites, dates, requirements, results) and the
+conversation to the configured AI service. No personal data is involved.
+
+**Tests.** `frontend/src/features/compare/assistant/assistant.test.tsx`, `tour/tour.test.tsx`,
+`backend/tests/test_assistant.py`, `backend/tests/test_assistant_setup.py` (the AI service is stubbed; no key needed).
+
+**AI disclosure for the submission page.** The app contains an LLM-powered feature (the Mission Assistant, OpenRouter
+model `openai/gpt-4o-mini` by default) that explains results computed by the team's own engine; it does not compute,
+change or rank anything. Parts of the comparison, tour and assistant code were written with an AI coding assistant.
+
 ## Known limitations
 
 - Real data covers the curated sites for 2026-01-01 → 2031-01-01 (hourly). Custom sites created through
