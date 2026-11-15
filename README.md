@@ -199,7 +199,7 @@ numbers (and the Mission Report, once generated) to an LLM through OpenRouter (d
 It explains results; it never decides verdicts, scores, rankings or recommendations, and when no AI service is
 available it says so rather than making up an answer.
 
-**Setting it up (each machine).** The key lives only on the backend; the browser never sees it.
+**Local development.** The key lives only on the backend; the browser never sees it.
 
 ```powershell
 cd backend
@@ -211,11 +211,24 @@ copy .env.example .env      # then edit .env and set OPENROUTER_API_KEY=sk-or-v1
 | `OPENROUTER_API_KEY` | Required for AI answers. Without it the panel says "not configured" and offers basic answers. |
 | `OPENROUTER_MODEL` | Optional model id (default `openai/gpt-4o-mini`). |
 | `OPENROUTER_BASE_URL` | Optional OpenAI-compatible endpoint (default `https://openrouter.ai/api/v1`). |
+| `OPENROUTER_HTTP_REFERER` | Optional public frontend URL used for OpenRouter attribution. |
 | `ASSISTANT_TIMEOUT_S` | Optional answer timeout in seconds (default 45). |
 
 `backend/.env` is git-ignored and read on every request: after saving it, press *Check again* in the panel (no
 restart needed). Never commit a key or put it in frontend code. `LUNAR_OFFLINE=1` turns the assistant off; the
-comparison itself keeps working. Details: [`docs/comparison.md`](docs/comparison.md#guided-tour-and-mission-assistant).
+comparison itself keeps working.
+
+**Shared deployment.** Users do not need their own key or local setup: configure `OPENROUTER_API_KEY` once as a
+secret/environment variable on the deployed **backend**. Set `VITE_API_URL` to the backend's public base URL when
+building the frontend (omit the trailing slash). If frontend and backend have different origins, also set
+`CORS_ALLOW_ORIGINS` on the backend to the exact frontend origin(s), comma-separated, including `https://` and any
+port. For a same-origin reverse proxy, route `/api` to FastAPI and no CORS setting is needed. Optionally set
+`OPENROUTER_HTTP_REFERER` to the public frontend URL for OpenRouter attribution. Restart/redeploy the backend after
+changing its environment; rebuild the frontend after changing `VITE_API_URL`. Verify the deployment with
+`GET /api/health` and `GET /api/assistant/status` (the latter should return `available: true`). The key must never be
+set as a `VITE_*` variable: those values are included in browser code. Since the key is shared, configure provider
+spending limits for the public demo. Without a configured key, everyone can still use the assistant's labelled basic
+answers and the rest of the comparison. Details: [`docs/comparison.md`](docs/comparison.md#guided-tour-and-mission-assistant).
 
 **In development.** Parts of the code (including the comparison, tour, assistant, Mission Report and methodology
 page) were written with AI coding assistants; every verdict, score and ranking comes from the team's own engine.
