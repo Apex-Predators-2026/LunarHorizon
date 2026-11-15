@@ -70,7 +70,7 @@ function Panel({ context }: { context: AssistantContext }) {
   const error = useAssistant((s) => s.error)
   const availability = useAssistant((s) => s.availability)
   const availabilityMessage = useAssistant((s) => s.availabilityMessage)
-  const { setOpen, ask, retry, stop, clear, checkStatus } = useAssistant.getState()
+  const { setOpen, ask, askBasic, showBasic, retry, stop, clear, checkStatus } = useAssistant.getState()
   const [draft, setDraft] = useState('')
   const top = useHeaderOffset()
   const logRef = useRef<HTMLDivElement>(null)
@@ -92,7 +92,9 @@ function Panel({ context }: { context: AssistantContext }) {
   const submit = (text: string) => {
     if (!text.trim() || pending) return
     setDraft('')
-    void ask(text, context)
+    // AI unavailable: answer from the page's own results instead (clearly labelled), never a made-up answer.
+    if (unavailable) askBasic(text, context)
+    else void ask(text, context)
   }
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
@@ -132,6 +134,7 @@ function Panel({ context }: { context: AssistantContext }) {
             <Icon name="info" size={14} className="mt-0.5 shrink-0 text-ink-3" />
             <div className="flex-1">
               <p>{availabilityMessage ?? 'The Mission Assistant is not available right now.'}</p>
+              <p className="mt-1 text-ink-3">Questions get a basic answer built from the page's own results instead (no AI).</p>
               <button type="button" className="cmp-btn-quiet mt-1 text-xs" onClick={() => void checkStatus()}>Check again</button>
             </div>
           </div>
@@ -146,7 +149,7 @@ function Panel({ context }: { context: AssistantContext }) {
                   ? 'No scenarios are selected yet. I can show you how to set up a comparison, or explain what the page shows.'
                   : 'Ask me to summarize this comparison, explain a result or a trade-off, or find something on the page. My answers come from the results shown here.'}
               </p>
-              <Suggestions items={suggestions} disabled={pending || unavailable} onPick={submit} />
+              <Suggestions items={suggestions} disabled={pending} onPick={submit} />
             </div>
           )}
           {messages.map((m) => <Message key={m.id} m={m} />)}
@@ -166,7 +169,10 @@ function Panel({ context }: { context: AssistantContext }) {
               <Icon name="warning" size={14} className="mt-0.5 shrink-0" />
               <div className="flex-1">
                 <p>{error.message}</p>
-                {!unavailable && <button type="button" className="cmp-btn-quiet mt-1 text-xs" onClick={() => void retry(context)}>Try again</button>}
+                <span className="mt-1 flex flex-wrap gap-x-3">
+                  {!unavailable && <button type="button" className="cmp-btn-quiet text-xs" onClick={() => void retry(context)}>Try again</button>}
+                  <button type="button" className="cmp-btn-quiet text-xs" onClick={() => showBasic(context)}>Basic answer from the page (no AI)</button>
+                </span>
               </div>
             </div>
           )}
@@ -174,7 +180,7 @@ function Panel({ context }: { context: AssistantContext }) {
 
         {messages.length > 0 && !pending && (
           <div className="border-t border-line px-4 pt-2">
-            <Suggestions items={suggestions.slice(0, 3)} disabled={pending || unavailable} onPick={submit} compact />
+            <Suggestions items={suggestions.slice(0, 3)} disabled={pending} onPick={submit} compact />
           </div>
         )}
 
@@ -182,10 +188,10 @@ function Panel({ context }: { context: AssistantContext }) {
         <form className="flex items-end gap-2 px-4 pb-4 pt-2" onSubmit={(e) => { e.preventDefault(); submit(draft) }}>
           <label htmlFor="cmp-assistant-input" className="sr-only">Ask the Mission Assistant</label>
           <textarea id="cmp-assistant-input" ref={inputRef} rows={2} maxLength={MAX_QUESTION} value={draft}
-            onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey} disabled={unavailable}
-            placeholder={unavailable ? 'Assistant unavailable' : 'Ask about this comparison…'}
+            onChange={(e) => setDraft(e.target.value)} onKeyDown={onKey}
+            placeholder={unavailable ? 'AI unavailable: basic answers from the page…' : 'Ask about this comparison…'}
             className="min-h-[44px] flex-1 resize-none rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-4 focus:border-ink-3 disabled:opacity-60" />
-          <button type="submit" className="cmp-btn-primary h-11" disabled={!draft.trim() || pending || unavailable} aria-label="Send question">
+          <button type="submit" className="cmp-btn-primary h-11" disabled={!draft.trim() || pending} aria-label="Send question">
             <Icon name="send" size={16} />
           </button>
         </form>
@@ -223,10 +229,23 @@ function Message({ m }: { m: ChatMessage }) {
       </div>
     )
   }
+  const basic = m.role === 'basic'
   return (
     <div>
+      {basic && (
+        <p className="mb-1.5 inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-3">
+          Basic answer · not AI
+        </p>
+      )}
       <RichText text={m.content} />
-      <p className="mt-1 text-[10px] text-ink-4">AI answer from this comparison · check key figures in the panels</p>
+      {m.verdicts && m.verdicts.length > 0 && (
+        <p className="mt-2 flex flex-wrap gap-1" aria-label="The page's verdicts when this was answered">
+          {m.verdicts.map((v) => <span key={v} className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink-3">{v}</span>)}
+        </p>
+      )}
+      <p className="mt-1 text-[10px] text-ink-4">
+        {basic ? 'Assembled from the page’s own results, without AI' : 'AI answer from this comparison · the chips show the page’s own verdicts'}
+      </p>
     </div>
   )
 }
