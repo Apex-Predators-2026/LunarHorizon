@@ -1,5 +1,6 @@
 // "The plan changed, what now?" Delay / requirement inputs, then ranked, explained
 // alternatives, relax-a-requirement suggestions and the closest failing options.
+import { Icon } from '../compare/ui'
 import { LoadingIndicator } from '../../ui/LoadingIndicator'
 import { TextField } from '../../ui/MdFields'
 import type { ChangeEvent, FormEvent } from 'react'
@@ -7,6 +8,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { AlternativeCard } from './AlternativeCard'
 import { fmtShift, fmtUtc, planInfo } from './format'
 import { SensitivityView } from './SensitivityView'
+import { buildWalkthrough, GLOSSARY } from './walkthrough'
 import { usePlansStore } from '../plans/usePlansStore'
 import type { Scenario } from '../../types'
 import type { RescueResponse, RescueStatus, SensitivityResponse } from './types'
@@ -119,8 +121,33 @@ export function RescuePanel() {
       )}
 
       {res && (
+        <button type="button" role="switch" aria-checked={s.showOnMap} data-no-ripple
+          data-tip="Draw the alternatives and the failing plan as pins on the 3D map."
+          onClick={() => s.setShowOnMap(!s.showOnMap)}
+          className="md-row flex h-10 w-full items-center gap-3 rounded-full px-3 text-sm text-ink-2">
+          <span className="md-switch" aria-hidden="true">
+            <span className="md-switch-handle"><Icon name="check" size={16} /></span>
+          </span>
+          Show on map
+        </button>
+      )}
+
+      {res && (
+        <button type="button" role="switch" aria-checked={s.explain} data-no-ripple
+          data-tip="Show a short step-by-step explanation of what rescue did and why."
+          onClick={() => s.setExplain(!s.explain)}
+          className="md-row flex h-10 w-full items-center gap-3 rounded-full px-3 text-sm text-ink-2">
+          <span className="md-switch" aria-hidden="true">
+            <span className="md-switch-handle"><Icon name="check" size={16} /></span>
+          </span>
+          Explain
+        </button>
+      )}
+
+      {res && (
         <RescueResults
           res={res}
+          explain={s.explain}
           selected={s.selected}
           sensitivity={s.sensitivityStatus === 'done' ? s.sensitivity : null}
           sensitivityLoading={s.sensitivityStatus === 'loading'}
@@ -132,8 +159,37 @@ export function RescuePanel() {
   )
 }
 
+/** Educator mode: numbered story of the result and a small glossary. */
+export function Walkthrough({ res }: { res: RescueResponse }) {
+  return (
+    <div className="rounded-md border border-slate-800 bg-slate-900/40 p-3 text-xs">
+      <h3 className="text-sm font-medium text-slate-200">What rescue did</h3>
+      <ol className="mt-2 list-decimal space-y-2 pl-4 text-slate-300">
+        {buildWalkthrough(res).map((st) => (
+          <li key={st.title}>
+            <strong className="text-slate-100">{st.title}.</strong> {st.text}
+          </li>
+        ))}
+      </ol>
+      <details className="mt-3">
+        <summary className="cursor-pointer font-medium text-slate-200">Terms used here</summary>
+        <dl className="mt-2 space-y-1.5 text-slate-300">
+          {GLOSSARY.map((g) => (
+            <div key={g.term}>
+              <dt className="inline font-medium text-slate-100">{g.term}: </dt>
+              <dd className="inline">{g.definition}</dd>
+            </div>
+          ))}
+        </dl>
+      </details>
+    </div>
+  )
+}
+
 interface ResultsProps {
   res: RescueResponse
+  /** Educator mode: show the walkthrough above the alternatives. */
+  explain?: boolean
   selected: Scenario | null
   sensitivity: SensitivityResponse | null
   sensitivityLoading?: boolean
@@ -142,7 +198,7 @@ interface ResultsProps {
 }
 
 /** Pure display of a RescueResponse (no store access), so other views can reuse it. */
-export function RescueResults({ res, selected, sensitivity, sensitivityLoading, onSelect, onCheckSensitivity }: ResultsProps) {
+export function RescueResults({ res, explain, selected, sensitivity, sensitivityLoading, onSelect, onCheckSensitivity }: ResultsProps) {
   return (
     <>
       <div role="status" className={`rounded-md border p-3 text-xs ${STATUS_STYLE[res.status]}`}>
@@ -159,6 +215,8 @@ export function RescueResults({ res, selected, sensitivity, sensitivityLoading, 
       </div>
 
       <DataNote assumptions={res.assumptions} />
+
+      {explain && <Walkthrough res={res} />}
 
       {res.alternatives.length > 0 && (
         <div className="space-y-2">
