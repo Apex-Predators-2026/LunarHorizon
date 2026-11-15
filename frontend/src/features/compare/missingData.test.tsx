@@ -99,7 +99,7 @@ describe('incomplete data never becomes a measurement', () => {
   it('a genuine measured zero stays a zero (never shown as unknown)', () => {
     expect(fmtMetric(0, '%')).toBe('0.0%')
     expect(fmtMetric(0, 'h')).toBe('0 h')
-    expect(fmtMetric(null, '%')).toBe('—')
+    expect(fmtMetric(null, '%')).toBe('-')
   })
 })
 
