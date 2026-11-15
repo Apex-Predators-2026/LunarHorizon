@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { appRoute } from './sectionsTestHelpers'
 import { Disclosure, TabPanel, Tabs, useReveal } from './disclosure'
 import { COMPARE_SECTIONS, COMPARE_TABS, SECTION_TAB, TAB_ENTRY, tabOfSection, type CompareTab } from './sections'
-import { COMPARE_TOUR_STEPS } from './tour/steps'
+import { TUTORIAL_STEPS } from '../tutorial/steps'
 
 const html = (node: React.ReactElement) => renderToString(node).replace(/<!-- -->/g, '')
 
@@ -83,6 +83,6 @@ describe('comparison views and deep links', () => {
   })
 
   it('has a tour that only reveals sections that exist', () => {
-    for (const s of COMPARE_TOUR_STEPS) if (s.reveal) expect(COMPARE_SECTIONS.map(([id]) => id)).toContain(s.reveal)
+    for (const s of TUTORIAL_STEPS) if (s.reveal) expect(COMPARE_SECTIONS.map(([id]) => id)).toContain(s.reveal)
   })
 })

@@ -19,6 +19,12 @@ describe('landing page', () => {
     for (const s of DATA_SOURCES) expect(html).toContain(s.name)
     expect(html).toContain('Open the navigator')
   })
+
+  it('offers the guided tour next to the navigator only when a tour handler is given', () => {
+    const withTour = renderToString(<Landing onOpen={() => {}} onTour={() => {}} />)
+    expect(withTour.match(/Take the guided tour/g)).toHaveLength(2)
+    expect(renderToString(<Landing onOpen={() => {}} />)).not.toContain('Take the guided tour')
+  })
 })
 
 describe('live conditions wording', () => {
