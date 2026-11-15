@@ -9,10 +9,7 @@ const HEADLINE_LINES = ['Finding the Right Place.', 'At the Right Time.']
 export const HERO = {
   headlineLines: HEADLINE_LINES,
   headline: HEADLINE_LINES.join(' '),
-  lead:
-    'Lunar Landing Site Navigator helps plan safer, smarter Artemis III landings at the lunar south pole. By analyzing ' +
-    'sunlight, Earth visibility, and lunar terrain across 2026–2031 using NASA data and JPL Horizons, it evaluates ' +
-    'landing opportunities hour by hour, explains mission constraints, and dynamically adapts plans when launch dates shift.',
+  lead: 'Find the perfect landing site for your next moon mission using a 3D model built from real NASA data.',
 }
 
 export interface Beat {
