@@ -19,7 +19,7 @@ from .catalog import custom_site
 from .engine import Evaluator, resolve_simulation
 from .explain import short_label
 from .geo import destination
-from .schemas import Robustness, SensitivityCounts, SensitivityPoint, SensitivityRequest, SensitivityResponse
+from .schemas import DateSlipCheck, Robustness, SensitivityCounts, SensitivityPoint, SensitivityRequest, SensitivityResponse
 
 
 def _sentence(text: str) -> str:
@@ -34,11 +34,37 @@ def _off(h: float) -> str:
     return "0 h" if h == 0 else f"{h:+.0f} h".replace("-", "−")
 
 
+def _metric_bound(m) -> float | None:
+    if m is None:
+        return None
+    val = m.margin
+    if val.status == "known" and val.value is not None:
+        return val.value
+    if val.status == "bounded" and val.lower is not None:
+        return val.lower
+    return None
+
+
+def _headroom_fields(r) -> tuple[float | None, float | None, str | None, str | None, str | None]:
+    hr = getattr(r, "headroom", None)
+    if hr is None:
+        return (None, None, None, None, None)
+    dark_h = _metric_bound(hr.darkness)
+    comms_h = _metric_bound(hr.communication_blackout)
+    closest_label = hr.closest_constraint.label if hr.closest_constraint else None
+    closest_text = hr.closest_constraint.headroom_text if hr.closest_constraint else None
+    return (dark_h, comms_h, closest_label, closest_text, hr.status)
+
+
 def _point(r, h: float, dist: float, bearing: float | None, lat: float, lon: float) -> SensitivityPoint:
     status = r.verdict if r.verdict in ("pass", "fail", "unknown") else ("pass" if r.passes else "fail")
+    dark_h, comms_h, closest_label, closest_text, hr_status = _headroom_fields(r)
     return SensitivityPoint(date_offset_hours=h, distance_km=dist, bearing_deg=bearing, lat=lat, lon=lon,
                             passes=status == "pass", score=r.score, status=status,
-                            failing_constraints=[v.constraint for v in r.violations] if status == "fail" else [])
+                            failing_constraints=[v.constraint for v in r.violations] if status == "fail" else [],
+                            darkness_headroom_h=dark_h, comms_headroom_h=comms_h,
+                            closest_label=closest_label, closest_headroom_text=closest_text,
+                            headroom_status=hr_status)
 
 
 def _skipped(h: float, dist: float, bearing: float | None, lat: float, lon: float) -> SensitivityPoint:
@@ -168,11 +194,33 @@ def analyse(req: SensitivityRequest, ev: Evaluator) -> SensitivityResponse:
         expl += f" {counts.skipped} landing-position point(s) were skipped."
     if counts.unknown:
         expl += f" {counts.unknown} point(s) could not be judged because real data does not fully cover them."
+
+    limited_date_offsets = sorted(
+        p.date_offset_hours for p in date_pts if p.passes and p.headroom_status in ("limited", "at_threshold")
+    )
+    passing_pts = [p for p in points if p.passes and p.closest_headroom_text]
+    tightest_desc: str | None = None
+    if passing_pts:
+        def _pt_tightness(p: SensitivityPoint) -> tuple[int, float, float]:
+            tier = 0 if p.headroom_status == "at_threshold" else 1 if p.headroom_status == "limited" else 2
+            min_h = min(x for x in (p.darkness_headroom_h, p.comms_headroom_h) if x is not None) if any(
+                x is not None for x in (p.darkness_headroom_h, p.comms_headroom_h)
+            ) else 999999.0
+            return (tier, min_h, abs(p.date_offset_hours) + p.distance_km)
+
+        tightest_pt = min(passing_pts, key=_pt_tightness)
+        loc_tag = _off(tightest_pt.date_offset_hours) if tightest_pt.distance_km == 0 else f"{tightest_pt.distance_km:g} km offset"
+        tightest_desc = f"{loc_tag}: {tightest_pt.closest_label} ({tightest_pt.closest_headroom_text})"
+    elif base.passes and getattr(base, "headroom", None) and base.headroom.closest_constraint:
+        tightest_desc = f"Planned date: {base.headroom.closest_constraint.summary_text}"
+
     return SensitivityResponse(base=base, points=points, counts=counts, date_pass_rate=date_rate,
                                position_pass_rate=pos_rate, safe_date_window_hours=window,
                                safe_date_window_tested=n_in_window, score_min=min(scores, default=None),
                                score_max=max(scores, default=None), most_sensitive_constraint=most,
-                               skipped_points=counts.unknown + counts.skipped, verdict=verdict, explanation=expl)
+                               skipped_points=counts.unknown + counts.skipped, verdict=verdict, explanation=expl,
+                               date_limited_offsets_hours=limited_date_offsets,
+                               tightest_passing_headroom=tightest_desc)
 
 
 def quick_robustness(sc: Scenario, ev: Evaluator, include_synthetic: bool | None = None) -> Robustness:
@@ -180,6 +228,33 @@ def quick_robustness(sc: Scenario, ev: Evaluator, include_synthetic: bool | None
     1 km x 4 directions. Only points with a pass/fail answer count as checks."""
     res = analyse(SensitivityRequest(scenario=sc, date_offsets_hours=[-24, -12, 12, 24], position_offsets_km=[1.0],
                                      bearings=4, include_synthetic=include_synthetic), ev)
+    date_pts = [p for p in res.points if p.distance_km == 0]
+    date_checks = [
+        DateSlipCheck(
+            date_offset_hours=p.date_offset_hours,
+            status=p.status,
+            passes=p.passes,
+            darkness_headroom_h=p.darkness_headroom_h,
+            comms_headroom_h=p.comms_headroom_h,
+            closest_label=p.closest_label,
+            closest_headroom_text=p.closest_headroom_text,
+            headroom_status=p.headroom_status,
+            failing_constraints=p.failing_constraints,
+        )
+        for p in sorted(date_pts, key=lambda x: x.date_offset_hours)
+    ]
+    date_decided = [c for c in date_checks if c.status in ("pass", "fail")]
+    date_passing = sum(1 for c in date_decided if c.passes)
+    date_checked = len(date_decided)
+    if date_checked:
+        offsets_str = ", ".join(_off(c.date_offset_hours) for c in date_decided)
+        lim = [c for c in date_decided if c.passes and c.headroom_status in ("limited", "at_threshold")]
+        date_note = f"{date_passing}/{date_checked} tested date slips pass ({offsets_str})."
+        if lim:
+            date_note += f" Limited margin at {', '.join(_off(c.date_offset_hours) for c in lim)}."
+    else:
+        date_note = "Date-slip checks could not be evaluated on covered data."
+
     checked_pts = _decided(res.points)
     n = len(checked_pts)
     passing = sum(p.passes for p in checked_pts)
@@ -187,7 +262,8 @@ def quick_robustness(sc: Scenario, ev: Evaluator, include_synthetic: bool | None
     bad = [p for p in checked_pts if not p.passes]
     if r is None:
         return Robustness(checked_points=0, passing_points=0, pass_rate=None, worst_score=res.base.score,
-                          verdict="unchecked", note="Robustness not checked: no real data around this date or site.")
+                          verdict="unchecked", note="Robustness not checked: no real data around this date or site.",
+                          date_checks=date_checks, date_passing=date_passing, date_checked=date_checked, date_note=date_note)
     tested = sorted(p.date_offset_hours for p in checked_pts if p.distance_km == 0)
     what_tested = []
     if tested:
@@ -204,4 +280,5 @@ def quick_robustness(sc: Scenario, ev: Evaluator, include_synthetic: bool | None
         note += " (Landing-position error not checked: no real data around the site.)"
     return Robustness(checked_points=n, passing_points=passing, pass_rate=r,
                       worst_score=min((p.score for p in checked_pts if p.score is not None), default=res.base.score),
-                      verdict=_verdict(r), note=note)
+                      verdict=_verdict(r), note=note,
+                      date_checks=date_checks, date_passing=date_passing, date_checked=date_checked, date_note=date_note)

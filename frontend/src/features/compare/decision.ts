@@ -6,10 +6,14 @@
 //   3. Measured trade-offs       - individual canonical metrics compared one by one (not the ranking).
 //   4. Uncertainty               - what the evidence cannot establish.
 // A recommendation is only made for a scenario that passes every requirement and holds rank 1 in its group.
+import { SCREENING_NOTE } from '../../lib/headroom'
 import {
   canonicalRanking,
   cm,
   eligibilityOf,
+  headroomOfEntry,
+  isLimitedHeadroom,
+  qualifiedPassClause,
   requirementSummary,
   type Entry,
   type GroupView,
@@ -133,7 +137,13 @@ function requirementLine(e: Entry): string {
   const r = requirementSummary(e)
   const el = eligibilityOf(e)
   if (!r) return `${L(e)}: no canonical assessment.`
-  if (el === 'pass') return `${L(e)} meets all ${r.applicable} applicable requirements.`
+  if (el === 'pass') {
+    const hr = headroomOfEntry(e)
+    if (hr && isLimitedHeadroom(hr)) {
+      return `${L(e)} ${qualifiedPassClause(hr)}.`
+    }
+    return `${L(e)} meets all ${r.applicable} applicable requirements.`
+  }
   const parts: string[] = []
   if (r.failed.length) parts.push(`fails ${list(r.failed.map((f) => f.name.toLowerCase()))}`)
   if (r.undecided.length) parts.push(`${r.failed.length ? 'and ' : ''}cannot decide ${list(r.undecided.map((f) => f.name.toLowerCase()))} from the data`)
@@ -152,7 +162,9 @@ function scoreEvidence(top: Entry, other: Entry, p: PairEvidence | null): string
   }
   const topHigher = sd.status === (topIsSelected ? 'selected_higher' : 'competitor_higher')
   if (p.deciding_criterion === 'eligibility') {
-    out.push(`${L(top)} ranks above ${L(other)} because it passes every requirement and ${L(other)} does not; the score plays no part in that order.`)
+    const hr = headroomOfEntry(top)
+    const passClause = hr && isLimitedHeadroom(hr) ? qualifiedPassClause(hr) : 'passes every requirement'
+    out.push(`${L(top)} ranks above ${L(other)} because it ${passClause} and ${L(other)} does not; the score plays no part in that order.`)
   } else if (p.policy_tie_break) {
     out.push(`The order of ${L(top)} and ${L(other)} is decided by a ranking tie-break (${(p.deciding_criterion ?? '').replace(/_/g, ' ')}), not by a measured difference.`)
   } else if (topHigher) {
@@ -205,16 +217,26 @@ function decideGroup(v: GroupView, entries: Entry[], pairs: PairEvidence[], mult
     recommended = v.ranked[0]
     const runner = v.ranked[1]
     deciding = findPair(pairs, recommended, runner)
-    headline = `${L(recommended)} is preferred under the selected requirements${label}: it passes every requirement and holds canonical rank 1 of ${v.ranked.length} passing scenarios.`
+    const hr = headroomOfEntry(recommended)
+    const limited = isLimitedHeadroom(hr)
+    const passClause = hr && limited ? qualifiedPassClause(hr) : 'passes every requirement'
+    headline = `${L(recommended)} is preferred under the selected requirements${label}: it ${passClause} and holds canonical rank 1 of ${v.ranked.length} passing scenarios.`
     evidence.push(...scoreEvidence(recommended, runner, deciding))
   } else if (v.ranked.length === 1 && members.length === 1) {
     kind = 'lone'
     recommended = v.ranked[0]
-    headline = `${L(recommended)} passes every requirement${label}, but no other scenario can be ranked against it (different data basis, requirements or mission duration), so this is not a comparison.`
+    const hr = headroomOfEntry(recommended)
+    const limited = isLimitedHeadroom(hr)
+    const passClause = hr && limited ? qualifiedPassClause(hr) : 'passes every requirement'
+    headline = `${L(recommended)} ${passClause}${label}, but no other scenario can be ranked against it (different data basis, requirements or mission duration), so this is not a comparison.`
   } else if (v.ranked.length === 1) {
     kind = 'single_pass'
     recommended = v.ranked[0]
-    headline = `${L(recommended)} is the only scenario${label} that passes every requirement, so it is the only option that meets them.`
+    const hr = headroomOfEntry(recommended)
+    const limited = isLimitedHeadroom(hr)
+    headline = hr && limited
+      ? `${L(recommended)} is the only scenario${label} that ${qualifiedPassClause(hr)}.`
+      : `${L(recommended)} is the only scenario${label} that passes every requirement, so it is the only option that meets them.`
     const next = [...v.unknown, ...v.failed][0]
     if (next) {
       deciding = findPair(pairs, recommended, next)
@@ -262,5 +284,6 @@ export function buildDecision(entries: Entry[], groups: RankingGroup[], pairs: P
     if (eligibilityOf(e) === 'unknown') notes.push(`${L(e)} has no canonical assessment (no data for that site and date range); it cannot be decided and takes no part in the decision.`)
   }
   notes.push('Earth line of sight is geometric visibility, not a working radio link. The desirability score is a relative index under the engine’s weights, not a probability of mission success.')
+  notes.push(SCREENING_NOTE)
   return { groups: out, unassessed, notes }
 }

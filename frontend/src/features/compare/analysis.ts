@@ -4,7 +4,20 @@
 // Nothing here computes Sun/Earth geometry, viability or rank. Eligibility (PASS / FAIL / UNKNOWN), scores and
 // the ranking come from the canonical viability engine through the backend (compare/ranking.py) and are only
 // displayed. A missing score is never treated as 0, and UNKNOWN is never treated as FAIL.
-import { verdictOf, type Eligibility } from '../../types'
+import {
+  NARROW_MARGIN_FRACTION,
+  SAMPLE_RESOLUTION_H,
+  SCREENING_NOTE,
+  resolveHeadroom,
+} from '../../lib/headroom'
+import {
+  verdictOf,
+  type CanonicalMarginItem,
+  type Eligibility,
+  type MarginMetricValue,
+  type MarginStatus,
+  type OperationalHeadroom,
+} from '../../types'
 import type { CanonicalMetric, ComparisonScenario, CompareResult, ConstraintItem, RankingGroup, RankingInfo, ResultState, TimelineColumns } from './types'
 
 export interface Entry {
@@ -21,6 +34,61 @@ export function eligibilityOf(e: Entry): Eligibility | null {
   if (e.ranking) return e.ranking.eligibility
   const v = e.result?.viability
   return v ? verdictOf(v) : null
+}
+
+function mergeAssessmentMargins(
+  hr: OperationalHeadroom,
+  margins: CanonicalMarginItem[] | undefined,
+): OperationalHeadroom {
+  if (!margins?.length) return hr
+  const byId = new Map(margins.map((m) => [m.id, m]))
+  const constraints = hr.constraints.map((c) => byId.get(c.id) ?? c)
+  for (const m of margins) {
+    if (!constraints.some((c) => c.id === m.id)) constraints.push(m)
+  }
+  const darkness = byId.get('max_continuous_darkness') ?? hr.darkness
+  const communication_blackout = byId.get('max_communication_blackout') ?? hr.communication_blackout
+  return { ...hr, darkness, communication_blackout, constraints }
+}
+
+/** Resolve canonical operational headroom from assessment/viability, falling back to client derivation when absent. */
+export function headroomOfResult(r: CompareResult | null | undefined): OperationalHeadroom | null {
+  if (!r) return null
+  if (r.assessment?.headroom) return mergeAssessmentMargins(r.assessment.headroom, r.assessment.margins)
+  if (r.viability?.headroom) return mergeAssessmentMargins(r.viability.headroom, r.assessment?.margins)
+  if (r.viability) return mergeAssessmentMargins(resolveHeadroom(r.viability), r.assessment?.margins)
+  return null
+}
+
+/** Entry-aware headroom lookup that honours synthetic ranking overrides in tests when canonical headroom is absent. */
+export function headroomOfEntry(e: Entry): OperationalHeadroom | null {
+  const r = e.result
+  if (!r) return null
+  if (r.assessment?.headroom) return mergeAssessmentMargins(r.assessment.headroom, r.assessment.margins)
+  if (r.viability?.headroom) return mergeAssessmentMargins(r.viability.headroom, r.assessment?.margins)
+  if (r.viability) {
+    if (e.ranking && e.ranking.eligibility !== verdictOf(r.viability)) {
+      return mergeAssessmentMargins(
+        resolveHeadroom({
+          ...r.viability,
+          eligibility: e.ranking.eligibility,
+          passes: e.ranking.eligibility === 'pass',
+        }),
+        r.assessment?.margins,
+      )
+    }
+    return mergeAssessmentMargins(resolveHeadroom(r.viability), r.assessment?.margins)
+  }
+  return null
+}
+
+export const isLimitedHeadroom = (hr: OperationalHeadroom | null | undefined): boolean =>
+  hr?.status === 'limited' || hr?.status === 'at_threshold'
+
+export function qualifiedPassClause(hr: OperationalHeadroom): string {
+  const base = hr.qualified_verdict.charAt(0).toLowerCase() + hr.qualified_verdict.slice(1)
+  const closest = hr.closest_constraint ? ` (closest requirement to limit: ${hr.closest_constraint.summary_text})` : ''
+  return `${base}${closest}`
 }
 
 export const ELIGIBILITY_LABEL: Record<Eligibility, string> = {
@@ -110,6 +178,49 @@ export interface MetricDef {
 
 const pct = (v: number | null | undefined) => (v === null || v === undefined ? null : v * 100)
 
+function initialWindowMetric(r: CompareResult, kind: 'sunlight' | 'earth'): CanonicalMetric | null {
+  const key = kind === 'sunlight' ? 'initial_sunlight_h' : 'initial_earth_h'
+  const m = cm(r, key)
+  if (m) return m
+  const raw = kind === 'sunlight' ? r.viability?.metrics.initial_sun_hours : r.viability?.metrics.initial_comms_hours
+  if (raw === undefined || raw === null) return null
+  return { status: 'known', unit: 'h', value: raw, lower: null, upper: null, reason: null }
+}
+
+function firstEndMetric(r: CompareResult, kind: 'sunlight' | 'earth'): CanonicalMetric | null {
+  const key = kind === 'sunlight' ? 'time_to_first_sunset_h' : 'time_to_first_earthset_h'
+  const m = cm(r, key)
+  if (m) return m
+  const hr = headroomOfResult(r)
+  const hrEnd = kind === 'sunlight' ? hr?.initial_sunlight.first_end_hours : hr?.initial_earth.first_end_hours
+  if (hrEnd) {
+    return {
+      status: hrEnd.status,
+      unit: hrEnd.unit,
+      value: hrEnd.value ?? null,
+      lower: hrEnd.lower ?? null,
+      upper: hrEnd.upper ?? null,
+      reason: hrEnd.reason ?? null,
+    }
+  }
+  const raw = kind === 'sunlight' ? r.viability?.metrics.hours_to_first_sunset : r.viability?.metrics.hours_to_first_earthset
+  if (raw === undefined) return null
+  if (raw === null) return { status: 'not_applicable', unit: 'h', value: null, lower: null, upper: null, reason: null }
+  return { status: 'known', unit: 'h', value: raw, lower: null, upper: null, reason: null }
+}
+
+function firstEndText(r: CompareResult, kind: 'sunlight' | 'earth'): string | null {
+  const m = firstEndMetric(r, kind)
+  if (!m) return null
+  if (m.status === 'known') return null
+  if (m.status === 'not_applicable') {
+    const initVal = knownValue(initialWindowMetric(r, kind))
+    if (kind === 'sunlight') return initVal !== null && initVal <= 0 ? 'Starts dark (no sunset)' : 'Stays lit (no sunset)'
+    return initVal !== null && initVal <= 0 ? 'Starts without contact (no Earthset)' : 'Stays in contact (no Earthset)'
+  }
+  return inexactText(m, 'h')
+}
+
 export const METRICS: MetricDef[] = [
   // ---- solar (from Horizons + LOLA timelines)
   { id: 'sunlit_hours', group: 'solar', label: 'Total sunlight', unit: 'h', better: 'higher', provenance: 'derived',
@@ -131,6 +242,17 @@ export const METRICS: MetricDef[] = [
     get: (r) => r.solar?.longest_dark_hours ?? null, hint: 'Geometric: no part of the solar disk visible.' },
   { id: 'sun_windows', group: 'solar', label: 'Sunlight windows', unit: 'count', better: null, provenance: 'derived',
     get: (r) => r.solar?.windows_count ?? null },
+  { id: 'initial_sun_hours', group: 'solar', label: 'Initial illumination (from landing)', unit: 'h', better: 'higher', provenance: 'derived',
+    get: (r) => knownValue(initialWindowMetric(r, 'sunlight')),
+    text: (r) => {
+      const m = initialWindowMetric(r, 'sunlight')
+      return m ? inexactText(m, 'h') : null
+    },
+    hint: 'Continuous power-lit duration right after landing.' },
+  { id: 'time_to_first_sunset_h', group: 'solar', label: 'Time to first sunset', unit: 'h', better: 'higher', provenance: 'derived',
+    get: (r) => knownValue(firstEndMetric(r, 'sunlight')),
+    text: (r) => firstEndText(r, 'sunlight'),
+    hint: 'Hours after landing until the first lit-to-dark transition (first sunset).' },
   // ---- idealised power
   { id: 'incidence', group: 'power', label: 'Mean incidence factor', unit: 'factor', better: 'higher', provenance: 'idealized',
     get: (r) => r.power?.mean_incidence_factor ?? null, hint: 'visible disk × max(0, cos θ). 1 = full Sun on the panel face.' },
@@ -158,6 +280,17 @@ export const METRICS: MetricDef[] = [
   { id: 'earth_margin_min', group: 'earth', label: 'Minimum Earth margin above terrain', unit: 'deg', better: 'higher',
     provenance: 'derived', get: (r) => r.earth?.min_margin_visible_deg ?? null,
     hint: 'Smallest clearance between Earth and the terrain while in view. Near 0° = marginal line of sight.' },
+  { id: 'initial_comms_hours', group: 'earth', label: 'Initial Earth contact (from landing)', unit: 'h', better: 'higher', provenance: 'derived',
+    get: (r) => knownValue(initialWindowMetric(r, 'earth')),
+    text: (r) => {
+      const m = initialWindowMetric(r, 'earth')
+      return m ? inexactText(m, 'h') : null
+    },
+    hint: 'Continuous Earth line-of-sight duration right after landing.' },
+  { id: 'time_to_first_earthset_h', group: 'earth', label: 'Time to first Earthset', unit: 'h', better: 'higher', provenance: 'derived',
+    get: (r) => knownValue(firstEndMetric(r, 'earth')),
+    text: (r) => firstEndText(r, 'earth'),
+    hint: 'Hours after landing until the first Earth line-of-sight loss (first Earthset).' },
   // ---- mission performance (team viability evaluator)
   // Score: the canonical ranking already orders by it (with bounds and tie-breaks), so it is not marked "best" here.
   { id: 'score', group: 'mission', label: 'Desirability score', unit: 'score', better: null, provenance: 'viability',
@@ -307,11 +440,119 @@ export function deltaVsBaseline(m: MetricDef, e: Entry, base: Entry | undefined)
 
 export type ReqStatus = ConstraintItem['status']
 
+export interface ResolvedConstraintMargin {
+  margin: MarginMetricValue
+  marginClass: MarginStatus
+  narrowReason: string | null
+}
+
+function round4(n: number): number {
+  const x = Number(n.toFixed(4))
+  return x === 0 ? 0 : x
+}
+
+function classifyFallbackMarginValues(
+  least: number,
+  most: number,
+  threshold: number,
+  unit: string,
+  status: ConstraintItem['status'],
+): { marginClass: MarginStatus; narrowReason: string | null } {
+  if (most < 0 || status === 'fail') return { marginClass: 'negative', narrowReason: null }
+  if (least < 0 || status === 'unknown') return { marginClass: 'uncertain', narrowReason: null }
+  if (least === 0) {
+    return { marginClass: 'at_threshold', narrowReason: 'Zero margin remaining at the requirement boundary.' }
+  }
+  const rel = threshold > 0 ? least / threshold : null
+  const reasons: string[] = []
+  if (rel !== null && rel <= NARROW_MARGIN_FRACTION) {
+    reasons.push(`Headroom is ${(rel * 100).toFixed(1)}% of the limit (<= ${(NARROW_MARGIN_FRACTION * 100).toFixed(0)}%).`)
+  }
+  if (unit === 'h' && least < SAMPLE_RESOLUTION_H) {
+    reasons.push(`Remaining margin is smaller than the ${SAMPLE_RESOLUTION_H} h sampling interval.`)
+  }
+  if (reasons.length > 0) return { marginClass: 'narrow', narrowReason: reasons.join(' ') }
+  return { marginClass: 'comfortable', narrowReason: null }
+}
+
+export function findCanonicalMargin(r: CompareResult | null | undefined, id: string): CanonicalMarginItem | null {
+  if (!r) return null
+  return (
+    r.assessment?.margins?.find((m) => m.id === id) ??
+    r.assessment?.headroom?.constraints?.find((m) => m.id === id) ??
+    r.viability?.headroom?.constraints?.find((m) => m.id === id) ??
+    null
+  )
+}
+
+/** Canonical margin for a constraint, falling back cleanly to requirement arithmetic when assessment.margins is absent. */
+export function constraintMargin(r: CompareResult | null | undefined, c: ConstraintItem): ResolvedConstraintMargin {
+  const canonical = findCanonicalMargin(r, c.id)
+  if (canonical) {
+    return {
+      margin: canonical.margin,
+      marginClass: canonical.margin_class,
+      narrowReason: canonical.narrow_reason ?? null,
+    }
+  }
+  const unit = c.measured.unit
+  if (
+    c.status === 'not_applicable' ||
+    c.measured.status === 'not_applicable' ||
+    c.threshold === null ||
+    c.threshold === undefined ||
+    !c.comparison
+  ) {
+    return { margin: { status: 'not_applicable', unit }, marginClass: 'not_applicable', narrowReason: null }
+  }
+  if (c.measured.status === 'unavailable') {
+    return {
+      margin: { status: 'unavailable', unit, reason: c.measured.reason },
+      marginClass: c.unknown_reason === 'unsupported' ? 'unsupported' : 'uncertain',
+      narrowReason: null,
+    }
+  }
+  const t = c.threshold
+  if (c.measured.status === 'bounded' && c.measured.lower !== null && c.measured.upper !== null) {
+    const a = c.comparison === 'at_most' ? t - c.measured.upper : c.measured.lower - t
+    const b = c.comparison === 'at_most' ? t - c.measured.lower : c.measured.upper - t
+    const lo = round4(Math.min(a, b))
+    const hi = round4(Math.max(a, b))
+    return {
+      margin: { status: 'bounded', unit, value: null, lower: lo, upper: hi, reason: c.measured.reason },
+      ...classifyFallbackMarginValues(lo, hi, t, unit, c.status),
+    }
+  }
+  if (c.measured.status === 'known' && c.measured.value !== null) {
+    const raw = c.comparison === 'at_most' ? t - c.measured.value : c.measured.value - t
+    const val = round4(raw)
+    return {
+      margin: { status: 'known', unit, value: val },
+      ...classifyFallbackMarginValues(val, val, t, unit, c.status),
+    }
+  }
+  return {
+    margin: { status: 'unavailable', unit, reason: c.measured.reason },
+    marginClass: 'uncertain',
+    narrowReason: null,
+  }
+}
+
+export function constraintMarginById(r: CompareResult | null | undefined, id: string): ResolvedConstraintMargin | null {
+  const c = r?.assessment?.constraints.find((x) => x.id === id)
+  if (c) return constraintMargin(r, c)
+  const m = findCanonicalMargin(r, id) ?? headroomOfResult(r)?.constraints.find((x) => x.id === id) ?? null
+  return m ? { margin: m.margin, marginClass: m.margin_class, narrowReason: m.narrow_reason ?? null } : null
+}
+
 export interface RequirementCell {
   status: ReqStatus
   measured: string // engine's measured value in display units (exact, range or unavailable)
   threshold: string | null // e.g. "≤ 100 h"
   message: string
+  margin: MarginMetricValue
+  marginClass: MarginStatus
+  narrowReason: string | null
 }
 
 export interface RequirementRow {
@@ -351,7 +592,13 @@ export function requirementMatrix(entries: Entry[]): RequirementRow[] {
     for (const e of entries) {
       const c = e.result?.assessment?.constraints.find((x) => x.id === row.id)
       row.cells[e.scenario.id] = c
-        ? { status: c.status, measured: measuredText(c.measured), threshold: thresholdText(c), message: c.message }
+        ? {
+            status: c.status,
+            measured: measuredText(c.measured),
+            threshold: thresholdText(c),
+            message: c.message,
+            ...constraintMargin(e.result, c),
+          }
         : null
     }
   }
@@ -664,6 +911,7 @@ export function mergeSeries(
 export interface ScenarioHighlights {
   entry: Entry
   strengths: string[]
+  cautions: string[] // passing scenarios with narrow or at-threshold headroom
   weaknesses: string[] // measured disadvantages and proven requirement failures
   uncertain: string[] // requirements that cannot be decided (missing data): never failures
 }
@@ -700,6 +948,7 @@ export function buildSummary(entries: Entry[]): Summary {
   if (demoOut.length) caveats.push(`${demoOut.map(lbl).join(', ')} use demonstration data and are not compared with real-data scenarios.`)
   if (list.length && list[0].result!.data_kind === 'demonstration') caveats.push('All compared scenarios use demonstration data: the statements below illustrate the tool, not the real Moon.')
   caveats.push('Earth visibility is geometric line of sight; it does not guarantee a working radio link.')
+  caveats.push(SCREENING_NOTE)
 
   const empty: Summary = { bests: [], highlights: [], overall: [], caveats }
   if (list.length < 2) {
@@ -734,12 +983,20 @@ export function buildSummary(entries: Entry[]): Summary {
 
   const highlights: ScenarioHighlights[] = list.map((e) => {
     const r = e.result!
-    const strengths: string[] = [], weaknesses: string[] = []
+    const hr = headroomOfEntry(e)
+    const strengths: string[] = [], cautions: string[] = [], weaknesses: string[] = []
     if (bestSolar.includes(e) && bestSolar.length < list.length) strengths.push('Greatest solar availability')
     if (bestComms.includes(e) && bestComms.length < list.length) strengths.push('Longest Earth visibility')
     if (bestDark.includes(e) && bestDark.length < list.length) strengths.push('Shortest continuous darkness')
     if (bestBlack.includes(e) && bestBlack.length < list.length) strengths.push('Shortest communication blackout')
-    if (eligibilityOf(e) === 'pass') strengths.push('Meets every mission requirement')
+    if (eligibilityOf(e) === 'pass') {
+      if (isLimitedHeadroom(hr) && hr) {
+        cautions.push(hr.qualified_verdict)
+        if (hr.closest_constraint) cautions.push(`Closest requirement to limit: ${hr.closest_constraint.summary_text}`)
+      } else {
+        strengths.push('Meets every mission requirement')
+      }
+    }
     // Only call something a weakness when the gap to the best is meaningful.
     if (solar.worst.e === e && solar.best.v - solar.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least solar availability (${p(r.solar!.mean_visible_fraction)})`)
     if (comms.worst.e === e && comms.best.v - comms.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least Earth visibility (${p(r.earth!.visible_fraction)})`)
@@ -747,7 +1004,7 @@ export function buildSummary(entries: Entry[]): Summary {
     if (black.worst.e === e && significantHours(black.best.v, black.worst.v)) weaknesses.push(`Longest blackout (${h(r.earth!.longest_blackout_hours)})`)
     const uncertain: string[] = []
     for (const v of r.viability?.violations ?? []) (v.is_unknown ? uncertain : weaknesses).push(v.message)
-    return { entry: e, strengths, weaknesses, uncertain }
+    return { entry: e, strengths, cautions, weaknesses, uncertain }
   })
 
   // ---- overall narrative, only from numbers above
@@ -792,8 +1049,22 @@ export function buildSummary(entries: Entry[]): Summary {
   const passing = assessed.filter((e) => eligibilityOf(e) === 'pass')
   const unknown = assessed.filter((e) => eligibilityOf(e) === 'unknown')
   if (assessed.length) {
+    const limitedPassing = passing.filter((e) => isLimitedHeadroom(headroomOfEntry(e)))
+    const comfortablePassing = passing.filter((e) => !isLimitedHeadroom(headroomOfEntry(e)))
     if (passing.length === 0 && unknown.length === 0) overall.push('No compared scenario passes every mission requirement, so none is ranked as a recommendation; see each scenario’s failed requirements below.')
-    else if (passing.length && passing.length < assessed.length) overall.push(`${passing.map(lbl).join(', ')} ${passing.length > 1 ? 'pass' : 'passes'} every requirement according to the canonical viability engine.`)
+    else if (passing.length && (passing.length < assessed.length || limitedPassing.length > 0)) {
+      if (limitedPassing.length === 0) {
+        overall.push(`${passing.map(lbl).join(', ')} ${passing.length > 1 ? 'pass' : 'passes'} every requirement according to the canonical viability engine.`)
+      } else {
+        if (comfortablePassing.length > 0) {
+          overall.push(`${comfortablePassing.map(lbl).join(', ')} ${comfortablePassing.length > 1 ? 'pass' : 'passes'} every requirement with comfortable margin according to the canonical viability engine.`)
+        }
+        for (const lp of limitedPassing) {
+          const hr = headroomOfEntry(lp)!
+          overall.push(`${lbl(lp)} ${qualifiedPassClause(hr)}.`)
+        }
+      }
+    }
     if (unknown.length) overall.push(`${unknown.map(lbl).join(', ')} cannot be decided from the available data (UNKNOWN): neither passing nor failing, and not ranked.`)
   }
   const groupIds = new Set(list.map((e) => e.ranking?.group).filter(Boolean))

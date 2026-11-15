@@ -1,16 +1,18 @@
 // "The plan changed, what now?" Delay / requirement inputs, then ranked, explained
 // alternatives, relax-a-requirement suggestions and the closest failing options.
 import { Icon } from '../compare/ui'
+import { resolveHeadroom } from '../../lib/headroom'
 import { LoadingIndicator } from '../../ui/LoadingIndicator'
 import { TextField } from '../../ui/MdFields'
+import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
 import type { ChangeEvent, FormEvent } from 'react'
 
-import { AlternativeCard } from './AlternativeCard'
+import { AlternativeCard, DateSlipChecks } from './AlternativeCard'
 import { evaluatedTimeNote, fmtShift, fmtUtc, planInfo } from './format'
 import { SensitivityView } from './SensitivityView'
 import { buildWalkthrough, GLOSSARY } from './walkthrough'
 import { usePlansStore } from '../plans/usePlansStore'
-import type { Scenario } from '../../types'
+import { verdictOf, type Scenario } from '../../types'
 import type { RescueResponse, RescueStatus, SensitivityResponse } from './types'
 import { useRescueStore } from './useRescueStore'
 
@@ -20,7 +22,7 @@ const STATUS_STYLE: Record<RescueStatus, string> = {
   no_viable_alternative: 'border-red-800 bg-red-950/40 text-red-200',
 }
 const STATUS_TITLE: Record<RescueStatus, string> = {
-  still_viable: 'Plan still works',
+  still_viable: 'Plan passes model screening',
   rescued: 'Plan broke: alternatives found',
   no_viable_alternative: 'No alternative passes',
 }
@@ -202,11 +204,33 @@ interface ResultsProps {
 
 /** Pure display of a RescueResponse (no store access), so other views can reuse it. */
 export function RescueResults({ res, requestedLanding, explain, selected, sensitivity, sensitivityLoading, onSelect, onCheckSensitivity }: ResultsProps) {
+  const changedHeadroom = res.status === 'still_viable' ? resolveHeadroom(res.changed) : null
+  const changedLimited =
+    changedHeadroom !== null && (changedHeadroom.status === 'limited' || changedHeadroom.status === 'at_threshold')
+  const bannerStyle =
+    res.status === 'still_viable' && changedLimited
+      ? 'border-amber-800 bg-amber-950/40 text-amber-100'
+      : STATUS_STYLE[res.status]
+
   return (
     <>
-      <div role="status" className={`rounded-md border p-3 text-xs ${STATUS_STYLE[res.status]}`}>
-        <h3 className="text-sm font-medium">{STATUS_TITLE[res.status]}</h3>
+      <div role="status" className={`rounded-md border p-3 text-xs ${bannerStyle}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-medium">{STATUS_TITLE[res.status]}</h3>
+          {changedHeadroom && (
+            <PassHeadroomBadge headroom={changedHeadroom} eligibility={verdictOf(res.changed)} surface="planner" />
+          )}
+        </div>
         <p className="mt-1">{res.summary}</p>
+        {changedHeadroom && <PassHeadroom headroom={changedHeadroom} surface="planner" compact className="mt-2" />}
+        {res.status === 'still_viable' && res.changed_robustness && (
+          <>
+            <DateSlipChecks robustness={res.changed_robustness} title="Tested date-slip checks" />
+            {res.changed_robustness.verdict !== 'unchecked' && res.changed_robustness.note && (
+              <p className="mt-1 text-[11px] opacity-85">{res.changed_robustness.note}</p>
+            )}
+          </>
+        )}
         {evaluatedTimeNote(requestedLanding, res.original.scenario.landing_utc) && (
           <p className="mt-1 opacity-70">{evaluatedTimeNote(requestedLanding, res.original.scenario.landing_utc)}</p>
         )}
