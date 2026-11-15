@@ -300,7 +300,7 @@ export function PlanCard({
   )
 }
 
-export function PlansPanel({ onCompare }: { onCompare: () => void }) {
+export function PlansPanel({ onCompare, active = true }: { onCompare: () => void; active?: boolean }) {
   const plans = usePlansStore((s) => s.plans)
   const compareIds = usePlansStore((s) => s.compareIds)
   const setActive = usePlansStore((s) => s.setActive)
@@ -376,8 +376,9 @@ export function PlansPanel({ onCompare }: { onCompare: () => void }) {
       )}
 
     </section>
-    {/* The floating explanation over the 3D view while "Show why" evidence is open. */}
-    <EvidenceBanner />
+    {/* The floating explanation over the 3D view while "Show why" evidence is open. It is portalled to <body>, so it
+        is left out while the Planner is hidden behind another page (the evidence itself is kept). */}
+    {active && <EvidenceBanner />}
     </>
   )
 }
