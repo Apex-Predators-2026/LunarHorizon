@@ -27,7 +27,7 @@ export interface InteractiveGrainGradientProps {
  * falls back to a plain CSS gradient. Pauses while off screen or the tab is hidden.
  */
 export function InteractiveGrainGradient({ className, style, interactive = true, grain = 0.07, speed = 1, maxDpr = 1.5, fill = false, strength = 1, patternScale }: InteractiveGrainGradientProps) {
-  const wrap = useRef<HTMLDivElement>(null)
+  const wrap = useRef<HTMLSpanElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [fallback, setFallback] = useState(false)
 
@@ -134,8 +134,8 @@ export function InteractiveGrainGradient({ className, style, interactive = true,
   }, [interactive, grain, speed, maxDpr, strength, patternScale])
 
   return (
-    <div ref={wrap} className={className} style={{ position: fill ? 'absolute' : 'relative', ...(fill ? { inset: 0 } : null), overflow: 'hidden', background: MANGO_FALLBACK_CSS, ...style }} aria-hidden>
+    <span ref={wrap} className={className} style={{ display: 'block', position: fill ? 'absolute' : 'relative', ...(fill ? { inset: 0 } : null), overflow: 'hidden', background: MANGO_FALLBACK_CSS, ...style }} aria-hidden>
       {!fallback && <canvas ref={canvas} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />}
-    </div>
+    </span>
   )
 }
