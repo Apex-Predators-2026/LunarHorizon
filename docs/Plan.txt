@@ -1,0 +1,89 @@
+ANDREW - SCIENTIFIC DATA INTEGRATION & 3D VISUALIZATION - PLAN
+===============================================================
+
+PHASE 0: SETUP
+--------------
+- Restructure the scaffold to the agreed stack: frontend/ (React + TypeScript + Vite),
+  backend/ (FastAPI), data/, docs/.
+- Agree the data format in docs/interfaces.md with Brandon and Nimansh BEFORE anyone
+  builds on it.
+- Choose the curated site list and their coordinates from NASA's published Artemis III
+  candidate regions.
+
+PHASE 1: DATA CHECK (DO THIS FIRST)
+-----------------------------------
+Goal: prove both data sources work for one site (e.g. Peak Near Shackleton).
+- Horizons: query Sun and Earth azimuth/elevation from a point on the lunar surface.
+  Horizons API with CENTER='coord@301' (301 = Moon), SITE_COORD = lon,lat,height,
+  quantity 4 (apparent azimuth/elevation). Confirm hourly data for 2 years comes back.
+- Moon Trek: download the south-pole LOLA elevation map around the site. Confirm file
+  format, resolution and map projection, and that rasterio can open it.
+- Quickmap: check its permanently-shadowed-region and illumination layers cover the site
+  (used later as a sanity check).
+- Exit check: one Python script prints the Sun's elevation and the terrain height at
+  the site.
+
+PHASE 2: CALCULATION ENGINE (PYTHON)
+------------------------------------
+1. Ephemeris fetcher: pulls Horizons data for a site and time range, caches it to data/,
+   interpolates to any time.
+2. Elevation-map loader: crops a region around the site. Distant mountains also block
+   the low polar Sun, so the crop must reach ~100-150 km out. Detailed map near the site,
+   coarser farther away.
+3. Horizon mask: for each azimuth (e.g. every 0.5 deg, 720 directions), step outward
+   across the terrain and record the highest blocking angle.
+   - Curvature correction: angle = atan((h_terrain - h_observer - d^2/2R) / d),
+     R = 1737.4 km.
+   - Include panel/antenna height above ground (parameter, e.g. 2 m).
+4. Visibility timeline, per time step:
+   - Sun: fraction of the solar disk (~0.53 deg wide) above the horizon, 0 to 1, so
+     panels get a % of power instead of on/off.
+   - Earth: visible or not, plus clearance margin in degrees above the terrain.
+   - Events: next sunset and next Earthset.
+5. Output: one JSON/Parquet file per site in the agreed format (used by Brandon's
+   viability and ranking).
+
+PHASE 3: BACKEND API
+--------------------
+- GET /sites                                   list of curated sites
+- GET /sites/{id}/horizon                      horizon mask (elevation per azimuth)
+- GET /sites/{id}/timeline?start=&end=&step=   Sun/Earth positions + visibility over time
+- GET /sites/{id}/terrain                      downsampled height grid for the 3D view
+- Custom coordinates use the same calculations live; curated sites read precomputed files.
+
+PHASE 4: 3D ENVIRONMENT (REACT THREE FIBER)
+-------------------------------------------
+- Terrain surface from the downsampled height grid (~256x256), with Quickmap imagery
+  laid over it if we can get it.
+- Simple lander built from basic shapes, standing at the site.
+- Sun light positioned from computed azimuth/elevation, so terrain shadows are right.
+- Earth marker in the sky at its computed position, dimmed when terrain blocks it.
+- Horizon profile drawn as a ring around the site.
+
+PHASE 5: TIME CONTROLS AND CHARTS
+---------------------------------
+- Time slider + play/pause + speed, driven by the shared Zustand store so every
+  component stays in sync.
+- Polar horizon plot: azimuth around the circle, elevation outward, terrain mask filled
+  in, Sun/Earth paths drawn over it.
+- Timeline charts: sunlight fraction over time, Earth-visible bands, longest gaps
+  highlighted.
+
+PHASE 6: CONSISTENCY AND HANDOFF
+--------------------------------
+- With the validation member, compare our Sun/Earth angles against raw Horizons output
+  and our shadowed areas against Quickmap's shadowed-region layer.
+- 3D view uses the same numbers as the charts; no recomputing in the browser.
+- Document assumptions: no atmosphere, terrain resolution, Earth as a point plus margin.
+
+MINIMUM DEMO (IF TIME RUNS SHORT)
+---------------------------------
+Phases 1-2 for 3 sites, the timeline endpoint, the polar horizon plot and the time
+slider. The 3D view is the first thing to simplify.
+
+MAIN RISKS
+----------
+- Moon Trek downloads awkward to get   -> Phase 1 check first; download by hand if needed
+- Horizons slow or rate-limited        -> precompute and cache the curated sites
+- Horizon calc slow on a large map     -> numpy, coarser steps far out, compute once/site
+- 3D view and charts disagree          -> one data source (backend timeline) for both
