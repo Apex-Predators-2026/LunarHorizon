@@ -147,6 +147,19 @@ export function inexactText(x: { status: string; lower: number | null; upper: nu
   return 'unavailable'
 }
 
+/**
+ * The engine states durations in seconds (e.g. "evaluated duration (1.2096e+06 s vs 432000 s)"). Show them in
+ * days or hours; only the unit changes, never the value or the claim.
+ */
+export function humanizeSeconds(text: string): string {
+  return text.replace(/(\d+(?:\.\d+)?(?:e[+-]?\d+)?) s\b/gi, (_, n: string) => {
+    const sec = Number(n)
+    if (!Number.isFinite(sec)) return `${n} s`
+    const h = sec / 3600
+    return h >= 48 ? `${+(h / 24).toFixed(2)} d` : `${+h.toFixed(2)} h`
+  })
+}
+
 /** Number of distinct canonical ranking groups among the entries. */
 export const groupCountOf = (entries: Entry[]) => new Set(entries.map((e) => e.ranking?.group).filter(Boolean)).size
 

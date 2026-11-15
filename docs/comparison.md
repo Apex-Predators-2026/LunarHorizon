@@ -158,7 +158,24 @@ into the shared `useAppStore` for the followed scenario; "View in 3D ↗" switch
 
 ## Known limitations
 
-- Real data covers the curated sites for 2026-01-01 → 2031-01-01 (hourly). Custom sites created
-  through `/api/sites/custom` work; `custom:<lat>,<lon>` ids from rescue have no real data.
-- Workspace persists in `sessionStorage` (current browser session only).
-- The viability score shown is whatever `app/rescue/viability` points at (currently `placeholder-v1`).
+- Real data covers the curated sites for 2026-01-01 → 2031-01-01 (hourly). Custom sites created through
+  `/api/sites/custom` work; `custom:<lat>,<lon>` ids from Rescue have no real data and show as UNKNOWN (not assessed).
+- Viability, scores and ranks come from the canonical engine through `app/viability/compat/rescue.evaluate_timeline_detailed`.
+  If the engine's contract changes (new constraint ids, metric fields), `app/compare/evidence.py` (METRIC_FIELDS) and the
+  frontend `exportFields.ts` list must follow.
+- Ranking uses the engine's STRICT comparability policy: scenarios with different requirements or mission length are
+  ranked in separate groups, never against each other.
+- The idealised panel incidence factor and the trade-off panel are this module's own presentation aids, labelled as such;
+  they never affect eligibility, ranks or the decision.
+- Workspace and the imported Rescue story persist in `sessionStorage` (current browser session only); no sharing links.
+
+## Integration notes for the team
+
+| Member | What the comparison relies on | Action needed |
+|---|---|---|
+| Brandon (viability) | `evaluate_timeline_detailed`, `partition_comparable`, `rank_assessments`, `ranking_explanations`, `comparability_issues`, `compare_scenarios`, constraint `evidence_windows`, `MetricsSummary` fields | None. Contract changes to those names need a matching change in `app/compare/` |
+| Arush (Rescue) | `useRescueStore` (`rescue`, `change`) and the `RescueResponse` shape; `sendToComparison()` is available for code that wants to push plans | None. A "Compare" button inside the Rescue panel could call `sendToComparison` directly if wanted |
+| Andrew (data, 3D) | `app/store.py` site records (including `known` masks for unknown samples), `/api/sites`, `/api/sites/{id}/horizon`; the comparison cursor writes `siteId` / `timeUtc` into `useAppStore` | None |
+| UI / design | The comparison uses the shared Tailwind tokens and the page's own `compare.css` | None |
+| Member 6 (validation) | `docs/comparison.md` (this page) states every rule: no zero-filling, UNKNOWN kept, ranks only for PASS within a group | Review welcome |
+
