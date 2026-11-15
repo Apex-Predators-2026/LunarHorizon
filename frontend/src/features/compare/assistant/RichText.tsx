@@ -2,7 +2,7 @@
 // by React. "Go to" links ([[go:section]]) become buttons that only scroll the page or start the tour.
 import { Icon } from '../ui'
 import { inlineParts, parseBlocks } from './markdown'
-import { NAV_TARGETS, type NavTarget } from './navigation'
+import { ACTION_TARGETS, NAV_TARGETS, type NavTarget } from './navigation'
 
 type OnNav = (target: NavTarget) => void
 
@@ -13,7 +13,7 @@ function Inline({ text, onNav }: { text: string; onNav?: OnNav }) {
         if (p.kind === 'bold') return <strong key={i} className="font-medium text-ink">{p.text}</strong>
         if (p.kind === 'text') return p.text
         if (!onNav) return null
-        const label = p.target === 'tour' ? NAV_TARGETS.tour : `Go to ${NAV_TARGETS[p.target]}`
+        const label = ACTION_TARGETS.has(p.target) ? NAV_TARGETS[p.target] : `Go to ${NAV_TARGETS[p.target]}`
         return (
           <button key={i} type="button" onClick={() => onNav(p.target)}
             className="mx-0.5 inline-flex items-center gap-1 rounded-md border border-line px-1.5 py-0.5 align-baseline text-[11px] font-medium text-ink-2 hover:border-ink-3 hover:text-ink">

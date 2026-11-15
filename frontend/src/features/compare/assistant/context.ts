@@ -16,6 +16,7 @@ import { HEADLINES, headlineRows } from '../glance'
 import { withheldNotes } from '../lanes'
 import { changedChanged, rescueSteps, type RescueContext } from '../rescueFlow'
 import { guideForAI } from './navigation'
+import type { AssistantReport } from './reportContext'
 import type { EvaluationStatus } from '../missionTime'
 import { COMPARE_SECTIONS } from '../sections'
 import type { PairEvidence, RankingGroup } from '../types'
@@ -87,6 +88,8 @@ export interface AssistantContext {
   rescue: AssistantRescue | null
   notes: string[]
   sections: { id: string; label: string }[]
+  /** The Mission Report the user generated (a frozen snapshot), or null when none has been generated. */
+  report: AssistantReport | null
   /** How to use the page: the only description of controls the assistant may give. */
   interface_guide: ReturnType<typeof guideForAI>
 }
@@ -164,7 +167,7 @@ function hash(s: string): string {
 const shown = (t: string | null | undefined) => (!t || t === '—' ? 'unavailable' : t)
 
 export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], pairs: PairEvidence[], notes: string[], ready: boolean,
-  rescue: RescueContext | null = null): AssistantContext {
+  rescue: RescueContext | null = null, report: AssistantReport | null = null): AssistantContext {
   const state = contextState(entries, ready)
   const x = buildExport(entries, ready ? groups : [], ready ? pairs : [], notes)
   const labelOf = new Map(entries.map((e) => [e.scenario.id, e.scenario.label]))
@@ -244,7 +247,7 @@ export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], 
   const revision = hash(JSON.stringify([state, entries.map((e) => [e.scenario.label, e.scenario.site.id, e.scenario.landing_utc,
     e.scenario.duration_days, e.scenario.requirements, e.scenario.spacecraft, e.state?.state, e.result?.key ?? null]),
   // The evaluated window is part of the answer: a changed evaluation is a new revision even with the same inputs.
-  scenarios.map((s) => [s.eligibility, s.canonical_rank, s.recommended, s.mission_time]), rescue?.importedAt ?? null]))
+  scenarios.map((s) => [s.eligibility, s.canonical_rank, s.recommended, s.mission_time]), rescue?.importedAt ?? null, report ? [report.snapshot_id, report.out_of_date] : null]))
 
   return {
     format: ASSISTANT_CONTEXT_VERSION,
@@ -260,6 +263,7 @@ export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], 
     key_metrics,
     requirements,
     rescue: rescueForAssistant(rescue, entries),
+    report,
     notes: [...new Set(x.notes)].slice(0, 16),
     sections: COMPARE_SECTIONS.map(([id, label]) => ({ id, label })),
     interface_guide: guideForAI(),

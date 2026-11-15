@@ -18,6 +18,9 @@ import { useCompareStore } from '../useCompareStore'
 import { useCompareTour } from '../tour/useCompareTour'
 import './assistantUi.css'
 import { buildAssistantContext, contextLine, type AssistantContext } from './context'
+import { openReport } from './openReport'
+import { reportForAssistant } from './reportContext'
+import { selectionKeyOf, useReportStore } from '../report'
 import { SIDE_MIN_H, SIDE_MIN_W, useAssistantLayout, type AssistantLayout } from './layout'
 import { countWords, firstWords } from './paced'
 import type { NavTarget } from './navigation'
@@ -93,14 +96,20 @@ export function MissionAssistant({ entries, groups, pairs, notes, ready, onJump 
   const rescue = useCompareStore((s) => s.rescueContext)
   // Rebuilt whenever the selection, the requirements, the results or the Rescue import change, so a question always
   // goes out with the comparison as it is at that moment (never a stale copy).
-  const context = useMemo(() => buildAssistantContext(entries, groups, pairs, notes, ready, rescue),
-    [entries, groups, pairs, notes, ready, rescue])
+  // The generated Mission Report (frozen), flagged out of date when the live comparison has changed since.
+  const snapshot = useReportStore((s) => s.snapshot)
+  const reportOpen = useReportStore((s) => s.open)
+  const liveKey = useCompareStore((s) => selectionKeyOf(s))
+  const report = useMemo(() => reportForAssistant(snapshot, liveKey, reportOpen), [snapshot, liveKey, reportOpen])
+  const context = useMemo(() => buildAssistantContext(entries, groups, pairs, notes, ready, rescue, report),
+    [entries, groups, pairs, notes, ready, rescue, report])
   // Links in answers only move around the page or start the tour: they never change anything.
   const onNav = (target: NavTarget) => {
     if (typeof window !== 'undefined' && (window.innerWidth < SIDE_BY_SIDE_MIN || useAssistantLayout.getState().layout === 'full')) {
       useAssistantLayout.getState().setLayout('min')
     }
     if (target === 'tour') useCompareTour.getState().start()
+    else if (target === 'report') openReport()
     else onJump?.(target)
   }
   if (typeof document === 'undefined') return null
