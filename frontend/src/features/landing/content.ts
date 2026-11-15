@@ -4,12 +4,12 @@
 export const REPO_URL = 'https://github.com/Apex-Predators-2026/Nasa-Space-Apps-Challenge'
 
 /** The hero headline, one entry per line: each line rises from behind its own mask on load. */
-const HEADLINE_LINES = ['Finding the Right Place.', 'At the Right Time.']
+const HEADLINE_LINES = ['The right place on the Moon,', 'at the right time']
 
 export const HERO = {
   headlineLines: HEADLINE_LINES,
   headline: HEADLINE_LINES.join(' '),
-  lead: 'Find the perfect landing site for your next moon mission using a 3D model built from real NASA data.',
+  lead: 'See when a south-pole landing site has sunlight and a radio line to Earth, on a 3D Moon built from NASA terrain and JPL Horizons data',
 }
 
 export interface Beat {

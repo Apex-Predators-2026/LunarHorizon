@@ -7,7 +7,8 @@ import { knownSpans, knownSunRuns, laneCoverage, timelineEarthRuns, unknownWindo
 import { useDragGuard } from '../../viz/dragGuard'
 import { STATE } from './palette'
 import type { TimelineColumns, Window } from './types'
-import { ScenarioChip, btn } from './ui'
+import { scenarioDisplayName } from './scenario'
+import { ScenarioChip, ScenarioLegend, btn } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { clampView, hourTicks, panView, useWidth, zoomView } from './useTimeAxis'
 
@@ -351,7 +352,10 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
               <g key={e.scenario.id}>
                 <foreignObject x={0} y={top - 2} width={GUTTER - 8} height={2 * LANE + LANE_GAP + 4}>
                   <div className="flex h-full flex-col justify-center gap-0.5 pr-1 text-[11px] leading-tight text-slate-300">
-                    <div className="flex items-center gap-1.5 truncate"><ScenarioChip s={e.scenario} size="sm" /><span className="truncate">{e.scenario.site.name}</span></div>
+                    <div className="flex items-center gap-1.5" title={scenarioDisplayName(e.scenario)}>
+                      <ScenarioChip s={e.scenario} size="sm" />
+                      {GUTTER === GUTTER_WIDE && <span className="truncate">{e.scenario.name.trim() || e.scenario.site.name}</span>}
+                    </div>
                     {partial ? (
                       <div className="truncate text-[11px] text-amber-500" title={covTitle}>
                         known: Sun {pctKnown(sunCov!)}% · Earth {pctKnown(earthCov!)}%
@@ -373,6 +377,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
           setCursor(c)
           if (c < view[0] || c > view[1]) setView(clampView([c - span / 2, c + span / 2], full))
         }} />
+      <ScenarioLegend scenarios={entries.map((e) => e.scenario)} className="mt-2" />
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400" aria-label="Legend">
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm" style={{ background: STATE.sun }} /> Sunlight (height = visible share of solar disk)</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border border-slate-700" style={{ background: STATE.dark }} /> Darkness</span>
@@ -412,7 +417,7 @@ function IncompleteDataNotes({ entries }: { entries: Entry[] }) {
           <li key={e.scenario.id}>
             <div className="flex flex-wrap items-center gap-1.5">
               <ScenarioChip s={e.scenario} size="sm" />
-              <span className="text-slate-200">{e.scenario.site.name}</span>
+              <span className="text-slate-200">{scenarioDisplayName(e.scenario)}</span>
               <span className="text-slate-500">
                 · known Sun {h(sun.knownHours, sun.totalHours)} · known Earth {h(earth.knownHours, earth.totalHours)}
                 {unknownCount ? ` · ${unknownCount} unknown window${unknownCount === 1 ? '' : 's'} (grey hatch)` : ''}

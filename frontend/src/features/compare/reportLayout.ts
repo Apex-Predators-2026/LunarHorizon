@@ -75,6 +75,8 @@ export interface OutcomeFigure {
 
 export type Figure = BarFigure | OutcomeFigure
 
+export const figurePlanKey = (card: ReportCard) => card.plans.map((p) => `${p.label} · ${p.name.trim() || p.site}`).join('; ')
+
 /** A round axis maximum and its ticks (steps of 1, 2, 2.5 or 5 × 10^k). */
 export function niceAxis(max: number): { max: number; ticks: number[] } {
   if (!(max > 0)) return { max: 10, ticks: [0, 2.5, 5, 7.5, 10] }

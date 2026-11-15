@@ -632,7 +632,8 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
         key={`${graphicsQuality}-${canvasGen}`}
         frameloop={!active ? 'never' : PERF_RENDER_ALWAYS ? 'always' : 'demand'}
         dpr={gfx.dpr}
-        shadows={gfx.shadows}
+        // 'percentage' = PCF, what three r187 uses anyway (PCFSoftShadowMap was removed and only warned).
+        shadows={gfx.shadows ? 'percentage' : false}
         gl={{ logarithmicDepthBuffer: true, antialias: gfx.antialias }}
         camera={{ position: pendingCameraPoseRef.current?.position ?? [2600, 1400, 3400], fov: 50, near: 0.5, far: 1e9 }}
         onCreated={({ camera, get, gl }) => {
