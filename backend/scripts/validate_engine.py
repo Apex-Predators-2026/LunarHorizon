@@ -1,7 +1,9 @@
 """Phase 6: validate the data engine against independent references.
 
 Run from backend/:  .venv\\Scripts\\python.exe scripts\\validate_engine.py
-Writes data/validation/engine_validation.json; results are written up in docs/validation-engine.md.
+Writes data/validation/engine_validation.json (per-site results, a `run` block: when, which code, which site
+data, and a `summary` from app/engine/validation_summary.py) and regenerates the results section of
+docs/validation-engine.md from it. `--doc-only` just regenerates the doc from the stored report.
 
 1. Sun/Earth positions: our site files (JPL Horizons, DE441) vs an independent computation with
    Skyfield + JPL DE421 + the Moon's Mean-Earth frame (MOON_ME_DE421). Also counts how many hours
@@ -16,8 +18,11 @@ Writes data/validation/engine_validation.json; results are written up in docs/va
    lines in the polar map plane, central-angle formula) on the same data, which does detect an azimuth flip.
 """
 
+import argparse
 import json
+import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -32,9 +37,11 @@ from app.engine.horizon import compute_horizon  # noqa: E402
 from app.engine.net import DATA_DIR, RAW_DIR, fetch_cached  # noqa: E402  (also enables truststore)
 from app.engine.sites import ALL_SITES  # noqa: E402
 from app.engine.terrain import load_terrain  # noqa: E402
+from app.engine.validation_summary import render_markdown, replace_doc_section, summarize  # noqa: E402
 from app.engine.visibility import build_timeline, disk_fraction_visible  # noqa: E402
 
 OUT = DATA_DIR / "validation" / "engine_validation.json"
+DOC = Path(__file__).resolve().parents[2] / "docs" / "validation-engine.md"
 SAMPLE_EVERY_H = 6  # ephemeris comparison stride
 
 LROC_IMG = (
@@ -265,14 +272,48 @@ def independent_horizon(site, record):
 
 # ---------------------------------------------------------------- main
 
+def code_commit() -> str:
+    """The checked-out commit (plus "+changes" if the engine code or site data differ from it), or "unknown"."""
+    root = Path(__file__).resolve().parents[2]
+    try:
+        head = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True, cwd=root).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--", "backend/app", "data/sites"], capture_output=True, text=True,
+                               cwd=root).stdout.strip()
+        return head + ("+changes" if dirty else "")
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
+def write_doc(report: dict) -> None:
+    names = {s["id"]: s["name"] for s in ALL_SITES}
+    DOC.write_text(replace_doc_section(DOC.read_text(encoding="utf-8"), render_markdown(report["summary"], names)), encoding="utf-8")
+    print(f"updated the results section of {DOC.name}")
+
+
 def main():
+    ap = argparse.ArgumentParser(description="Validate the data engine against independent references.")
+    ap.add_argument("--doc-only", action="store_true", help="only regenerate the doc's results section from the stored report")
+    args = ap.parse_args()
+    if args.doc_only:
+        report = json.loads(OUT.read_text())
+        report["summary"] = summarize(report)
+        write_doc(report)
+        return
+
     print("Loading Skyfield kernels (DE421 + Moon ME frame)...", flush=True)
     sky = skyfield_setup()
     img = fetch_cached(LROC_IMG, RAW_DIR / "lroc" / "WAC_POLE_ILL_TWI_SOUTH_100M.IMG", timeout=900)
     with rasterio.open(img) as ds:
         lroc = (ds.read(1, masked=True), ds.transform)
 
-    report = {"reference": {
+    metas = [json.loads((DATA_DIR / "sites" / f"{s['id']}.json").read_text())["meta"] for s in ALL_SITES]
+    report = {"run": {
+        "run_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "code_commit": code_commit(),
+        "sites": len(ALL_SITES),
+        "site_generator_versions": sorted({m["generator_version"] for m in metas}),
+        "data_range": f"{min(m['start_utc'] for m in metas)} to {max(m['stop_utc'] for m in metas)}",
+    }, "reference": {
         "ephemeris": "Skyfield + JPL DE421 + MOON_ME_DE421 frame (moon_080317.tf, moon_pa_de421_1900-2050.bpc)",
         "illumination": "LROC WAC_POLE_ILL_TWI_SOUTH_100M (Speyerer & Robinson 2013), 2010-02-15..2011-02-05",
         "ephemeris_sample_every_hours": SAMPLE_EVERY_H,
@@ -311,9 +352,11 @@ def main():
             print(f"  horizon geometry check: {geom['note']}")
         report["sites"][site["id"]] = {"ephemeris": eph, "illumination": ill, "spatial": spatial, "horizon_geometry": geom}
 
+    report["summary"] = summarize(report)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(report, indent=2))
     print(f"\nwrote {OUT.relative_to(DATA_DIR.parent)}")
+    write_doc(report)
 
 
 if __name__ == "__main__":
