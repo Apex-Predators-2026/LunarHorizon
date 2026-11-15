@@ -3,11 +3,12 @@
 // only options the viability engine passes can be ranked ("Recommended feasible options"); the others are shown
 // apart, labelled, with the requirement that rules each one out. Weights can explain why an infeasible option is
 // attractive, never make it a recommendation.
+import { scenarioDisplayName } from './scenario'
 import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 import { CRITERIA, WEIGHT_PRESETS, computeTradeoff, isFeasible, type CriterionKey, type Entry, type TradeoffRow } from './analysis'
 import { STATE, seriesColor, seriesDash } from './palette'
-import { EligibilityBadge, Explain, ScenarioChip, btn, input } from './ui'
+import { EligibilityBadge, Explain, ScenarioChip, ScenarioLegend, btn, input } from './ui'
 
 const CRITERION_COLORS = ['#e8b84a', '#5aa9f0', '#b58cf0', '#4fbf8f']
 
@@ -18,7 +19,7 @@ function OptionRow({ r, label, muted = false }: { r: TradeoffRow; label: string 
       <div className="mb-0.5 flex items-center gap-2 text-xs">
         {label !== null && <span className="w-5 font-medium text-slate-500">{label}</span>}
         <ScenarioChip s={r.entry.scenario} size="sm" />
-        <span className="min-w-0 flex-1 truncate text-slate-200">{r.entry.scenario.site.name}</span>
+        <span className="min-w-0 flex-1 truncate text-slate-200">{scenarioDisplayName(r.entry.scenario)}</span>
         {!isFeasible(r) && r.eligibility && <EligibilityBadge eligibility={r.eligibility} />}
         <span className="tabular-nums font-medium text-slate-100" title={r.missing.join('; ') || undefined}>
           {r.weighted === null ? 'incomplete' : (r.weighted * 100).toFixed(0)}
@@ -93,7 +94,9 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
         ) : (
           <>
             <div className="grid gap-4 xl:grid-cols-2">
-              <div style={{ height: 260 }} role="img" aria-label="Radar chart of criterion scores per plan">
+              <div>
+                <ScenarioLegend scenarios={rows.map((r) => r.entry.scenario)} />
+                <div style={{ height: 260 }} role="img" aria-label="Radar chart of criterion scores per plan">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={radar} outerRadius="72%">
                     <PolarGrid stroke={STATE.grid} />
@@ -104,17 +107,18 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                         <div className="mb-1 text-slate-300">{label}</div>
                         {rows.map((r) => (
                           <div key={r.entry.scenario.id} className="flex items-center gap-2"><ScenarioChip s={r.entry.scenario} size="sm" />
-                            <span className="tabular-nums">{payload.find((p) => p.dataKey === r.entry.scenario.id)?.value}/100</span></div>
+                            <span>{scenarioDisplayName(r.entry.scenario)}</span><span className="tabular-nums">{payload.find((p) => p.dataKey === r.entry.scenario.id)?.value}/100</span></div>
                         ))}
                       </div>
                     ) : null} />
                     {rows.map((r) => (
-                      <Radar key={r.entry.scenario.id} dataKey={r.entry.scenario.id} stroke={seriesColor(r.entry.scenario.colorSlot)}
+                      <Radar key={r.entry.scenario.id} dataKey={r.entry.scenario.id} name={scenarioDisplayName(r.entry.scenario)} stroke={seriesColor(r.entry.scenario.colorSlot)}
                         strokeDasharray={seriesDash(r.entry.scenario.colorSlot)} strokeWidth={2}
                         fill={seriesColor(r.entry.scenario.colorSlot)} fillOpacity={0.08} isAnimationActive={false} />
                     ))}
                   </RadarChart>
                 </ResponsiveContainer>
+                </div>
               </div>
               <div className="space-y-4">
                 <section aria-label="Recommended feasible options">
@@ -165,7 +169,7 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.entry.scenario.id} className="border-t border-line">
-                      <td className="py-1"><ScenarioChip s={r.entry.scenario} size="sm" /></td>
+                      <td className="py-1"><span className="flex items-center gap-1.5"><ScenarioChip s={r.entry.scenario} size="sm" />{scenarioDisplayName(r.entry.scenario)}</span></td>
                       {CRITERIA.map((c) => (
                         <td key={c.key} className="py-1 pl-2 text-slate-300">
                           {r.raw[c.key]} <span className="tabular-nums text-slate-500">[{r.scores[c.key] === null ? '-' : Math.round(r.scores[c.key]! * 100)}]</span>

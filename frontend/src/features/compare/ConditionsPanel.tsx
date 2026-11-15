@@ -1,4 +1,5 @@
 // Conditions at the selected moment for every scenario, with the reason for light/dark and Earth in/out of view.
+import { scenarioDisplayName } from './scenario'
 import { fmtUtc } from '../rescue/format'
 import { conditionsAt, fmtAxis, type Align, type Entry } from './analysis'
 import { ScenarioChip } from './ui'
@@ -30,7 +31,7 @@ export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entrie
             <div key={e.scenario.id} className="rounded-lg border border-line bg-inset p-2.5 text-xs">
               <div className="mb-1.5 flex items-center gap-2">
                 <ScenarioChip s={e.scenario} size="sm" />
-                <span className="min-w-0 flex-1 truncate text-slate-200">{e.scenario.site.name}</span>
+                <span className="min-w-0 flex-1 truncate text-slate-200">{scenarioDisplayName(e.scenario)}</span>
                 {onOpen3D && c && e.result?.data_kind === 'real' && (
                   <button type="button" className="text-[11px] text-cyan-400 hover:underline"
                     title="Open the 3D terrain view at this site and moment"

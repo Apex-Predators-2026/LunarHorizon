@@ -2,6 +2,7 @@
 // with the selected time drawn as a reference line. Click selects a time. Drawn as steps: each sample holds until the
 // next (the engine's sample-and-hold). Unknown data breaks the line (never connected through) and reads "Unknown" in
 // the tooltip; a measured zero stays a zero.
+import { scenarioDisplayName } from './scenario'
 import { memo, useMemo } from 'react'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
@@ -70,7 +71,7 @@ function ChartInner({ entries, view, align, originMs, value, unit, yLabel, forma
             }
           />
           {withData.map((e) => (
-            <Line key={e.scenario.id} dataKey={e.scenario.id} name={`Plan ${e.scenario.label}`} type="stepAfter"
+            <Line key={e.scenario.id} dataKey={e.scenario.id} name={`${e.scenario.label} · ${scenarioDisplayName(e.scenario)}`} type="stepAfter"
               stroke={seriesColor(e.scenario.colorSlot)} strokeDasharray={seriesDash(e.scenario.colorSlot)}
               strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: STATE.surface }}
               connectNulls={false} isAnimationActive={false} />
