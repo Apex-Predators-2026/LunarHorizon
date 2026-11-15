@@ -191,6 +191,16 @@ class ViabilityMetrics(BaseModel):
 
 
 Eligibility = Literal["pass", "fail", "unknown"]
+ScoreStatus = Literal["known", "bounded", "eligibility_unknown", "no_scorable_components"]
+
+
+class ScoreBounds(BaseModel):
+    """Canonical score interval: the true score lies in [lower, upper] (rounded outward)."""
+
+    lower: float = Field(ge=0, le=100)
+    upper: float = Field(ge=0, le=100)
+
+
 MarginStatus = Literal[
     "comfortable",
     "narrow",
@@ -283,6 +293,15 @@ class ViabilityResult(BaseModel):
     )
     source: str = Field(description="Which viability implementation produced this result")
     data_source: str = Field(description="Which timeline source the metrics came from")
+    # Canonical ranking metadata (docs/viability-engine.md D4-D8). Optional so evaluators that predate
+    # them stay valid; None = not reported.
+    score_status: ScoreStatus | None = Field(None, description=(
+        "'known' (exact score), 'bounded' (score null, interval in score_bounds), 'eligibility_unknown' or "
+        "'no_scorable_components' (no number at all). A missing score is never zero"))
+    score_bounds: ScoreBounds | None = Field(None, description="Exact (lower == upper) or bounded score interval")
+    configuration_key: str | None = Field(None, description=(
+        "Identity of spacecraft, requirements and duration the score was measured against; scores are only "
+        "comparable (rankable together) when these keys are equal"))
 
     @property
     def verdict(self) -> Eligibility:
