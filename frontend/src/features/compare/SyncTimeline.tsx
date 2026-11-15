@@ -9,7 +9,10 @@ import { ScenarioChip, btn } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { clampView, hourTicks, panView, useWidth, zoomView } from './useTimeAxis'
 
-const GUTTER = 168
+// Label column width: full names on wide screens, just the scenario chip on phones.
+const GUTTER_WIDE = 168
+const GUTTER_NARROW = 60
+const gutterFor = (width: number) => (width < 520 ? GUTTER_NARROW : GUTTER_WIDE)
 const LANE = 20
 const LANE_GAP = 4
 const ROW_GAP = 14
@@ -46,7 +49,7 @@ function sunPath(tl: TimelineColumns, offset: number, x: (v: number) => number, 
   return `M${first},${top + LANE} L${pts.join(' L')} L${last},${top + LANE} Z`
 }
 
-const Lanes = memo(function Lanes({ e, top, x, view, w }: { e: Entry; top: number; x: (v: number) => number; view: [number, number]; w: number }) {
+const Lanes = memo(function Lanes({ e, top, x, view, w, gutter: GUTTER }: { e: Entry; top: number; x: (v: number) => number; view: [number, number]; w: number; gutter: number }) {
   const r = e.result!
   const o = e.offsetHours
   const clipX = (v: number) => Math.min(GUTTER + w, Math.max(GUTTER, x(v)))
@@ -144,8 +147,9 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
   const drag = useRef<{ x0: number; view: [number, number]; moved: boolean } | null>(null)
   const [hover, setHover] = useState<number | null>(null)
 
+  const GUTTER = gutterFor(width)
   const w = Math.max(100, width - GUTTER - 8)
-  const x = useMemo(() => (v: number) => GUTTER + ((v - view[0]) / (view[1] - view[0])) * w, [view, w])
+  const x = useMemo(() => (v: number) => GUTTER + ((v - view[0]) / (view[1] - view[0])) * w, [view, w, GUTTER])
   const inv = (px: number) => view[0] + ((px - GUTTER) / w) * (view[1] - view[0])
   const rowH = 2 * LANE + LANE_GAP + ROW_GAP
   const height = AXIS_H + entries.length * rowH + 4
@@ -169,7 +173,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
     }
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [full, w])
+  }, [full, w, GUTTER])
 
   const localX = (ev: React.PointerEvent) => ev.clientX - svgRef.current!.getBoundingClientRect().left
 
@@ -227,7 +231,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
           Showing {fmtAxis(view[0], align, originMs, span)} → {fmtAxis(view[1], align, originMs, span)} · wheel to zoom, drag to pan, click to select a time
         </span>
       </div>
-      <div ref={boxRef} className="w-full select-none">
+      <div ref={boxRef} className="w-full min-w-0 max-w-full select-none overflow-hidden">
         <svg ref={svgRef} width={width} height={height} role="application" tabIndex={0} onKeyDown={onKey}
           aria-label="Synchronized sunlight and Earth-visibility timeline. Use arrow keys to move the selected time, plus and minus to zoom."
           className="touch-none rounded-md outline-none focus-visible:ring-1 focus-visible:ring-cyan-600"
@@ -272,7 +276,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
           <g clipPath="url(#tl-plot)">
             {entries.map((e, i) => {
               const top = AXIS_H + i * rowH
-              return e.result ? <Lanes key={e.scenario.id} e={e} top={top} x={x} view={view} w={w} /> : (
+              return e.result ? <Lanes key={e.scenario.id} e={e} top={top} x={x} view={view} w={w} gutter={GUTTER} /> : (
                 <text key={e.scenario.id} x={GUTTER + 8} y={top + LANE + 4} fontSize={11} fill={STATE.muted}>
                   {e.state?.state === 'loading' ? 'Loading…' : 'No scientific data for this scenario'}
                 </text>
