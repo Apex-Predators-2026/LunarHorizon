@@ -1,7 +1,10 @@
 # "Try a mission": the verified guided story
 
-The guided mission runs inside the one **Guided Tour** (landing page **Take the guided tour**, the Mission Planner
-toolbar's **More (⋮) → Guided Tour**, the one-time offer card that points at that menu, or `#app/planner?tour=1`). It walks through one real decision
+The guided mission runs inside the one **Guided Tour**, which has two paths through the same steps: a **quick tour**
+(7 steps, about 90 seconds) and the **full tour** (19 steps). Entry points: the landing page's **Take the guided tour**
+(quick), the Mission Planner toolbar's **More (⋮) → Quick tour / Full guided tour**, the one-time offer card that points
+at that menu (both), `#app/planner?tour=quick` or `?tour=1` (full), and the Comparison page's **How to compare
+missions** (full, Act 2). It walks through one real decision
 with the live tools: load a plan, read its requirements, apply a launch delay, see what broke, inspect the
 evidence in 3D, run Mission Rescue, compare the plans and export a report. Every verdict, number and alternative it
 shows comes from the current engine and Rescue responses; nothing is scripted.
@@ -81,14 +84,20 @@ such a change detectable, they do not guarantee numerical reproduction.
 
 ## The journey in the app
 
-The story's eight stages are the backbone of the Guided Tour (`frontend/src/features/tutorial/`): 17 short steps in
+The story's eight stages are the backbone of the Guided Tour (`frontend/src/features/tutorial/`): short steps in
 three acts on one coachmark card, with act tabs to jump, step dots, Back / Next and Skip (Esc) at any time.
 
-- **Act 1 – Plan a south-pole landing** (`#app/planner`): the mission (stage 1), then spotlight stops on the LOLA
-  terrain, the time bar, the sky plot and Verify with JPL, then stages 2, 4 (the delay is applied on the way), 5 and 6.
-- **Act 2 – Make the decision** (`#app/compare`): stage 7, then the verdict and headroom, the synchronized timeline
-  and the trade-offs, then stage 8 (the report) and the Mission Assistant.
-- **Act 3 – Trust the science**: the Feasibility Atlas (`#app/atlas`) and Validation & Methodology (`#app/method`).
+- **Act 1 – Plan a south-pole landing** (`#app/planner`): the mission (stage 1, with why the pole is hard), then
+  spotlight stops on the LOLA terrain, the time bar, the sunset / Earthset countdown and solar elevation, the sky plot
+  and Verify with JPL, then stages 2, 4 (the delay is applied on the way), 5 (with libration as the cause) and 6.
+- **Act 2 – Make the decision** (`#app/compare`): stage 7, then the verdict and headroom, the synchronized timeline,
+  the trade-offs, Science vs engineering (what the 143 km move costs science), then stage 8 (the report).
+- **Act 3 – Trust the science, then try it**: the Feasibility Atlas (`#app/atlas`), Validation & Methodology
+  (`#app/method`), then **Your turn** on the planner: a live recap of the three verdicts and the site picker / Drop pin.
+
+The quick path is: mission → delay → evidence → rescue → compare → science vs engineering → your turn, and its last
+card offers **Take the full tour**. Live cards use plain labels ("Longest time Earth is out of sight") and show long
+durations in days too.
 
 On a story step the card shows up to three live facts from the stage below; Next waits ("Working…") until the real
 result is available; slow requests offer Retry, failures offer Retry, edited inputs offer Restart the example.

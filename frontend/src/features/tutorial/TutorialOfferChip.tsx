@@ -139,7 +139,7 @@ export function TutorialOfferChip({
             <p className="font-display text-sm font-bold tracking-tight text-slate-100">Guided Tour</p>
           </div>
           <p className="mt-1 text-xs leading-relaxed text-slate-300">
-            Follow one real south-pole mission from landing site to decision, then see how it was validated. 3 acts, about 4 minutes.
+            Follow one real south-pole mission from landing site to decision: the quick tour takes about 90 seconds.
           </p>
           {anchored && (
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
@@ -175,12 +175,17 @@ export function TutorialOfferChip({
           Don&apos;t show again
         </button>
 
-        <button type="button" onClick={() => startTour(0)} className="md-compact relative overflow-hidden font-semibold text-white shadow-sm">
-          <span aria-hidden className="absolute inset-0">
-            <InteractiveGrainGradient className="h-full w-full" />
-          </span>
-          <span className="relative z-10">Start tour</span>
-        </button>
+        <span className="flex items-center gap-1.5">
+          <button type="button" onClick={() => startTour(0, 'full')} className="md-compact border border-opal-300 bg-opal-100 text-slate-200">
+            Full tour
+          </button>
+          <button type="button" onClick={() => startTour(undefined, 'quick')} className="md-compact relative overflow-hidden font-semibold text-white shadow-sm">
+            <span aria-hidden className="absolute inset-0">
+              <InteractiveGrainGradient className="h-full w-full" />
+            </span>
+            <span className="relative z-10">Quick tour · 90 s</span>
+          </button>
+        </span>
       </div>
     </aside>
   )
