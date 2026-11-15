@@ -5,7 +5,7 @@
 // the ranking come from the canonical viability engine through the backend (compare/ranking.py) and are only
 // displayed. A missing score is never treated as 0, and UNKNOWN is never treated as FAIL.
 import { verdictOf, type Eligibility } from '../../types'
-import type { ComparisonScenario, CompareResult, RankingGroup, RankingInfo, ResultState, TimelineColumns } from './types'
+import type { CanonicalMetric, ComparisonScenario, CompareResult, RankingGroup, RankingInfo, ResultState, TimelineColumns } from './types'
 
 export interface Entry {
   scenario: ComparisonScenario
@@ -48,6 +48,37 @@ export function scoreText(r: RankingInfo | null | undefined, fallback?: number |
   }
 }
 
+/** A canonical metric by key (backend compare/evidence.py METRIC_FIELDS), or null when not reported. */
+export const cm = (r: CompareResult | null | undefined, key: string): CanonicalMetric | null => r?.assessment?.metrics[key] ?? null
+
+/** Exact value of a canonical metric, or null when it is bounded or unavailable (never a guessed number). */
+export const knownValue = (m: CanonicalMetric | null): number | null => (m && m.status === 'known' ? m.value : null)
+
+/**
+ * A requirement margin from a canonical metric: `sign` = +1 for "at least" requirements (value - required),
+ * -1 for "at most" limits (limit - value). Bounded metrics give a margin range; unavailable gives none.
+ */
+export function marginOf(m: CanonicalMetric | null, required: number, sign: 1 | -1, scale = 1):
+  { value: number | null; lower: number | null; upper: number | null; status: CanonicalMetric['status'] | 'missing' } {
+  if (!m) return { value: null, lower: null, upper: null, status: 'missing' }
+  const f = (v: number) => sign * (v * scale - required * scale)
+  if (m.status === 'known' && m.value !== null) return { value: f(m.value), lower: null, upper: null, status: 'known' }
+  if (m.status === 'bounded' && m.lower !== null && m.upper !== null) {
+    const a = f(m.lower), b = f(m.upper)
+    return { value: null, lower: Math.min(a, b), upper: Math.max(a, b), status: 'bounded' }
+  }
+  return { value: null, lower: null, upper: null, status: m.status }
+}
+
+/** Text for a canonical value or margin that is not an exact number. Null when it is exact. */
+export function inexactText(x: { status: string; lower: number | null; upper: number | null; reason?: string | null }, unit: MetricDef['unit']): string | null {
+  if (x.status === 'known') return null
+  if (x.status === 'bounded' && x.lower !== null && x.upper !== null) return `between ${fmtMetric(x.lower, unit)} and ${fmtMetric(x.upper, unit)}`
+  if (x.status === 'not_applicable') return 'not applicable'
+  if (x.status === 'missing') return '—'
+  return 'unavailable'
+}
+
 /** Number of distinct canonical ranking groups among the entries. */
 export const groupCountOf = (entries: Entry[]) => new Set(entries.map((e) => e.ranking?.group).filter(Boolean)).size
 
@@ -70,7 +101,7 @@ export interface MetricDef {
   provenance: Provenance
   get: (r: CompareResult, s: ComparisonScenario) => number | null
   /** Optional text override (e.g. a bounded score), shown instead of fmtMetric(get(...)). */
-  text?: (r: CompareResult) => string | null
+  text?: (r: CompareResult, s: ComparisonScenario) => string | null
   hint?: string
 }
 
@@ -134,18 +165,31 @@ export const METRICS: MetricDef[] = [
   { id: 'undecided', group: 'mission', label: 'Undecided requirements (missing data)', unit: 'count', better: 'lower',
     provenance: 'viability', get: (r) => (r.viability ? r.viability.violations.filter((v) => v.is_unknown).length : null),
     hint: 'Requirements the engine could not decide from the data. Not failures.' },
+  // Margins use the engine's own metric states: an exact margin when the metric is known, a margin range when it is
+  // only bounded, and "unavailable" otherwise. (The shared ViabilityResult reports unknown metrics at their worst
+  // bound; those numbers are never shown here as measurements.)
   { id: 'solar_margin', group: 'mission', label: 'Solar margin', unit: 'pts', better: 'higher', provenance: 'viability',
-    get: (r, s) => (r.viability ? (r.viability.metrics.sunlight_fraction - s.requirements.min_sunlight_fraction) * 100 : null),
+    get: (r, s) => marginOf(cm(r, 'mean_solar_disk_fraction'), s.requirements.min_sunlight_fraction, 1, 100).value,
+    text: (r, s) => inexactText(marginOf(cm(r, 'mean_solar_disk_fraction'), s.requirements.min_sunlight_fraction, 1, 100), 'pts'),
     hint: 'Mean visible solar disk minus the required minimum.' },
   { id: 'battery_margin', group: 'mission', label: 'Battery margin', unit: 'h', better: 'higher', provenance: 'viability',
-    get: (r, s) => (r.viability ? s.requirements.battery_hours - r.viability.metrics.longest_dark_gap_hours : null),
+    get: (r, s) => marginOf(cm(r, 'longest_power_darkness_h'), s.requirements.battery_hours, -1).value,
+    text: (r, s) => inexactText(marginOf(cm(r, 'longest_power_darkness_h'), s.requirements.battery_hours, -1), 'h'),
     hint: 'Max acceptable darkness minus the longest power gap (Sun below the panel threshold).' },
   { id: 'comms_margin', group: 'mission', label: 'Communication margin', unit: 'h', better: 'higher', provenance: 'viability',
-    get: (r, s) => (r.viability ? s.requirements.max_comms_gap_hours - r.viability.metrics.longest_comms_gap_hours : null),
+    get: (r, s) => marginOf(cm(r, 'longest_blackout_h'), s.requirements.max_comms_gap_hours, -1).value,
+    text: (r, s) => inexactText(marginOf(cm(r, 'longest_blackout_h'), s.requirements.max_comms_gap_hours, -1), 'h'),
     hint: 'Max acceptable blackout minus the longest blackout.' },
   { id: 'earth_margin', group: 'mission', label: 'Earth-visibility margin', unit: 'pts', better: 'higher', provenance: 'viability',
-    get: (r, s) =>
-      r.viability ? (r.viability.metrics.earth_visibility_fraction - s.requirements.min_earth_visibility_fraction) * 100 : null },
+    get: (r, s) => marginOf(cm(r, 'earth_visible_percent'), s.requirements.min_earth_visibility_fraction * 100, 1).value,
+    text: (r, s) => inexactText(marginOf(cm(r, 'earth_visible_percent'), s.requirements.min_earth_visibility_fraction * 100, 1), 'pts') },
+  { id: 'coverage', group: 'mission', label: 'Data coverage (Sun / Earth)', unit: '%', better: null, provenance: 'viability',
+    get: (r) => (r.assessment ? Math.min(r.assessment.sun_coverage_percent, r.assessment.earth_coverage_percent) : null),
+    text: (r) => (r.assessment ? `${r.assessment.sun_coverage_percent.toFixed(1)}% / ${r.assessment.earth_coverage_percent.toFixed(1)}%` : null),
+    hint: 'Share of the mission with a known Sun / Earth state. Below 100% the engine reports bounds, not exact values.' },
+  { id: 'risk', group: 'mission', label: 'Overall risk', unit: 'count', better: null, provenance: 'viability',
+    get: () => null, text: (r) => r.assessment?.overall_risk ?? null,
+    hint: 'Rule-based risk level from the viability engine (low, moderate, high, unknown). Not a probability.' },
 ]
 
 export const METRIC_BY_ID = Object.fromEntries(METRICS.map((m) => [m.id, m])) as Record<string, MetricDef>
@@ -301,42 +345,50 @@ export const scienceIndex = (distanceKm: number, traverseKm: number) =>
 
 export interface TradeoffRow {
   entry: Entry
-  scores: Record<CriterionKey, number>
+  scores: Record<CriterionKey, number | null> // null = the measurement behind it is not exactly known
   raw: Record<CriterionKey, string>
-  weighted: number
-  contributions: Record<CriterionKey, number>
-  rank: number
+  weighted: number | null // null when any weighted criterion is unknown: such rows are never ranked
+  contributions: Record<CriterionKey, number | null>
+  rank: number | null
+  missing: string[] // criteria that could not be computed, with the reason
 }
 
 export function computeTradeoff(entries: Entry[], w: Weights, traverseKm: number): TradeoffRow[] {
   const total = w.solar + w.comms + w.science + w.safety
-  const rows = comparableEntries(entries)
-    .filter((e) => e.result!.viability && e.result!.solar && e.result!.earth)
+  const rows: TradeoffRow[] = comparableEntries(entries)
+    .filter((e) => e.result!.assessment)
     .map((entry) => {
       const r = entry.result!
-      const v = r.viability!.metrics
       const req = entry.scenario.requirements
-      const psrKm = r.science_context?.distance_to_psr_edge_km ?? Infinity
-      const scores: Record<CriterionKey, number> = {
-        solar: r.solar!.mean_visible_fraction,
-        comms: r.earth!.visible_fraction,
-        science: Number.isFinite(psrKm) ? scienceIndex(psrKm, traverseKm) : 0,
-        safety: (outageIndex(v.longest_dark_gap_hours, req.battery_hours) + outageIndex(v.longest_comms_gap_hours, req.max_comms_gap_hours)) / 2,
+      const disk = cm(r, 'mean_solar_disk_fraction'), earth = cm(r, 'earth_visible_percent')
+      const dark = cm(r, 'longest_power_darkness_h'), black = cm(r, 'longest_blackout_h')
+      const psrKm = r.science_context?.distance_to_psr_edge_km ?? null
+      const kd = knownValue(dark), kb = knownValue(black), ks = knownValue(disk), ke = knownValue(earth)
+      const scores: Record<CriterionKey, number | null> = {
+        solar: ks,
+        comms: ke === null ? null : ke / 100,
+        science: psrKm === null ? null : scienceIndex(psrKm, traverseKm),
+        safety: kd === null || kb === null ? null : (outageIndex(kd, req.battery_hours) + outageIndex(kb, req.max_comms_gap_hours)) / 2,
       }
+      const describe = (m: CanonicalMetric | null, unit: MetricDef['unit']) =>
+        m ? (inexactText(m, unit) ?? fmtMetric(m.value, unit)) : 'unavailable'
       const raw: Record<CriterionKey, string> = {
-        solar: `${(scores.solar * 100).toFixed(1)}% mean disk`,
-        comms: `${(scores.comms * 100).toFixed(1)}% Earth in view`,
-        science: Number.isFinite(psrKm) ? `${psrKm.toFixed(1)} km to ${r.science_context!.nearest_psr_name}` : 'n/a',
-        safety: `dark ${Math.round(v.longest_dark_gap_hours)}/${req.battery_hours} h · blackout ${Math.round(v.longest_comms_gap_hours)}/${req.max_comms_gap_hours} h`,
+        solar: `${disk && ks !== null ? (ks * 100).toFixed(1) + '%' : describe(disk && { ...disk, lower: disk.lower !== null ? disk.lower * 100 : null, upper: disk.upper !== null ? disk.upper * 100 : null }, '%')} mean disk`,
+        comms: `${ke !== null ? ke.toFixed(1) + '%' : describe(earth, '%')} Earth in view`,
+        science: psrKm !== null ? `${psrKm.toFixed(1)} km to ${r.science_context!.nearest_psr_name}` : 'unavailable',
+        safety: `dark ${describe(dark, 'h')} / ${req.battery_hours} h · blackout ${describe(black, 'h')} / ${req.max_comms_gap_hours} h`,
       }
+      const missing = CRITERIA.filter((c) => w[c.key] > 0 && scores[c.key] === null).map((c) => `${c.label}: measurement not exactly known (${raw[c.key]})`)
       const contributions = Object.fromEntries(
-        CRITERIA.map((c) => [c.key, total > 0 ? (w[c.key] * scores[c.key]) / total : 0]),
-      ) as Record<CriterionKey, number>
-      const weighted = Object.values(contributions).reduce((a, b) => a + b, 0)
-      return { entry, scores, raw, weighted, contributions, rank: 0 }
+        CRITERIA.map((c) => [c.key, scores[c.key] === null ? null : total > 0 ? (w[c.key] * scores[c.key]!) / total : 0]),
+      ) as Record<CriterionKey, number | null>
+      const weighted = missing.length ? null : CRITERIA.reduce((acc, c) => acc + (contributions[c.key] ?? 0), 0)
+      return { entry, scores, raw, weighted, contributions, rank: null, missing }
     })
-  rows.sort((a, b) => b.weighted - a.weighted)
-  rows.forEach((r, i) => (r.rank = i + 1))
+  // Complete rows first (by weighted value), incomplete rows after them, unranked.
+  rows.sort((a, b) => (a.weighted === null ? 1 : 0) - (b.weighted === null ? 1 : 0) || (b.weighted ?? 0) - (a.weighted ?? 0))
+  let n = 0
+  for (const r of rows) r.rank = r.weighted === null ? null : ++n
   return rows
 }
 
@@ -375,15 +427,15 @@ export interface Conditions {
   index: number
   met: number
   time_utc: string
-  sunEl: number
-  sunAz: number
-  sunHorizon: number
-  sunFraction: number
-  incidence: number
-  earthEl: number
-  earthAz: number
-  earthHorizon: number
-  earthVisible: boolean
+  sunEl: number | null
+  sunAz: number | null
+  sunHorizon: number | null
+  sunFraction: number | null // null = unknown at this sample
+  incidence: number | null
+  earthEl: number | null
+  earthAz: number | null
+  earthHorizon: number | null
+  earthVisible: boolean | null // null = unknown at this sample
   sunReason: string
   earthReason: string
 }
@@ -407,16 +459,16 @@ export function conditionsAt(e: Entry, x: number): Conditions | null {
   const sunEl = tl.sun_elevation_deg[i], sunHorizon = tl.sun_horizon_deg[i], f = tl.sun_visible_fraction[i]
   const earthEl = tl.earth_elevation_deg[i], earthHorizon = tl.earth_horizon_deg[i], vis = tl.earth_visible[i]
   let sunReason: string
-  if (f >= 0.999) sunReason = `Full Sun: Sun centre ${deg(sunEl - sunHorizon)} above the terrain horizon`
+  if (f === null || sunEl === null || sunHorizon === null) sunReason = 'Unknown: no terrain or ephemeris data for the Sun at this time'
+  else if (f >= 0.999) sunReason = `Full Sun: Sun centre ${deg(sunEl - sunHorizon)} above the terrain horizon`
   else if (f > 0) sunReason = `Partial Sun: ${Math.round(f * 100)}% of the disk clears the terrain (horizon ${deg(sunHorizon)})`
   else if (sunHorizon > sunEl) sunReason = `Dark: terrain at ${deg(sunHorizon)} hides the Sun at ${deg(sunEl)}`
   else sunReason = `Dark: Sun at ${deg(sunEl)} is below the horizon`
-  const margin = earthEl - earthHorizon
-  const earthReason = vis
-    ? `Earth in line of sight, ${deg(margin)} above the terrain`
-    : earthEl > 0
-      ? `Blocked: terrain at ${deg(earthHorizon)} hides Earth at ${deg(earthEl)}`
-      : `Below horizon: Earth at ${deg(earthEl)}, terrain ${deg(earthHorizon)}`
+  let earthReason: string
+  if (vis === null || earthEl === null || earthHorizon === null) earthReason = 'Unknown: no terrain or ephemeris data for Earth at this time'
+  else if (vis) earthReason = `Earth in line of sight, ${deg(earthEl - earthHorizon)} above the terrain`
+  else if (earthEl > 0) earthReason = `Blocked: terrain at ${deg(earthHorizon)} hides Earth at ${deg(earthEl)}`
+  else earthReason = `Below horizon: Earth at ${deg(earthEl)}, terrain ${deg(earthHorizon)}`
   return {
     index: i, met: tl.hour[i], time_utc: tl.time_utc[i], sunEl, sunAz: tl.sun_azimuth_deg[i], sunHorizon, sunFraction: f,
     incidence: tl.incidence_factor[i], earthEl, earthAz: tl.earth_azimuth_deg[i], earthHorizon, earthVisible: vis,

@@ -160,8 +160,12 @@ def test_endpoint_ranks_only_pass_and_matches_viability_verdict():
 def test_endpoint_unavailable_scenario_has_no_rank():
     res, body = _post([_item("p1", "malapert-massif", req=LENIENT),
                        _item("gone", "malapert-massif", landing="2035-01-01T00:00:00Z")])
-    assert res["gone"]["status"] == "unavailable"
-    assert res["gone"]["ranking"] is None and res["gone"]["viability"] is None
+    assert res["gone"]["status"] == "unavailable" and res["gone"]["viability"] is None
+    # No data = cannot be decided (UNKNOWN), like Rescue's coverage check; never FAIL, never ranked.
+    rk = res["gone"]["ranking"]
+    assert rk["eligibility"] == "unknown" and rk["assessed"] is False
+    assert rk["rank"] is None and rk["score"] is None and rk["group"] is None
+    assert rk["explanation"].startswith("Not ranked: cannot be decided")
     assert all("gone" not in g["keys"] for g in body["ranking_groups"])
 
 
