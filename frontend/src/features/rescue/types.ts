@@ -63,6 +63,7 @@ export interface DateSlipCheck {
   closest_headroom_text?: string | null
   headroom_status?: string | null
   failing_constraints: RequirementKey[]
+  reason?: UndecidedReason | null
 }
 
 export interface Robustness {
@@ -160,6 +161,9 @@ export interface SensitivityRequest {
 // pass/fail = decided; unknown = evaluated but real data is incomplete; not_evaluated = skipped
 export type SensitivityStatus = 'pass' | 'fail' | 'unknown' | 'not_evaluated'
 
+/** Why a point has no pass/fail answer (backend `UndecidedReason`). Absent on older responses. */
+export type UndecidedReason = 'incomplete_data' | 'outside_coverage' | 'no_real_data' | 'position_unsupported'
+
 export interface SensitivityPoint {
   date_offset_hours: number
   distance_km: number
@@ -175,6 +179,8 @@ export interface SensitivityPoint {
   closest_label?: string | null
   closest_headroom_text?: string | null
   headroom_status?: string | null
+  reason?: UndecidedReason | null // set only for unknown and not_evaluated points
+  undecided_constraints?: string[] // requirements the available data can't decide
 }
 
 export interface SensitivityCounts {
@@ -184,6 +190,7 @@ export interface SensitivityCounts {
   passed: number
   failed: number
   unknown: number
+  by_reason?: Partial<Record<UndecidedReason, number>> // unknown + not_evaluated points by reason
 }
 
 export interface SensitivityResponse {
