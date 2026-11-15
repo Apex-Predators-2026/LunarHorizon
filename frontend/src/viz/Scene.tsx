@@ -496,8 +496,8 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   const finestResM = terrainStats ? Math.max(5, Math.round(vertexSpacingM(terrainStats.deepest))) : null
 
 
-  // The clickable site labels sit on top of the canvas: a wheel (or trackpad pinch) over one still
-  // zooms the 3D view, as if the label weren't there. Native and non-passive, so a pinch over a label
+  // The clickable site and waypoint labels sit on top of the canvas: a wheel (or trackpad pinch) over
+  // one still zooms the 3D view, as if the label weren't there. Native and non-passive, so a pinch over a label
   // doesn't zoom the page instead.
   const sceneRef = useRef<HTMLDivElement>(null)
   const dragStartRef = useRef<{ x: number; y: number } | null>(null)
@@ -505,7 +505,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     const root = sceneRef.current
     if (!root) return
     const onWheel = (e: WheelEvent) => {
-      if (!(e.target instanceof Element) || !e.target.closest('[data-site-label]')) return
+      if (!(e.target instanceof Element) || !e.target.closest('[data-site-label], [data-wheel-through]')) return
       e.preventDefault()
       root.querySelector('canvas')?.dispatchEvent(
         new WheelEvent('wheel', {
@@ -782,6 +782,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           <div
             key={wp.id}
             ref={waypointLabelRefs[idx]}
+            data-wheel-through
             onPointerEnter={() => setHoveredWaypointId(wp.id)}
             onPointerLeave={() => setHoveredWaypointId((cur) => (cur === wp.id ? null : cur))}
             onClick={() => {
