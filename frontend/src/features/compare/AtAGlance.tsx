@@ -51,8 +51,8 @@ export function AtAGlance({ entries, groups, pairs, ready, onJump }: {
   const groupCount = groupCountOf(entries)
   const anyData = entries.some((e) => e.result)
   return (
-    <div data-tour="compare-verdict" className="mb-6 space-y-4">
-      <div className="rounded-xl border border-line bg-surface p-4">
+    <div className="mb-6 space-y-4">
+      <div data-tour="compare-verdict" className="rounded-xl border border-line bg-surface p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 max-w-3xl">
             <div className="text-[11px] font-medium uppercase tracking-wide text-ink-3">Verdict under the selected requirements</div>
