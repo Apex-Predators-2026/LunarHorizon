@@ -9,6 +9,8 @@ export interface CompareTourStep {
   /** Selectors tried in order; the first visible match is highlighted. */
   targets: string[]
   placement: TutorialPlacement
+  /** A section this step shows: its view and expandable block are opened before the target is looked for. */
+  reveal?: string
   /** Shown only when its target exists (e.g. the assistant once it is on the page). */
   optional?: boolean
 }
@@ -33,6 +35,7 @@ export const COMPARE_TOUR_STEPS: CompareTourStep[] = [
     ],
     targets: ['[data-tour="compare-verdict"]', '#cmp-overview'],
     placement: 'bottom',
+    reveal: 'cmp-overview',
   },
   {
     id: 'conditions',
@@ -43,6 +46,7 @@ export const COMPARE_TOUR_STEPS: CompareTourStep[] = [
     ],
     targets: ['[data-tour="compare-headlines"]', '#cmp-metrics'],
     placement: 'top',
+    reveal: 'cmp-overview',
   },
   {
     id: 'tradeoffs',
@@ -52,6 +56,7 @@ export const COMPARE_TOUR_STEPS: CompareTourStep[] = [
     ],
     targets: ['[data-tour="compare-tradeoffs"]', '#cmp-summary'],
     placement: 'top',
+    reveal: 'cmp-summary',
   },
   {
     id: 'report',
