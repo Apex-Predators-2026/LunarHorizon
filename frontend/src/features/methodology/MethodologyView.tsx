@@ -1,13 +1,23 @@
-// Validation & Methodology: scientific credibility in three layers (review item #19).
+// Validation & Methodology: scientific credibility in layers (review item #19).
 //   1. Where an answer comes from: NASA data and the model inputs.
-//   2. How it was checked: the independent comparisons, with the stored report's own numbers (/api/validation).
-//   3. What it can establish: assumptions, coverage, resolution and limitations.
+//   2. How it was checked: independent scientific validation, with the stored report's own numbers (/api/validation).
+//   3. How the viability engine was verified: software verification from its stored report
+//      (/api/viability/validation-summary, ViabilityChecks.tsx); missing / stale / failed reports are said to be so.
+//   4. What it can establish: assumptions, coverage, resolution and limitations.
 // Plus one reproducible mission. Wording follows docs/validation-engine.md; numbers come from the API, never typed in.
 import { useEffect, useState } from 'react'
 
 import '../compare/compare.css'
 import { Section } from '../compare/ui'
-import { fetchValidation, siteName, type IlluminationCheck, type ValidationSummary } from './api'
+import {
+  fetchValidation,
+  fetchViabilityValidation,
+  siteName,
+  type IlluminationCheck,
+  type ValidationSummary,
+  type ViabilityValidationState,
+} from './api'
+import { ViabilityChecks } from './ViabilityChecks'
 
 const deg = (v: number, digits = 4) => `${v.toFixed(digits).replace(/0+$/, '').replace(/\.$/, '')}°`
 const pct = (v: number) => `${v.toFixed(1)}%`
@@ -195,12 +205,18 @@ export function Checks({ s }: { s: ValidationSummary }) {
 
 export function MethodologyView() {
   const [state, setState] = useState<{ data?: ValidationSummary; error?: string }>({})
+  const [engine, setEngine] = useState<ViabilityValidationState>({ status: 'loading' })
   useEffect(() => {
     const ctrl = new AbortController()
     fetchValidation(ctrl.signal)
       .then((data) => setState({ data }))
       .catch((e: Error) => {
         if (e.name !== 'AbortError') setState({ error: e.message })
+      })
+    fetchViabilityValidation(ctrl.signal)
+      .then(setEngine)
+      .catch((e: Error) => {
+        if (e.name !== 'AbortError') setEngine({ status: 'unavailable', detail: e.message })
       })
     return () => ctrl.abort()
   }, [])
@@ -235,6 +251,11 @@ export function MethodologyView() {
           </Section>
 
           <Section title="2. How it was checked">
+            <p className="mb-4 max-w-3xl text-sm text-ink-2">
+              <b className="font-medium text-ink">Independent scientific validation.</b> The model’s inputs and results are
+              compared with independent references: another ephemeris, another horizon method, and sunlight that the LROC
+              camera observed from orbit.
+            </p>
             {state.error && (
               <p role="status" className="rounded-xl bg-inset p-4 text-sm text-ink-2">
                 The validation results could not be loaded ({state.error}). The method and limitations below still apply; the full
@@ -245,7 +266,17 @@ export function MethodologyView() {
             {state.data && <Checks s={state.data} />}
           </Section>
 
-          <Section title="3. What it can and cannot establish">
+          <Section title="3. How the viability engine was verified">
+            <p className="mb-4 max-w-3xl text-sm text-ink-2">
+              <b className="font-medium text-ink">Software verification, not scientific validation.</b> These checks confirm that
+              the engine applies its own rules correctly on the committed site files: PASS, FAIL and UNKNOWN verdicts, bounds for
+              missing data, scores and ranking. They show the software does what it specifies; they do not show the data or the
+              model match the real Moon (that is section 2).
+            </p>
+            <ViabilityChecks state={engine} />
+          </Section>
+
+          <Section title="4. What it can and cannot establish">
             <div className="grid gap-6 lg:grid-cols-2">
               <div>
                 <h3 className="text-sm font-medium text-ink">Supported by the checks</h3>
@@ -262,7 +293,7 @@ export function MethodologyView() {
             </div>
           </Section>
 
-          <Section title="4. A mission you can reproduce">
+          <Section title="5. A mission you can reproduce">
             <div className="max-w-3xl text-sm text-ink-2">
               <p>
                 Connecting Ridge, landing 2027-02-08 00:00 UTC, 7 days, with the default requirements written out in
