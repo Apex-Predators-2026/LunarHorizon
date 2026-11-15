@@ -7,6 +7,9 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { AssistantError, fetchAssistantStatus, postAssistantChat, type ChatTurn } from './api'
 import { contextLine, contextSignature, verdictChips, type AssistantContext } from './context'
 import { basicAnswer } from './fallback'
+import { isReportQuestion } from './reportFallback'
+
+export const OUT_OF_DATE_NOTICE = 'Your Mission Report is out of date: it describes the comparison as it was before your latest changes. Generate a new report for the current comparison.'
 
 export interface ChatMessage {
   id: string
@@ -144,6 +147,10 @@ export const useAssistant = create<AssistantState>()(
             added.push({ id: newId(), role: 'notice', content: `The comparison changed. Now reading: ${contextLine(context)}`, at: Date.now() })
           }
           added.push({ id: newId(), role: 'user', content: text, at: Date.now() })
+          // A question about an out-of-date report: say so here, whatever the AI's answer says.
+          if (context.report?.out_of_date && isReportQuestion(text)) {
+            added.push({ id: newId(), role: 'notice', content: OUT_OF_DATE_NOTICE, at: Date.now() })
+          }
           set({ messages: [...messages, ...added].slice(-MAX_KEPT) })
           await send(context)
         },
