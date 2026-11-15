@@ -1,0 +1,973 @@
+{
+ "api_version": "viability-api/1.0.0",
+ "status": "passed",
+ "validation_version": "member2-part2-validation-v1",
+ "generated_utc": "2026-11-14T22:24:26.855990Z",
+ "report_file": "data/validation/viability_validation.json",
+ "regenerate_command": "cd backend && python -m app.viability.validation --out ../data/validation/viability_validation.json",
+ "versions": {
+  "alternate_sampling_policy": "nearest_sample",
+  "default_sampling_policy": "sample_hold",
+  "engine": "0.6.0-phase6",
+  "explanations": "explanations-v1",
+  "ranking_evidence": "ranking-evidence-v1",
+  "ranking_method": "ranking-phase5b-v1",
+  "sampling_policies_supported": "sample_hold, nearest_sample",
+  "sampling_sensitivity": "1.0.0-part2b",
+  "scoring_method": "desirability-v1",
+  "validation": "member2-part2-validation-v1"
+ },
+ "currency": {
+  "current": true,
+  "version_mismatches": [],
+  "changed_datasets": [],
+  "unvalidated_datasets": [],
+  "note": "The stored report matches the running engine versions and every committed site file."
+ },
+ "totals": {
+  "checks": 1089,
+  "failed": 0,
+  "smoke_checks": 1031,
+  "smoke_failed": []
+ },
+ "cases": [
+  {
+   "name": "pass_exact",
+   "category": "PASS",
+   "synthetic": false,
+   "passed": true,
+   "check_count": 3,
+   "failed_checks": [],
+   "inputs": {
+    "days": 14,
+    "site": "malapert-massif",
+    "start_utc": "2027-07-20T00:00:00Z"
+   },
+   "outcome": {
+    "data_basis": "real_terrain_aware",
+    "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+    "eligibility": "pass",
+    "end_utc": "2027-08-03T00:00:00Z",
+    "failed": [],
+    "high_risk_indicators": [],
+    "overall_risk": "low",
+    "scenario_id": "malapert-massif-20270720T0000-336h",
+    "score": {
+     "bounds": [
+      78.044229,
+      78.044229
+     ],
+     "score": 78.044229,
+     "status": "known"
+    },
+    "site": "malapert-massif",
+    "start_utc": "2027-07-20T00:00:00Z",
+    "uncovered_h": 0.0,
+    "unknown": []
+   }
+  },
+  {
+   "name": "fail_confirmed",
+   "category": "confirmed FAIL",
+   "synthetic": false,
+   "passed": true,
+   "check_count": 7,
+   "failed_checks": [],
+   "inputs": {
+    "days": 14,
+    "site": "connecting-ridge",
+    "start_utc": "2027-03-01T00:00:00Z"
+   },
+   "outcome": {
+    "data_basis": "real_terrain_aware",
+    "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+    "eligibility": "fail",
+    "end_utc": "2027-03-15T00:00:00Z",
+    "failed": [
+     "max_continuous_darkness",
+     "max_communication_blackout",
+     "min_initial_sunlight",
+     "min_initial_earth_visibility"
+    ],
+    "high_risk_indicators": [
+     "landing_in_darkness",
+     "landing_without_earth_visibility",
+     "darkness_exposure",
+     "communication_exposure",
+     "margin_headroom.min_initial_sunlight",
+     "margin_headroom.min_initial_earth_visibility"
+    ],
+    "overall_risk": "high",
+    "scenario_id": "connecting-ridge-20270301T0000-336h",
+    "score": {
+     "bounds": [
+      33.641069,
+      33.641069
+     ],
+     "score": 33.641069,
+     "status": "known"
+    },
+    "site": "connecting-ridge",
+    "start_utc": "2027-03-01T00:00:00Z",
+    "uncovered_h": 0.0,
+    "unknown": []
+   }
+  },
+  {
+   "name": "pass_high_screening_risk",
+   "category": "PASS with high screening risk",
+   "synthetic": false,
+   "passed": true,
+   "check_count": 4,
+   "failed_checks": [],
+   "inputs": {
+    "days": 14,
+    "site": "peak-near-shackleton",
+    "start_utc": "2027-10-13T00:00:00Z"
+   },
+   "outcome": {
+    "data_basis": "real_terrain_aware",
+    "dataset_id": "peak-near-shackleton_2026-01-01_2031-01-01",
+    "eligibility": "pass",
+    "end_utc": "2027-10-27T00:00:00Z",
+    "failed": [],
+    "high_risk_indicators": [
+     "communication_exposure"
+    ],
+    "overall_risk": "high",
+    "scenario_id": "peak-near-shackleton-20271013T0000-336h",
+    "score": {
+     "bounds": [
+      64.093922,
+      64.093922
+     ],
+     "score": 64.093922,
+     "status": "known"
+    },
+    "site": "peak-near-shackleton",
+    "start_utc": "2027-10-13T00:00:00Z",
+    "uncovered_h": 0.0,
+    "unknown": []
+   }
+  },
+  {
+   "name": "unknown_missing_data",
+   "category": "UNKNOWN from missing data",
+   "synthetic": false,
+   "passed": true,
+   "check_count": 5,
+   "failed_checks": [],
+   "inputs": {
+    "dataset_end_utc": "2031-01-01T00:00:00Z",
+    "days": 14,
+    "site": "connecting-ridge",
+    "start_utc": "2030-12-25T00:00:00Z"
+   },
+   "outcome": {
+    "data_basis": "real_terrain_aware",
+    "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+    "eligibility": "unknown",
+    "end_utc": "2031-01-08T00:00:00Z",
+    "failed": [],
+    "high_risk_indicators": [],
+    "overall_risk": "unknown",
+    "scenario_id": "connecting-ridge-20301225T0000-336h",
+    "score": {
+     "bounds": null,
+     "score": null,
+     "status": "eligibility_unknown"
+    },
+    "site": "connecting-ridge",
+    "start_utc": "2030-12-25T00:00:00Z",
+    "uncovered_h": 168.0,
+    "unknown": [
+     "max_continuous_darkness",
+     "max_communication_blackout",
+     "min_sunlight_percent",
+     "min_mean_solar_disk_fraction"
+    ]
+   }
+  },
+  {
+   "name": "bounded_score",
+   "category": "bounded score",
+   "synthetic": false,
+   "passed": true,
+   "check_count": 3,
+   "failed_checks": [],
+   "inputs": {
+    "days": 3,
+    "last_hour": "beyond the data",
+    "site": "connecting-ridge",
+    "start_utc": "2030-12-29T01:00:00Z"
+   },
+   "outcome": {
+    "data_basis": "real_terrain_aware",
+    "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+    "eligibility": "pass",
+    "end_utc": "2031-01-01T01:00:00Z",
+    "failed": [],
+    "high_risk_indicators": [],
+    "overall_risk": "moderate",
+    "scenario_id": "connecting-ridge-20301229T0100-72h",
+    "score": {
+     "bounds": [
+      86.264814,
+      87.219676
+     ],
+     "score": null,
+     "status": "bounded"
+    },
+    "site": "connecting-ridge",
+    "start_utc": "2030-12-29T01:00:00Z",
+    "uncovered_h": 1.0,
+    "unknown": []
+   }
+  },
+  {
+   "name": "overlapping_intervals",
+   "category": "overlapping candidate score intervals / uncertain ranking",
+   "synthetic": false,
+   "passed": true,
+   "check_count": 5,
+   "failed_checks": [],
+   "inputs": {
+    "days": 3,
+    "missions": [
+     "2030-12-29T00:00:00Z",
+     "2030-12-29T01:00:00Z"
+    ],
+    "site": "connecting-ridge"
+   },
+   "outcome": {
+    "deciding_criterion": "score_lower_bound",
+    "difference_interval": [
+     -1.0000000000000002e-06,
+     0.9548610000000001
+    ],
+    "difference_status": "not_established",
+    "explanation": "connecting-ridge-20301229T0000-72h ranks above connecting-ridge-20301229T0100-72h under the conservative scoring policy (higher guaranteed lower bound), but their score ranges overlap (exact score 87.219675 vs score between 86.264814 and 87.219676 (bounded; no exact value)). The recorded evidence does not prove connecting-ridge-20301229T0000-72h has a higher desirability score. No single score component clearly favours either scenario within the recorded bounds. The score is a relative desirability index under the stated weights, not a probability of mission success, and the ranking order is not proof of physical superiority.",
+    "ranking": [
+     [
+      1,
+      "connecting-ridge-20301229T0000-72h",
+      87.219675,
+      87.219675
+     ],
+     [
+      2,
+      "connecting-ridge-20301229T0100-72h",
+      null,
+      86.264814
+     ]
+    ]
+   }
+  },
+  {
+   "name": "exact_ranking",
+   "category": "exact ranking with an established score advantage",
+   "synthetic": false,
+   "passed": true,
+   "check_count": 4,
+   "failed_checks": [],
+   "inputs": {
+    "days": 14,
+    "sites": [
+     "malapert-massif",
+     "connecting-ridge"
+    ],
+    "start_utc": "2027-12-03T00:00:00Z"
+   },
+   "outcome": {
+    "difference_interval": [
+     22.335293999999998,
+     22.335294
+    ],
+    "difference_status": "selected_higher",
+    "ranking": [
+     [
+      1,
+      "malapert-massif-20271203T0000-336h",
+      91.113497
+     ],
+     [
+      2,
+      "connecting-ridge-20271203T0000-336h",
+      68.778203
+     ]
+    ],
+    "summaries": [
+     {
+      "data_basis": "real_terrain_aware",
+      "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+      "eligibility": "pass",
+      "end_utc": "2027-12-17T00:00:00Z",
+      "failed": [],
+      "high_risk_indicators": [],
+      "overall_risk": "low",
+      "scenario_id": "malapert-massif-20271203T0000-336h",
+      "score": {
+       "bounds": [
+        91.113497,
+        91.113497
+       ],
+       "score": 91.113497,
+       "status": "known"
+      },
+      "site": "malapert-massif",
+      "start_utc": "2027-12-03T00:00:00Z",
+      "uncovered_h": 0.0,
+      "unknown": []
+     },
+     {
+      "data_basis": "real_terrain_aware",
+      "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+      "eligibility": "pass",
+      "end_utc": "2027-12-17T00:00:00Z",
+      "failed": [],
+      "high_risk_indicators": [],
+      "overall_risk": "moderate",
+      "scenario_id": "connecting-ridge-20271203T0000-336h",
+      "score": {
+       "bounds": [
+        68.778203,
+        68.778203
+       ],
+       "score": 68.778203,
+       "status": "known"
+      },
+      "site": "connecting-ridge",
+      "start_utc": "2027-12-03T00:00:00Z",
+      "uncovered_h": 0.0,
+      "unknown": []
+     }
+    ]
+   }
+  },
+  {
+   "name": "incompatible_configurations",
+   "category": "incompatible configurations",
+   "synthetic": false,
+   "passed": true,
+   "check_count": 4,
+   "failed_checks": [],
+   "inputs": {
+    "scenarios": {
+     "m14": "14 d",
+     "m14-sun-only": "14 d, sunlight weight only",
+     "m7": "7 d"
+    },
+    "site": "malapert-massif",
+    "start_utc": "2027-07-20T00:00:00Z"
+   },
+   "outcome": {
+    "evidence_status": "not_comparable",
+    "groups": [
+     [
+      "m14"
+     ],
+     [
+      "m14-sun-only"
+     ],
+     [
+      "m7"
+     ]
+    ],
+    "issues": [
+     "requirements/configuration fingerprint",
+     "evaluated duration (1.2096e+06 s vs 604800 s)"
+    ],
+    "message": "assessments are not comparable under policy 'strict' (reference 'm14'); differing: m14-sun-only: effective score weights; m7: requirements/configuration fingerprint, evaluated duration (1.2096e+06 s vs 604800 s). Use partition_comparable() and rank each group separately.",
+    "refused": true
+   }
+  },
+  {
+   "name": "synthetic_kept_separate",
+   "category": "synthetic data kept separate",
+   "synthetic": true,
+   "passed": true,
+   "check_count": 5,
+   "failed_checks": [],
+   "inputs": {
+    "fixture": "intermittent_sunlight",
+    "label": "SYNTHETIC (not NASA-derived)",
+    "real": "malapert-massif-20270720T0000-336h"
+   },
+   "outcome": {
+    "groups": [
+     [
+      "malapert-massif-20270720T0000-336h"
+     ],
+     [
+      "synthetic-fixture"
+     ]
+    ],
+    "issues": [
+     "data basis (synthetic vs real_terrain_aware)",
+     "requirements/configuration fingerprint",
+     "evaluated duration (172800 s vs 1.2096e+06 s)"
+    ],
+    "synthetic": {
+     "data_basis": "synthetic",
+     "dataset_id": "synthetic-intermittent-sunlight",
+     "eligibility": "fail",
+     "end_utc": "2027-01-03T00:00:00Z",
+     "failed": [
+      "max_continuous_darkness"
+     ],
+     "high_risk_indicators": [
+      "darkness_exposure"
+     ],
+     "overall_risk": "high",
+     "scenario_id": "synthetic-fixture",
+     "score": {
+      "bounds": [
+       62.500052,
+       62.500052
+      ],
+      "score": 62.500052,
+      "status": "known"
+     },
+     "site": "synthetic-site-a",
+     "start_utc": "2027-01-01T00:00:00Z",
+     "uncovered_h": 0.0,
+     "unknown": []
+    }
+   }
+  },
+  {
+   "name": "dataset_boundaries",
+   "category": "dataset boundary cases",
+   "synthetic": false,
+   "passed": true,
+   "check_count": 9,
+   "failed_checks": [],
+   "inputs": {
+    "coverage": [
+     "2026-01-01T00:00:00Z",
+     "2031-01-01T00:00:00Z"
+    ],
+    "site": "connecting-ridge"
+   },
+   "outcome": {
+    "ends_at_last_sample": {
+     "data_basis": "real_terrain_aware",
+     "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+     "eligibility": "fail",
+     "end_utc": "2031-01-01T00:00:00Z",
+     "failed": [
+      "max_continuous_darkness",
+      "max_communication_blackout",
+      "min_initial_sunlight",
+      "min_initial_earth_visibility"
+     ],
+     "high_risk_indicators": [
+      "landing_in_darkness",
+      "landing_without_earth_visibility",
+      "darkness_exposure",
+      "communication_exposure",
+      "margin_headroom.min_initial_sunlight",
+      "margin_headroom.min_initial_earth_visibility"
+     ],
+     "overall_risk": "high",
+     "scenario_id": "connecting-ridge-20301218T0000-336h",
+     "score": {
+      "bounds": [
+       34.436025,
+       34.436025
+      ],
+      "score": 34.436025,
+      "status": "known"
+     },
+     "site": "connecting-ridge",
+     "start_utc": "2030-12-18T00:00:00Z",
+     "uncovered_h": 0.0,
+     "unknown": []
+    },
+    "entirely_after_data": {
+     "data_basis": "real_terrain_aware",
+     "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+     "eligibility": "unknown",
+     "end_utc": "2031-02-15T00:00:00Z",
+     "failed": [],
+     "high_risk_indicators": [],
+     "overall_risk": "unknown",
+     "scenario_id": "connecting-ridge-20310201T0000-336h",
+     "score": {
+      "bounds": null,
+      "score": null,
+      "status": "eligibility_unknown"
+     },
+     "site": "connecting-ridge",
+     "start_utc": "2031-02-01T00:00:00Z",
+     "uncovered_h": 336.0,
+     "unknown": [
+      "max_continuous_darkness",
+      "max_communication_blackout",
+      "min_sunlight_percent",
+      "min_earth_visibility_percent",
+      "min_mean_solar_disk_fraction",
+      "min_initial_sunlight",
+      "min_initial_earth_visibility"
+     ]
+    },
+    "one_hour_past_end": {
+     "data_basis": "real_terrain_aware",
+     "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+     "eligibility": "fail",
+     "end_utc": "2031-01-01T01:00:00Z",
+     "failed": [
+      "max_continuous_darkness",
+      "max_communication_blackout",
+      "min_initial_sunlight",
+      "min_initial_earth_visibility"
+     ],
+     "high_risk_indicators": [
+      "landing_in_darkness",
+      "landing_without_earth_visibility",
+      "darkness_exposure",
+      "communication_exposure",
+      "margin_headroom.min_initial_sunlight",
+      "margin_headroom.min_initial_earth_visibility"
+     ],
+     "overall_risk": "high",
+     "scenario_id": "connecting-ridge-20301218T0100-336h",
+     "score": {
+      "bounds": [
+       34.436024,
+       34.584835
+      ],
+      "score": null,
+      "status": "bounded"
+     },
+     "site": "connecting-ridge",
+     "start_utc": "2030-12-18T01:00:00Z",
+     "uncovered_h": 1.0,
+     "unknown": []
+    },
+    "starts_before_first_sample": {
+     "data_basis": "real_terrain_aware",
+     "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+     "eligibility": "unknown",
+     "end_utc": "2026-01-06T00:00:00Z",
+     "failed": [],
+     "high_risk_indicators": [],
+     "overall_risk": "unknown",
+     "scenario_id": "connecting-ridge-20251230T0000-168h",
+     "score": {
+      "bounds": null,
+      "score": null,
+      "status": "eligibility_unknown"
+     },
+     "site": "connecting-ridge",
+     "start_utc": "2025-12-30T00:00:00Z",
+     "uncovered_h": 48.0,
+     "unknown": [
+      "min_initial_sunlight",
+      "min_initial_earth_visibility"
+     ]
+    }
+   }
+  },
+  {
+   "name": "sampling_policy",
+   "category": "sampling-policy agreement and disagreement",
+   "synthetic": false,
+   "passed": true,
+   "check_count": 4,
+   "failed_checks": [],
+   "inputs": {
+    "agree": {
+     "days": 14,
+     "site": "malapert-massif",
+     "start_utc": "2027-07-20T00:00:00Z"
+    },
+    "alternate": "nearest_sample",
+    "baseline": "sample_hold",
+    "disagree": {
+     "days": 14,
+     "site": "malapert-massif",
+     "start_utc": "2027-07-20T14:00:00Z"
+    }
+   },
+   "outcome": {
+    "agree": {
+     "eligibility": [
+      "pass",
+      "pass"
+     ],
+     "summary": "Verdict unchanged under the two tested sampling methods: PASS under both, with the same status for every configured constraint.",
+     "verdict": "unchanged"
+    },
+    "disagree": {
+     "changed_constraints": [
+      "max_continuous_darkness"
+     ],
+     "eligibility": [
+      "pass",
+      "fail"
+     ],
+     "statements": [
+      "Maximum continuous power-darkness: PASS under sample-and-hold, FAIL under nearest-sample (threshold 50 h; measured 50 h (sample-and-hold) vs 50.5 h (nearest-sample), a difference of +0.5 h).",
+      "Longest power-dark period: 50 h (sample-and-hold) vs 50.5 h (nearest-sample), a difference of +0.5 h.",
+      "Longest period without direct sunlight: 29 h under both methods.",
+      "Longest communication blackout: 0 h under both methods."
+     ],
+     "summary": "Verdict changes depending on how the hourly measurements are interpreted: PASS under sample-and-hold (engine default) but FAIL under nearest-sample.",
+     "verdict": "changed"
+    }
+   }
+  }
+ ],
+ "invariants": [
+  {
+   "name": "stricter operational limits never improve the corresponding constraint or eligibility",
+   "passed": true,
+   "detail": "176 tightened evaluations; no improvement found"
+  },
+  {
+   "name": "missing data never creates certainty (decided-with-gap == full-data result; bounds contain it)",
+   "passed": true,
+   "detail": "22 missions with a 24 h gap; 149 decided constraints and 464 bounded metrics compared; all consistent"
+  },
+  {
+   "name": "preference-weight changes never alter eligibility, constraints, metrics, margins or risk",
+   "passed": true,
+   "detail": "88 reweighted evaluations; identical"
+  },
+  {
+   "name": "explanation generation never changes the underlying calculations",
+   "passed": true,
+   "detail": "22 missions; identical"
+  },
+  {
+   "name": "ranking is deterministic regardless of input order",
+   "passed": true,
+   "detail": "720 permutations of 6 assessments (eligibility tiers ['fail', 'pass', 'unknown']); order r0-malapert-massif(1) > r1-connecting-ridge(2) > r2-peak-near-shackleton(3) > r4-connecting-ridge(None) > r5-connecting-ridge(None) > r3-connecting-ridge(None)"
+  }
+ ],
+ "datasets": [
+  {
+   "site_id": "apollo-11",
+   "file": "data/sites/apollo-11.json",
+   "sha256": "335fdcee77d8249f0f0d96657b3c044eb4fdd63247b4bbf0bbd367755a28b84b",
+   "current_sha256": "335fdcee77d8249f0f0d96657b3c044eb4fdd63247b4bbf0bbd367755a28b84b",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "apollo-12",
+   "file": "data/sites/apollo-12.json",
+   "sha256": "70dec369a7f4c499715859748cd6843cea5c3eee8aa88f1c01ede9489ca62cfd",
+   "current_sha256": "70dec369a7f4c499715859748cd6843cea5c3eee8aa88f1c01ede9489ca62cfd",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "apollo-14",
+   "file": "data/sites/apollo-14.json",
+   "sha256": "262ad0790611efe559045b2d73b95824d1d868b3e33ea87e10897f3ff2821462",
+   "current_sha256": "262ad0790611efe559045b2d73b95824d1d868b3e33ea87e10897f3ff2821462",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "apollo-15",
+   "file": "data/sites/apollo-15.json",
+   "sha256": "015eb9292d0ac38f04933cd81561c1d28d48012e066e8201ac12e4ab49b699ec",
+   "current_sha256": "015eb9292d0ac38f04933cd81561c1d28d48012e066e8201ac12e4ab49b699ec",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "apollo-16",
+   "file": "data/sites/apollo-16.json",
+   "sha256": "f01cf95cf0d415976c11478b9b199792cdd988de76256edc10adfd7e7959872d",
+   "current_sha256": "f01cf95cf0d415976c11478b9b199792cdd988de76256edc10adfd7e7959872d",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "apollo-17",
+   "file": "data/sites/apollo-17.json",
+   "sha256": "4ac55a88f7ff61c5a0e1b843d82401f0f4b17b36ff957f1a0bc94c8d758a9c39",
+   "current_sha256": "4ac55a88f7ff61c5a0e1b843d82401f0f4b17b36ff957f1a0bc94c8d758a9c39",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "blue-ghost-1",
+   "file": "data/sites/blue-ghost-1.json",
+   "sha256": "d58c96ce8ae996c22bcbbd4e88c069ce8ef20cfb68f70d6c42d9c0d538556507",
+   "current_sha256": "d58c96ce8ae996c22bcbbd4e88c069ce8ef20cfb68f70d6c42d9c0d538556507",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "chandrayaan-3",
+   "file": "data/sites/chandrayaan-3.json",
+   "sha256": "df232eb6c01f1cecf99a58b27effa458a196de3b3c1227750535fc30cb575cfe",
+   "current_sha256": "df232eb6c01f1cecf99a58b27effa458a196de3b3c1227750535fc30cb575cfe",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "change-3",
+   "file": "data/sites/change-3.json",
+   "sha256": "32f3599bc143aa0017898e20afaefacdff206d84e6e4a6874ebb6c18f66ae16b",
+   "current_sha256": "32f3599bc143aa0017898e20afaefacdff206d84e6e4a6874ebb6c18f66ae16b",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "change-4",
+   "file": "data/sites/change-4.json",
+   "sha256": "5d968bb1410ddfaddb21a1ad73c1364061e1e3d9eaeeff56bf3bf84dcf88924a",
+   "current_sha256": "5d968bb1410ddfaddb21a1ad73c1364061e1e3d9eaeeff56bf3bf84dcf88924a",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "change-5",
+   "file": "data/sites/change-5.json",
+   "sha256": "2d74ef907de144be4ebc9cc511b7b5b8fb80c8a80e7b100074f1c093ce8b005e",
+   "current_sha256": "2d74ef907de144be4ebc9cc511b7b5b8fb80c8a80e7b100074f1c093ce8b005e",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "change-6",
+   "file": "data/sites/change-6.json",
+   "sha256": "72620410c1725f12e4226a6765597e620e0fe26eafa82c6ae8b96d05fb0e53aa",
+   "current_sha256": "72620410c1725f12e4226a6765597e620e0fe26eafa82c6ae8b96d05fb0e53aa",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "connecting-ridge",
+   "file": "data/sites/connecting-ridge.json",
+   "sha256": "e4133d3414f3125623ce2b23401f12f873155a0d714452b147e2271a5ed29c1e",
+   "current_sha256": "e4133d3414f3125623ce2b23401f12f873155a0d714452b147e2271a5ed29c1e",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "de-gerlache-rim",
+   "file": "data/sites/de-gerlache-rim.json",
+   "sha256": "6bb41e568518e85c4bb5d0149388e9f84074369f08f83dbfe534ec1a4555a2b2",
+   "current_sha256": "6bb41e568518e85c4bb5d0149388e9f84074369f08f83dbfe534ec1a4555a2b2",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "faustini-rim-a",
+   "file": "data/sites/faustini-rim-a.json",
+   "sha256": "4dcce379a363286cfc4afdf1843077c5edad632b2c748f2192dcf3efea898065",
+   "current_sha256": "4dcce379a363286cfc4afdf1843077c5edad632b2c748f2192dcf3efea898065",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "haworth-rim",
+   "file": "data/sites/haworth-rim.json",
+   "sha256": "b6556259e4b9be716edf1acec0d53d5c5d78b2beb34c503c26818438c04faa2b",
+   "current_sha256": "b6556259e4b9be716edf1acec0d53d5c5d78b2beb34c503c26818438c04faa2b",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "im-1-odysseus",
+   "file": "data/sites/im-1-odysseus.json",
+   "sha256": "6f5be1180d0270349d1125497745d606d2d1c413b8207d3be064668da43870e3",
+   "current_sha256": "6f5be1180d0270349d1125497745d606d2d1c413b8207d3be064668da43870e3",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "im-2-athena",
+   "file": "data/sites/im-2-athena.json",
+   "sha256": "534f0040e4c443119b8a9659aaa6eb7127b9bad502199b88402bf0e82c247afa",
+   "current_sha256": "534f0040e4c443119b8a9659aaa6eb7127b9bad502199b88402bf0e82c247afa",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "malapert-massif",
+   "file": "data/sites/malapert-massif.json",
+   "sha256": "9ebfa3157cc934ccce2778729e3dae82a07c0c1a37f2ee9323ddd757ac192d4a",
+   "current_sha256": "9ebfa3157cc934ccce2778729e3dae82a07c0c1a37f2ee9323ddd757ac192d4a",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "mons-mouton",
+   "file": "data/sites/mons-mouton.json",
+   "sha256": "0d915a2f3bae215afca22a28e5ef783d40012d5efa2e02f3e7fdf65270e63a56",
+   "current_sha256": "0d915a2f3bae215afca22a28e5ef783d40012d5efa2e02f3e7fdf65270e63a56",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "nobile-rim-1",
+   "file": "data/sites/nobile-rim-1.json",
+   "sha256": "4eafb0f1271846c58cbe4246bb5f342d003921fae66fb8dc152b03f39001389a",
+   "current_sha256": "4eafb0f1271846c58cbe4246bb5f342d003921fae66fb8dc152b03f39001389a",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "peak-near-shackleton",
+   "file": "data/sites/peak-near-shackleton.json",
+   "sha256": "2fbaecab5cc372c8ec2365c9c435b460dc4b96eaf3a196c80f67ba2e23477eb5",
+   "current_sha256": "2fbaecab5cc372c8ec2365c9c435b460dc4b96eaf3a196c80f67ba2e23477eb5",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "shackleton-floor",
+   "file": "data/sites/shackleton-floor.json",
+   "sha256": "796b0d5cba8532db6dfccb186c0a9660d262bdaaa480e480552a1bcf5798c56a",
+   "current_sha256": "796b0d5cba8532db6dfccb186c0a9660d262bdaaa480e480552a1bcf5798c56a",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  },
+  {
+   "site_id": "slim",
+   "file": "data/sites/slim.json",
+   "sha256": "c6e32f3fbe12fbb6e4d624dc3c3fdbbe2d6a6287c45504a23fc0ed4adf166777",
+   "current_sha256": "c6e32f3fbe12fbb6e4d624dc3c3fdbbe2d6a6287c45504a23fc0ed4adf166777",
+   "unchanged": true,
+   "is_synthetic": false,
+   "calculation_basis": "terrain_aware",
+   "coverage_start_utc": "2026-01-01T00:00:00Z",
+   "coverage_end_utc": "2031-01-01T00:00:00Z",
+   "sample_count": 43825
+  }
+ ],
+ "standard_lander": {
+  "blackout_h": 96.0,
+  "dark_h": 50.0,
+  "min_earth_percent": 40.0,
+  "min_initial_earth_h": 12.0,
+  "min_initial_sun_h": 24.0,
+  "min_mean_disk_fraction": 0.5,
+  "min_sunlight_percent": 50.0,
+  "panel_threshold": 0.25
+ },
+ "timing": {
+  "evaluate_scenario_median_ms": 3.349000000525848,
+  "evaluate_scenario_p95_ms": 5.733599999075523,
+  "evaluate_scenario_workload": "200 x 14-day missions at malapert-massif, landings every 37 h from 2027-01-01, standard lander, on the prepared series (full pipeline incl. explanations)",
+  "data_load_total_s": 35.55513829998745,
+  "data_prepare_total_s": 2.522573199996259,
+  "machine": {
+   "cpu_count": 22,
+   "implementation": "CPython",
+   "machine": "AMD64",
+   "numpy": "2.5.4",
+   "platform": "Windows-11-10.0.26200-SP0",
+   "processor": "Intel64 Family 6 Model 170 Stepping 4, GenuineIntel",
+   "pydantic": "2.14.3",
+   "python": "3.14.10"
+  }
+ },
+ "limitations": [
+  "Solar illumination is not electrical power generation; array orientation, efficiency, temperature, dust and power-system design are not modelled.",
+  "Earth line of sight is not guaranteed radio connectivity; antenna pointing, link budget, ground-station availability and interference are not modelled.",
+  "Viability covers illumination and direct-to-Earth line of sight under the stated constraints only; it is not an assessment of landing safety (slopes, hazards, terrain).",
+  "Terrain-aware results inherit the resolution and accuracy of the elevation model and horizon calculation; geometric-only results ignore terrain entirely.",
+  "Sampled time series can miss events shorter than the sampling interval."
+ ]
+}
