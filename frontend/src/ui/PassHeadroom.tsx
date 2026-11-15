@@ -168,28 +168,28 @@ export function PassHeadroom({
         )}
       >
         <div className="min-w-0">
-          <dt className={cx('text-micro uppercase tracking-wider', muted)}>Darkness headroom</dt>
+          <dt className={cx('text-micro', muted)}>Darkness headroom</dt>
           <dd className={cx('nums font-medium leading-snug', primary)}>
             {fmtItemLine(headroom.darkness)}
           </dd>
         </div>
 
         <div className="min-w-0">
-          <dt className={cx('text-micro uppercase tracking-wider', muted)}>Comms-blackout headroom</dt>
+          <dt className={cx('text-micro', muted)}>Comms-blackout headroom</dt>
           <dd className={cx('nums font-medium leading-snug', primary)}>
             {fmtItemLine(headroom.communication_blackout)}
           </dd>
         </div>
 
         <div className="min-w-0">
-          <dt className={cx('text-micro uppercase tracking-wider', muted)}>Initial illumination</dt>
+          <dt className={cx('text-micro', muted)}>Initial illumination</dt>
           <dd className={cx('nums leading-snug', secondary)}>
             {headroom.initial_sunlight.summary_text}
           </dd>
         </div>
 
         <div className="min-w-0">
-          <dt className={cx('text-micro uppercase tracking-wider', muted)}>Initial Earth contact</dt>
+          <dt className={cx('text-micro', muted)}>Initial Earth contact</dt>
           <dd className={cx('nums leading-snug', secondary)}>
             {headroom.initial_earth.summary_text}
           </dd>
@@ -197,7 +197,7 @@ export function PassHeadroom({
 
         {headroom.closest_constraint && (
           <div className={cx('min-w-0', !compact && 'sm:col-span-2')}>
-            <dt className={cx('text-micro uppercase tracking-wider', muted)}>Closest requirement to limit</dt>
+            <dt className={cx('text-micro', muted)}>Closest requirement to limit</dt>
             <dd className={cx('nums font-medium leading-snug', palette.title)}>
               {headroom.closest_constraint.summary_text}
             </dd>

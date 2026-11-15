@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import { fmtWhen } from './missionTime'
 import type { CardValue, MetricRow, ReportCard, Status } from './reportCard'
 import {
-  COLORS, ELIGIBILITY_SHORT, FIG, PAGE_COUNT, SECTIONS, barGeometry, outcomeGeometry, reportFigures, sectionNumber,
+  COLORS, ELIGIBILITY_SHORT, FIG, PAGE_COUNT, SECTIONS, barGeometry, figurePlanKey, outcomeGeometry, reportFigures, sectionNumber,
   type BarFigure, type OutcomeFigure, type SectionId,
 } from './reportLayout'
 import './reportCard.css'
@@ -141,6 +141,7 @@ function OutcomeChart({ f }: { f: OutcomeFigure }) {
 function Figures({ card }: { card: ReportCard }) {
   return (
     <div className="rc-figures">
+      <p className="rc-note">{figurePlanKey(card)}</p>
       {reportFigures(card).map((f) => (
         <figure key={f.number} className="rc-figure">
           {f.kind === 'bars' ? <BarChart f={f} /> : <OutcomeChart f={f} />}

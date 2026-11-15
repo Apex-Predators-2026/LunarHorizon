@@ -2,10 +2,10 @@
 import { useId, useRef, useState } from 'react'
 
 import { routeHash } from '../../appRoute'
-import { fmtUtc } from '../rescue/format'
+import { PlanActionButton, PlanCardHeading, PlanCardLayout } from '../plans/PlanCardLayout'
+import { editSavedPlan } from '../plans/usePlansStore'
 import { MAX_COMPARED } from './palette'
 import { RescueImport } from './RescueImport'
-import { ScenarioEditor } from './ScenarioEditor'
 import { fmtDate, shiftIso } from './scenario'
 import type { ComparisonScenario } from './types'
 import { ScenarioChip, btn, btnPrimary, btnQuiet, input } from './ui'
@@ -129,26 +129,22 @@ function ScenarioRow({ s }: { s: ComparisonScenario }) {
   const full = !selected && st.selectedIds.length >= MAX_COMPARED
   const active = st.activeId === s.id
   return (
-    <li className={`relative rounded-lg border px-3 py-2 transition ${active ? 'border-cyan-600/80 bg-cyan-950/20' : selected ? 'border-line-strong bg-surface' : 'border-line bg-surface'}`}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2" title={full ? `At most ${MAX_COMPARED} plans can be compared at once` : ''}>
-          <input type="checkbox" checked={selected} disabled={full} onChange={() => st.toggleSelected(s.id)}
-            className="h-4 w-4" aria-label={`Compare plan ${s.label}`} />
+    <PlanCardLayout name={s.name} active={active}>
+      <div className="flex items-start justify-between gap-2">
+        <PlanCardHeading name={s.name} scenario={s} />
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
           {selected ? <ScenarioChip s={s} /> : <span className="grid h-5 min-w-5 place-items-center rounded bg-slate-700 px-1 text-xs font-medium text-slate-300">{s.label}</span>}
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-medium text-slate-100">{s.name}</span>
-            <span className="block truncate text-[11px] text-slate-400">
-              {s.site.lat.toFixed(3)}°, {s.site.lon.toFixed(3)}°E · {fmtUtc(s.landing_utc)} · {s.duration_days} d
-              <span className="ml-1.5 rounded bg-slate-800 px-1 text-[11px] text-slate-400">{ORIGIN_LABEL[s.origin]}</span>
-              {st.baselineId === s.id && <span className="ml-1.5 rounded bg-cyan-900/70 px-1 text-[11px] text-cyan-200">baseline</span>}
-            </span>
-          </span>
+          <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[11px] text-slate-300">{ORIGIN_LABEL[s.origin]}</span>
+          {st.baselineId === s.id && <span className="rounded-full bg-cyan-900/70 px-2 py-0.5 text-[11px] text-cyan-200">Baseline</span>}
+        </div>
+      </div>
+      <div className="plan-card-actions mt-2 flex flex-wrap items-center justify-between gap-2">
+        <label className="flex items-center gap-3 text-xs text-slate-400" title={full ? `At most ${MAX_COMPARED} plans can be compared at once` : ''}>
+          <input type="checkbox" checked={selected} disabled={full} onChange={() => st.toggleSelected(s.id)}
+            aria-label={`Compare plan ${s.label}`} />
+          Compare
         </label>
         <div className="flex flex-wrap gap-1">
-          <button type="button" className={btnQuiet} aria-pressed={active} onClick={() => st.setActive(active ? null : s.id)}>
-            {active ? 'Close' : 'Edit'}
-          </button>
-          <button type="button" className={btnQuiet} onClick={() => st.duplicateScenario(s.id)}>Duplicate</button>
           <div className="relative">
             <button type="button" className={btnQuiet} aria-expanded={menu} aria-haspopup="menu" onClick={() => setMenu(!menu)}>
               Duplicate &amp; shift date ▾
@@ -160,14 +156,14 @@ function ScenarioRow({ s }: { s: ComparisonScenario }) {
             onClick={() => st.setBaseline(st.baselineId === s.id ? null : s.id)}>
             {st.baselineId === s.id ? 'Unset baseline' : 'Set baseline'}
           </button>
-          <button type="button" className={`${btnQuiet} cmp-danger`} onClick={() => st.removeScenario(s.id)}
-            aria-label={`Remove plan ${s.label}`}>
-            Remove
-          </button>
+          <div className="flex">
+            <PlanActionButton action="edit" label={`Edit ${s.name}`} tip="Edit this plan" onClick={() => editSavedPlan(s.id)} />
+            <PlanActionButton action="duplicate" label={`Duplicate ${s.name}`} tip="Duplicate this plan" onClick={() => st.duplicateScenario(s.id)} />
+            <PlanActionButton action="remove" label={`Delete ${s.name}`} tip="Delete this plan from both views" onClick={() => st.removeScenario(s.id)} />
+          </div>
         </div>
       </div>
-      {active && <ScenarioEditor s={s} />}
-    </li>
+    </PlanCardLayout>
   )
 }
 
