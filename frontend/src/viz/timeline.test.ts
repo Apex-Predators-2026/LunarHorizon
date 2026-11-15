@@ -98,3 +98,18 @@ describe('skyXY', () => {
     expect(Math.hypot(...skyXY(45, -90, 100, 20, -20))).toBeCloseTo(100) // clamped
   })
 })
+
+describe('heldIndex (sample-and-hold, as the engine reads samples)', () => {
+  const H = 3_600_000
+  const t = [0, H, 2 * H]
+  it('shows the sample at or before the time, never a later one', async () => {
+    const { heldIndex } = await import('./timeline')
+    expect(heldIndex(t, 0)).toBe(0)
+    expect(heldIndex(t, 0.75 * H)).toBe(0) // 00:45 is still the 00:00 sample (nearest would say 01:00)
+    expect(heldIndex(t, H)).toBe(1)
+    expect(heldIndex(t, 2.5 * H)).toBe(2)
+    expect(heldIndex(t, 3 * H)).toBe(-1) // past the last sample's hour: nothing is held
+    expect(heldIndex(t, -1)).toBe(-1)
+    expect(heldIndex([0, 5 * H], 2 * H)).toBe(-1) // a data gap: no sample holds there
+  })
+})
