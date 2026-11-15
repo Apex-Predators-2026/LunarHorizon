@@ -23,6 +23,7 @@ import { LunarHorizonLogo } from './ui/LunarHorizonLogo'
 import { InfoIcon } from './ui/icons'
 import { installMangoTexture } from './ui/mangoShader'
 import { initMaterialMotion } from './viz/materialMotion'
+import { TooltipHost } from './viz/TooltipHost'
 import { UiHiddenNotice } from './viz/UiHiddenNotice'
 import { useUiPrefs } from './viz/uiPrefs'
 import { Scene } from './viz/Scene'
@@ -77,7 +78,7 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
 
   return (
     <div className="pointer-events-none flex flex-wrap items-center gap-x-[clamp(16px,3vw,44px)] gap-y-1">
-      <a href="#" title="Back to the project page" className="pointer-events-auto shrink-0">
+      <a href="#" aria-label="Lunar Horizon Site Navigator: back to the project page" data-tip="Back to the project page" className="pointer-events-auto shrink-0">
         <LunarHorizonLogo className={`block h-auto ${view === 'planner' ? 'w-[clamp(176px,20vw,240px)]' : 'w-[clamp(144px,15vw,178px)]'}`} />
       </a>
       <nav ref={navRef} aria-label="Main" className="pointer-events-auto relative flex gap-[clamp(14px,2vw,32px)] pb-1">
@@ -90,7 +91,7 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
             type="button"
             data-tour={v.id === 'compare' ? 'nav-compare' : undefined}
             aria-label={v.id === 'method' ? v.label : undefined}
-            title={v.id === 'method' ? v.label : undefined}
+            data-tip={v.id === 'method' ? 'Methodology: data sources, validation and model assumptions' : undefined}
             aria-current={view === v.id ? 'page' : undefined}
             onClick={() => {
               if (v.id === 'compare') useTutorialStore.getState().recordInteraction('compare-open')
@@ -174,6 +175,8 @@ export default function App() {
   return (
     <div className="relative h-full overflow-hidden bg-black" data-ui-hidden={uiHidden && !pageView}>
       <UiHiddenNotice />
+      {/* One tooltip host for every view: data-tip labels on Comparison, Atlas and Methodology need it too. */}
+      <TooltipHost />
       {/* The header is rendered once for both pages (floating over the 3D view, or above the comparison). */}
       <GlassDefs />
       <header className={`ui-chrome md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${pageView ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>

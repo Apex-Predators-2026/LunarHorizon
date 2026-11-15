@@ -50,7 +50,6 @@ import { useMissionPlayback } from './useMissionPlayback'
 import { SnackbarHost } from './Snackbar'
 import { TerrainLoadingOverlay, TerrainProgressBar } from './TerrainProgress'
 import { CoverageBadge } from './CoverageBadge'
-import { TooltipHost } from './TooltipHost'
 import { TUTORIAL_STEPS, useTutorialStore } from '../features/tutorial'
 import { showSnackbar } from './snackbarStore'
 import { playBubblePop, playBubbleRemove } from './sfx'
@@ -822,7 +821,6 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
       >
         <SnackbarHost />
         <TerrainLoadingOverlay />
-        <TooltipHost />
         <div
           className="pointer-events-none absolute bottom-2 right-[4vw] flex flex-col items-end gap-2 text-[10px] tabular-nums text-white"
           style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
