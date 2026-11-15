@@ -110,6 +110,16 @@
   color: #1f2326;
 }
 .lnd .lnd-btn-nav:hover { background: #ff7a64; }
+/* The hero's secondary action: same height as the primary, quiet so the primary leads. */
+.lnd .lnd-btn-quiet {
+  height: 72px;
+  padding-inline: 32px;
+  font-size: 21px;
+  color: var(--lnd-on-dark, #fff);
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32);
+}
+.lnd .lnd-btn-quiet:hover { background: rgba(255, 255, 255, 0.08); }
 
 /* ---- Header: transparent over the hero photograph, frosted once the page scrolls. ---- */
 .lnd-nav { position: fixed; inset: 0 0 auto; z-index: 40; }
