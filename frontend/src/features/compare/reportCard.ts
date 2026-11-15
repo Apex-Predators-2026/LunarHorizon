@@ -438,8 +438,8 @@ function executiveSummary(card: Omit<ReportCard, 'executive_summary' | 'key_find
 export const NASA_SOURCES = [
   'NASA JPL Horizons System: apparent Sun and Earth azimuth and elevation from each site (CENTER=coord@301), precomputed hourly.',
   'NASA Moon Trek / LRO LOLA digital elevation models: terrain horizons in 720 directions with lunar curvature (5 m to 200 m resolution, out to 300 km).',
-  'NASA LROC Quickmap WAC_POLE_ILL_TWI_SOUTH: empirical illumination used to validate the sunlight model.',
-  'Validation reference: Gracy & Lee, LPSC 2024 (south-polar illumination of Connecting Ridge and Peak Near Shackleton).',
+  'NASA LROC Quickmap WAC_POLE_ILL_TWI_SOUTH: orbital illumination map the sunlight model is compared with, site by site (see Validation & methodology).',
+  'Gracy & Lee, LPSC 2024: source of the Connecting Ridge and Peak Near Shackleton coordinates. It locates those two sites; it is not a validation of this model.',
 ]
 
 export const DISCLAIMER = 'This report summarizes the Lunar Landing Site Navigator\'s modelled results for the selected scenarios and mission requirements, as computed at the time shown. It is a planning aid: it is not an official NASA mission approval, certification or guarantee of operational safety. Geometric sunlight and Earth line of sight are not power or radio-link budgets.'

@@ -108,6 +108,59 @@ def test_unknown_samples_stay_unknown(monkeypatch):
         assert r["ranking"]["rank"] is None and r["ranking"]["score"] is None
 
 
+def _unknown_window_site(monkeypatch, start, hours, keep=()):
+    """Malapert with Sun and Earth state unknown for `hours` hours from `start`, except the hour offsets in `keep`."""
+    real = store.get_site("malapert-massif")
+
+    class Patched:
+        def __init__(self, d):
+            self.record, self.site, self.times = d.record, d.site, d.times
+            self.cols = {k: np.array(v, copy=True) for k, v in d.cols.items()}
+            self.known = {k: np.array(v, copy=True) for k, v in d.known.items()}
+            i0 = int(np.searchsorted(d.times, np.datetime64(start)))
+            for off in range(hours):
+                if off in keep:
+                    continue
+                for col in ("sun_horizon_deg", "earth_horizon_deg", "sun_visible_fraction", "earth_margin_deg"):
+                    self.cols[col][i0 + off] = np.nan
+                self.known["sun_visible"][i0 + off] = False
+                self.known["earth_visible"][i0 + off] = False
+
+    patched = Patched(real)
+    monkeypatch.setattr(service, "_site_record", lambda sid: patched if sid == "malapert-massif" else store.get_site(sid))
+
+
+def test_one_isolated_known_hour_cannot_prove_a_pass_or_invent_the_rest(monkeypatch):
+    # 167 of the 168 mission hours unknown, one known hour in the middle: the isolated sample is reported as exactly
+    # that, nothing around it is invented, and the verdict is not a PASS (the bounds cannot prove it).
+    _unknown_window_site(monkeypatch, "2027-01-15T00:00:00", 168, keep={80})
+    r = _post(("m", MAL))["m"]
+    assert r["status"] == "ok"
+    assert r["sun_known_hours"] == pytest.approx(1) and r["earth_known_hours"] == pytest.approx(1)
+    assert r["solar"] is None and r["earth"] is None and r["power"] is None  # whole-mission figures withheld, not computed from one hour
+    for w in r["dark_windows"] + r["blackout_windows"]:  # a window cannot reach out from the isolated hour into the unknown
+        assert (w["end_utc"] > w["start_utc"]) and w["duration_hours"] <= 1.0001, w
+    a = r["assessment"]
+    assert a["metrics"]["sunlight_percent"]["status"] in ("bounded", "unavailable")
+    assert r["ranking"]["eligibility"] in ("unknown", "fail")
+    assert r["ranking"]["rank"] is None and r["ranking"]["score"] is None
+    assert not any(isinstance(v, float) and math.isnan(v) for v in r["timeline"]["sun_visible_fraction"] if v is not None)
+
+
+def test_a_mission_window_with_no_known_data_is_unknown_not_fail_not_zero(monkeypatch):
+    _unknown_window_site(monkeypatch, "2027-01-15T00:00:00", 168)
+    r = _post(("m", MAL))["m"]
+    assert r["status"] == "ok"
+    assert r["sun_known_hours"] == 0 and r["earth_known_hours"] == 0
+    assert r["ranking"]["eligibility"] == "unknown" and r["ranking"]["rank"] is None and r["ranking"]["score"] is None
+    assert r["dark_windows"] == [] and r["blackout_windows"] == []  # no darkness or blackout is claimed over unknown time
+    a = r["assessment"]
+    for name, m in a["metrics"].items():
+        if name == "mean_solar_elevation_deg":  # an ephemeris quantity: it does not depend on the terrain state that is unknown here
+            continue
+        assert m["status"] == "unavailable" and m["value"] is None, name  # never an exact 0 or a bound from nothing
+
+
 def test_custom_site_source_points_at_its_file(monkeypatch):
     assert service._source_path("malapert-massif") == "malapert-massif.json"
     fake = store.CUSTOM_DIR / "custom_x.json"
