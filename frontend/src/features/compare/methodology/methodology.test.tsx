@@ -1,15 +1,17 @@
-// Scenario Comparison methodology: the compact intro sits last on the comparison page, the subpage is a
-// secondary route of the comparison (the main navigation is unchanged), and its figures use the engine's rules.
+// Plan Comparison methodology: a single button sits last on the comparison page, the subpage is a secondary
+// route of the comparison built from its own pieces (the main navigation is unchanged), and its figures use the
+// engine's rules.
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
 import { COMPARE_METHODOLOGY, parseRoute, routeHash } from '../../../appRoute'
 import { ComparisonDashboard } from '../ComparisonDashboard'
 import { METRICS } from '../analysis'
-import { ComparisonMethodology } from './ComparisonMethodology'
+import { ComparisonMethodology, LimitsTab } from './ComparisonMethodology'
 import { PipelineStepper, SunDiskExplorer, VerdictExplorer } from './MethodologyFigures'
 import {
-  curvatureDropM, decide, eligibility, horizonAngleDeg, METHODOLOGY_INTRO_ID, PIPELINE, SUN_RADIUS_DEG, visibleSunFraction,
+  curvatureDropM, decide, eligibility, horizonAngleDeg, METHODOLOGY_INTRO_ID, METHODOLOGY_TABS, PIPELINE, SUN_RADIUS_DEG,
+  visibleSunFraction, type MethodologyTab,
 } from './methodology'
 
 describe('methodology route', () => {
@@ -23,13 +25,16 @@ describe('methodology route', () => {
 })
 
 describe('comparison page', () => {
-  it('ends with the compact "How This Analysis Was Built" section', () => {
+  it('ends with a single Explore Methodology button and no other methodology content', () => {
     const html = renderToString(<ComparisonDashboard />)
-    const intro = html.indexOf('How This Analysis Was Built')
-    expect(intro).toBeGreaterThan(-1)
-    expect(html).toContain('Explore Methodology')
-    // After every comparison block (here the empty state) and before nothing else of the page's content.
-    expect(intro).toBeGreaterThan(html.indexOf('Select at least two plans'))
+    const start = html.indexOf(`id="${METHODOLOGY_INTRO_ID}"`)
+    expect(start).toBeGreaterThan(html.indexOf('Select at least two plans')) // after every comparison block
+    const bottom = html.slice(start, html.indexOf('</div>', start) + 6)
+    expect(bottom).toContain('Explore Methodology')
+    expect(bottom.match(/<button/g)).toHaveLength(1)
+    expect(bottom).not.toMatch(/<(p|h2|h3|ul|li|section)[\s>]/)
+    expect(html).not.toContain('How This Analysis Was Built')
+    expect(html).not.toContain('Data sources and assumptions')
     expect(html).not.toContain('Back to Plan Comparison')
   })
 
@@ -42,33 +47,56 @@ describe('comparison page', () => {
   })
 })
 
-describe('subpage content', () => {
+describe('subpage layout', () => {
   const html = renderToString(<ComparisonMethodology />)
+
+  it('uses the comparison’s header, glass view bar and Section cards', () => {
+    expect(html).toContain('How This Analysis Was Built')
+    expect(html).toContain('aria-label="Methodology views"')
+    for (const t of METHODOLOGY_TABS) expect(html).toContain(`>${t.label.replace('&', '&amp;')}</button>`)
+    expect(html).toContain('cmp-section')
+    expect(html).not.toMatch(/cmp-method-(hero|part|toc|intro|chip)|cmp-kicker/)
+  })
+
+  it('has a back button in the header and at the end, and leads on to the next view', () => {
+    expect(html.match(/Back to Plan Comparison/g)?.length).toBe(2)
+    expect(html.replace(/<!-- -->/g, '')).toContain(`Next: ${METHODOLOGY_TABS[1].label.replace('&', '&amp;')}`)
+    const last = renderToString(<ComparisonMethodology initialTab="limits" />)
+    expect(last).not.toContain('Next:')
+  })
+})
+
+describe('subpage content', () => {
+  const view = (tab: MethodologyTab) => renderToString(<ComparisonMethodology initialTab={tab} />)
+  const all = METHODOLOGY_TABS.map((t) => view(t.id)).join('')
 
   it('covers models, data, calculations, assumptions, criteria and implementation', () => {
     for (const heading of ['Data sources', 'Models', 'Calculations', 'Evaluation criteria', 'Assumptions and limitations', 'Technical implementation'])
-      expect(html).toContain(heading)
+      expect(all).toContain(heading)
     for (const source of ['NASA JPL Horizons', 'LRO LOLA', 'LROC QuickMap', 'Gracy &amp; Lee'])
-      expect(html).toContain(source)
+      expect(all).toContain(source)
   })
 
   it('names Gracy & Lee as the site coordinates source, not a validation of this model', () => {
-    expect(html).toContain('Site coordinates source')
-    expect(html).not.toContain('Published benchmark')
-    expect(html).toMatch(/not a validation of this model/)
+    expect(all).toContain('Site coordinates source')
+    expect(all).not.toContain('Published benchmark')
+    expect(all).toMatch(/not a validation of this model/)
   })
 
   it('lists every metric the comparison table shows, from the same definitions', () => {
     const solar = METRICS.filter((m) => m.group === 'solar')
-    for (const m of solar) expect(html).toContain(m.label)
+    for (const m of solar) expect(view('models')).toContain(m.label)
   })
 
   it('links to the main Validation & Methodology view without adding a navigation entry', () => {
-    expect(html).toContain(`href="${routeHash('method')}"`)
+    expect(view('overview')).toContain(`href="${routeHash('method')}"`)
   })
 
-  it('has a back button at the top and at the end', () => {
-    expect(html.match(/Back to Plan Comparison/g)?.length).toBe(2)
+  it('shows the data notes of the current comparison, which used to sit at the bottom of the comparison', () => {
+    const html = renderToString(<LimitsTab notes={['Earth visibility is geometric line of sight only.']} />)
+    expect(html).toContain('For the plans you are comparing')
+    expect(html).toContain('Earth visibility is geometric line of sight only.')
+    expect(renderToString(<LimitsTab notes={[]} />)).not.toContain('For the plans you are comparing')
   })
 })
 
