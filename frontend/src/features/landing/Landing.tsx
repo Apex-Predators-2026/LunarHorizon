@@ -33,7 +33,7 @@ function OpenNavigatorButton({ onOpen }: { onOpen: () => void }) {
 /** Second action beside "Open the navigator": opens the app and starts the guided tour from its first step. */
 function GuidedTourButton({ onTour, style }: { onTour: () => void; style?: React.CSSProperties }) {
   return (
-    <button type="button" className="lnd-btn lnd-btn-nav" style={style} onClick={onTour}>
+    <button type="button" className="lnd-btn lnd-btn-quiet" style={style} onClick={onTour}>
       Take the guided tour
     </button>
   )
@@ -173,7 +173,7 @@ function MeetRover() {
         </div>
         <div className="lnd-rover-copy">
           <h2 id="rover-h">Meet Rover</h2>
-          <p className="lnd-rover-lead"><strong>Your AI-powered mission companion.</strong></p>
+          <p className="lnd-rover-lead"><strong>Plain answers about the plans you compare</strong></p>
           <p>Rover helps you make sense of your mission data. From summarizing key events to highlighting important insights, Rover turns complex mission information into clear, useful answers. Have a question? Just ask Rover.</p>
           <button type="button" className="lnd-btn lnd-rover-link" onClick={openAssistant}>
             Meet your assistant <span aria-hidden="true">→</span>
@@ -270,7 +270,6 @@ function Hero({ onOpen, onTour }: { onOpen: () => void; onTour?: () => void }) {
       <div className="lnd-scrim" aria-hidden="true" />
       <div className="lnd-hero-photo-copy">
         <div className="lnd-hero-copy">
-          <LunarHorizonLogo className="lnd-hero-logo" />
           <h1 id="lnd-title">
             {HERO.headlineLines.map((line) => (
               <span key={line} className="lnd-line">
@@ -281,7 +280,7 @@ function Hero({ onOpen, onTour }: { onOpen: () => void; onTour?: () => void }) {
           <p className="lnd-hero-lead">{HERO.lead}</p>
           <div className="lnd-hero-actions">
             <OpenNavigatorButton onOpen={onOpen} />
-            {onTour && <GuidedTourButton onTour={onTour} style={{ alignSelf: 'center' }} />}
+            {onTour && <GuidedTourButton onTour={onTour} />}
           </div>
           <div className="lnd-live-inline">
             <LiveNow idPrefix="lnd-live-inline" />
