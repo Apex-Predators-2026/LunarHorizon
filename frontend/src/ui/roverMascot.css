@@ -1,0 +1,19 @@
+.rover-mascot {
+  display: block;
+  flex-shrink: 0;
+  max-width: 100%;
+  height: auto;
+  overflow: hidden;
+  transform-origin: bottom center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rover-mascot[data-animating='true'] {
+    animation: rover-breathe 3.6s ease-in-out infinite;
+  }
+}
+
+@keyframes rover-breathe {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.016); }
+}
