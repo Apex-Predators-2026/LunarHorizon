@@ -85,7 +85,8 @@ export function ScenarioEditor({ s }: { s: ComparisonScenario }) {
           <input type="number" min={0.5} max={365} step={0.5} className={input} value={s.duration_days}
             onChange={(e) => { const v = num(e.target.value); if (v !== null && v > 0) patch({ duration_days: v }) }} />
         </Field>
-        <p className="text-[11px] text-slate-400">Start {fmtUtc(s.landing_utc)}<br />End {fmtUtc(missionEnd(s))}</p>
+        {/* These are the inputs; the evaluated window (hourly grid) is on the scenario's card once assessed. */}
+        <p className="text-[11px] text-slate-400">Requested start {fmtUtc(s.landing_utc)}<br />Requested end {fmtUtc(missionEnd(s))}</p>
         <Field label="Notes">
           <textarea className={`${input} h-14 resize-none text-xs`} value={s.notes ?? ''} onChange={(e) => patch({ notes: e.target.value })} />
         </Field>

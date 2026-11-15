@@ -9,6 +9,7 @@ import { GlassSurface } from '../../ui/GlassSurface'
 import { axisOffsets, axisOrigin, fullDomain, type Entry } from './analysis'
 import { AtAGlance } from './AtAGlance'
 import { ConditionsPanel } from './ConditionsPanel'
+import { axisPlacement, missionTime } from './missionTime'
 import { ElevationCharts } from './ElevationCharts'
 import { HorizonCompare } from './HorizonCompare'
 import { MetricsTable } from './MetricsTable'
@@ -34,6 +35,8 @@ import { TourButton, TourOffer } from './tour/TourButton'
 
 // Reading order: choose plans -> the answer -> the evidence -> when it happens -> ranking -> deeper analysis.
 const NAV = COMPARE_SECTIONS
+
+const originOf = (e: Entry) => axisPlacement(missionTime(e)).landingMs
 
 /** An M3 switch row, the same markup as the planner's layer switches (md-row + md-switch). */
 function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint: string }) {
@@ -91,9 +94,11 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   const rankingCurrent = rankingSetKey === selectionKey(selected.filter((s) => !validateScenario(s).length), allowDemo)
 
   const entries: Entry[] = useMemo(() => {
-    const offsets = axisOffsets(selected, align)
-    return selected.map((s) => {
-      const state = results[resultKey(s, allowDemo)]
+    // Results are cached by resultKey (the scenario's inputs), so an edited scenario never shows the old result.
+    const items = selected.map((s) => ({ scenario: s, state: results[resultKey(s, allowDemo)] }))
+    // The shared axis is laid out on the windows the backend evaluated (missionTime.ts).
+    const offsets = axisOffsets(items, align)
+    return items.map(({ scenario: s, state }) => {
       const result = state?.state === 'done' && state.result.status === 'ok' ? state.result : null
       // Unassessed scenarios (e.g. no data) still carry their UNKNOWN ranking entry.
       const raw = state?.state === 'done' ? state.result : null
@@ -104,13 +109,14 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
 
   const full = useMemo(() => fullDomain(entries), [entries])
   const view = useView(full)
-  const originMs = useMemo(() => axisOrigin(selected), [selected])
+  const originMs = useMemo(() => axisOrigin(entries), [entries])
   const anyData = entries.some((e) => e.result)
   const hasDemo = entries.some((e) => e.result?.data_kind === 'demonstration')
   const loading = entries.some((e) => e.state?.state === 'loading')
   const backendDown = entries.some((e) => e.state?.state === 'error' && /Backend unavailable/.test(e.state.message))
   const sameSite = selected.length > 1 && new Set(selected.map((s) => s.site.id)).size === 1
-  const differentDates = new Set(selected.map((s) => s.landing_utc)).size > 1
+  // Evaluated landings: two requests that the grid evaluates at the same hour are the same date.
+  const differentDates = new Set(entries.map((e) => originOf(e))).size > 1
 
   const timelineProps = { entries, full, view, align, originMs }
 
