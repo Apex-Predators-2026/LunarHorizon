@@ -62,7 +62,7 @@ export function AtAGlance({ entries, groups, pairs, ready, onJump }: {
       <div data-tour="compare-verdict" className="rounded-xl border border-line bg-surface p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 max-w-3xl">
-            <div className="text-[11px] font-medium uppercase tracking-wide text-ink-3">Verdict under the selected requirements</div>
+            <div className="text-[11px] font-medium text-ink-3">Verdict under the selected requirements</div>
             <p className="mt-1 text-base leading-snug text-ink">
               {!anyData ? 'Results appear once the selected plans have been assessed.'
                 : !main ? 'Updating the canonical ranking…' : main.headline}
