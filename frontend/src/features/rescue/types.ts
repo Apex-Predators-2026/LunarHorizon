@@ -140,28 +140,44 @@ export interface SensitivityRequest {
   include_synthetic?: boolean | null // simulation mode, as in SearchOptions
 }
 
+// pass/fail = decided; unknown = evaluated but real data is incomplete; not_evaluated = skipped
+export type SensitivityStatus = 'pass' | 'fail' | 'unknown' | 'not_evaluated'
+
 export interface SensitivityPoint {
   date_offset_hours: number
   distance_km: number
   bearing_deg: number | null
   lat: number
   lon: number
-  passes: boolean
+  passes: boolean // kept for compatibility: true only when status is 'pass'
   score: number | null
   failing_constraints: RequirementKey[]
+  status: SensitivityStatus
+}
+
+export interface SensitivityCounts {
+  requested: number
+  evaluated: number // passed + failed + unknown
+  skipped: number // not evaluated
+  passed: number
+  failed: number
+  unknown: number
 }
 
 export interface SensitivityResponse {
   base: ViabilityResult
-  points: SensitivityPoint[]
+  points: SensitivityPoint[] // every requested point, skipped ones included
+  counts: SensitivityCounts | null
   date_pass_rate: number | null
   position_pass_rate: number | null // null = not checked (no real data around the site)
-  safe_date_window_hours: [number, number] | null
+  safe_date_window_hours: [number, number] | null // run of tested offsets that pass; never bridges gaps
+  safe_date_window_tested: number
   score_min: number | null
   score_max: number | null
   most_sensitive_constraint: RequirementKey | null
-  skipped_points: number
-  verdict: 'robust' | 'sensitive' | 'fragile' | 'fails' | 'unknown' // unknown = no real data for the plan
+  skipped_points: number // legacy: unknown + not evaluated
+  // unknown = no real data for the plan; not_assessed = no neighbouring point could be evaluated
+  verdict: 'robust' | 'sensitive' | 'fragile' | 'fails' | 'unknown' | 'not_assessed'
   explanation: string
 }
 
