@@ -7,7 +7,7 @@
     "lat": -89.01701,
     "lon": 126.27302
    },
-   "landing_utc": "2030-03-01T00:00:00Z",
+   "landing_utc": "2032-02-05T00:00:00Z",
    "duration_days": 7.0,
    "requirements": {
     "min_sunlight_fraction": 0.5,
@@ -44,21 +44,97 @@
     "unit": "h",
     "shortfall": 168.0,
     "relative_shortfall": 1.0,
-    "message": "UNKNOWN: real data for Peak Near Shackleton covers 2027-01-01 to 2029-01-01, but this mission runs 2030-03-01 to 2030-03-08, so it can't be fully checked. Turn on simulation mode to use synthetic placeholder data instead (not real).",
+    "message": "UNKNOWN: real data for Peak Near Shackleton covers 2026-01-01 to 2031-01-01, but this mission runs 2032-02-05 to 2032-02-12, so it can't be fully checked. Turn on simulation mode to use synthetic placeholder data instead (not real).",
     "is_unknown": true
    }
   ],
   "source": "rescue-coverage-check",
   "data_source": "no-real-data"
  },
- "points": [],
+ "points": [
+  {
+   "date_offset_hours": -24.0,
+   "distance_km": 0.0,
+   "bearing_deg": null,
+   "lat": -89.01701,
+   "lon": 126.27302,
+   "passes": false,
+   "score": null,
+   "failing_constraints": [],
+   "status": "not_evaluated"
+  },
+  {
+   "date_offset_hours": 24.0,
+   "distance_km": 0.0,
+   "bearing_deg": null,
+   "lat": -89.01701,
+   "lon": 126.27302,
+   "passes": false,
+   "score": null,
+   "failing_constraints": [],
+   "status": "not_evaluated"
+  },
+  {
+   "date_offset_hours": 0.0,
+   "distance_km": 1.0,
+   "bearing_deg": 0.0,
+   "lat": -88.98403211378346,
+   "lon": 126.27302000000002,
+   "passes": false,
+   "score": null,
+   "failing_constraints": [],
+   "status": "not_evaluated"
+  },
+  {
+   "date_offset_hours": 0.0,
+   "distance_km": 1.0,
+   "bearing_deg": 90.0,
+   "lat": -89.01645702972691,
+   "lon": 128.19458389997789,
+   "passes": false,
+   "score": null,
+   "failing_constraints": [],
+   "status": "not_evaluated"
+  },
+  {
+   "date_offset_hours": 0.0,
+   "distance_km": 1.0,
+   "bearing_deg": 180.0,
+   "lat": -89.04998788621701,
+   "lon": 126.27302000000002,
+   "passes": false,
+   "score": null,
+   "failing_constraints": [],
+   "status": "not_evaluated"
+  },
+  {
+   "date_offset_hours": 0.0,
+   "distance_km": 1.0,
+   "bearing_deg": 270.0,
+   "lat": -89.01645702972691,
+   "lon": 124.35145610002215,
+   "passes": false,
+   "score": null,
+   "failing_constraints": [],
+   "status": "not_evaluated"
+  }
+ ],
+ "counts": {
+  "requested": 6,
+  "evaluated": 0,
+  "skipped": 6,
+  "passed": 0,
+  "failed": 0,
+  "unknown": 0
+ },
  "date_pass_rate": null,
  "position_pass_rate": null,
  "safe_date_window_hours": null,
+ "safe_date_window_tested": 0,
  "score_min": null,
  "score_max": null,
  "most_sensitive_constraint": null,
- "skipped_points": 32,
+ "skipped_points": 6,
  "verdict": "unknown",
- "explanation": "No real data covers this plan, so its sensitivity can't be checked. Real data for Peak Near Shackleton covers 2027-01-01 to 2029-01-01, but this mission runs 2030-03-01 to 2030-03-08, so it can't be fully checked. Turn on simulation mode to use synthetic placeholder data instead (not real)."
+ "explanation": "No real data covers this plan, so its sensitivity can't be checked. Real data for Peak Near Shackleton covers 2026-01-01 to 2031-01-01, but this mission runs 2032-02-05 to 2032-02-12, so it can't be fully checked. Turn on simulation mode to use synthetic placeholder data instead (not real)."
 }
