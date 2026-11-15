@@ -32,3 +32,24 @@ def test_example_env_file_names_the_key_but_holds_none():
 def test_instruction_explains_withheld_figures():
     system = build_messages([{"role": "user", "content": "q"}], {})[0]["content"]
     assert '"figures_withheld"' in system and "withheld, not zero" in system
+
+
+def test_instruction_covers_the_mission_report_snapshot():
+    system = build_messages([{"role": "user", "content": "q"}], {})[0]["content"]
+    for rule in ('"report" (null until the user generates one)', '"out_of_date" is true', "never from the live comparison",
+                 'Name report sections only from "report.sections"', "open the last report"):
+        assert rule in system, rule
+
+
+def test_report_is_sent_as_its_own_message_with_its_state_first():
+    q = [{"role": "user", "content": "Summarize my report."}]
+    plain = build_messages(q, {"state": "ready"})
+    assert len(plain) == 3 and "MISSION REPORT" not in plain[1]["content"]  # older pages: unchanged
+    none = build_messages(q, {"state": "ready", "report": None})
+    assert none[2]["content"].startswith("MISSION REPORT: none.")
+    fresh = build_messages(q, {"state": "ready", "report": {"snapshot_id": "rpt-1", "out_of_date": False, "plans": []}})
+    assert '"report"' not in fresh[1]["content"]  # not duplicated in the comparison context
+    assert fresh[2]["content"].startswith("MISSION REPORT: the user HAS generated") and "Status: CURRENT" in fresh[2]["content"]
+    stale = build_messages(q, {"report": {"snapshot_id": "rpt-1", "out_of_date": True}})
+    assert "Status: OUT OF DATE" in stale[2]["content"]
+    assert stale[-1] == q[-1]

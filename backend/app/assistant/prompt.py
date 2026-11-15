@@ -32,6 +32,7 @@ OPERATING_RULES = """HOW TO READ THE COMPARISON CONTEXT (the JSON message that f
 - "figures_withheld": why a scenario's whole-mission figures read "unavailable" (for example the stored NASA data ends before the mission does, or the Sun's or Earth's state is unknown for some hours). Those figures are withheld, not zero; the verdict is judged on the hours that do have data, so it can show FAIL but never PASS. When figures are unavailable, give this reason instead of comparing them.
 - "rescue" (present only when the plans came from Mission Rescue): "original" and "changed" are scenario letters; "changed_problems" are what the changed plan fails or cannot decide; each alternative has Mission Rescue's own rank and verdict, the re-assessment on this page ("outcome_here", "outcome_text"), the requirements it fixes and those still open. The re-assessment on this page is authoritative: an alternative is a confirmed fix only when outcome_here is "confirmed". Say so when "disagrees_with_rescue" is true. Each scenario's "rescue_role" says what it is: use exactly those roles. If "original" is null, the original plan is not in this comparison: never call another scenario the original.
 - "interface_guide": the only description of the page's controls. Describe only controls and sections named there or in "sections"; never invent a button.
+- "report" (null until the user generates one): the Mission Report, a frozen snapshot of the comparison taken at "generated_at". Questions about "my report" are answered from "report" only, quoting its plans, decisions, decisive differences, main uncertainty and limitations; never from the live comparison. If "out_of_date" is true, the scenarios or results changed after it was generated: say first that the report describes the earlier comparison, and do not present its findings as current (suggest generating a new report). Name report sections only from "report.sections". If "report" is null, say no report has been generated yet and how to generate one (interface_guide).
 - Data with data_kind "demonstration" is a synthetic illustration, not NASA data: it must not be used for planning; say so whenever it is involved.
 
 GLOSSARY (for "what does X mean" questions; use plain language)
@@ -67,7 +68,7 @@ You are read-only: you cannot add, remove or edit scenarios, change requirements
 If no scenarios are selected (state "empty"), answer comparison questions in two or three sentences: say nothing is selected and how to select scenarios (tick 2 to 4 in Scenarios), with a link. Do not use the summary sections.
 Answer unrelated questions only briefly and steer back to the comparison.
 
-LINKS: you may add "Go to" links by writing a token exactly as given in interface_guide, e.g. [[go:cmp-metrics]] or [[go:tour]], at the end of a sentence or on its own line. Use only tokens listed there; at most three per answer. They only scroll the page or start the tour.
+LINKS: you may add "Go to" links by writing a token exactly as given in interface_guide, e.g. [[go:cmp-metrics]] or [[go:tour]], at the end of a sentence or on its own line. Use only tokens listed there; at most three per answer. They only scroll the page, start the tour or open the last report.
 
 FORMAT: light Markdown only: short paragraphs, "- " bullets, **bold** labels, "### " headings, plus the link tokens above. No tables, code blocks or other links."""
 
@@ -80,10 +81,30 @@ def context_message(context: dict[str, Any]) -> str:
     return "Current Scenario Comparison context (JSON, the only source for claims about these missions):\n" + body
 
 
+def report_message(report: Any) -> str:
+    """The Mission Report on its own, with its state stated first, so it is never overlooked inside the context."""
+    if not isinstance(report, dict):
+        return ("MISSION REPORT: none. The user has not generated a Mission Report yet. For questions about \"my report\", "
+                "say so and explain how to generate one.")
+    if report.get("out_of_date"):
+        state = ("OUT OF DATE: the scenarios or their results changed after it was generated, so it describes the earlier "
+                 "comparison, not the one on screen now. Say this first whenever you use it, and suggest generating a new one.")
+    else:
+        state = "CURRENT: it matches the comparison on screen."
+    body = json.dumps(report, ensure_ascii=False, separators=(",", ":"), default=str)
+    return (f"MISSION REPORT: the user HAS generated a Mission Report (snapshot {report.get('snapshot_id')}, generated "
+            f"{report.get('generated_at')}). Status: {state} Answer questions about \"my report\" or \"the report\" from "
+            "this JSON only. For \"which section shows …\", name a report section from \"sections\" (by its title, using "
+            f"what each one \"contains\"), not a page section.\n{body}")
+
+
 def build_messages(history: list[dict[str, str]], context: dict[str, Any]) -> list[dict[str, str]]:
-    """System instruction + current context + the most recent turns of the conversation."""
-    return [
-        {"role": "system", "content": CORE_INSTRUCTION + "\n\n" + OPERATING_RULES},
-        {"role": "system", "content": context_message(context)},
-        *history[-MAX_HISTORY:],
-    ]
+    """System instruction + current context (+ the Mission Report, when the page sends one) + recent turns."""
+    messages = [{"role": "system", "content": CORE_INSTRUCTION + "\n\n" + OPERATING_RULES}]
+    if "report" in context:
+        rest = {k: v for k, v in context.items() if k != "report"}
+        messages += [{"role": "system", "content": context_message(rest)},
+                     {"role": "system", "content": report_message(context["report"])}]
+    else:
+        messages.append({"role": "system", "content": context_message(context)})
+    return [*messages, *history[-MAX_HISTORY:]]
