@@ -35,9 +35,17 @@ export function vitestCounts(output) {
   }
 }
 
-/** oxlint's "Found 21 warnings and 0 errors." */
+/** oxlint's counts, from its JSON output (`oxlint -f json`; the text format prints no summary when piped) or its text summary. */
 export function oxlintCounts(output) {
-  const m = /Found (\d+) warnings? and (\d+) errors?/.exec(stripAnsi(output))
+  const text = stripAnsi(output)
+  try {
+    const j = JSON.parse(text)
+    if (Array.isArray(j.diagnostics)) {
+      const sev = (s) => j.diagnostics.filter((d) => d.severity === s).length
+      return { warnings: sev('warning'), errors: sev('error') + sev('deny'), files: j.number_of_files ?? null }
+    }
+  } catch { /* not JSON: try the text summary */ }
+  const m = /Found (\d+) warnings? and (\d+) errors?/.exec(text)
   return m ? { warnings: Number(m[1]), errors: Number(m[2]) } : null
 }
 

@@ -68,7 +68,7 @@ const SUITES = [
   { id: 'backend-tests', name: 'Backend: full pytest suite', kind: 'pytest', cmd: PY, argv: ['-m', 'pytest', '-q', '-p', 'no:cacheprovider'], cwd: BACKEND, env: { LUNAR_OFFLINE: '1' } },
   { id: 'frontend-tests', name: 'Frontend: full vitest suite', kind: 'vitest', cmd: NPX, argv: ['vitest', 'run'], cwd: FRONTEND },
   { id: 'typecheck', name: 'Frontend: TypeScript (tsc -b)', kind: 'plain', cmd: NPX, argv: ['tsc', '-b'], cwd: FRONTEND },
-  { id: 'lint', name: 'Frontend: lint (oxlint; errors fail, warnings are recorded)', kind: 'oxlint', cmd: NPX, argv: ['oxlint'], cwd: FRONTEND },
+  { id: 'lint', name: 'Frontend: lint (oxlint; errors fail, warnings are recorded)', kind: 'oxlint', cmd: NPX, argv: ['oxlint', '-f', 'json'], cwd: FRONTEND },
 ]
 const BUILD = { id: 'build', name: 'Frontend: production build (npm run build = tsc -b + vite build)', kind: 'plain', cmd: NPM, argv: ['run', 'build'], cwd: FRONTEND }
 
