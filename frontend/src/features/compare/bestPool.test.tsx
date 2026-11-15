@@ -43,7 +43,7 @@ describe('real and synthetic results never compete for "best"', () => {
     const e = [entry('A', solar(0.4)), entry('S', solar(0.9, 'demonstration'))]
     expect(bestLabels(headlineRows(SOLAR, e))).toEqual([])
     expect(bestPool(e)).toMatchObject({ basis: 'none' })
-    expect(bestPool(e).note).toMatch(/Only one scenario uses real data/)
+    expect(bestPool(e).note).toMatch(/Only one plan uses real data/)
     const sun = METRICS.find((m) => m.id === 'mean_visible_fraction') ?? METRICS.find((m) => m.better === 'higher')!
     expect([...bestIds(e, sun)]).toEqual([])
   })
@@ -95,12 +95,12 @@ describe('bounds, missing values and ties', () => {
   it('a scenario still loading or failed blocks every best; one with no data for its date is excluded and named', () => {
     const loading = [entry('A', solar(0.3)), entry('B', solar(0.8)), entry('C', null, { state: 'loading' })]
     expect(bestLabels(headlineRows(SOLAR, loading))).toEqual([])
-    expect(bestPool(loading).note).toMatch(/Scenario C has no result yet/)
+    expect(bestPool(loading).note).toMatch(/Plan C has no result yet/)
     const failed = [entry('A', solar(0.3)), entry('B', solar(0.8)), entry('C', null, { state: 'error' })]
     expect(bestLabels(headlineRows(SOLAR, failed))).toEqual([])
     const noData = [entry('A', solar(0.3)), entry('B', solar(0.8)), entry('D', null)]
     expect(bestLabels(headlineRows(SOLAR, noData))).toEqual(['B'])
-    expect(bestPool(noData).note).toMatch(/Scenario D has no data for the chosen site and time and is not compared/)
+    expect(bestPool(noData).note).toMatch(/Plan D has no data for the chosen site and time and is not compared/)
   })
 
   it('bestOf: a single candidate never wins', () => {
@@ -130,8 +130,8 @@ describe('different missions are described, not ranked', () => {
     const w = entry('W', { ...withStats('W', 0.5, 10), solar: null, withheld: { solar: 'Sun unknown for 18 h' } })
     const sum = buildSummary([a, b, w])
     expect(sum.bests.filter((x) => x.label !== 'Top canonical rank')).toEqual([])
-    expect(sum.caveats.join(' ')).toMatch(/Scenario W has withheld or unavailable Sun\/Earth statistics/)
-    expect(sum.caveats.join(' ')).not.toMatch(/Scenario W use demonstration data/)
+    expect(sum.caveats.join(' ')).toMatch(/Plan W has withheld or unavailable Sun\/Earth statistics/)
+    expect(sum.caveats.join(' ')).not.toMatch(/Plan W use demonstration data/)
     expect(sum.highlights.map((x) => x.entry.scenario.label)).toContain('W') // its own verdicts still appear
   })
 

@@ -83,12 +83,12 @@ describe('layout helpers', () => {
     expect(dark.max).toBeGreaterThanOrEqual(100) // the axis reaches the limit
     const g = barGeometry(dark)
     for (const r of g.rows) if (r.w !== null) expect(r.x + r.w).toBeLessThanOrEqual(g.plot.x1 + 0.01)
-    expect(g.rows.find((r) => r.label === 'Scenario D')).toMatchObject({ w: null, missing: true })
+    expect(g.rows.find((r) => r.label === 'Plan D')).toMatchObject({ w: null, missing: true })
     const out = figs[4] as OutcomeFigure
     expect(out.rows.map((r) => [r.label, r.pass, r.fail, r.unknown, r.assessed])).toEqual([
       ['A', 5, 1, 0, true], ['B', 6, 0, 0, true], ['C', 6, 0, 0, true], ['D', 0, 0, 0, false],
     ])
-    expect(outcomeGeometry(out).rows.find((r) => r.label === 'Scenario D')?.note).toBe('Not assessed')
+    expect(outcomeGeometry(out).rows.find((r) => r.label === 'Plan D')?.note).toBe('Not assessed')
   })
 })
 

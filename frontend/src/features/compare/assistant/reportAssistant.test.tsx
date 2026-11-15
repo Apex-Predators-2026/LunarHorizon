@@ -143,8 +143,8 @@ describe('report answers without AI', () => {
     const r = report(['A', 'B', 'C'])
     const t = basicAnswer('Summarize my report.', ctxWith(r))
     for (const h of ['### Decision', '### Plans evaluated', '### Decisive differences', '### Main uncertainty']) expect(t).toContain(h)
-    expect(t).toMatch(/\*\*Scenario A\*\* \(Peak Near Shackleton\): FAIL/)
-    expect(t).toMatch(/\*\*Scenario B\*\* \(Malapert Massif\): PASS/)
+    expect(t).toMatch(/\*\*Plan A\*\* \(Peak Near Shackleton\): FAIL/)
+    expect(t).toMatch(/\*\*Plan B\*\* \(Malapert Massif\): PASS/)
     expect(t).toContain('It matches the comparison on screen.')
     expect(t).not.toContain('Out of date')
     expect(t.trimEnd().endsWith('[[go:report]]')).toBe(true)
@@ -158,29 +158,29 @@ describe('report answers without AI', () => {
   it('explains the final assessment without naming a winner the report does not name', () => {
     const t = basicReportAnswer('Explain the final assessment in my report.', report(['A', 'B', 'C']))
     expect(t).toContain('### Final assessment')
-    expect(t).toMatch(/Scenario B/)
+    expect(t).toMatch(/Plan B/)
     const none = basicReportAnswer('Explain the final assessment in my report.', report(['A']))
-    expect(none).not.toMatch(/: Scenario [A-Z]\b(?! \()/) // no recommended scenario named for a lone failing plan
+    expect(none).not.toMatch(/: Plan [A-Z]\b(?! \()/) // no recommended scenario named for a lone failing plan
   })
 
   it('lists strengths and weaknesses from the report only, never calling UNKNOWN a failure', () => {
     const r = report(['A', 'B', 'C'])
     const a = basicReportAnswer('What are the weaknesses of Scenario A in the report?', r)
-    expect(a).toContain('### Scenario A: FAIL')
+    expect(a).toContain('### Plan A: FAIL')
     expect(a).toMatch(/\*\*Mean visible solar disk\*\*: fails the requirement \(36\.8%/)
     const b = basicReportAnswer('What are the strengths of Scenario B in the report?', r)
     expect(b).toMatch(/\*\*Earth in line of sight\*\*: meets the requirement/)
-    expect(b).toMatch(/Scenario B has /)
+    expect(b).toMatch(/Plan B has /)
     expect(b).not.toMatch(/at least as good/) // comparison partner not named in that sentence
-    expect(b).toMatch(/Compared with it, Scenario C has more sunlight right after landing/)
-    expect(basicReportAnswer('Strengths of Scenario Z in the report?', r)).toMatch(/does not include Scenario Z/)
+    expect(b).toMatch(/Compared with it, Plan C has more sunlight right after landing/)
+    expect(basicReportAnswer('Strengths of Plan Z in the report?', r)).toMatch(/does not include Plan Z/)
   })
 
   it('explains UNKNOWN and the communication section, and points to the right report section', () => {
     const withUnknown = report(['B', 'D'])
     const u = basicReportAnswer('What does the report mean by UNKNOWN?', withUnknown)
     expect(u).toMatch(/\*\*not\*\* a failure/)
-    expect(u).toMatch(/Scenario D/)
+    expect(u).toMatch(/Plan D/)
     const r = report(['A', 'B', 'C'])
     const comm = basicReportAnswer('Explain the communication section of my report.', r)
     expect(comm).toContain('### Communication in the report')

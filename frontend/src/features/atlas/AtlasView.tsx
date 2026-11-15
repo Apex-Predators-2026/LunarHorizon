@@ -65,7 +65,7 @@ function WindowsList({ r }: { r: AtlasResponse }) {
     <>
       <ul className="space-y-1 text-xs text-slate-300">
         {r.durations_days.map((d, row) => (
-          <li key={d}><b className="font-medium text-slate-200">{fmtDays(d)} missions:</b> {rowWindowsText(r, row)}</li>
+          <li key={d}><b className="font-medium text-slate-200">{fmtDays(d)} plans:</b> {rowWindowsText(r, row)}</li>
         ))}
       </ul>
       <p className="mt-1 text-[11px] text-slate-500">A run is a sequence of consecutive tested dates that pass, one every {r.step_hours} h; times between tested dates were not evaluated.</p>
@@ -177,7 +177,7 @@ export function AtlasView() {
           <h1 className="text-2xl font-medium leading-tight text-ink">Feasibility Atlas</h1>
           <p className="mt-1 text-sm text-ink-3">
             Which landing dates work for a mission of this length, and why does the boundary fall where it does? Every cell is one
-            mission judged by the viability engine on JPL Horizons + LOLA data.
+            plan judged by the viability engine on JPL Horizons + LOLA data.
           </p>
         </header>
 
@@ -215,19 +215,19 @@ export function AtlasView() {
               Mission lengths (days, up to 8)
               <input type="text" className={input} value={durationsText} onChange={(e) => setDurationsText(e.target.value)} aria-describedby="atlas-bounds" />
             </label>
-            <button type="submit" className={btnPrimary} disabled={!valid || loading}>{loading ? 'Mapping…' : 'Map these missions'}</button>
+            <button type="submit" className={btnPrimary} disabled={!valid || loading}>{loading ? 'Mapping…' : 'Map these plans'}</button>
           </div>
           {siteError && <p role="alert" className="mt-2 text-red-400">Couldn't load sites: {siteError}</p>}
           <p id="atlas-bounds" className="mt-2 leading-snug text-slate-400">
             Landings tested from <b className="text-slate-200">{fmtUtc(bounds.first)}</b> to <b className="text-slate-200">{fmtUtc(bounds.last)}</b>,{' '}
-            {STEP_OPTIONS.find((o) => o.hours === form.step_hours)?.label ?? `every ${form.step_hours} h`}; {durations.length} mission length{durations.length === 1 ? '' : 's'}; {bounds.cells} missions.
+            {STEP_OPTIONS.find((o) => o.hours === form.step_hours)?.label ?? `every ${form.step_hours} h`}; {durations.length} mission length{durations.length === 1 ? '' : 's'}; {bounds.cells} plans.
             {site && <> Site data: {fmtDay(site.data_start_utc)} to {fmtDay(site.data_stop_utc)}.</>}
-            {tooMany && <span className="block text-red-400">At most {MAX_CELLS} missions per map: fewer dates or lengths.</span>}
+            {tooMany && <span className="block text-red-400">At most {MAX_CELLS} plans per map: fewer dates or lengths.</span>}
           </p>
           {loading && <p role="status" className="mt-1 text-slate-400">Evaluating your search: the map shown will be replaced when it is ready.</p>}
           {!loading && diffs.length > 0 && (
             <p role="status" className="mt-1 text-amber-300" data-testid="atlas-edited">
-              Edited, not mapped yet ({diffs.join(', ')}). The map shown is still the previous search: press “Map these missions” to evaluate your edits.
+              Edited, not mapped yet ({diffs.join(', ')}). The map shown is still the previous search: press “Map these plans” to evaluate your edits.
             </p>
           )}
 
@@ -263,10 +263,10 @@ export function AtlasView() {
               {result ? `${result.site_name}: landing date × mission length` : 'Landing date × mission length'}
             </h2>
             {loading && !result && (
-              <div className="flex items-center gap-3 py-10 text-sm text-slate-400"><LoadingIndicator size={36} /> Evaluating every mission…</div>
+              <div className="flex items-center gap-3 py-10 text-sm text-slate-400"><LoadingIndicator size={36} /> Evaluating every plan…</div>
             )}
             {!loading && !result && !error && (
-              <p className="py-6 text-sm text-slate-400">No map yet. Choose a site, dates and mission lengths, then press "Map these missions".</p>
+              <p className="py-6 text-sm text-slate-400">No map yet. Choose a site, dates and mission lengths, then press "Map these plans".</p>
             )}
             {error && <p role="alert" className="rounded border border-red-900 bg-red-950/40 p-2 text-xs text-red-300">The Atlas couldn't be made: {error}</p>}
             {result && (
@@ -274,7 +274,7 @@ export function AtlasView() {
                 {result.time_note && <p className="mb-2 text-xs text-slate-400">{result.time_note}</p>}
                 <p className="mb-2 text-[11px] text-slate-400" data-testid="atlas-shown">
                   Map shown: {result.site_name}, landings {fmtUtc(result.landing_utc[0])} to {fmtUtc(result.landing_utc[result.landing_utc.length - 1])}{' '}
-                  every {result.step_hours} h, {result.durations_days.map(fmtDays).join(' / ')} missions, with the requirements it was mapped with
+                  every {result.step_hours} h, {result.durations_days.map(fmtDays).join(' / ')} plans, with the requirements it was mapped with
                   {diffs.length > 0 && <b className="ml-1 font-medium text-amber-300">(not your edited search)</b>}.
                 </p>
                 <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1" aria-label="Legend">
@@ -292,7 +292,7 @@ export function AtlasView() {
                           <p className="mt-1">Among the confirmed failures, the deciding requirement, most common first:</p>
                           <ul className="mt-1 list-disc pl-5">
                             {deciding.map(({ requirement, cells }) => (
-                              <li key={requirement.id}>{requirement.name ?? requirement.id} ({limitText(requirement)}): {cells} mission{cells === 1 ? '' : 's'}</li>
+                              <li key={requirement.id}>{requirement.name ?? requirement.id} ({limitText(requirement)}): {cells} plan{cells === 1 ? '' : 's'}</li>
                             ))}
                           </ul>
                         </>
@@ -305,7 +305,7 @@ export function AtlasView() {
                 {/* The map: rows = mission lengths, columns = tested landing dates. Arrow keys move, Enter opens in the Planner. */}
                 <div
                   role="grid"
-                  aria-label={`Feasibility of ${result.site_name} missions: rows are mission lengths, columns are tested landing dates every ${result.step_hours} hours`}
+                  aria-label={`Feasibility of ${result.site_name} plans: rows are mission lengths, columns are tested landing dates every ${result.step_hours} hours`}
                   aria-rowcount={result.cells.length + 1}
                   aria-colcount={cols + 1}
                   onKeyDown={onGridKey}
@@ -349,7 +349,7 @@ export function AtlasView() {
                   ))}
                 </div>
                 <p className="mt-2 text-[11px] text-slate-500">
-                  Click a cell, or use the arrow keys (Home / End, Page Up / Down = a week of columns); Enter opens that mission (from this map) in the Planner.
+                  Click a cell, or use the arrow keys (Home / End, Page Up / Down = a week of columns); Enter opens that plan in the Planner.
                   Only the tested dates are shown: nothing is interpolated between them.
                 </p>
 
@@ -366,8 +366,8 @@ export function AtlasView() {
           </section>
 
           {result && cell && (
-            <aside aria-label="Selected mission" className="cmp-section min-w-0 self-start !p-4 xl:sticky xl:top-4" data-testid="atlas-inspector">
-              <h2 className="mb-2 text-base font-medium text-ink">Selected mission</h2>
+            <aside aria-label="Selected plan" className="cmp-section min-w-0 self-start !p-4 xl:sticky xl:top-4" data-testid="atlas-inspector">
+              <h2 className="mb-2 text-base font-medium text-ink">Selected plan</h2>
               <div className="space-y-3 text-xs">
                 <p className="flex flex-wrap items-center gap-2 text-sm text-slate-200">
                   <StatusChip status={cell.status} />
@@ -381,7 +381,7 @@ export function AtlasView() {
                 <div>
                   <button type="button" className={btnPrimary} disabled={!plan.ok} onClick={sendToPlanner} data-testid="atlas-open-planner"
                     aria-describedby="atlas-transfer-note">
-                    Open this mission in the Planner
+                    Open this plan in the Planner
                   </button>
                   <p id="atlas-transfer-note" className="mt-1 text-[11px] text-slate-500">
                     {plan.ok ? (
@@ -391,12 +391,12 @@ export function AtlasView() {
                 </div>
 
                 {cell.constraints && cell.constraints.length > 0 && (
-                  <Disclosure id="atlas-requirement-table" title="Every requirement for this mission" summary="limits, measured values and margins">
+                  <Disclosure id="atlas-requirement-table" title="Every requirement for this plan" summary="limits, measured values and margins">
                     <div className="overflow-x-auto">
                       <table className="w-full text-left">
-                        <caption className="mb-1 text-left text-[11px] text-slate-400">Every requirement for this mission (the deciding one is marked)</caption>
+                        <caption className="mb-1 text-left text-[11px] text-slate-400">Every requirement for this plan (the deciding one is marked)</caption>
                         <thead className="text-slate-500">
-                          <tr><th className="py-1 font-normal">Requirement</th><th className="font-normal">Limit</th><th className="font-normal">This mission</th><th className="font-normal">Margin</th><th className="font-normal">Result</th></tr>
+                          <tr><th className="py-1 font-normal">Requirement</th><th className="font-normal">Limit</th><th className="font-normal">This plan</th><th className="font-normal">Margin</th><th className="font-normal">Result</th></tr>
                         </thead>
                         <tbody>
                           {cell.constraints.filter((c) => reqById.get(c.id)?.threshold !== undefined && reqById.get(c.id)?.threshold !== null).map((c) => {
@@ -418,8 +418,8 @@ export function AtlasView() {
                   </Disclosure>
                 )}
 
-                <Disclosure id="atlas-neighbours" title="Neighbouring tested dates" summary={`${fmtDays(cell.duration_days)} missions`}>
-                  <ol className="flex flex-wrap gap-1" aria-label="The same mission at the neighbouring tested landing dates">
+                <Disclosure id="atlas-neighbours" title="Neighbouring tested dates" summary={`${fmtDays(cell.duration_days)} plans`}>
+                  <ol className="flex flex-wrap gap-1" aria-label="The plan at neighbouring tested landing dates">
                     {neighbourhood(result, row, col).cells.map((n) => (
                       <li key={n.col}>
                         <button type="button" onClick={() => focusCell(row, n.col)}

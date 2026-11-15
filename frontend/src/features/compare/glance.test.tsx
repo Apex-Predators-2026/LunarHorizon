@@ -59,7 +59,7 @@ describe('At a glance panel', () => {
     const e = ['A', 'B', 'C'].map(entry)
     const html = plain(renderToString(<AtAGlance entries={e} groups={res.ranking_groups.filter((g) => g.id === 'G1')} pairs={res.pairwise} ready onJump={() => {}} />))
     expect(html).toContain('Verdict under the selected requirements')
-    expect(html).toContain('Scenario B is preferred under the selected requirements')
+    expect(html).toContain('Plan B is preferred under the selected requirements')
     expect(html).toContain('requirements met')
     expect(html).toContain('lower is better')
     expect(html).toContain('Read the reasoning')
@@ -80,6 +80,6 @@ describe('At a glance panel', () => {
   it('the requirements section names the scenario that meets the most requirements', () => {
     const html = plain(renderToString(<MetricsTable entries={['A', 'B'].map(entry)} />))
     expect(html).toContain('Requirements met')
-    expect(html).toMatch(/Meets more requirements than every other compared scenario/)
+    expect(html).toMatch(/Meets more requirements than every other compared plan/)
   })
 })
