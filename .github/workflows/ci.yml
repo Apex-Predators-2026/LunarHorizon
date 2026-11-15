@@ -36,9 +36,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version-file: frontend/.nvmrc # Node 24 (npm 11), the toolchain the lockfile is written with
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - run: node --version && npm --version
+      # npm ci installs exactly the lockfile and fails if it does not match package.json (never rewrites it).
+      # After changing dependencies, regenerate it with `npm install` under Node 24 and commit both files.
       - run: npm ci
       - run: npx oxlint
       - run: npx vitest run
