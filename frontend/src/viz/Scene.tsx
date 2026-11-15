@@ -191,6 +191,9 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   // Graphics preset (High = full quality, the default; Low for Chromebooks and old laptops).
   const [graphicsQuality, setGraphicsQuality] = useGraphicsQuality()
   const canvasGetRef = useRef<(() => { camera: THREE.Camera; controls: unknown }) | null>(null)
+  // The live canvas element. A replaced canvas is force-lost by react-three-fiber when it unmounts; that
+  // late 'webglcontextlost' must not raise the "graphics card dropped the view" popup.
+  const liveCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const pendingCameraPoseRef = useRef<CameraPose | null>(null)
   const handleGraphicsChange = useCallback(
     (next: GraphicsQuality) => {
@@ -570,9 +573,11 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           // instead of a frozen black view. A restored context also gets a fresh canvas: three's
           // own restore doesn't bring back every buffer and texture reliably.
           const el = gl.domElement
+          liveCanvasRef.current = el
           el.addEventListener(
             'webglcontextlost',
             (e) => {
+              if (liveCanvasRef.current !== el || !el.isConnected) return // an old canvas being disposed, not a real loss
               e.preventDefault() // allow the browser to restore it
               const st = get()
               pendingCameraPoseRef.current = captureCameraPose(st.camera, st.controls as { target: THREE.Vector3 } | null)
@@ -580,7 +585,13 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             },
             { once: true },
           )
-          el.addEventListener('webglcontextrestored', () => remountCanvas(), { once: true })
+          el.addEventListener(
+            'webglcontextrestored',
+            () => {
+              if (liveCanvasRef.current === el && el.isConnected) remountCanvas()
+            },
+            { once: true },
+          )
           const pose = pendingCameraPoseRef.current
           if (pose) {
             camera.position.set(...pose.position)
