@@ -306,7 +306,7 @@ def build_operational_headroom(assessment: ViabilityAssessment) -> OperationalHe
         )
     elif assessment.eligibility is Eligibility.UNKNOWN:
         status = "uncertain"
-        qualified_verdict = "Unknown eligibility — data coverage gaps leave headroom unresolved"
+        qualified_verdict = "Unknown eligibility: data coverage gaps leave headroom unresolved"
     else:
         classes = {i.margin_class for i in items}
         if "at_threshold" in classes:

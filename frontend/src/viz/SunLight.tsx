@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { CSM } from 'three/examples/jsm/csm/CSM.js'
 import type { TimelineStep } from '../types'
 import { azElToVector } from './geometry'
+import { shadowDecision, waitMs } from './shadowThrottle'
 
 const MAX_INTENSITY = 3
 // Camera distance from the site over which the light blends from "as seen at the lander" to
@@ -130,7 +131,10 @@ function CascadedSunLight({ status }: { status: TimelineStep }) {
 
   useEffect(() => {
     const { scene, camera, gl } = get()
-    const c: Cascades = { csm: null as unknown as CSM, patched: new Set(), firstSplit: 1000, near: 0, far: 0 }
+    const c: Cascades = {
+      csm: null as unknown as CSM, patched: new Set(), firstSplit: 1000, near: 0, far: 0,
+      dirty: true, lastDraw: 0, lastPos: new THREE.Vector3(), lastQuat: new THREE.Quaternion(), timer: undefined,
+    }
     c.csm = new CSM({
       camera,
       parent: scene,
@@ -150,9 +154,14 @@ function CascadedSunLight({ status }: { status: TimelineStep }) {
       lightFar: 200_000,
     })
     live.current = c
-    gl.shadowMap.autoUpdate = true // the cascades follow the camera
+    // Redrawn on demand, throttled while the camera moves (shadowThrottle.ts), not on every render.
+    gl.shadowMap.autoUpdate = false
+    gl.shadowMap.needsUpdate = true
+    c.dirty = true
     invalidate()
     return () => {
+      clearTimeout(c.timer)
+      gl.shadowMap.autoUpdate = true
       unpatchAll(c.csm, c.patched)
       c.csm.remove()
       for (const l of c.csm.lights) l.dispose()
@@ -166,10 +175,11 @@ function CascadedSunLight({ status }: { status: TimelineStep }) {
     if (!c) return
     const [x, y, z] = azElToVector(sun.azimuth_deg, sun.elevation_deg, 1)
     c.csm.lightDirection.set(-x, -y, -z).normalize() // the direction the light travels
+    c.dirty = true
     invalidate()
   }, [sun.azimuth_deg, sun.elevation_deg, invalidate])
 
-  useFrame(({ camera, scene }) => {
+  useFrame(({ camera, scene, gl }) => {
     const c = live.current
     if (!c) return
     const { csm } = c
@@ -193,9 +203,27 @@ function CascadedSunLight({ status }: { status: TimelineStep }) {
       csm.lightMargin = far * 0.5 // terrain this far towards the Sun can still cast shadows into view
       setShadowDepth(csm.lights, csm.lightMargin + 2 * far)
       csm.updateFrustums()
+      c.dirty = true
     }
-    csm.update()
     updateCascadeLights(csm.lights, sunIntensity(atLander, d))
+    // The camera moved, or the Sun / ranges changed, since the shadow maps were last drawn?
+    const changed = c.dirty || c.lastPos.distanceToSquared(camera.position) > 1e-6 * d * d || 1 - Math.abs(c.lastQuat.dot(camera.quaternion)) > 1e-7
+    const since = performance.now() - c.lastDraw
+    const decision = shadowDecision(changed, since)
+    if (decision === 'redraw') {
+      csm.update()
+      gl.shadowMap.needsUpdate = true
+      c.dirty = false
+      c.lastDraw = performance.now()
+      c.lastPos.copy(camera.position)
+      c.lastQuat.copy(camera.quaternion)
+    } else if (decision === 'wait' && c.timer === undefined) {
+      // On-demand rendering: nothing would come back for the last move, so ask for one more frame.
+      c.timer = setTimeout(() => {
+        c.timer = undefined
+        invalidate()
+      }, waitMs(since))
+    }
   })
 
   return null
@@ -251,4 +279,9 @@ interface Cascades {
   firstSplit: number // m, read by the split callback
   near: number
   far: number
+  dirty: boolean // Sun or cascade ranges changed: redraw the shadow maps
+  lastDraw: number // performance.now() of the last redraw
+  lastPos: THREE.Vector3
+  lastQuat: THREE.Quaternion
+  timer: ReturnType<typeof setTimeout> | undefined
 }
