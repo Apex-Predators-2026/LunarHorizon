@@ -5,7 +5,8 @@ import { create } from 'zustand'
 export const COMPARE_SECTIONS = [
   ['cmp-scenarios', 'Scenarios'], ['cmp-overview', 'At a glance'], ['cmp-metrics', 'Key metrics'], ['cmp-summary', 'Decision'],
   ['cmp-timeline', 'Timeline'], ['cmp-performance', 'Ranking'], ['cmp-charts', 'Elevation'], ['cmp-terrain', 'Terrain'],
-  ['cmp-tradeoff', 'Trade-off'],
+  ['cmp-tradeoff', 'Trade-off'], ['cmp-assessment', 'Assessment'], ['cmp-assumptions', 'Assumptions'],
+  ['cmp-science', 'Science vs engineering'], ['cmp-rescue', 'Mission Rescue'],
 ] as const
 
 export type CompareSectionId = (typeof COMPARE_SECTIONS)[number][0]
@@ -21,9 +22,10 @@ export const COMPARE_TABS: readonly { id: CompareTab; label: string; hint: strin
 /** Which view holds a section. The scenario strip sits above the views, so it has none. */
 export const SECTION_TAB: Record<CompareSectionId, CompareTab | null> = {
   'cmp-scenarios': null,
-  'cmp-overview': 'overview', 'cmp-summary': 'overview',
+  'cmp-overview': 'overview', 'cmp-summary': 'overview', 'cmp-rescue': 'overview',
   'cmp-metrics': 'evidence', 'cmp-timeline': 'evidence', 'cmp-performance': 'evidence',
-  'cmp-charts': 'detail', 'cmp-terrain': 'detail', 'cmp-tradeoff': 'detail',
+  'cmp-assessment': 'evidence',
+  'cmp-charts': 'detail', 'cmp-terrain': 'detail', 'cmp-tradeoff': 'detail', 'cmp-assumptions': 'detail', 'cmp-science': 'detail',
 }
 
 /** The section a view's URL remembers (the Overview is the page itself, so it remembers none). */

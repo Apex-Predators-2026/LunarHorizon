@@ -17,6 +17,8 @@ import { GRAPHICS, type GraphicsQuality } from './graphics'
 import { JplHorizonsCard } from './JplHorizonsCard'
 import { toggleTopDown, useCameraTilt } from './cameraTilt'
 import { MeasureCard, type MeasureDrawer } from './MeasureCard'
+import { SiteMenuRows } from './ViewerHud'
+import type { SiteInfo } from '../types'
 import { useTutorialStore } from '../features/tutorial'
 
 export interface MeasureController {
@@ -75,6 +77,7 @@ const LAYER_ROWS: { key: keyof Layers; label: string; hint: string }[] = [
 
 // Material icons (24 dp).
 const ICON = {
+  site: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z',
   camera: 'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z',
   topDown: 'M16 13h-3V3h-2v10H8l4 4 4-4zM4 19v2h16v-2H4z', // an arrow straight down onto the ground
   layers: 'M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z',
@@ -315,6 +318,9 @@ export function MapTools({
   onArmPin,
   onCoordinates,
   siteId,
+  sites,
+  sitesError,
+  sitesLoading,
   timeUtc,
   view,
   onView,
@@ -333,6 +339,9 @@ export function MapTools({
   onArmPin: (armed: boolean) => void
   onCoordinates: (lat: number, lon: number) => void
   siteId: string | null
+  sites: SiteInfo[] | null // every landing site, for the Select site menu
+  sitesError: string | null
+  sitesLoading: boolean
   timeUtc: string
   view: ViewMode
   onView: (v: ViewMode) => void
@@ -407,6 +416,10 @@ export function MapTools({
           }}
         />
         <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
+        <ToolMenu tourId="site-select" openId={openMenu} setOpenId={setOpenMenu} id="site" label="Select site"
+          tip="Select site: choose the landing site shown in the 3D view and used for the timeline" icon={ICON.site}>
+          {(close) => <SiteMenuRows sites={sites} error={sitesError} loading={sitesLoading} onPicked={close} />}
+        </ToolMenu>
         <ToolMenu tourId="camera-menu" openId={openMenu} setOpenId={setOpenMenu} id="camera" hover={!armed && !measureOpen} onActivate={() => {
             onGoToView()
             useTutorialStore.getState().recordInteraction('camera-view')

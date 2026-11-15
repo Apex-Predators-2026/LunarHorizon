@@ -23,7 +23,7 @@ import {
   type WireWindow,
 } from '../../lib/assessment'
 import type { Scenario } from '../../types'
-import { evidenceFromWindow, showEvidence } from '../../viz/evidence'
+import { evidenceFromWindow, openEvidence, showEvidence, type EvidenceOrigin } from '../../viz/evidence'
 import { EligibilityBadge, ReqIcon } from '../compare/ui'
 
 const RISK_CLS: Record<RiskLevel, string> = {
@@ -46,8 +46,9 @@ function RiskChip({ level, label, title }: { level: RiskLevel; label?: string; t
 
 const fmtUtc = (iso: string) => iso.replace('T', ' ').replace(/:00(\.000)?Z$/, ' UTC').replace(/Z$/, ' UTC')
 
-function EvidenceRow({ w, siteId, missionStart, onShown }: { w: WireWindow; siteId: string; missionStart: string; onShown?: () => void }) {
-  const ev = evidenceFromWindow(siteId, w)
+function EvidenceRow({ w, siteId, missionStart, onShown, origin }: { w: WireWindow; siteId: string; missionStart: string; onShown?: () => void; origin?: EvidenceOrigin }) {
+  const base = evidenceFromWindow(siteId, w)
+  const ev = base && origin ? { ...base, origin } : base
   const from = hoursAfter(missionStart, w.start_utc)
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -66,8 +67,12 @@ function EvidenceRow({ w, siteId, missionStart, onShown }: { w: WireWindow; site
           className="ml-auto rounded-full border border-sky-700/60 px-2 py-0.5 text-[11px] text-sky-300 hover:bg-sky-900/30"
           title="Jump the 3D view to this moment, looking at the body concerned from the lander"
           onClick={() => {
-            showEvidence(ev)
-            onShown?.()
+            // From the comparison page the 3D view opens itself and its way back leads to that section.
+            if (origin) openEvidence(ev)
+            else {
+              showEvidence(ev)
+              onShown?.()
+            }
           }}
         >
           Show in 3D
@@ -77,7 +82,7 @@ function EvidenceRow({ w, siteId, missionStart, onShown }: { w: WireWindow; site
   )
 }
 
-function ConstraintRow({ v, siteId, missionStart, onShown }: { v: ConstraintView; siteId: string; missionStart: string; onShown?: () => void }) {
+function ConstraintRow({ v, siteId, missionStart, onShown, origin }: { v: ConstraintView; siteId: string; missionStart: string; onShown?: () => void; origin?: EvidenceOrigin }) {
   const { c } = v
   const tone = c.status === 'fail' ? 'border-red-800/60 bg-red-950/20' : c.status === 'unknown' ? 'border-slate-600 bg-slate-800/20' : 'border-slate-800'
   return (
@@ -128,7 +133,7 @@ function ConstraintRow({ v, siteId, missionStart, onShown }: { v: ConstraintView
             <div className="mb-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">Evidence</div>
             <ul className="space-y-1 text-xs">
               {c.evidence_windows.map((w) => (
-                <EvidenceRow key={`${w.kind}${w.start_utc}`} w={w} siteId={siteId} missionStart={missionStart} onShown={onShown} />
+                <EvidenceRow key={`${w.kind}${w.start_utc}`} w={w} siteId={siteId} missionStart={missionStart} onShown={onShown} origin={origin} />
               ))}
             </ul>
           </div>
@@ -208,7 +213,14 @@ function Provenance({ r }: { r: AssessResponse }) {
 }
 
 /** The engine's full answer for one plan (or its loading / error state). */
-export function AssessmentPanel({ state, onShown }: { state: AssessmentState | null; onShown?: () => void }) {
+export function AssessmentPanel({ state, onShown, origin, part = 'all' }: {
+  state: AssessmentState | null
+  onShown?: () => void
+  /** Set when the panel sits on the comparison page: "Show in 3D" then opens the 3D view and leads back here. */
+  origin?: EvidenceOrigin
+  /** 'assessment' = verdict, requirements, risks; 'data' = provenance, assumptions, limitations; default both. */
+  part?: 'all' | 'assessment' | 'data'
+}) {
   if (!state || state.status === 'loading') return <p className="text-xs text-slate-400">Assessing this plan with the viability engine…</p>
   if (state.status === 'error') return <p role="alert" className="text-xs text-red-300">Not assessed: {state.message}</p>
   const r = state.response
@@ -218,6 +230,7 @@ export function AssessmentPanel({ state, onShown }: { state: AssessmentState | n
   const otherRisks = a.risks.filter((k) => !k.code.startsWith('margin_headroom.'))
   return (
     <div className="space-y-4 text-slate-200" data-testid="assessment-panel">
+      {part !== 'data' && <>
       <section aria-label="Verdict" className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <EligibilityBadge eligibility={a.eligibility} />
@@ -238,7 +251,7 @@ export function AssessmentPanel({ state, onShown }: { state: AssessmentState | n
         <h3 className="mb-1.5 text-sm font-semibold text-slate-100">Requirements</h3>
         <ul className="space-y-2">
           {configured.map((v) => (
-            <ConstraintRow key={v.c.constraint_id} v={v} siteId={a.site.id} missionStart={a.evaluated_start_utc} onShown={onShown} />
+            <ConstraintRow key={v.c.constraint_id} v={v} siteId={a.site.id} missionStart={a.evaluated_start_utc} onShown={onShown} origin={origin} />
           ))}
         </ul>
         {notConfigured.length > 0 && (
@@ -266,6 +279,9 @@ export function AssessmentPanel({ state, onShown }: { state: AssessmentState | n
         </section>
       )}
 
+      </>}
+
+      {part !== 'assessment' && <>
       <Provenance r={r} />
 
       <section aria-label="Limitations">
@@ -297,6 +313,7 @@ export function AssessmentPanel({ state, onShown }: { state: AssessmentState | n
       <p className="text-[10px] text-slate-500">
         Viability engine {a.engine_version} · {Object.entries(r.methods).map(([k, v]) => `${k} ${v}`).join(' · ')}
       </p>
+      </>}
     </div>
   )
 }

@@ -38,6 +38,8 @@ interface RescueState {
   sensitivityStatus: Status
   compromise: CompromiseResponse | null
   compromiseStatus: Status
+  /** Which plan the compromise result is for (site, landing, length), so another page can tell if it is current. */
+  compromiseFor: string | null
   /** One error per request kind, so a failure only shows in the tab that caused it. */
   rescueError: string | null
   sensitivityError: string | null
@@ -64,7 +66,8 @@ interface RescueState {
 
   findAlternatives: () => Promise<void>
   checkSensitivity: (s: Scenario) => Promise<void>
-  findCompromise: () => Promise<void>
+  /** `base` lets another page (Scenario Comparison) ask about a plan other than the Rescue plan. */
+  findCompromise: (base?: Scenario) => Promise<void>
   reset: () => void
 }
 
@@ -75,6 +78,7 @@ const initialResults = {
   sensitivityStatus: 'idle' as Status,
   compromise: null,
   compromiseStatus: 'idle' as Status,
+  compromiseFor: null as string | null,
   rescueError: null,
   sensitivityError: null,
   compromiseError: null,
@@ -174,8 +178,9 @@ export const useRescueStore = create<RescueState>((set, get) => ({
     }
   },
 
-  findCompromise: async () => {
-    const { original, science, weights, search } = get()
+  findCompromise: async (base) => {
+    const { science, weights, search } = get()
+    const original = base ?? get().original
     if (!original) return set({ compromiseStatus: 'error', compromiseError: 'Pick a landing site and date first.' })
     const req = begin('compromise')
     set({ compromiseStatus: 'loading', compromiseError: null })
@@ -188,7 +193,7 @@ export const useRescueStore = create<RescueState>((set, get) => ({
         search,
       }, req.signal)
       if (!req.current()) return
-      set({ compromise, compromiseStatus: 'done' })
+      set({ compromise, compromiseStatus: 'done', compromiseFor: `${original.site.id}|${original.landing_utc}|${original.duration_days}` })
     } catch (e) {
       if (!req.current()) return
       set({ compromiseStatus: 'error', compromiseError: errorMessage(e) })

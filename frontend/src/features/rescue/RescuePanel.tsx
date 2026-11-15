@@ -1,6 +1,5 @@
 // "The plan changed, what now?" Delay / requirement inputs, then ranked, explained
 // alternatives, relax-a-requirement suggestions and the closest failing options.
-import { Icon } from '../compare/ui'
 import { resolveHeadroom } from '../../lib/headroom'
 import { LoadingIndicator } from '../../ui/LoadingIndicator'
 import { TextField } from '../../ui/MdFields'
@@ -11,7 +10,8 @@ import { AlternativeCard, DateSlipChecks } from './AlternativeCard'
 import { evaluatedTimeNote, fmtShift, fmtUtc, planInfo } from './format'
 import { SensitivityView } from './SensitivityView'
 import { buildWalkthrough, GLOSSARY, requirementLabel } from './walkthrough'
-import { goToView } from '../../appRoute'
+import { goToView, routeHash } from '../../appRoute'
+import { importRescueIntoComparison } from '../compare/RescueImport'
 import { usePlansStore } from '../plans/usePlansStore'
 import { verdictOf, type Eligibility, type Scenario, type ViabilityResult } from '../../types'
 import type { RescueResponse, RescueStatus, SensitivityResponse } from './types'
@@ -58,13 +58,18 @@ export function RescuePanel() {
   const s = useRescueStore()
   const plans = usePlansStore((p) => p.plans)
   const { name: planName, changed: changedSince } = planInfo(s.original, s.originalPlanId, plans)
-  const res = s.rescue
   const overrides = s.change.requirement_overrides ?? {}
   const loading = s.rescueStatus === 'loading'
 
-  const submit = (e: FormEvent) => {
+  // The results are not shown in the sidebar: once the search is done they open in Scenario Comparison.
+  const submit = async (e: FormEvent) => {
     e.preventDefault()
-    void s.findAlternatives()
+    await s.findAlternatives()
+    const now = useRescueStore.getState()
+    if (now.rescue && !now.rescueError) {
+      importRescueIntoComparison(now.rescue, now.change)
+      window.location.hash = routeHash('compare', 'cmp-rescue') // straight to the rescue story and its alternatives
+    }
   }
 
   return (
@@ -123,42 +128,6 @@ export function RescuePanel() {
         <p role="alert" className="rounded border border-red-900 bg-red-950/50 p-2 text-xs text-red-300">{s.rescueError ?? s.sensitivityError}</p>
       )}
 
-      {res && (
-        <button type="button" role="switch" aria-checked={s.showOnMap} data-no-ripple
-          data-tip="Draw the alternatives and the failing plan as pins on the 3D map."
-          onClick={() => s.setShowOnMap(!s.showOnMap)}
-          className="md-row flex h-10 w-full items-center gap-3 rounded-full px-3 text-sm text-ink-2">
-          <span className="md-switch" aria-hidden="true">
-            <span className="md-switch-handle"><Icon name="check" size={16} /></span>
-          </span>
-          Show on map
-        </button>
-      )}
-
-      {res && (
-        <button type="button" role="switch" aria-checked={s.explain} data-no-ripple
-          data-tip="Show a short step-by-step explanation of what rescue did and why."
-          onClick={() => s.setExplain(!s.explain)}
-          className="md-row flex h-10 w-full items-center gap-3 rounded-full px-3 text-sm text-ink-2">
-          <span className="md-switch" aria-hidden="true">
-            <span className="md-switch-handle"><Icon name="check" size={16} /></span>
-          </span>
-          Explain
-        </button>
-      )}
-
-      {res && (
-        <RescueResults
-          res={res}
-          requestedLanding={s.original?.landing_utc}
-          explain={s.explain}
-          selected={s.selected}
-          sensitivity={s.sensitivityStatus === 'done' ? s.sensitivity : null}
-          sensitivityLoading={s.sensitivityStatus === 'loading'}
-          onSelect={s.select}
-          onCheckSensitivity={(sc) => void s.checkSensitivity(sc)}
-        />
-      )}
     </section>
   )
 }
@@ -334,25 +303,30 @@ export function RescueResults({ res, requestedLanding, explain, selected, sensit
       {explain && <Walkthrough res={res} />}
 
       {res.alternatives.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-medium text-slate-200">Recommended alternatives (meet every original requirement)</h3>
-            <button type="button" onClick={() => goToView('compare')}
-              data-tip="Open Scenario Comparison, where you can bring in the original, the changed plan and these alternatives"
-              className="shrink-0 rounded border border-slate-700 px-2 py-0.5 text-xs hover:bg-slate-800">
-              Compare them
-            </button>
+        <details open>
+          <summary className="cursor-pointer text-sm font-medium text-slate-200">
+            Recommended alternatives ({res.alternatives.length})
+          </summary>
+          <div className="mt-2 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-slate-400">Meet every original requirement</p>
+              <button type="button" onClick={() => goToView('compare')}
+                data-tip="Open Scenario Comparison, where you can bring in the original, the changed plan and these alternatives"
+                className="shrink-0 rounded border border-slate-700 px-2 py-0.5 text-xs hover:bg-slate-800">
+                Compare them
+              </button>
+            </div>
+            {res.alternatives.map((a) => (
+              <AlternativeCard
+                key={`${a.scenario.site.id}@${a.scenario.landing_utc}`}
+                alt={a}
+                selected={selected === a.scenario}
+                onSelect={() => onSelect(a.scenario)}
+                onCheckSensitivity={() => onCheckSensitivity(a.scenario)}
+              />
+            ))}
           </div>
-          {res.alternatives.map((a) => (
-            <AlternativeCard
-              key={`${a.scenario.site.id}@${a.scenario.landing_utc}`}
-              alt={a}
-              selected={selected === a.scenario}
-              onSelect={() => onSelect(a.scenario)}
-              onCheckSensitivity={() => onCheckSensitivity(a.scenario)}
-            />
-          ))}
-        </div>
+        </details>
       )}
 
       {sensitivityLoading && <p className="text-xs text-slate-400">Checking sensitivity…</p>}

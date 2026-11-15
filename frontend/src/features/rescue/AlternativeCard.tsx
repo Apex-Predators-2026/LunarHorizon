@@ -1,5 +1,6 @@
 import { resolveHeadroom } from '../../lib/headroom'
 import { verdictOf } from '../../types'
+import { ChevronDownIcon } from '../../ui/icons'
 import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
 import { KIND_LABEL, REASON_LABEL, fmtDelta, fmtShift, fmtUtc, fmtValue } from './format'
 import type { Alternative, DateSlipCheck, Robustness } from './types'
@@ -141,99 +142,107 @@ export function AlternativeCard({ alt, selected, onSelect, onCheckSensitivity }:
   return (
     <article
       aria-label={`Alternative ${alt.rank}: ${scenario.site.name}`}
-      className={`rounded-md border p-3 ${selected ? 'border-sky-500 bg-sky-950/30' : 'border-slate-800 bg-slate-900/40'}`}
+      className={`rounded-2xl border font-inter ${selected ? 'border-sky-500 bg-sky-950/30' : 'border-slate-800 bg-slate-900/40'}`}
     >
-      <header className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+      <details open className="group/alternative">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-2xl px-4 py-3 hover:bg-slate-500/10 [&::-webkit-details-marker]:hidden">
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <span className="text-xs tabular-nums text-slate-400">#{alt.rank}</span>
+              <span className="font-display text-base font-bold leading-tight text-slate-100">{scenario.site.name}</span>
+            </span>
+            <span className="mt-1 block text-xs leading-4 text-slate-400">
+              {fmtUtc(scenario.landing_utc)} · {fmtShift(alt.date_shift_hours)}
+              {alt.distance_km > 0.01 && <> · {alt.distance_km.toFixed(1)} km away</>}
+            </span>
+          </span>
+          <span className="shrink-0 text-right">
+            <span className="block text-lg font-semibold leading-tight tabular-nums text-slate-100">{viability.score?.toFixed(0) ?? '—'}</span>
+            <span className="block text-xs text-slate-400">score</span>
+          </span>
+          <ChevronDownIcon size={20} className="shrink-0 text-slate-400 transition-transform group-open/alternative:rotate-180" />
+        </summary>
+
+        <div className="space-y-3 px-4 pb-4 pt-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-xs text-slate-500">#{alt.rank}</span>
-            <span className="font-medium text-slate-100">{scenario.site.name}</span>
             <span className="text-xs text-slate-400">{KIND_LABEL[alt.kind]}</span>
             <DataBadge source={viability.data_source} />
             <PassHeadroomBadge headroom={hr} eligibility={elig} surface="planner" />
           </div>
-          <p className="mt-0.5 text-xs text-slate-400">
-            {fmtUtc(scenario.landing_utc)} · {fmtShift(alt.date_shift_hours)}
-            {alt.distance_km > 0.01 && <> · {alt.distance_km.toFixed(1)} km away</>}
-          </p>
-          {elig === 'pass' && <PassHeadroom headroom={hr} surface="planner" compact className="mt-2" />}
-        </div>
-        <div className="shrink-0 text-right">
-          <div className="text-xl font-semibold tabular-nums text-slate-100">{viability.score?.toFixed(0) ?? '—'}</div>
-          <div className="text-[11px] text-slate-500">score</div>
-        </div>
-      </header>
+          {elig === 'pass' && <PassHeadroom headroom={hr} surface="planner" compact />}
 
-      <ul className="mt-2 space-y-0.5 text-xs text-slate-300">
-        {alt.reasons.map((r) => (
-          <li key={r}>{r}</li>
-        ))}
-      </ul>
-
-      {rows.length > 0 && (
-        <table className="mt-2 w-full text-xs">
-          <caption className="sr-only">Metric changes compared with the delayed plan</caption>
-          <thead>
-            <tr className="text-left text-slate-500">
-              <th className="font-normal">Metric</th>
-              <th className="font-normal">Delayed</th>
-              <th className="font-normal">This</th>
-              <th className="font-normal">Change</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((m) => (
-              <tr key={m.metric} className="border-t border-slate-800">
-                <td className="py-0.5 text-slate-300">{m.label}</td>
-                <td className="tabular-nums text-slate-400">{fmtValue(m.before, m.unit)}</td>
-                <td className="tabular-nums text-slate-200">{fmtValue(m.after, m.unit)}</td>
-                <td className={`tabular-nums ${m.better ? 'text-emerald-400' : 'text-red-400'}`}>{fmtDelta(m)}</td>
-              </tr>
+          <ul className="space-y-1 text-xs leading-relaxed text-slate-300">
+            {alt.reasons.map((r) => (
+              <li key={r}>{r}</li>
             ))}
-          </tbody>
-        </table>
-      )}
+          </ul>
 
-      {robustness && robustness.verdict !== 'unchecked' && (
-        <DateSlipChecks robustness={robustness} />
-      )}
+          {rows.length > 0 && (
+            <table className="w-full text-xs">
+              <caption className="sr-only">Metric changes compared with the delayed plan</caption>
+              <thead>
+                <tr className="text-left text-slate-500">
+                  <th className="font-normal">Metric</th>
+                  <th className="font-normal">Delayed</th>
+                  <th className="font-normal">This</th>
+                  <th className="font-normal">Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((m) => (
+                  <tr key={m.metric} className="border-t border-slate-800">
+                    <td className="py-1.5 pr-2 text-slate-300">{m.label}</td>
+                    <td className="tabular-nums text-slate-400">{fmtValue(m.before, m.unit)}</td>
+                    <td className="tabular-nums text-slate-200">{fmtValue(m.after, m.unit)}</td>
+                    <td className={`tabular-nums ${m.better ? 'text-emerald-400' : 'text-red-400'}`}>{fmtDelta(m)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
-      <footer className="mt-3 flex flex-wrap items-center gap-2">
-        {robustness && (
-          <div className="min-w-0 flex-1 space-y-1">
-            <span
-              title={robustness.note}
-              className={`inline-block rounded px-1.5 py-0.5 text-[11px] ring-1 ${VERDICT_STYLE[robustness.verdict]}`}
-            >
-              {robustness.verdict === 'unchecked'
-                ? 'Not checked'
-                : `${robustness.verdict} · ${robustness.passing_points}/${robustness.checked_points} nearby checks pass`}
-            </span>
-            {robustness.verdict !== 'unchecked' && robustness.note && (
-              <p className="text-[11px] text-slate-400" data-testid="position-checks-note">
-                {robustness.note}
-              </p>
+          {robustness && robustness.verdict !== 'unchecked' && (
+            <DateSlipChecks robustness={robustness} />
+          )}
+
+          <footer className="flex flex-wrap items-center gap-3">
+            {robustness && (
+              <div className="min-w-0 flex-1 space-y-1">
+                <span
+                  title={robustness.note}
+                  className={`inline-block rounded px-1.5 py-0.5 text-[11px] ring-1 ${VERDICT_STYLE[robustness.verdict]}`}
+                >
+                  {robustness.verdict === 'unchecked'
+                    ? 'Not checked'
+                    : `${robustness.verdict} · ${robustness.passing_points}/${robustness.checked_points} nearby checks pass`}
+                </span>
+                {robustness.verdict !== 'unchecked' && robustness.note && (
+                  <p className="text-[11px] text-slate-400" data-testid="position-checks-note">
+                    {robustness.note}
+                  </p>
+                )}
+              </div>
             )}
-          </div>
-        )}
-        <div className="ml-auto flex gap-2">
-          <button
-            type="button"
-            onClick={onCheckSensitivity}
-            className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300 hover:bg-slate-800"
-          >
-            Sensitivity
-          </button>
-          <button
-            type="button"
-            onClick={onSelect}
-            aria-pressed={selected}
-            className="rounded bg-sky-600 px-2 py-1 text-xs font-medium text-white hover:bg-sky-500"
-          >
-            {selected ? 'Selected' : 'Use this plan'}
-          </button>
+            <div className="ml-auto flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onCheckSensitivity}
+                className="md-compact border border-slate-700 text-slate-300 hover:bg-slate-800"
+              >
+                Sensitivity
+              </button>
+              <button
+                type="button"
+                onClick={onSelect}
+                aria-pressed={selected}
+                className="md-compact bg-sky-600 font-medium text-white hover:bg-sky-500"
+              >
+                {selected ? 'Selected' : 'Use this plan'}
+              </button>
+            </div>
+          </footer>
         </div>
-      </footer>
+      </details>
     </article>
   )
 }
