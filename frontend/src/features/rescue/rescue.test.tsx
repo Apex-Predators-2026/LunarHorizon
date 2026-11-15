@@ -18,8 +18,11 @@ import { CompromiseResults } from './CompromisePanel'
 import { fmtDelta, fmtShift, fmtUtc, fmtValue, fromUtcInput, planInfo, toUtcInput } from './format'
 import { usePlansStore } from '../plans/usePlansStore'
 import { RescueResults, RescuingLine } from './RescuePanel'
+import { buildWalkthrough, GLOSSARY } from './walkthrough'
+import { RescueMapOverlay } from './RescueMapOverlay'
+import { overlayMarkers, rescueMapMarkers, summaryText } from './rescueMapMarkers'
 import { SensitivityView } from './SensitivityView'
-import type { CompromiseResponse, RescueResponse, SensitivityResponse } from './types'
+import type { CompromiseResponse, RescueCatalog, RescueResponse, SensitivityResponse } from './types'
 import { useRescueStore } from './useRescueStore'
 
 const rescue = rescueRes as unknown as RescueResponse
@@ -41,7 +44,10 @@ const resetStores = () => {
 
 
 beforeEach(resetStores)
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+})
 
 describe('format helpers', () => {
   it('formats values, deltas and shifts', () => {
@@ -343,5 +349,205 @@ describe('components render real backend responses', () => {
     for (const s of catalog.sites.filter((x) => !x.has_real_data)) {
       expect(s.data_start_utc).toBeNull()
     }
+  })
+})
+
+describe('rescueMapMarkers', () => {
+  const cat = catalog as unknown as RescueCatalog
+
+  it('puts one coral pin per alternative site, labelled with its best rank', () => {
+    const alts = rescueMapMarkers(rescue, cat).filter((m) => m.kind === 'alternative')
+    expect(alts.map((m) => [m.siteId, m.label])).toEqual(
+      rescue.alternatives.map((a) => [a.scenario.site.id, `#${a.rank}`]),
+    )
+    expect(alts.every((m) => m.color === '#ff634a')).toBe(true)
+    const peak = cat.sites.find((s) => s.id === 'peak-near-shackleton')!
+    expect(alts[0]).toMatchObject({ lat: peak.lat, lon: peak.lon })
+  })
+
+  it('groups alternatives that share a site under the best rank', () => {
+    const a0 = rescue.alternatives[0]
+    const dup = { ...rescue, alternatives: [{ ...a0, rank: 3 }, { ...a0, rank: 2 }] }
+    const alts = rescueMapMarkers(dup, cat).filter((m) => m.kind === 'alternative')
+    expect(alts).toHaveLength(1)
+    expect(alts[0].label).toBe('#2')
+  })
+
+  it('marks the failing plan in red with its main reasons', () => {
+    const f = rescueMapMarkers(rescue, cat).filter((m) => m.kind === 'failing')
+    expect(f).toHaveLength(1)
+    expect(f[0].color).toBe('#f0605a')
+    expect(f[0].siteId).toBe(rescue.changed.scenario.site.id)
+    expect(f[0].label).toBe('Plan after delay fails: Earth contact, comms blackout +1 more')
+  })
+
+  it('draws no failing marker when the changed plan still works', () => {
+    const ok = { ...rescue, changed: { ...rescue.changed, passes: true, eligibility: 'pass' as const, violations: [] } }
+    expect(rescueMapMarkers(ok, cat).some((m) => m.kind === 'failing')).toBe(false)
+  })
+
+  it('shows near-miss sites at other places with the rule they break', () => {
+    const miss = rescueMapMarkers(rescue, cat).filter((m) => m.kind === 'near_miss')
+    const altSites = rescue.alternatives.map((a) => a.scenario.site.id)
+    expect(miss.every((m) => !altSites.includes(m.siteId))).toBe(true)
+    expect(miss.map((m) => m.siteId)).toContain('connecting-ridge')
+    expect(miss.find((m) => m.siteId === 'connecting-ridge')!.label).toBe('Fails: power darkness')
+  })
+
+  it('flags the selected alternative and skips sites without coordinates', () => {
+    const sel = rescueMapMarkers(rescue, cat, rescue.alternatives[1].scenario)
+    expect(sel.filter((m) => m.selected).map((m) => m.siteId)).toEqual([rescue.alternatives[1].scenario.site.id])
+    const bad = JSON.parse(JSON.stringify(rescue)) as RescueResponse
+    bad.alternatives[0].scenario.site.lat = Number.NaN
+    const noCat = { ...cat, sites: [] }
+    expect(rescueMapMarkers(bad, noCat).some((m) => m.kind === 'alternative' && m.siteId === bad.alternatives[0].scenario.site.id)).toBe(false)
+  })
+
+  it('returns nothing without a result', () => {
+    expect(rescueMapMarkers(null, cat)).toEqual([])
+  })
+
+  it('labels an unknown plan as unknown, never as failing', () => {
+    const f = rescueMapMarkers(outside, cat).filter((m) => m.kind === 'failing')
+    expect(f).toHaveLength(1)
+    expect(f[0].label).toBe('Changed plan: unknown (no real data)')
+    expect(f[0].color).toBe('#8691a9')
+    expect(f[0].label.toLowerCase()).not.toContain('fails')
+    expect(summaryText(outside)).not.toMatch(/fails/)
+    expect(summaryText(outside)).toContain('plan unknown')
+    expect(summaryText(outside)).toContain(`${outside.alternatives.length} options`)
+  })
+
+  it('says "Plan after delay" only when the landing date moved', () => {
+    expect(rescueMapMarkers(rescue, cat).find((m) => m.kind === 'failing')!.label).toMatch(/^Plan after delay fails/)
+    const same = JSON.parse(JSON.stringify(rescue)) as RescueResponse
+    same.changed.scenario.landing_utc = same.original.scenario.landing_utc
+    same.changed.scenario.requirements.min_earth_visibility_fraction = 0.9
+    const label = rescueMapMarkers(same, cat).find((m) => m.kind === 'failing')!.label
+    expect(label).toMatch(/^Changed plan fails/)
+    expect(label).not.toContain('delay')
+    expect(summaryText(rescue)).toContain('plan fails')
+  })
+
+  it('keeps both pins visible when the failing plan shares a site with #1', () => {
+    const ms = rescueMapMarkers(rescue, cat)
+    const fail = ms.find((m) => m.kind === 'failing')!
+    const alt = ms.find((m) => m.kind === 'alternative' && m.label === '#1')!
+    expect(fail.siteId).toBe(alt.siteId)
+    expect(ms).toContain(fail)
+    expect(fail.stemScale).toBeLessThan(1)
+    // alternatives come after the failing marker, so the coral head is drawn on top
+    expect(ms.indexOf(alt)).toBeGreaterThan(ms.indexOf(fail))
+  })
+
+  it('overlayMarkers is empty with no result or with the switch off', () => {
+    const st = { rescue, showOnMap: true, selected: null, catalog: cat }
+    expect(overlayMarkers(st).length).toBeGreaterThan(0)
+    expect(overlayMarkers({ ...st, showOnMap: false })).toEqual([])
+    expect(overlayMarkers({ ...st, rescue: null })).toEqual([])
+  })
+})
+
+describe('RescueMapOverlay', () => {
+  it('renders nothing with no result, or with the switch off', () => {
+    expect(renderToString(<RescueMapOverlay frame={null as never} sites={[]} />)).toBe('')
+    useRescueStore.setState({ rescue, showOnMap: false })
+    expect(renderToString(<RescueMapOverlay frame={null as never} sites={[]} />)).toBe('')
+    useRescueStore.setState({ rescue: null, showOnMap: true })
+  })
+})
+
+describe('buildWalkthrough', () => {
+  const text = (r: RescueResponse) => buildWalkthrough(r).map((st) => `${st.title}. ${st.text}`).join(' ')
+
+  it('explains the rescue fixture in five steps using its real numbers', () => {
+    const steps = buildWalkthrough(rescue)
+    expect(steps).toHaveLength(5)
+    expect(steps.every((st) => st.title && st.text)).toBe(true)
+    // 1. launch delay 2027-10-15 -> 2027-10-25
+    expect(steps[0].text).toContain('10 days')
+    // 2. main broken rule: Earth visibility is 0% against a required 40%, the largest shortfall
+    expect(steps[1].text).toContain('fails')
+    expect(steps[1].text).toContain('0%')
+    expect(steps[1].text).toContain('40%')
+    // 3. 488 combinations, 8 locations, none undecided
+    expect(steps[2].text).toContain('488')
+    expect(steps[2].text).toContain('8 locations')
+    expect(steps[2].text).toContain('2027-10-25')
+    // 4. top alternative: Peak Near Shackleton, main gain 168 h
+    expect(steps[3].text).toContain('Peak Near Shackleton')
+    expect(steps[3].text).toContain('168 h')
+    // 5. robust, 4 of 4
+    expect(steps[4].text.toLowerCase()).toContain('robust')
+    expect(steps[4].text).toContain('4 of 4')
+  })
+
+  it('says plainly when no alternative passes, without crashing', () => {
+    const steps = buildWalkthrough(none)
+    expect(steps).toHaveLength(5)
+    expect(steps[0].text).toContain('500 h')
+    expect(steps[3].text).toMatch(/no alternative/i)
+    expect(steps[4].text).toMatch(/nothing to check|no alternative/i)
+  })
+
+  it('says plainly when the dates are outside the real data', () => {
+    const t = text(outside)
+    const steps = buildWalkthrough(outside)
+    expect(steps).toHaveLength(5)
+    expect(steps[1].text).toMatch(/unknown|could not be judged/i)
+    expect(steps[1].text).toContain('48 h')
+    expect(steps[1].text).toContain('168 h')
+    expect(steps[2].text).toContain('88')
+    expect(t).not.toContain('NaN')
+    expect(t).not.toContain('undefined')
+  })
+
+  it('does not claim real data in simulation mode', () => {
+    const sim = { ...rescue, data_source: 'synthetic:peak-near-shackleton, precomputed:x.json' }
+    const t = buildWalkthrough(sim)[2].text
+    expect(t).toContain('simulation mode')
+    expect(t).toContain('synthetic placeholder data')
+    expect(t).not.toContain('with real data')
+    expect(buildWalkthrough(rescue)[2].text).toContain('with real data')
+  })
+
+  it('says no option could be judged when everything is undecided', () => {
+    const steps = buildWalkthrough(outside)
+    expect(steps[3].text).toMatch(/none of the options could be judged with real data/i)
+    expect(steps[3].text).not.toMatch(/no alternative passes/i)
+    expect(steps[4].text).toMatch(/none of the options could be judged with real data/i)
+  })
+
+  it('does not claim nothing could be judged when some options failed on real data', () => {
+    const mixed = { ...outside, stats: { ...outside.stats, undecided: outside.stats.candidates_evaluated - 5, passing: 0 } } as RescueResponse
+    const steps = buildWalkthrough(mixed)
+    expect(steps[3].text).not.toMatch(/none of the options could be judged/i)
+    expect(steps[3].text).toMatch(/no alternative passes/i)
+  })
+
+  it('defines the five terms briefly', () => {
+    expect(GLOSSARY.map((g) => g.term.toLowerCase()).join('|')).toMatch(/sunlit fraction.*darkness.*earth contact.*robustness.*unknown/)
+    for (const g of GLOSSARY) expect(g.definition.split('. ').length).toBeLessThanOrEqual(2)
+  })
+})
+
+describe('Explain switch', () => {
+  // renderToString only sees zustand's initial state, so the panel's results renderer is tested directly.
+  const render = (explain: boolean) =>
+    renderToString(<RescueResults res={rescue} explain={explain} selected={null} sensitivity={null} onSelect={() => {}} onCheckSensitivity={() => {}} />)
+
+  it('shows the walkthrough only when the switch is on', () => {
+    expect(render(false)).not.toContain('What rescue did')
+    const on = render(true)
+    expect(on).toContain('What rescue did')
+    expect(on).toContain('Sunlit fraction')
+    expect(on.indexOf('What rescue did')).toBeLessThan(on.indexOf('Recommended alternatives'))
+  })
+
+  it('is off by default and toggles in the store', () => {
+    expect(useRescueStore.getState().explain).toBe(false)
+    useRescueStore.getState().setExplain(true)
+    expect(useRescueStore.getState().explain).toBe(true)
+    useRescueStore.setState({ explain: false })
   })
 })
