@@ -144,33 +144,38 @@ export interface Picture {
   title: string
   caption: string
   src: string
+  alt: string
 }
 
-/** Real screenshots of the app (public/landing/), shown in the side rail. */
+/** Real app screenshots shown in the feature carousel. */
 export const PICTURES: Picture[] = [
   {
     id: 'planner',
     title: 'Mission Planner',
-    caption: 'LOLA terrain with live sunlight and shadows, and the rays that block the Sun or Earth.',
+    caption: 'Explore lunar terrain in 3D and see where ridges block sunlight or the radio link to Earth.',
     src: '/landing/planner.jpg',
+    alt: 'Three-dimensional lunar terrain in the Mission Planner',
   },
   {
     id: 'sky',
     title: 'Sky plot and timeline',
-    caption: 'Sun and Earth paths against the terrain horizon, with sunlight, Earth contact and the longest blackout.',
+    caption: 'Scrub the timeline to see when the Sun or Earth drops below the local horizon.',
     src: '/landing/sky.jpg',
+    alt: 'Polar sky plot and an hourly visibility timeline',
   },
   {
     id: 'compare',
     title: 'Scenario Comparison',
-    caption: 'Up to four plans side by side, each with its verdict and where every number comes from.',
+    caption: 'Compare up to four plans side by side and see which meet your mission limits.',
     src: '/landing/compare.jpg',
+    alt: 'Mission scenarios and their viability metrics shown side by side',
   },
   {
     id: 'rescue',
     title: 'Mission Rescue',
-    caption: 'Ranked alternatives after a ten-day slip, with what each one fixes.',
+    caption: 'Find alternative dates or sites when a delay puts power or communications at risk.',
     src: '/landing/rescue.jpg',
+    alt: 'Ranked recovery options in the Mission Rescue panel',
   },
 ]
 
