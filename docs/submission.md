@@ -43,7 +43,7 @@ Claims checked:
 - **Feasibility Atlas:** landing date × mission length for one site.
 - **Validation & Methodology:** the data sources, the independent scientific checks, the viability engine's
   software-verification report, and the limitations.
-- **Guided Mission Briefing:** a 9-step tutorial.
+- **Unified Guided Tour:** two routes over one live workflow across three acts: **Quick tour (90 s)** (7 steps covering Peak Near Shackleton, a 4-day launch delay causing a 118 h Earth blackout FAIL, 3D evidence, Mission Rescue recovery at Malapert Massif, Comparison, Science vs Engineering, and the live recap) and **Full guided tour** (19 steps covering all planner tools, Countdown, Scenario Comparison headroom, frozen PDF/JSON Mission Report, Feasibility Atlas, and Validation & Methodology). Also reachable at Act 2 via **How to compare missions**.
 
 **How it works** [implemented]:
 
@@ -144,8 +144,9 @@ Use **real screenshots or recordings** of the app, never illustrative images.
 
 ## 6. Open before submitting
 
-- [ ] Licence decision and the asset items in [`assets-and-licensing.md`](assets-and-licensing.md) §4
-      (font, rover model, landing images, favicon).
+- [x] Root [`LICENSE`](../LICENSE) (MIT + third-party notice), restrictive `BabyDoll.ttf` replaced with SIL OFL `Fredoka`, unused `Rover(1).glb` & Vite `favicon.svg` removed.
+- [ ] Remaining asset provenance in [`assets-and-licensing.md`](assets-and-licensing.md) §4
+      (`rover.glb`, `rocket-launch.webp`, `moon.jpg`, rover mascot SVGs).
 - [ ] Every member confirms their AI-disclosure line (§4).
 - [ ] Keep Gracy & Lee cited as a coordinate source, not a validation result (§3).
 - [ ] Public repository link and a public deployment (if any) accessible without sign-in.

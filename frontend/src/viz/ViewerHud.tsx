@@ -173,7 +173,7 @@ export function TopInfo({
         )}
       </p>
       {current && (
-        <dl className="md-reveal mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+        <dl data-tour="hud-readout" className="md-reveal mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
           <dt className="text-white/70">Sunlight</dt>
           <dd>
             {fmtPct(current.sun.visible_fraction, current.sun.visible)} of disk · el{' '}

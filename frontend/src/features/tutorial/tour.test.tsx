@@ -11,7 +11,7 @@ import { originalScenario } from '../guide/missionDefinition'
 import { useNav } from '../guide/nav'
 import { useRescueStore } from '../rescue/useRescueStore'
 import { TUTORIAL_STEPS } from './steps'
-import { installTourBridge, requiredStage } from './storyBridge'
+import { installTourBridge, recapFacts, requiredStage } from './storyBridge'
 import { resetTutorialStoreForTests, useTutorialStore } from './useTutorialStore'
 import { handleTutorialKeyDown } from './utils'
 
@@ -51,7 +51,8 @@ describe('unified guided tour', () => {
   it('requiredStage maps spotlight steps to the story stage they sit on', () => {
     expect(requiredStage(indexOf('terrain'))).toBe('mission')
     expect(requiredStage(indexOf('sync'))).toBe('compare')
-    expect(requiredStage(indexOf('assistant'))).toBe('compare') // the report is an output, not a prerequisite
+    expect(requiredStage(indexOf('science'))).toBe('compare') // the report is an output, not a prerequisite
+    expect(requiredStage(indexOf('your-turn'))).toBeNull()
     expect(requiredStage(indexOf('atlas'))).toBeNull()
   })
 
@@ -69,7 +70,8 @@ describe('unified guided tour', () => {
     await goToId('original')
     expect(stageModel(snapshot()).status).toBe('ready')
     await goToId('delay')
-    expect(stageModel(snapshot()).rows[0]).toMatchObject({ before: '22 h', after: '118 h', to: 'fail' })
+    expect(stageModel(snapshot()).rows[0]).toMatchObject({ before: '22 h', to: 'fail' })
+    expect(stageModel(snapshot()).rows[0].after).toContain('118 h')
     await goToId('evidence')
     expect(stageModel(snapshot()).status).toBe('ready')
     await goToId('rescue')
@@ -116,7 +118,7 @@ describe('unified guided tour', () => {
     expect(useNav.getState().view).toBe('planner')
   })
 
-  it('Act 3 visits the Atlas then Methodology, and Finish closes the tour', async () => {
+  it('Act 3 visits the Atlas, Methodology, then Your turn on the planner, and Explore on my own closes the tour', async () => {
     useTutorialStore.getState().startTour(0)
     await flush()
     useTutorialStore.getState().goToAct(3)
@@ -125,7 +127,10 @@ describe('unified guided tour', () => {
     useTutorialStore.getState().nextStep()
     await flush()
     expect(useNav.getState().view).toBe('method')
-    useTutorialStore.getState().nextStep() // Finish
+    useTutorialStore.getState().nextStep()
+    await flush()
+    expect(useNav.getState().view).toBe('planner')
+    useTutorialStore.getState().nextStep() // Explore on my own
     expect(useTutorialStore.getState()).toMatchObject({ open: false, completed: true })
     expect(useGuide.getState().active).toBe(false)
   })
@@ -191,6 +196,79 @@ describe('unified guided tour', () => {
     useReportStore.setState({ open: true })
     expect(handleTutorialKeyDown({ key: 'Escape' })).toBe(false)
     expect(useTutorialStore.getState().open).toBe(true)
+  })
+
+  const idAt = () => TUTORIAL_STEPS[useTutorialStore.getState().stepIndex].id
+  async function next() {
+    useTutorialStore.getState().nextStep()
+    await flush(12)
+    if (idAt() === 'evidence') viewerShows()
+  }
+
+  it('the quick path walks the whole story across routes and ends with a live recap', async () => {
+    useTutorialStore.getState().startTour(undefined, 'quick')
+    await flush()
+    expect(idAt()).toBe('mission')
+    await next()
+    expect(idAt()).toBe('delay')
+    expect(stageModel(snapshot()).rows[0].after).toContain('118 h')
+    await next()
+    expect(idAt()).toBe('evidence')
+    expect(stageModel(snapshot()).status).toBe('ready')
+    await next()
+    await flush(12)
+    expect(idAt()).toBe('rescue')
+    expect(useGuide.getState().recovery?.site.id).toBe('malapert-massif')
+    await next()
+    await useCompareStore.getState().refresh()
+    await flush()
+    expect(idAt()).toBe('compare')
+    expect(useNav.getState().view).toBe('compare')
+    expect(useGuide.getState().compareIds).toHaveLength(3)
+    await next()
+    expect(idAt()).toBe('science')
+    expect(useNav.getState().view).toBe('compare')
+    await next()
+    expect(idAt()).toBe('your-turn')
+    expect(useNav.getState().view).toBe('planner')
+    const recap = recapFacts()
+    expect(recap?.map((f) => f.label)).toEqual(['Original plan', 'After the delay', 'Recovery'])
+    expect(recap?.map((f) => f.tone)).toEqual(['pass', 'fail', 'pass'])
+    expect(recap?.[2].value).toContain('Malapert Massif')
+    await next() // Explore on my own
+    expect(useTutorialStore.getState().open).toBe(false)
+    expect(useGuide.getState().active).toBe(false)
+  })
+
+  it('quick path: the Act 2 tab catches the story up to the comparison', async () => {
+    useTutorialStore.getState().startTour(undefined, 'quick')
+    await flush()
+    useTutorialStore.getState().goToAct(2)
+    for (let i = 0; i < 10; i++) {
+      await flush(12)
+      viewerShows()
+    }
+    expect(idAt()).toBe('compare')
+    expect(STAGES[useGuide.getState().stage].id).toBe('compare')
+    expect(useGuide.getState().compareIds).toHaveLength(3)
+  })
+
+  it('Your turn stops the story, so picking a site cannot pause it mid-explanation', async () => {
+    useTutorialStore.getState().startTour(undefined, 'quick')
+    await flush()
+    useTutorialStore.getState().goToAct(3)
+    for (let i = 0; i < 6; i++) await flush(12)
+    expect(idAt()).toBe('your-turn')
+    expect(useNav.getState().view).toBe('planner')
+    expect(useGuide.getState().compareIds).toHaveLength(0) // no catch-up ran for Act 3
+  })
+
+  it('the recap is empty when the story never reached the comparison', async () => {
+    useTutorialStore.getState().startTour(0)
+    await flush()
+    useTutorialStore.getState().goToAct(3)
+    await flush()
+    expect(recapFacts()).toBeNull()
   })
 
   it('skipping stops the story', async () => {

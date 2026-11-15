@@ -25,7 +25,7 @@ import {
   recoveryCandidates,
   statusChanges,
 } from './missionDefinition'
-import { snapshot, stageIndex, stageModel, STAGES, useGuide } from './mission'
+import { plainName, snapshot, stageIndex, stageModel, STAGES, useGuide, withDays } from './mission'
 
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x))
 
@@ -79,6 +79,24 @@ describe('mission definition', () => {
   })
 })
 
+describe('plain live text', () => {
+  it('adds days to long hour values only', () => {
+    expect(withDays('22 h')).toBe('22 h')
+    expect(withDays('118 h')).toBe('118 h (4.9 days)')
+    expect(withDays('96 h')).toBe('96 h (4 days)')
+    expect(withDays('48 h')).toBe('48 h (2 days)')
+    expect(withDays('93.5%')).toBe('93.5%')
+    expect(withDays('unavailable')).toBe('unavailable')
+  })
+
+  it('maps engine requirement names to plain labels, keeping unknown ids', () => {
+    const da = (assessDisrupted as unknown as AssessResponse).assessment
+    const c = da.constraints.find((x) => x.constraint_id === 'max_communication_blackout')!
+    expect(plainName(c)).toBe('Longest time Earth is out of sight')
+    expect(plainName({ ...c, constraint_id: 'something_else', name: 'Engine name' })).toBe('Engine name')
+  })
+})
+
 describe('guided mission flow', () => {
   it('starts on the mission with the definition as the running plan, without duplicating plans on restart', async () => {
     usePlansStore.getState().add('My own plan', originalScenario()) // a user plan: must survive
@@ -111,7 +129,8 @@ describe('guided mission flow', () => {
     await advanceTo('changed')
     const m = model()
     expect(m.status).toBe('ready')
-    expect(m.rows).toEqual([expect.objectContaining({ name: 'Maximum direct-to-Earth line-of-sight blackout', before: '22 h', after: '118 h', from: 'pass', to: 'fail' })])
+    expect(m.rows).toEqual([expect.objectContaining({ name: 'Longest time Earth is out of sight', before: '22 h', after: '118 h (4.9 days)', limit: '≤ 96 h (4 days)', from: 'pass', to: 'fail' })])
+    expect(m.facts[0].value).toMatch(/^Longest time Earth is out of sight: 118 h \(4\.9 days\)/)
 
     useGuide.getState().next()
     await flush()
@@ -121,6 +140,10 @@ describe('guided mission flow', () => {
     const ev = useEvidence.getState().highlight!
     expect(new Date(ev.startUtc).getTime()).toBe(new Date(MISSION.expected.evidence.start_utc).getTime())
     expect(ev.body).toBe('earth')
+    const em = model()
+    expect(em.lead).not.toContain('direct-to-Earth link')
+    expect(em.lead).toContain('without Earth in line of sight')
+    if (MISSION.expected.evidence.clipped_at_end) expect(em.note).toMatch(/so this mission experiences at least 118 h\.$/)
 
     await advanceTo('rescue')
     await flush(12)
@@ -128,6 +151,7 @@ describe('guided mission flow', () => {
     expect(useRescueStore.getState().selected?.site.id).toBe('malapert-massif')
     expect(model().status).toBe('ready')
     expect(model().lead).toMatch(/same date, different site/)
+    expect(model().facts).toContainEqual(expect.objectContaining({ label: 'Moved', value: '143 km from the original site' }))
 
     await advanceTo('compare')
     await useCompareStore.getState().refresh()

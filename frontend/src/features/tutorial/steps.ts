@@ -30,7 +30,7 @@ export type TourAct = 1 | 2 | 3
 export const TOUR_ACTS: { act: TourAct; label: string; title: string }[] = [
   { act: 1, label: 'Plan', title: 'Plan a south-pole landing' },
   { act: 2, label: 'Decide', title: 'Make the decision' },
-  { act: 3, label: 'Trust', title: 'Trust the science' },
+  { act: 3, label: 'Trust', title: 'Trust the science, then try it' },
 ]
 
 export interface TutorialStep {
@@ -87,7 +87,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: `Your mission: ${SITE}`,
     badge: 'Live result',
     whyItMatters:
-      `A ${DAYS}-day landing in the Artemis III region at the lunar south pole, loaded from real NASA data. Can it keep both sunlight and a direct link to Earth?`,
+      `Ice hides in craters that never see sunlight, but a lander needs both sunlight and Earth in sight. This ${DAYS}-day landing in the Artemis III region is loaded from real NASA data.`,
     tryPrompt: 'The plan below: every requirement must hold for the whole mission.',
     promptKind: 'look',
     targetSelectors: SIDEBAR,
@@ -125,6 +125,20 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     prep: { showTimeBar: true },
   },
   {
+    id: 'countdown',
+    act: 1,
+    view: 'planner',
+    title: 'Time left before sunset and Earthset',
+    badge: 'Countdown',
+    whyItMatters:
+      'Operators plan around these countdowns: the next sunset, and the next time Earth drops behind the terrain. At the pole the Sun stays within a few degrees of the horizon, so a small ridge decides power.',
+    tryPrompt: "Next sunset, next Earthset, and the Sun's elevation against the terrain.",
+    promptKind: 'look',
+    targetSelectors: ['[data-tour="hud-readout"]'],
+    preferredPlacement: 'right',
+    triggers: [],
+  },
+  {
     id: 'sky',
     act: 1,
     view: 'planner',
@@ -146,7 +160,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Checked against NASA JPL Horizons',
     badge: 'JPL Horizons',
     whyItMatters:
-      'Sun and Earth positions come from NASA JPL Horizons. Verify with JPL re-queries Horizons live and checks it against an independent DE421 ephemeris.',
+      'Sun and Earth positions come from NASA JPL Horizons. When online, Verify with JPL re-queries Horizons for this hour and compares it with an independent DE421 ephemeris.',
     tryPrompt: 'Click Verify with JPL.',
     promptKind: 'try',
     targetSelectors: ['[data-tour="jpl-verify"]'],
@@ -195,7 +209,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'See why in 3D',
     badge: 'Live result',
     whyItMatters:
-      'The camera stands at the lander and looks toward Earth when the link is lost. The band on the time strip marks how long the blackout lasts.',
+      'Near the pole Earth hangs low and bobs up and down each month (libration). The camera stands at the lander looking toward Earth; the band on the time strip marks how long it stays out of sight.',
     tryPrompt: 'Where Earth sits relative to the terrain horizon.',
     promptKind: 'look',
     targetSelectors: ['[data-tour="time-bar"]'],
@@ -212,7 +226,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Search for a recovery',
     badge: 'Live result',
     whyItMatters:
-      'Rescue searches nearby sites and later dates for a plan that still meets every requirement. The engine then double-checks it.',
+      'Rescue searches other candidate sites and later dates for a plan that still meets every requirement. The engine then double-checks it.',
     tryPrompt: 'The recovery Rescue selected, and its margins below.',
     promptKind: 'look',
     targetSelectors: SIDEBAR,
@@ -281,6 +295,21 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     targetSelectors: ['#cmp-summary', '[data-tour="compare-tradeoffs"]'],
     preferredPlacement: 'top',
     triggers: [],
+  },
+  {
+    id: 'science',
+    act: 2,
+    view: 'compare',
+    reveal: 'cmp-science',
+    title: 'Science vs engineering',
+    badge: 'Trade-off',
+    whyItMatters:
+      'The recovery moved the landing to another site. Science wants to stay near shadowed ice, engineering wants sunlight and Earth in sight, and this search finds the best balance or what each side gives up.',
+    tryPrompt: 'Find best compromise: say what science needs, then search.',
+    promptKind: 'look',
+    targetSelectors: ['#cmp-science'],
+    preferredPlacement: 'top',
+    triggers: [],
     nextLabel: 'Generate the report',
   },
   {
@@ -297,19 +326,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     promptKind: 'look',
     targetSelectors: ['[data-testid="report-preview"]', '[data-tour="compare-report"]'],
     preferredPlacement: 'right',
-    triggers: [],
-  },
-  {
-    id: 'assistant',
-    act: 2,
-    view: 'compare',
-    title: 'Ask Rover, the mission assistant',
-    badge: 'Assistant',
-    whyItMatters: 'Ask in plain English why one plan beats another, or where to find something on the page.',
-    tryPrompt: 'The Ask Rover button in the corner, available any time.',
-    promptKind: 'look',
-    targetSelectors: ['[data-tour="compare-assistant"]'],
-    preferredPlacement: 'left',
     triggers: [],
   },
 
@@ -335,14 +351,42 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Validation & Methodology',
     badge: 'Validation',
     whyItMatters:
-      'Results are cross-checked against JPL Horizons, LROC WAC_POLE_ILL_TWI_SOUTH sunlight maps and Gracy & Lee (LPSC 2024). Every limitation is stated openly.',
+      'Sun and Earth positions are checked against an independent DE421 ephemeris, and modelled sunlight against LROC orbital illumination maps. Known limitations are listed.',
     tryPrompt: 'Methods & sources and the limitations, one click away.',
     promptKind: 'look',
     targetSelectors: ['[data-tour="method-overview"]'],
     preferredPlacement: 'bottom',
     triggers: [],
   },
+  {
+    id: 'your-turn',
+    act: 3,
+    view: 'planner',
+    title: 'Your turn',
+    badge: 'Explore',
+    whyItMatters:
+      'A passing plan broke on a short delay, and the engine found a fix elsewhere. Now pick another site, or drop a pin anywhere from 80° S to the pole.',
+    tryPrompt: 'Open the site picker or press Drop pin, then press Play.',
+    promptKind: 'try',
+    targetSelectors: ['[data-tour="site-select"]', '[data-tour="drop-pin"]'],
+    preferredPlacement: 'top',
+    triggers: ['site-select', 'drop-pin'],
+    nextLabel: 'Explore on my own',
+  },
 ]
+
+export type TourPath = 'quick' | 'full'
+
+/** The two routes through the same steps: a ~90 s story for busy judges, and the whole site. */
+export const TOUR_PATHS: Record<TourPath, string[]> = {
+  quick: ['mission', 'delay', 'evidence', 'rescue', 'compare', 'science', 'your-turn'],
+  full: TUTORIAL_STEPS.map((s) => s.id),
+}
+
+/** The path's steps as indices into TUTORIAL_STEPS, in order. */
+export function pathSteps(path: TourPath): number[] {
+  return TOUR_PATHS[path].map((id) => TUTORIAL_STEPS.findIndex((s) => s.id === id)).filter((i) => i >= 0)
+}
 
 /** Index of the act's first step. */
 export function actStart(act: TourAct): number {
