@@ -19,6 +19,8 @@ import {
 import { GlassDemo } from './ui/GlassDemo'
 import { GlassDefs } from './ui/GlassSurface'
 import { GradientPreview } from './ui/GradientPreview'
+import { LunarHorizonLogo } from './ui/LunarHorizonLogo'
+import { InfoIcon } from './ui/icons'
 import { installMangoTexture } from './ui/mangoShader'
 import { initMaterialMotion } from './viz/materialMotion'
 import { UiHiddenNotice } from './viz/UiHiddenNotice'
@@ -43,12 +45,6 @@ function useHash() {
 function openNavigator() {
   window.location.hash = routeHash('planner')
   window.scrollTo(0, 0)
-}
-
-/** Landing page "Try a mission": open the navigator and start the guided real-data mission. */
-function tryMission() {
-  openNavigator()
-  useGuide.getState().start()
 }
 
 const VIEWS = [
@@ -80,9 +76,9 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
   }, [view])
 
   return (
-    <div className="pointer-events-none flex flex-wrap items-baseline gap-x-[clamp(16px,3vw,44px)] gap-y-1">
-      <a href="#" title="Back to the project page" className="pointer-events-auto font-display text-[clamp(22px,2.7vw,40px)] font-bold leading-none tracking-[-0.06em] text-opal-50 no-underline">
-        Site Navigator
+    <div className="pointer-events-none flex flex-wrap items-center gap-x-[clamp(16px,3vw,44px)] gap-y-1">
+      <a href="#" title="Back to the project page" className="pointer-events-auto shrink-0">
+        <LunarHorizonLogo className="block h-auto w-[clamp(144px,15vw,178px)]" />
       </a>
       <nav ref={navRef} aria-label="Main" className="pointer-events-auto relative flex gap-[clamp(14px,2vw,32px)] pb-1">
         {VIEWS.map((v) => (
@@ -93,6 +89,8 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
             }}
             type="button"
             data-tour={v.id === 'compare' ? 'nav-compare' : undefined}
+            aria-label={v.id === 'method' ? v.label : undefined}
+            title={v.id === 'method' ? v.label : undefined}
             aria-current={view === v.id ? 'page' : undefined}
             onClick={() => {
               if (v.id === 'compare') useTutorialStore.getState().recordInteraction('compare-open')
@@ -100,7 +98,11 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
             }}
             className="flex min-h-10 cursor-pointer items-center font-[var(--font-inter)] text-[clamp(15px,1.9vw,28px)] font-bold leading-tight tracking-[-0.06em] text-opal-50 transition-colors duration-200 hover:text-opal-300"
           >
-            {v.label}
+            {v.id === 'method' ? (
+              <span className="grid min-w-10 place-items-center">
+                <InfoIcon size={36} />
+              </span>
+            ) : v.label}
           </button>
         ))}
         <span
@@ -165,7 +167,7 @@ export default function App() {
   )
   if (route.page !== 'app') return (
     <Suspense fallback={<div className="h-full bg-black" />}>
-      <Landing onOpen={openNavigator} onTryMission={tryMission} />
+      <Landing onOpen={openNavigator} />
     </Suspense>
   )
 

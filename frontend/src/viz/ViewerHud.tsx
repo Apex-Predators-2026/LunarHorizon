@@ -4,7 +4,6 @@ import type { SiteInfo, SiteStatus, TimelineStep } from '../types'
 import { vertexSpacingM } from './globe/cubeSphere'
 import type { TileStats } from './globe/TileTree'
 import { LoadingIndicator } from '../ui/LoadingIndicator'
-import { SelectField } from '../ui/MdFields'
 import { DatePopup } from './DatePopup'
 import { fmtDeg, fmtPct, sunUp } from './timeline'
 import { useTutorialStore } from '../features/tutorial'
@@ -49,42 +48,57 @@ export function useViewerSetup(sites: SiteInfo[] | null) {
   }, [sites, site, timeUtc, setTime])
 }
 
-/** Site picker (lives in the sidebar), plus backend error / loading status. */
-export function SiteSelect({ sites, error, loading }: { sites: SiteInfo[] | null; error: string | null; loading: boolean }) {
+/** The rows of the toolbar's "Select site" menu: every site, grouped, with the current one ticked. */
+export function SiteMenuRows({ sites, error, loading, onPicked }: {
+  sites: SiteInfo[] | null
+  error: string | null
+  loading: boolean
+  onPicked: () => void // called after a site is chosen (closes the menu)
+}) {
   const { siteId, setSite } = useAppStore()
   return (
-    <div data-tour="site-select" className="space-y-2 text-xs">
-      <SelectField
-        label="Site"
-        tip="The landing site shown in the 3D view and used for the timeline."
-        value={siteId ?? ''}
-        onChange={(e) => {
-          setSite(e.target.value)
-          useTutorialStore.getState().recordInteraction('site-select')
-        }}
-      >
-        {SITE_GROUPS.map(([kind, label, inGroup]) => {
-          const group = sites?.filter(inGroup) ?? []
-          return group.length ? (
-            <optgroup key={kind} label={label}>
-              {group.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                  {s.approximate ? ' (approx.)' : ''}
-                  {s.artemis_list === 'unconfirmed' ? ' (Rim 1 or 2?)' : ''}
-                </option>
-              ))}
-            </optgroup>
-          ) : null
-        })}
-      </SelectField>
-      {error && <p className="px-4 text-red-400">{error}. Is the backend running on port 8000?</p>}
+    <div className="max-h-[min(60vh,30rem)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto text-sm">
+      {error && <p className="px-4 py-2 text-xs text-red-500">{error}. Is the backend running on port 8000?</p>}
       {!error && loading && (
-        <p className="flex items-center gap-2 px-4 text-slate-400">
+        <p className="flex items-center gap-2 px-4 py-2 text-xs text-slate-400">
           <LoadingIndicator size={20} contained={false} label="Loading" />
-          Loading…
+          Loading sites…
         </p>
       )}
+      {SITE_GROUPS.map(([kind, label, inGroup]) => {
+        const group = sites?.filter(inGroup) ?? []
+        return group.length ? (
+          <div key={kind} role="group" aria-label={label}>
+            <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+            {group.map((s) => {
+              const on = s.id === siteId
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={on}
+                  onClick={() => {
+                    setSite(s.id)
+                    useTutorialStore.getState().recordInteraction('site-select')
+                    onPicked()
+                  }}
+                  className={`flex min-h-10 w-full items-center gap-3 px-4 py-1.5 text-left transition-colors ${on ? 'bg-coral/15 font-semibold' : ''}`}
+                >
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center text-coral">
+                    {on && <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>}
+                  </span>
+                  <span className="min-w-0">
+                    {s.name}
+                    {s.approximate ? ' (approx.)' : ''}
+                    {s.artemis_list === 'unconfirmed' ? ' (Rim 1 or 2?)' : ''}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        ) : null
+      })}
     </div>
   )
 }
