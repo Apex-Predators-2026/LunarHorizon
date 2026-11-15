@@ -133,6 +133,20 @@ function FeatureCarousel() {
 }
 
 function MeetRover() {
+  const stage = useRef<HTMLDivElement>(null)
+  const [inView, setInView] = useState(false)
+
+  useEffect(() => {
+    if (!stage.current) return
+    if (typeof IntersectionObserver === 'undefined') {
+      setInView(true)
+      return
+    }
+    const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting))
+    observer.observe(stage.current)
+    return () => observer.disconnect()
+  }, [])
+
   function openAssistant() {
     useAssistant.getState().setOpen(true)
     goToView('compare')
@@ -142,8 +156,10 @@ function MeetRover() {
   return (
     <section className="lnd-section lnd-light lnd-rover" aria-labelledby="rover-h">
       <div className="lnd-wrap lnd-rover-grid">
-        <div className="lnd-rover-stage">
-          <RoverMascot facing="right" size={260} />
+        <div className="lnd-rover-stage" ref={stage}>
+          <div className="lnd-rover-pop" data-visible={inView}>
+            <RoverMascot facing="right" size={312} />
+          </div>
         </div>
         <div className="lnd-rover-copy">
           <h2 id="rover-h">Meet Rover</h2>
@@ -194,6 +210,12 @@ function Close({ onOpen }: { onOpen: () => void }) {
           <h2 id="close-h">Plan a landing that survives the night</h2>
           <OpenNavigatorButton onOpen={onOpen} />
         </div>
+        <p className="lnd-close-credit">
+          Image source{' '}
+          <a href="https://www.nasa.gov/reference/artemis-i-mission-timeline/" target="_blank" rel="noopener noreferrer">
+            NASA’s Artemis I Mission Timeline
+          </a>
+        </p>
       </div>
     </section>
   )
@@ -205,7 +227,7 @@ function Footer() {
       <div className="lnd-wrap">
         <p className="lnd-close-name">Site Navigator</p>
         <div className="lnd-close-meta">
-          <span>Built by Team Apex Predators for NASA Space Apps Challenge 2026</span>
+          <span>Built by Team B.A.J.A.N for NASA Space Apps Challenge 2026</span>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
             Source on GitHub <ExternalIcon size={14} />
           </a>
@@ -257,7 +279,7 @@ function Hero({ onOpen }: { onOpen: () => void }) {
         </div>
       </div>
       <div className="lnd-hero-credits">
-        <p>Built by Team Apex Predators for NASA Space Apps 2026</p>
+        <p>Built by Team B.A.J.A.N for NASA Space Apps 2026</p>
         <p>
           Image: <a href="https://science.nasa.gov/moon/" target="_blank" rel="noopener noreferrer">NASA</a>
         </p>
