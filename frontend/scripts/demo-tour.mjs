@@ -1,6 +1,8 @@
-// Demo tour: drives the real app (dev server + backend) through what a demo shows, for each demo site:
-// every camera view, a zoom out to the whole Moon and back, the top-down toggle, and the shadows across a
-// real sunset. Three uses (docs/demo-setup.md):
+// Terrain-cache tour (a diagnostic, not a test of the deployed app): drives the app on the Vite DEV server
+// through what a demo shows, for each demo site: every camera view, a zoom out to the whole Moon and back, the
+// top-down toggle, and the shadows across a real sunset. It steers the app through the dev server's modules
+// (stores), so it proves the chosen views load their resources, not that a user can use the built app: that
+// is scripts/smoke-prod.mjs (production build, real interface only). Three uses (docs/demo-setup.md):
 //
 //   node scripts/demo-tour.mjs                  warm the caches: run once online, the backend keeps all it fetched
 //   node scripts/demo-tour.mjs --verify         prove the demo needs no downloads: start the backend with
@@ -11,6 +13,7 @@
 // --api (default http://localhost:8000), --out <dir> (screenshots + report.json, default tour-output/).
 // Needs Chrome or Edge: set CHROME_PATH if it isn't found. Runs against the Vite dev server (it reads the
 // app's terrain-loading state through the dev server's modules).
+// Fails (exit 1) on any uncaught page error, in every mode, and with --verify on any failed /api request.
 import { chromium } from 'playwright-core'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -245,14 +248,22 @@ async function checkHorizon(id) {
 
 report.requests = requests
 report.failures = failures
-report.page_errors = errors.filter((e) => !e.includes("reading 'a'")) // a known LoadingIndicator glitch
+report.page_errors = errors // every uncaught error: none is "known" and harmless
 writeFileSync(join(OUT, 'report.json'), JSON.stringify(report, null, 2))
 console.log(`\n${requests} backend requests, ${failures.length} failed${failures.length ? ':' : ''}`)
 for (const f of failures.slice(0, 30)) console.log('  ' + f)
+console.log(`${errors.length} page error${errors.length === 1 ? '' : 's'}${errors.length ? ':' : ''}`)
+for (const e of [...new Set(errors)].slice(0, 10)) console.log('  ' + e)
 console.log(`report and screenshots: ${OUT}/`)
 await browser.close()
+let ok = true
+if (errors.length) {
+  console.log('\nFAILED: the app threw errors during the tour (above).')
+  ok = false
+}
 if (VERIFY && failures.length) {
   console.log('\nNOT ready for an offline demo: the requests above needed data that is not in the cache.')
-  process.exit(1)
+  ok = false
 }
-if (VERIFY) console.log('\nReady: the whole tour ran from the caches, with no downloads.')
+if (!ok) process.exit(1)
+if (VERIFY) console.log('\nReady: the whole tour ran from the caches, with no downloads and no page errors.')
