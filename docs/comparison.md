@@ -79,6 +79,20 @@ or mission duration are in separate groups (STRICT policy) and are **never ranke
 primary group is the largest. A PASS scenario in a non-primary group shows "rank n in separate group Gx",
 never a place in the main ranking.
 
+### Pairwise evidence (`pairwise`) and the decision panel
+
+`pairwise[]` restates the engine's `ranking_evidence.compare_scenarios` for every pair of assessed scenarios:
+who ranks first (`higher`), the `deciding_criterion` (eligibility, score lower bound, or a policy tie-break such as
+overall risk), the conservative score difference (`selected_higher` / `not_established` / `unavailable` /
+`not_comparable`), per-component advantages and the engine's own explanation (`selected_id` / `competitor_id` are
+the engine ids used in its texts; the UI shows scenario letters instead).
+
+The decision panel (`frontend/src/features/compare/decision.ts`) keeps four kinds of statement apart:
+requirement verdicts, canonical ranking evidence, measured trade-offs (individual engine metrics, meaningful
+differences only) and uncertainty. A scenario is only called preferred when it passes every requirement and holds
+rank 1 of at least two passing scenarios in its group; with one pass it is "the only option that meets the
+requirements"; with no pass and any UNKNOWN there is no conclusion; with all FAIL nothing is recommended.
+
 ## Data honesty rules
 
 - Scenarios without real data (dates outside 2027–2028, unknown sites) come back **unavailable**.
