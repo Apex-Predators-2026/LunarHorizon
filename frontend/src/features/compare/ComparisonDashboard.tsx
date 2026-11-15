@@ -77,7 +77,9 @@ export function ComparisonDashboard({ onOpen3D }: { onOpen3D?: () => void } = {}
     return selected.map((s) => {
       const state = results[resultKey(s, allowDemo)]
       const result = state?.state === 'done' && state.result.status === 'ok' ? state.result : null
-      const ranking = rankingCurrent && result ? result.ranking : null
+      // Unassessed scenarios (e.g. no data) still carry their UNKNOWN ranking entry.
+      const raw = state?.state === 'done' ? state.result : null
+      const ranking = rankingCurrent && raw ? raw.ranking : null
       return { scenario: s, state, result, offsetHours: offsets[s.id] ?? 0, ranking }
     })
   }, [selected, results, allowDemo, align, rankingCurrent])
