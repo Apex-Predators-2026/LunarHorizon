@@ -1,10 +1,8 @@
 import type { CSSProperties, InputHTMLAttributes } from 'react'
-import { InteractiveGrainGradient } from './InteractiveGrainGradient'
 
 /**
- * Range slider whose filled track is the live mango mesh. The native input keeps its behaviour (keyboard,
- * pointer, accessibility); a gradient is placed under its transparent track and sized to the fill. Dragging
- * the handle sweeps the pointer across the gradient, so the colours stream with the motion.
+ * Range slider with a solid coral filled track. The native input keeps its behaviour (keyboard, pointer,
+ * accessibility); the fill is placed under its transparent track and sized to the handle's position.
  */
 export function MangoRange({ wrapperClassName, className, ...rest }: InputHTMLAttributes<HTMLInputElement> & { wrapperClassName?: string }) {
   const min = Number(rest.min ?? 0)
@@ -18,7 +16,7 @@ export function MangoRange({ wrapperClassName, className, ...rest }: InputHTMLAt
         className="pointer-events-none absolute left-0 top-[9px] h-4 overflow-hidden rounded-full"
         style={{ width: 'calc(17px + (100% - 34px) * var(--p))' }}
       >
-        <InteractiveGrainGradient fill strength={1.6} patternScale={0.45} />
+        <span className="block h-full w-full bg-coral" />
       </div>
       <input type="range" {...rest} className={`mango-range relative ${className ?? ''}`} />
     </div>
