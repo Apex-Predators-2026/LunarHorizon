@@ -1,13 +1,20 @@
-# Lunar Landing Site Navigator
+# Lunar Horizon: Lunar Landing Site Navigator
 
-A web tool for the 2026 NASA Space Apps Challenge *Lunar Landing Site Navigator*. It helps mission planners,
-educators and the public compare Moon south-pole landing sites and dates by showing, hour by hour, whether the Sun
-lights the lander's solar panels and whether Earth is above the local terrain horizon for direct-to-Earth contact.
-It explains why each plan passes or fails, and it searches for alternatives when a launch slips.
+**Finding the Right Place. At the Right Time.**
+
+Lunar Landing Site Navigator helps plan safer, smarter Artemis III landings at the lunar south pole. By analyzing
+sunlight, Earth visibility, and lunar terrain across 2026–2031 using NASA data and JPL Horizons, it evaluates landing
+opportunities hour by hour, explains mission constraints, and dynamically adapts plans when launch dates shift.
+
+Built for the 2026 NASA Space Apps Challenge *Lunar Landing Site Navigator*, for mission planners, educators and the
+public alike. For every plan it shows whether the Sun lights the lander's solar panels and whether Earth is above the
+local terrain horizon for direct-to-Earth contact. It explains why each plan passes or fails, compares plans side by
+side with a formal Mission Report, and searches for alternatives when a launch slips.
 
 Everything it reports is computed from NASA data: Sun and Earth positions from **JPL Horizons**, and terrain from
 **LRO LOLA** elevation models served by **NASA Moon Trek**. Results are cross-checked against **LROC** illumination
-maps. Validation evidence and limitations are shown in the app (Methodology view) and in [`docs/`](docs/).
+maps. Validation evidence and limitations are shown in the app (the Methodology view, and the methodology page of
+Scenario Comparison) and in [`docs/`](docs/).
 
 > **Status (2026-11-15):** hackathon build; everything described here is in this repository. It runs locally
 > (instructions below). What was verified, at which commit and how is recorded by the release gate in
@@ -19,13 +26,15 @@ maps. Validation evidence and limitations are shown in the app (Methodology view
 | View (URL) | What you get |
 |---|---|
 | **Mission Planner** (`#app/planner`) | A 3D Moon you can spin and zoom: LOLA terrain, live sunlight and shadows, LRO WAC imagery when zoomed out. Curated Artemis III and historical sites, or a dropped custom pin. A time strip with sunlight and Earth-visibility lanes (unknown data is shown as unknown, never as darkness), a sky plot, and Sun / Earth eye views from the lander. Plans are saved as cards with the engine's verdict. **Full assessment** shows every requirement's measured value, margin, evidence ("Show in 3D"), data provenance and limitations. |
-| **Mission Rescue** (in the Planner) | After a launch delay or a requirement change, it searches nearby dates and sites for passing alternatives and explains each one. |
-| **Scenario Comparison** (`#app/compare`) | Side-by-side plans: headline conditions, synchronized timelines, a metrics table, trade-offs, the canonical ranking (only PASS plans are ranked), CSV/JSON export. An optional AI Mission Assistant (see *AI assistance*). |
+| **Mission Rescue** (in the Planner) | After a launch delay or a requirement change, it searches nearby dates and sites for passing alternatives, explains each one, and can send them to Scenario Comparison, which tells the rescue story (original plan, what broke, the recovery). |
+| **Scenario Comparison** (`#app/compare`) | Up to four plans side by side, in three views. **Overview** puts the decision first: the recommendation (or why there is none), the decisive requirement and the next step, then *At a glance*, the Mission Rescue story and the decision's trade-offs. **Evidence**: the metrics and requirements table, the mission assessment, a synchronized sunlight / Earth-contact timeline with the conditions at any hour (and *Open in 3D*), and the canonical ranking (only PASS plans are ranked, and only against plans judged by the same rules). **Detailed analysis**: Sun and Earth elevation charts, terrain horizon vs. Sun and Earth, a trade-off radar, *Science vs engineering* and *Data, assumptions and limitations*. Rescue alternatives can be imported straight into the comparison. Plus CSV / JSON export, the **Mission Report**, a six-stop *How to compare missions* tour and the **Ask Rover** Mission Assistant (below). |
+| **How This Analysis Was Built** (bottom of Scenario Comparison → `#app/compare/methodology`) | A compact section at the end of the comparison opens a methodology page that belongs to the comparison (not a main-menu item). It covers the seven-step pipeline from plan to recommendation, the NASA data sources, the models (curvature-corrected terrain horizons, the Sun as a 0.53° disk, Earth line of sight, the hourly time policy), every metric, the PASS / FAIL / UNKNOWN rule, default requirements, the desirability score, fair comparison groups, what counts as a real difference, assumptions and limits, and the technical architecture. Interactive figures let you move a ridge to see the effect of lunar curvature, lower the Sun behind a rim to see the visible disk fraction against the panel threshold, and slide a measured range across a limit to see the verdict change. **← Back to Scenario Comparison** returns to the same comparison, with its results intact. |
+| **Ask Rover: Mission Assistant** (in Scenario Comparison) | A read-only chat panel (docked and resizable, full screen, or minimized) that explains the comparison on screen, answers "how do I…" questions about the page, and reads the generated Mission Report. Answers stream in, show the page's own verdict chips, and contain links that jump to the right section, tab or tour. It flags a report that is out of date first. It never changes plans, verdicts, scores or rankings. Without an AI key it says so and offers basic answers assembled from the page itself, labelled "not AI". Setup: see *AI assistance*. |
 | **Feasibility Atlas** (`#app/atlas`) | Landing date × mission length grid for one site and spacecraft: which missions pass, fail or cannot be decided. |
 | **Validation & Methodology** (`#app/method`) | Where each answer comes from, the independent scientific checks (ephemeris, horizon geometry, LROC sunlight), the viability engine's software-verification report, and the limitations. |
 | **Try a mission** (landing page button, and the header button in the navigator) | A guided, real-data mission through the actual tools: a Peak Near Shackleton plan that passes, a 4-day launch delay that makes it fail on the Earth-radio blackout, "Show why" in 3D, a Mission Rescue recovery, the Comparison, and a frozen summary report you can export. Every verdict is read live from the engine; nothing is scripted. Restart and exit are always available. Definition and replay check: [`docs/mission-story.md`](docs/mission-story.md). |
-| **Guided tours** | A first-visit *Mission Briefing* in the Planner (8 stops: 3D shadows, sky blockers, the JPL check, Mission Rescue) and a short tour of the Comparison. Both are separate from *Try a mission*, and never run together with it. |
-| **Mission Report** (from Scenario Comparison) | A frozen snapshot of the evaluated comparison, shown as a six-section report (executive summary, overview, performance, analysis, requirements, strengths and weaknesses, recommendation, sources and methodology, disclaimer) with a one-click **PDF** download, **Print** (A4 / Letter) and a matching **JSON**; the technical record (ranking evidence, pairwise comparisons, dataset SHA-256, engine versions, evaluated UTC intervals) is an appendix. A later change to the comparison marks it out of date until you regenerate it. The PDF is laid out separately from the on-screen pages, so its page count can differ (7 pages for the guided mission, against 6 on screen). |
+| **Guided tours** | A first-visit *Mission Briefing* in the Planner (8 stops: 3D shadows, sky blockers, the JPL check, Mission Rescue) and a six-stop *How to compare missions* tour of the Comparison (select missions, viability, conditions, trade-offs, the Mission Report, the assistant). Both are separate from *Try a mission*, and never run together with it. |
+| **Mission Report** (header of Scenario Comparison) | A frozen snapshot of the evaluated comparison, laid out as a formal black-and-white document: serif type, ruled tables and plain PASS / FAIL / UNKNOWN wording. A title page with contents is followed by nine sections: executive summary, mission overview, mission performance, comparison analysis, requirements assessment, strengths and weaknesses, final assessment and recommendation, data sources and methodology, and disclaimer. Mission performance has **five real figures** with axes and the requirement limits drawn in (mean visible solar disk, longest darkness, Earth line of sight, longest communication blackout, requirement outcomes per plan). The preview has section navigation. Exports: a one-click **PDF** (generated in the browser and loaded only when needed, numbered "Page n of N"), **Print** (A4 / Letter) and a matching **JSON**. The technical record (ranking evidence, pairwise comparisons, dataset SHA-256, engine versions, evaluated UTC intervals) is an appendix. A later change to the comparison marks the report out of date until you regenerate it. The PDF is laid out separately from the on-screen pages, so its page count can differ. |
 
 Verdicts are **PASS**, **FAIL** or **UNKNOWN** (the Atlas adds *not evaluated* for dates outside the data). UNKNOWN
 means the data cannot decide and is never treated as a failure. A missing score is never shown as 0; a value the data
@@ -90,14 +99,18 @@ Then prove the demo needs no network: start the backend with `LUNAR_OFFLINE=1` (
 ```
 frontend/   React 19 + TypeScript + Vite; Three.js via React Three Fiber (3D); Zustand (state); Tailwind
   src/viz/            3D scene, terrain tiles (viz/globe), sky, time strip, camera
-  src/features/       plans, rescue, compare, atlas, methodology, assessment, tutorial, landing
+  src/features/       plans, rescue, compare, atlas, methodology, assessment, tutorial, guide, landing
+    compare/            Scenario Comparison: views, decision, analysis; tour/, assistant/ (Ask Rover),
+                        Mission Report (report.ts snapshot, reportCard.ts content, ReportCardPdf.tsx via
+                        @react-pdf/renderer, loaded on demand), methodology/ (How This Analysis Was Built)
   src/lib/            shared canonical verdict / assessment clients
   scripts/            demo-tour.mjs (terrain-cache tour), smoke-prod.mjs (production smoke journey),
                       e2e-guided.mjs (Try a mission journey), e2e-time-missing.mjs (hourly-grid / incomplete data)
 backend/    Python + FastAPI + numpy + rasterio
   app/engine/         data engine: Horizons ephemeris, Moon Trek LOLA DEMs, horizon masks, timelines, tiles
   app/viability/      canonical viability engine (verdicts, metrics, margins, risks, score, ranking) + /api/viability
-  app/rescue/         Mission Rescue; app/compare/ Comparison backend; app/assistant/ optional AI assistant
+  app/rescue/         Mission Rescue; app/compare/ Comparison backend (POST /api/compare)
+  app/assistant/      Mission Assistant proxy (/api/assistant/status, /chat); holds the API key, never the browser
   scripts/            precompute.py (site files), prefetch_tiles.py (demo cache), validate_engine.py, build_*.py
 data/       sites/ (precomputed site files, in git), validation/ (stored reports), cache/ (git-ignored)
 scripts/    release-gate.mjs + release-gate-lib.mjs (release checks and their tested decision logic); release-gate/ holds the latest gate record
@@ -152,9 +165,15 @@ handful of older findings in `app/viability/compat/headroom.py` and two test fil
 1. Start the backend and `npm run dev` (Quick start), open `http://localhost:5173` and press **Try a mission**.
 2. Follow the story to the end: PASS, the 4-day delay, FAIL (Earth blackout 118 h against 96 h), **Show why** in 3D,
    the Rescue recovery, the Comparison, then the **Summary report** (print or JSON).
-3. Open **Feasibility Atlas**, pick a cell, and press *Open this mission in the Planner*.
-4. Open **Methodology** to see what was validated against what, and what was not (limitations are listed there).
-5. For a short rehearsal with someone who has not seen the app: [`docs/rehearsal-checklist.md`](docs/rehearsal-checklist.md).
+3. In **Scenario Comparison**, read the decision on *Overview*, switch to *Evidence* and *Detailed analysis*, then
+   open the **Mission Report** from the page header and download the PDF.
+4. Press **Ask Rover** and ask "Summarize my current comparison" (needs an AI key; without one it gives a basic,
+   labelled answer from the page).
+5. Scroll to the bottom of the comparison, press **Explore Methodology →**, try the interactive figures, then
+   **← Back to Scenario Comparison**.
+6. Open **Feasibility Atlas**, pick a cell, and press *Open this mission in the Planner*.
+7. Open **Methodology** to see what was validated against what, and what was not (limitations are listed there).
+8. For a short rehearsal with someone who has not seen the app: [`docs/rehearsal-checklist.md`](docs/rehearsal-checklist.md).
 
 ## NASA data and references
 
@@ -175,11 +194,32 @@ Full detail, frames and caveats: [`docs/data-sources.md`](docs/data-sources.md).
 
 ## AI assistance
 
-- The optional *Mission Assistant* in Comparison sends the comparison's own numbers to an LLM
-  through OpenRouter (default model `openai/gpt-4o-mini`, set by `OPENROUTER_MODEL`). It runs only when the server
-  has `OPENROUTER_API_KEY` (in `backend/.env` or the environment); otherwise it says it isn't configured. It explains
-  results; it never decides verdicts, scores or rankings.
-  
+**In the app.** The optional *Ask Rover* Mission Assistant in Scenario Comparison sends the comparison's own
+numbers (and the Mission Report, once generated) to an LLM through OpenRouter (default model `openai/gpt-4o-mini`).
+It explains results; it never decides verdicts, scores, rankings or recommendations, and when no AI service is
+available it says so rather than making up an answer.
+
+**Setting it up (each machine).** The key lives only on the backend; the browser never sees it.
+
+```powershell
+cd backend
+copy .env.example .env      # then edit .env and set OPENROUTER_API_KEY=sk-or-v1-...
+```
+
+| Variable (`backend/.env` or the environment) | Meaning |
+|---|---|
+| `OPENROUTER_API_KEY` | Required for AI answers. Without it the panel says "not configured" and offers basic answers. |
+| `OPENROUTER_MODEL` | Optional model id (default `openai/gpt-4o-mini`). |
+| `OPENROUTER_BASE_URL` | Optional OpenAI-compatible endpoint (default `https://openrouter.ai/api/v1`). |
+| `ASSISTANT_TIMEOUT_S` | Optional answer timeout in seconds (default 45). |
+
+`backend/.env` is git-ignored and read on every request: after saving it, press *Check again* in the panel (no
+restart needed). Never commit a key or put it in frontend code. `LUNAR_OFFLINE=1` turns the assistant off; the
+comparison itself keeps working. Details: [`docs/comparison.md`](docs/comparison.md#guided-tour-and-mission-assistant).
+
+**In development.** Parts of the code (including the comparison, tour, assistant, Mission Report and methodology
+page) were written with AI coding assistants; every verdict, score and ranking comes from the team's own engine.
+
 ## Team
 
-B.A.J.A.N (Space Apps 2026).
+Team B.A.J.A.N, NASA Space Apps 2026.
