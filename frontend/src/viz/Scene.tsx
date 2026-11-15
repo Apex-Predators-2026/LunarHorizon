@@ -57,7 +57,7 @@ import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
 import { HorizonProbe } from './HorizonProbe'
 import { attachEvidenceViewer, clearEvidence, evidenceBand, markEvidenceProblem, markEvidenceShown, resolveEvidence, useEvidence, type ActiveEvidence } from './evidence'
-import { TopInfo, useViewerSetup } from './ViewerHud'
+import { DeletePinButton, TopInfo, useViewerSetup } from './ViewerHud'
 
 const SHADOW_HALF_WIDTH_M = 6000 // shadow map covers ~12 km around the lander
 const CURTAIN_RADIUS_M = 28000 // engine skyline (from 300 km of terrain), drawn this far out in eye views
@@ -87,6 +87,19 @@ function cachedTimeline(siteId: string, start: number, end: number): Promise<Tim
 const labelClass =
   'pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] text-slate-100'
 
+const PIN_PREFS_KEY = 'lunar-custom-pins'
+type PinPrefs = { order: string[]; hidden: string[] }
+
+function readPinPrefs(): PinPrefs {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PIN_PREFS_KEY) ?? 'null')
+    const ids = (value: unknown) => Array.isArray(value) ? [...new Set(value.filter((id): id is string => typeof id === 'string'))] : []
+    return { order: ids(saved?.order), hidden: ids(saved?.hidden) }
+  } catch {
+    return { order: [], hidden: [] }
+  }
+}
+
 /**
  * 3D view of the selected site at the selected time, with playback, a window strip chart and a
  * sky plot. Everything shown comes from the backend (terrain tiles, horizon mask, hourly timeline),
@@ -109,14 +122,39 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   const [hoveredSample, setHoveredSample] = useState<ProfileSample | null>(null)
   const tileHeightsRef = useRef<TileHeights | null>(null)
   const [createdSites, setCreatedSites] = useState<SiteInfo[]>([]) // pins dropped this session
+  const [pinPrefs, setPinPrefs] = useState(readPinPrefs)
   const setSite = useAppStore((s) => s.setSite)
 
   const fetchedSites = useAsync('sites', (sig) => fetchSites(sig))
-  const allSites = useMemo(() => {
-    const known = fetchedSites.data ?? []
-    const extra = createdSites.filter((c) => !known.some((k) => k.id === c.id))
-    return fetchedSites.data || extra.length ? [...known, ...extra] : null
+  const catalog = useMemo(() => {
+    if (!fetchedSites.data && !createdSites.length) return null
+    return [...new Map([...(fetchedSites.data ?? []), ...createdSites].map((site) => [site.id, site])).values()]
   }, [fetchedSites.data, createdSites])
+  const { allSites, pinIds, pinOrder } = useMemo(() => {
+    const names = new Map(pinPrefs.order.map((id, index) => [id, index + 1]))
+    const hidden = new Set(pinPrefs.hidden)
+    const visiblePins = new Set<string>()
+    const sites = catalog?.flatMap((site) => {
+      if (site.kind !== 'custom' && !site.id.startsWith('custom_')) return [site]
+      const number = names.get(site.id) ?? names.size + 1
+      names.set(site.id, number)
+      if (hidden.has(site.id)) return []
+      visiblePins.add(site.id)
+      return [{ ...site, name: `Custom Pin ${number}` }]
+    }) ?? null
+    return { allSites: sites, pinIds: visiblePins, pinOrder: names.size === pinPrefs.order.length ? pinPrefs.order : [...names.keys()] }
+  }, [catalog, pinPrefs])
+  useEffect(() => {
+    if (pinOrder === pinPrefs.order) return
+    setPinPrefs((prefs) => ({ ...prefs, order: [...new Set([...prefs.order, ...pinOrder])] }))
+  }, [pinOrder, pinPrefs.order])
+  useEffect(() => {
+    try {
+      localStorage.setItem(PIN_PREFS_KEY, JSON.stringify(pinPrefs))
+    } catch {
+      // Pins still work for this visit when storage is unavailable.
+    }
+  }, [pinPrefs])
   const sites = { ...fetchedSites, data: allSites }
   const psr = useAsync(layers.psr ? 'psr' : null, (sig) => fetchPsr(sig))
   const site = sites.data?.find((s) => s.id === siteId) ?? null
@@ -351,8 +389,8 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   // Other sites: pins + clickable labels.
   const otherSites = useMemo(() => (sites.data ?? []).filter((x) => x.id !== siteId), [sites.data, siteId])
   const siteLabelRefs = useMemo(() => {
-    const m = new Map<string, RefObject<HTMLButtonElement | null>>()
-    for (const x of otherSites) m.set(x.id, createRef<HTMLButtonElement>())
+    const m = new Map<string, RefObject<HTMLDivElement | null>>()
+    for (const x of otherSites) m.set(x.id, createRef<HTMLDivElement>())
     return m
   }, [otherSites])
   // Failure lines: what blocks the Sun / Earth right now.
@@ -405,7 +443,12 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     return () => window.removeEventListener('keydown', onKey)
   }, [measureArmed, waypoints.length])
 
-  // Drop a pin: a click on the terrain becomes a custom site analysed by the engine.
+  const deletePin = (site: SiteInfo) => {
+    if (!pinIds.has(site.id)) return
+    setPinPrefs((prefs) => ({ ...prefs, hidden: [...new Set([...prefs.hidden, site.id])] }))
+    showSnackbar(`Pin removed: ${site.name}`)
+  }
+
   // Analyse a spot (a click on the terrain, or typed coordinates) as a custom site and select it.
   const analyseSpot = useCallback(
     (lat: number, lon: number) => {
@@ -414,10 +457,13 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         .then((created) => {
           // Add it to the list in the same update that selects it: selecting an id the list
           // doesn't know yet would make the HUD fall back to the default site.
-          setCreatedSites((list) => [...list.filter((x) => x.id !== created.id), created])
+          setCreatedSites((list) => [...list.filter((x) => x.id !== created.id), { ...created, kind: 'custom' }])
+          setPinPrefs((prefs) => prefs.hidden.includes(created.id)
+            ? { ...prefs, hidden: prefs.hidden.filter((id) => id !== created.id) }
+            : prefs)
           setSite(created.id)
           setPin({ phase: 'idle' })
-          showSnackbar(`Pin placed: ${created.name}`, 'success')
+          showSnackbar('Custom pin placed', 'success')
         })
         .catch((e: unknown) => {
           const message = e instanceof Error ? e.message : String(e)
@@ -742,27 +788,39 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           } (${fmtDeg(s.earth.margin_deg, 2, true)})`}
       </div>
       <RoverFlagTag ref={flagRef} />
-      <div ref={landerLabel} className={`${labelClass} bg-orange-500/80 font-medium`}>
-        {site?.name ?? 'Lander'}
+      <div ref={landerLabel} data-site-label className={`${labelClass} z-[1] bg-orange-500/80 font-medium`}>
+        {site && pinIds.has(site.id) ? (
+          <div className="pointer-events-auto inline-flex items-center gap-1">
+            <span>{site.name}</span>
+            <DeletePinButton site={site} onDelete={deletePin} />
+          </div>
+        ) : site?.name ?? 'Lander'}
       </div>
       {otherSites.map((x) => (
-        <button
+        <div
           key={x.id}
           ref={siteLabelRefs.get(x.id)}
-          type="button"
           data-site-label
-          data-no-sfx
-          onClick={() => {
-            playBubblePop(0)
-            setSite(x.id)
-          }}
-          data-tip={`${x.name}${x.approximate ? ' (approximate coordinates)' : ''}: click to select${artemisNote(x) ? `. ${artemisNote(x)}.` : ''}`}
-          className="absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 px-1.5 py-0.5 text-[10px] text-slate-100 hover:bg-slate-800"
+          className={`absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 text-[10px] text-slate-100 hover:bg-slate-800 ${pinIds.has(x.id) ? 'z-[1]' : ''}`}
           style={{ borderColor: siteColor(x) }}
         >
-          {x.name}
-          {x.approximate ? ' ≈' : ''}
-        </button>
+          <div className="flex items-center">
+            <button
+              type="button"
+              data-no-sfx
+              onClick={() => {
+                playBubblePop(0)
+                setSite(x.id)
+              }}
+              data-tip={`${x.name}${x.approximate ? ' (approximate coordinates)' : ''}: click to select${artemisNote(x) ? `. ${artemisNote(x)}.` : ''}`}
+              className="px-1.5 py-0.5"
+            >
+              {x.name}
+              {x.approximate ? ' ≈' : ''}
+            </button>
+            {pinIds.has(x.id) && <DeletePinButton site={x} onDelete={deletePin} />}
+          </div>
+        </div>
       ))}
       {blockerRefs.map((ref, k) => {
         const b = blockers[k]
@@ -937,6 +995,8 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
               sites={sites.data}
               sitesError={error}
               sitesLoading={loading}
+              pinIds={pinIds}
+              onDeletePin={deletePin}
               timeUtc={timeUtc}
               view={view}
               onView={setView}
