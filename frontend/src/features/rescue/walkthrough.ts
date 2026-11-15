@@ -33,6 +33,8 @@ const UNIT: Partial<Record<RequirementKey, 'fraction' | 'h'>> = {
   battery_hours: 'h', max_comms_gap_hours: 'h', min_initial_sun_hours: 'h', min_initial_comms_hours: 'h',
 }
 const label = (k: string) => LABEL[k as keyof typeof LABEL] ?? k.replace(/_/g, ' ')
+/** Plain-language name of a requirement (or 'real data coverage'). */
+export const requirementLabel = label
 const days = (n: number) => `${Math.round(n * 10) / 10} ${Math.abs(n - 1) < 1e-9 ? 'day' : 'days'}`
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
 

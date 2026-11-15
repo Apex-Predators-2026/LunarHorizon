@@ -1,7 +1,8 @@
 import { resolveHeadroom } from '../../lib/headroom'
 import { verdictOf } from '../../types'
 import { PassHeadroomBadge } from '../../ui/PassHeadroom'
-import type { SensitivityPoint, SensitivityResponse, SensitivityStatus } from './types'
+import { REASON_LABEL, reasonBreakdown } from './format'
+import type { SensitivityPoint, SensitivityResponse, SensitivityStatus, UndecidedReason } from './types'
 
 const DEFAULT_SENSITIVITY_SCREENING_NOTE =
   'Model screening across discrete tested offsets only; not a guarantee between tested points or of spacecraft survival.'
@@ -33,6 +34,19 @@ const STATUS_LABEL: Record<SensitivityStatus, string> = {
   not_evaluated: 'not evaluated',
 }
 
+/** Short pill text for an undecided point. */
+const REASON_SHORT: Record<UndecidedReason, string> = {
+  incomplete_data: 'unknown · gap',
+  outside_coverage: 'unknown · no data',
+  no_real_data: 'unknown · no data',
+  position_unsupported: 'n/a',
+}
+
+function statusLabel(p: SensitivityPoint): string {
+  return p.reason && p.status !== 'pass' && p.status !== 'fail' ? REASON_LABEL[p.reason] : STATUS_LABEL[p.status]
+}
+
+
 function fmtOffset(h: number): string {
   return `${h > 0 ? '+' : ''}${h} h`
 }
@@ -63,7 +77,8 @@ function pointTitle(p: SensitivityPoint, limited: boolean, snippet: string | nul
     const detail = p.closest_label && snippet ? `${p.closest_label}: ${snippet}` : snippet ?? STATUS_LABEL.pass
     return limited ? `${detail} (limited margin)` : detail
   }
-  return STATUS_LABEL[p.status]
+  const undecided = p.undecided_constraints?.length ? ` (can't decide: ${p.undecided_constraints.join(', ')})` : ''
+  return `${statusLabel(p)}${p.status === 'unknown' ? undecided : ''}`
 }
 
 export function SensitivityView({ data }: { data: SensitivityResponse }) {
@@ -102,6 +117,15 @@ export function SensitivityView({ data }: { data: SensitivityResponse }) {
       {c && (
         <p className="mt-1 tabular-nums text-slate-400">
           {`${c.requested} points requested: ${c.evaluated} evaluated (${c.passed} pass, ${c.failed} fail, ${c.unknown} unknown), ${c.skipped} not evaluated`}
+          {reasonBreakdown(c.by_reason) && (
+            <span data-testid="sensitivity-reasons">{`. Without an answer: ${reasonBreakdown(c.by_reason)}.`}</span>
+          )}
+        </p>
+      )}
+      {baseElig === 'unknown' && (
+        <p className="mt-1 text-[11px] text-slate-400" data-testid="sensitivity-base-unknown">
+          The planned date itself is undecided, so there is no robustness verdict. Each slip below is a separate mission
+          judged on its own data.
         </p>
       )}
       {data.tightest_passing_headroom && (
@@ -126,18 +150,21 @@ export function SensitivityView({ data }: { data: SensitivityResponse }) {
           const stateLabel =
             p.status === 'pass'
               ? `${limited ? 'limited' : 'pass'}${snippet ? ` (${snippet})` : ''}`
-              : p.status === 'not_evaluated'
-                ? 'n/a'
-                : p.status
+              : p.reason && p.status !== 'fail'
+                ? REASON_SHORT[p.reason]
+                : p.status === 'not_evaluated'
+                  ? 'n/a'
+                  : p.status
           return (
             <span
               key={p.date_offset_hours}
               title={pointTitle(p, limited, snippet)}
               data-limited={limited ? 'true' : undefined}
+              data-reason={p.reason ?? undefined}
               className={`rounded px-1.5 py-0.5 tabular-nums ${pillStyle}`}
             >
               {fmtOffset(p.date_offset_hours)} · {stateLabel}
-              <span className="sr-only"> {STATUS_LABEL[p.status]}</span>
+              <span className="sr-only"> {statusLabel(p)}</span>
             </span>
           )
         })}
@@ -184,7 +211,7 @@ export function SensitivityView({ data }: { data: SensitivityResponse }) {
                   >
                     {p.bearing_deg?.toFixed(0)}°
                     {p.status === 'pass' && snippet ? ` (${limited ? 'limited · ' : ''}${snippet})` : ''}
-                    <span className="sr-only"> {STATUS_LABEL[p.status]}</span>
+                    <span className="sr-only"> {statusLabel(p)}</span>
                   </span>
                 )
               })}
