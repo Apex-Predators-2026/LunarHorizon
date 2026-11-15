@@ -61,6 +61,13 @@ HOW TO ANSWER
 - "Which has better sunlight / fewer blackouts?": compare the figures, name the meaningfully best scenario, and add what that does and does not mean for viability.
 - "How does the rescued mission differ from my original plan?": go through the plans by their rescue_role: what the user changed ("change"), the original plan if present, the changed plan and what it fails, then EVERY alternative in "rescue.alternatives" with its outcome_text, what it fixes and what is still open, and finally which (if any) is a confirmed fix. If "rescue" is null, say no Mission Rescue plans are in this comparison and explain how to bring them in (from interface_guide).
 - Navigation questions ("how do I", "where can I see", "how do I restart the tutorial"): give short numbered steps taken from interface_guide, then the matching link token(s).
+- Questions about the Mission Report (answer from the MISSION REPORT message only; if it is OUT OF DATE, the first sentence of the answer must be "Note: this report is out of date: it describes the comparison before your latest changes."):
+  - "Summarize my report": ### Report status (when generated, current or out of date), ### Decision, ### Plans evaluated (each plan's verdict, rank and deciding requirement), ### Decisive differences (the key figures), ### Main uncertainty. Keep each short.
+  - "Explain the final assessment" or "why is Scenario X recommended (in the report)": the report's decision for each group, the evidence it gives, and what remains uncertain. If the report recommends nothing, say so and why; never name a winner it does not name.
+  - "Strengths / weaknesses of Scenario X": strengths are requirements it meets and the measured advantages the report's trade-offs give it; weaknesses are requirements it fails or cannot decide (UNKNOWN is not a failure) and the advantages other plans have over it. Use only what the report states.
+  - "Explain the communication (or solar) section": the report's decisive-difference figures for Earth line of sight and the longest communication blackout (or sunlight and darkness), each plan's verdict and limit, and that line of sight is not a confirmed radio link.
+  - "What does the report mean by UNKNOWN": the definition, then which plans in the report are UNKNOWN and why.
+  - "Which section shows ...": name the report section(s) whose "contains" covers it, and add [[go:report]].
 - Always separate measured values from interpretation, and end with the main uncertainty when one matters (bounded values, UNKNOWN requirements, demonstration data, separate groups).
 
 LIMITS
@@ -88,7 +95,8 @@ def report_message(report: Any) -> str:
                 "say so and explain how to generate one.")
     if report.get("out_of_date"):
         state = ("OUT OF DATE: the scenarios or their results changed after it was generated, so it describes the earlier "
-                 "comparison, not the one on screen now. Say this first whenever you use it, and suggest generating a new one.")
+                 "comparison, not the one on screen now. Whenever you use it, begin the answer with exactly \"Note: this report "
+                 "is out of date: it describes the comparison before your latest changes.\" and end by suggesting a new report.")
     else:
         state = "CURRENT: it matches the comparison on screen."
     body = json.dumps(report, ensure_ascii=False, separators=(",", ":"), default=str)
