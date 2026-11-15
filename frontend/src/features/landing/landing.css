@@ -78,7 +78,7 @@ html.lp-dark .lnd {
   gap: 8px;
   height: 48px;
   padding: 0 24px;
-  border-radius: 24px;
+  border-radius: 12px;
   border: 0;
   font: 500 14px/1 var(--font-inter);
   letter-spacing: 0.1px;
@@ -94,7 +94,6 @@ html.lp-dark .lnd {
 .lnd .lnd-btn-filled {
   height: 72px;
   padding-inline: 36px;
-  border-radius: 4px;
   font-size: 21px;
   font-weight: 600;
   color: #1f2326;
@@ -117,11 +116,11 @@ html.lp-dark .lnd {
 .lnd .lnd-btn-nav {
   height: 40px;
   padding-inline: 20px;
-  border-radius: 4px;
-  background: #d9472f;
-  color: #fff;
+  border-radius: 8px;
+  background: var(--lnd-coral);
+  color: #1f2326;
 }
-.lnd .lnd-btn-nav:hover { background: #c23a23; }
+.lnd .lnd-btn-nav:hover { background: #ff7a64; }
 
 /* ---- Header: transparent over the hero photograph, frosted once the page scrolls. ---- */
 .lnd-nav { position: fixed; inset: 0 0 auto; z-index: 40; }
@@ -299,12 +298,11 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 .lnd-close-cta { display: flex; flex-wrap: wrap; align-items: center; gap: 32px; }
 .lnd .lnd-close-cta .lnd-btn-filled {
   flex: 1 1 384px;
-  left: -12px;
-  min-height: 148px;
+  min-height: 144px;
   height: auto;
   border-radius: 24px;
-  padding-inline: clamp(16px, 4vw, 43.2px);
-  font-size: clamp(25.2px, 3.6vw, 38.4px);
+  padding-inline: clamp(16px, 4vw, 48px);
+  font-size: clamp(24px, 3.6vw, 40px);
   white-space: normal;
 }
 .lnd-close-cta > h2 { flex: 1 1 min(100%, 560px); }
@@ -370,7 +368,12 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 }
 .lnd-hero-credits p { margin: 0; }
 .lnd-hero-credits a { color: var(--lnd-on-dark-2); text-decoration: underline; }
-@media (max-width: 640px) { .lnd-hero-photo-copy { align-items: flex-end; } }
+@media (max-width: 640px) {
+  .lnd-hero-photo-copy { align-items: flex-end; }
+  /* The footer carries the team credit; on a phone the hero keeps only the image credit. */
+  .lnd-hero-credits { justify-content: flex-end; bottom: 16px; }
+  .lnd-hero-credits p:first-child { display: none; }
+}
 
 .lnd-preview {
   padding: clamp(24px, 4vw, 64px) var(--lnd-pad) clamp(40px, 6vw, 96px);

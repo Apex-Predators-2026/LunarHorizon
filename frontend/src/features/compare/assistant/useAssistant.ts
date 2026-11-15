@@ -5,15 +5,21 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
 import { AssistantError, fetchAssistantStatus, postAssistantChat, type ChatTurn } from './api'
-import { contextLine, contextSignature, type AssistantContext } from './context'
+import { contextLine, contextSignature, verdictChips, type AssistantContext } from './context'
+import { basicAnswer } from './fallback'
 
 export interface ChatMessage {
   id: string
-  /** notice = a note in the chat (e.g. "the comparison changed"); shown only, never sent to the AI. */
-  role: 'user' | 'assistant' | 'notice'
+  /**
+   * notice = a note in the chat (e.g. "the comparison changed"); basic = an answer assembled from the page's own
+   * results without AI (shown when the AI service is unavailable). Neither is ever sent to the AI.
+   */
+  role: 'user' | 'assistant' | 'notice' | 'basic'
   content: string
   at: number
   model?: string
+  /** The page's verdict per scenario when the answer was given (e.g. "B PASS #1"), shown under the answer. */
+  verdicts?: string[]
 }
 
 export type AssistantAvailability = 'unknown' | 'checking' | 'available' | 'unavailable'
@@ -27,10 +33,19 @@ export interface AssistantState {
   availabilityMessage: string | null
   /** Signature of the comparison the last question was asked about. */
   lastSignature: string | null
+  /** A question asked from a button on the page; the panel sends it with the current comparison. */
+  queued: string | null
   setOpen: (open: boolean) => void
+  /** Open the panel and ask this question (from an "Ask the assistant" button on the page). */
+  askFromPage: (question: string) => void
+  takeQueued: () => string | null
   checkStatus: () => Promise<void>
   ask: (question: string, context: AssistantContext) => Promise<void>
   retry: (context: AssistantContext) => Promise<void>
+  /** Answer the last question (or summarize) from the page's own results, without AI. */
+  showBasic: (context: AssistantContext) => void
+  /** With the AI unavailable: record the question and answer it from the page's own results. */
+  askBasic: (question: string, context: AssistantContext) => void
   stop: () => void
   clear: () => void
 }
@@ -52,7 +67,7 @@ export const useAssistant = create<AssistantState>()(
       /** Send the conversation (which ends with the user's question) with the comparison as it is now. */
       const send = async (context: AssistantContext) => {
         const turns: ChatTurn[] = get().messages
-          .filter((m): m is ChatMessage & { role: 'user' | 'assistant' } => m.role !== 'notice')
+          .filter((m): m is ChatMessage & { role: 'user' | 'assistant' } => m.role === 'user' || m.role === 'assistant')
           .map((m) => ({ role: m.role, content: m.content }))
           .slice(-MAX_SENT_TURNS)
         if (!turns.length || turns[turns.length - 1].role !== 'user') return
@@ -64,7 +79,7 @@ export const useAssistant = create<AssistantState>()(
           const r = await postAssistantChat(turns, context, ctl.signal)
           if (inflight !== ctl) return
           set((s) => ({
-            messages: [...s.messages, { id: newId(), role: 'assistant' as const, content: r.reply, at: Date.now(), model: r.model }].slice(-MAX_KEPT),
+            messages: [...s.messages, { id: newId(), role: 'assistant' as const, content: r.reply, at: Date.now(), model: r.model, verdicts: verdictChips(context) }].slice(-MAX_KEPT),
             availability: 'available',
             availabilityMessage: null,
           }))
@@ -91,8 +106,17 @@ export const useAssistant = create<AssistantState>()(
         availability: 'unknown',
         availabilityMessage: null,
         lastSignature: null,
+        queued: null,
 
         setOpen: (open) => set({ open }),
+
+        askFromPage: (question) => set({ open: true, queued: question }),
+
+        takeQueued: () => {
+          const q = get().queued
+          if (q) set({ queued: null })
+          return q
+        },
 
         checkStatus: async () => {
           set({ availability: 'checking' })
@@ -120,6 +144,22 @@ export const useAssistant = create<AssistantState>()(
         },
 
         retry: (context) => send(context),
+
+        showBasic: (context) => {
+          const lastQ = [...get().messages].reverse().find((m) => m.role === 'user')
+          const content = basicAnswer(lastQ?.content ?? 'Summarize my current comparison.', context)
+          set((s) => ({
+            error: null,
+            messages: [...s.messages, { id: newId(), role: 'basic' as const, content, at: Date.now(), verdicts: verdictChips(context) }].slice(-MAX_KEPT),
+          }))
+        },
+
+        askBasic: (question, context) => {
+          const text = question.trim().slice(0, MAX_QUESTION)
+          if (!text || get().pending) return
+          set((s) => ({ messages: [...s.messages, { id: newId(), role: 'user' as const, content: text, at: Date.now() }].slice(-MAX_KEPT) }))
+          get().showBasic(context)
+        },
 
         stop: () => {
           inflight?.abort()
