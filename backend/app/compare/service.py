@@ -20,6 +20,7 @@ from ..rescue.catalog import SITES_BY_ID, nearest_psr_edge_km
 from ..rescue.timeline import SyntheticTimelineProvider, Timeline
 from ..rescue.timeline.base import to_np_utc
 from ..viability.compat.rescue import RescueCompatError, evaluate_timeline_detailed
+from .evidence import assessment_info, unassessed_ranking
 from .ranking import Assessed, rank_comparison
 from .schemas import (CompareRequest, CompareResponse, CompareResult, CompareScenarioIn, EarthStats, MissionEvent,
                       PowerStats, ScienceContext, SiteContext, SolarStats, SpacecraftConfig, TimelineColumns, Window)
@@ -64,16 +65,44 @@ def real_timeline(scenario: Scenario) -> Timeline | None:
     if to_np_utc(scenario.landing_utc) < d.times[0] or i + n > len(d.times):
         return None
     c, s = d.cols, slice(i, i + n)
+    sun_frac = np.asarray(c["sun_visible_fraction"][s], float).copy()
+    earth_horizon = np.asarray(c["earth_horizon_deg"][s], float).copy()
+    # Unknown flags (null in the file) must stay unknown: rescue's Timeline encodes that as NaN, which the
+    # canonical adapter reads as "unknown", never as dark or blocked.
+    known = getattr(d, "known", {})
+    if "sun_visible" in known:
+        sun_frac[~np.asarray(known["sun_visible"][s], bool)] = np.nan
+    if "earth_visible" in known:
+        earth_horizon[~np.asarray(known["earth_visible"][s], bool)] = np.nan
     return Timeline(
         site=scenario.site, times=d.times[s], step_hours=step_h,
         sun_az=np.asarray(c["sun_azimuth_deg"][s], float), sun_el=np.asarray(c["sun_elevation_deg"][s], float),
         sun_horizon=np.asarray(c["sun_horizon_deg"][s], float),
-        sun_visible_fraction=np.asarray(c["sun_visible_fraction"][s], float),
+        sun_visible_fraction=sun_frac,
         earth_az=np.asarray(c["earth_azimuth_deg"][s], float), earth_el=np.asarray(c["earth_elevation_deg"][s], float),
-        earth_horizon=np.asarray(c["earth_horizon_deg"][s], float),
+        earth_horizon=earth_horizon,
         earth_visible=np.asarray(c["earth_visible"][s], bool),
-        source=f"precomputed:{scenario.site.id}.json",
+        source=f"precomputed:{_source_path(scenario.site.id)}",
     )
+
+
+def _source_path(site_id: str) -> str:
+    """File path relative to data/sites, so the canonical adapter can read the file's coverage and precision
+    (custom sites are stored under data/sites/custom/)."""
+    path = store._site_files().get(site_id)
+    if path is None:
+        return f"{site_id}.json"
+    try:
+        return path.relative_to(store.SITES_DIR).as_posix()
+    except ValueError:
+        return path.name
+
+
+def unknown_masks(tl: Timeline) -> tuple[np.ndarray, np.ndarray]:
+    """Samples whose Sun / Earth state is unknown (NaN), as the canonical adapter reads them."""
+    sun = np.isnan(tl.sun_visible_fraction) | np.isnan(tl.sun_el)
+    earth = np.isnan(tl.earth_el - tl.earth_horizon)
+    return sun, earth
 
 
 def demo_timeline(scenario: Scenario) -> Timeline:
@@ -192,14 +221,15 @@ def power_stats(tl: Timeline, f: np.ndarray, cfg: SpacecraftConfig) -> PowerStat
 def columns(tl: Timeline, f: np.ndarray, max_points: int) -> TimelineColumns:
     stride = max(1, math.ceil(len(tl) / max_points))
     idx = np.arange(0, len(tl), stride)
-    r = lambda a: [round(float(v), 3) for v in a[idx]]  # noqa: E731
+    r = lambda a: [None if math.isnan(float(v)) else round(float(v), 3) for v in a[idx]]  # noqa: E731
+    earth_unknown = np.isnan(tl.earth_el - tl.earth_horizon)
     return TimelineColumns(
         step_hours=tl.step_hours * stride, hour=[float(i * tl.step_hours) for i in idx],
         time_utc=[_iso(tl.times[i]) for i in idx],
         sun_elevation_deg=r(tl.sun_el), sun_azimuth_deg=r(tl.sun_az), sun_horizon_deg=r(tl.sun_horizon),
         sun_visible_fraction=r(tl.sun_visible_fraction),
         earth_elevation_deg=r(tl.earth_el), earth_azimuth_deg=r(tl.earth_az), earth_horizon_deg=r(tl.earth_horizon),
-        earth_visible=[bool(v) for v in tl.earth_visible[idx]], incidence_factor=r(f),
+        earth_visible=[None if earth_unknown[i] else bool(tl.earth_visible[i]) for i in idx], incidence_factor=r(f),
     )
 
 
@@ -244,27 +274,41 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
     kind = "real"
     if tl is None:
         if not allow_demo:
+            reason = data_coverage(sc)
             return CompareResult(key=item.key, status="unavailable", data_kind="unavailable", data_source="none",
-                                 message=data_coverage(sc) + " Enable demonstration data to see a synthetic "
-                                                             "illustration instead.",
+                                 message=reason + " Enable demonstration data to see a synthetic illustration instead.",
+                                 ranking=unassessed_ranking(reason),
                                  site_context=site_context(sc), science_context=science_context(sc)), None
         tl, kind = demo_timeline(sc), "demonstration"
 
-    lit, vis = tl.sun_visible_fraction > 0, tl.earth_visible.astype(bool)
-    sun_w, dark_w, earth_w, black_w = windows(lit, tl), windows(~lit, tl), windows(vis, tl), windows(~vis, tl)
-    f = incidence_factor(tl, item.spacecraft)
     viability, assessment, problem = _viability(sc, tl)
-    message = DEMO_NOTE if kind == "demonstration" else None
+    sun_unknown, earth_unknown = unknown_masks(tl)
+    notes = [DEMO_NOTE] if kind == "demonstration" else []
     if problem:
-        message = f"{message} {problem}" if message else problem
+        notes.append(problem)
+    f = incidence_factor(tl, item.spacecraft)
+    stats: dict = {}
+    if sun_unknown.any() or earth_unknown.any():
+        # Window statistics would have to treat unknown hours as dark or blocked. Withhold them; the canonical
+        # metrics (assessment.metrics) report bounds instead.
+        notes.append(f"Incomplete data: the Sun's state is unknown for {sun_unknown.sum() * tl.step_hours:g} h and "
+                     f"Earth's for {earth_unknown.sum() * tl.step_hours:g} h of this mission. Window statistics are "
+                     "withheld; the viability engine's metrics show what the data can prove (bounds).")
+    else:
+        lit, vis = tl.sun_visible_fraction > 0, tl.earth_visible.astype(bool)
+        sun_w, dark_w, earth_w, black_w = windows(lit, tl), windows(~lit, tl), windows(vis, tl), windows(~vis, tl)
+        stats = dict(
+            solar=solar_stats(tl, sun_w, dark_w), earth=earth_stats(tl, earth_w, black_w),
+            power=power_stats(tl, f, item.spacecraft),
+            sun_windows=sun_w, dark_windows=dark_w, earth_windows=earth_w, blackout_windows=black_w, events=events(tl),
+        )
     result = CompareResult(
-        key=item.key, status="ok", data_kind=kind, data_source=tl.source, message=message,
+        key=item.key, status="ok", data_kind=kind, data_source=tl.source, message=" ".join(notes) or None,
         site_context=site_context(sc), science_context=science_context(sc),
         viability=viability,
-        solar=solar_stats(tl, sun_w, dark_w), earth=earth_stats(tl, earth_w, black_w),
-        power=power_stats(tl, f, item.spacecraft),
-        sun_windows=sun_w, dark_windows=dark_w, earth_windows=earth_w, blackout_windows=black_w,
-        events=events(tl), timeline=columns(tl, f, max_points),
+        assessment=assessment_info(assessment) if assessment is not None else None,
+        ranking=unassessed_ranking(problem) if assessment is None and problem else None,
+        timeline=columns(tl, f, max_points), **stats,
     )
     return result, (Assessed(item.key, assessment) if assessment is not None else None)
 
@@ -274,7 +318,7 @@ def compare(req: CompareRequest) -> CompareResponse:
     results = [r for r, _ in pairs]
     ranking, groups, method = rank_comparison([a for _, a in pairs if a is not None])
     for r in results:
-        r.ranking = ranking.get(r.key)
+        r.ranking = ranking.get(r.key, r.ranking)  # unassessed results keep their UNKNOWN entry
     sources = sorted({r.viability.source for r in results if r.viability})
     notes = list(NOTES)
     if any(r.data_kind == "demonstration" for r in results):
