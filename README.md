@@ -112,8 +112,8 @@ The release gate starts its own backends (ports 8011 and 8012), needs Chrome or 
 writes [`release-gate/LATEST.md`](release-gate/LATEST.md). The latest recorded run (commit `2d77acf`) covers only the
 production and offline checks, so it is **not** a full release pass.
 
-Known: 7 backend tests in `tests/viability/` (Phase-6 rescue compatibility) fail on `main`. They are recorded in
-[`TEAM_HANDOFF.md`](TEAM_HANDOFF.md) as pre-existing.
+The Phase-6 rescue compatibility tests in `backend/tests/viability/` that used to fail were out of date with the
+whole-hour, partial-coverage policy (`app/timegrid.py`); they now assert that policy and pass (2026-11-15 run).
 
 ## NASA data and references
 
