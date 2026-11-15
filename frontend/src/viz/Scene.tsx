@@ -308,6 +308,18 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   const [barHidden, setBarHidden] = useState(false)
   const [barH, setBarH] = useState(0)
   const [barNow, setBarNow] = useState(0) // live height of the timeline panel, so the + button sits just above it
+  // Live height of the map-tools toolbar. Below md the + button shares the bottom strip with the toolbar (which wraps
+  // to two rows on a phone), so there it sits above the toolbar instead of over it.
+  const toolsRef = useRef<HTMLDivElement>(null)
+  const [toolsNow, setToolsNow] = useState(0)
+  useEffect(() => {
+    const bar = toolsRef.current?.querySelector<HTMLElement>('[role="toolbar"]')
+    if (!bar || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setToolsNow(bar.offsetHeight))
+    ro.observe(bar)
+    return () => ro.disconnect()
+  }, [])
+  const aboveTools = (barHidden ? 44 : barNow) + 8 + toolsNow + 16
   useEffect(() => {
     let lastNonce = -1
     const sync = () => {
@@ -880,11 +892,17 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         {/* Floating + (new plan): 32 px above the timeline panel, near its right edge; drops to the corner when the panel is hidden. */}
         {fab && (
           <div
-            className={`md-slide pointer-events-auto absolute right-[calc(4vw+var(--lp-side-w)+16px+1vw)] transition-[bottom] max-md:right-3 ${
+            className={`md-slide pointer-events-auto absolute bottom-[var(--fab-b)] right-[calc(4vw+var(--lp-side-w)+16px+1vw)] transition-[bottom] max-md:bottom-[var(--fab-b-sm)] max-md:right-3 ${
               // Same duration and easing as the timeline panel, so the two slide together.
               barHidden ? 'duration-[250ms] ease-[var(--md-ease-emph-accel)]' : 'duration-[400ms] ease-[var(--md-ease-emph-decel)]'
             }`}
-            style={{ bottom: barHidden ? 24 : barNow + 32 }}
+            style={{
+              // Desktop: 32 px above the timeline panel (24 px from the corner when it is hidden). Where the + shares the
+              // strip with the toolbar (below md, or any width where the toolbar has wrapped to a second row, e.g. a
+              // tablet): 16 px above the toolbar, which sits 8 px above the panel (44 px up when the panel is hidden).
+              ['--fab-b' as string]: `${toolsNow > 64 ? aboveTools : barHidden ? 24 : barNow + 32}px`,
+              ['--fab-b-sm' as string]: `${aboveTools}px`,
+            }}
           >
             {fab}
           </div>
@@ -894,7 +912,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           <TerrainProgressBar />
           <MissionPanel mission={mission} />
           {/* Lifted above the "show timeline" arrow while the panel is hidden. */}
-          <div className={`md-slide relative transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>
+          <div ref={toolsRef} className={`md-slide relative transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>
             <MapTools
               layers={layers}
               onLayers={setLayers}
