@@ -199,7 +199,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
             <Tabs base="cmp" label="Comparison views" tabs={COMPARE_TABS} value={tab} onChange={chooseTab}
               trailing={
                 <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap pl-4 text-xs" aria-live="polite">
-                  {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-700" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
+                  {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-300" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
                 </span>
               } />
           </GlassSurface>

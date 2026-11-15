@@ -64,7 +64,7 @@ function ConstraintRow({ r, c, skey }: { r: AssessResponse; c: ConstraintEvaluat
     if (res.ok) setShowing(key)
   }
   return (
-    <li className={`rounded-xl border p-3 transition-colors ${active ? 'border-coral bg-coral/10' : 'border-slate-800 bg-white/60'}`} aria-label={`${c.name}: ${STATUS_LABEL[c.status]}`}>
+    <li className={`rounded-xl border p-3 transition-colors ${active ? 'border-coral bg-coral/10' : 'border-slate-800 bg-panel-fill/60'}`} aria-label={`${c.name}: ${STATUS_LABEL[c.status]}`}>
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 text-xs font-semibold text-slate-100">{c.name}</p>
         <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium ${STATUS_CLASS[c.status]}`}>

@@ -130,7 +130,7 @@ export default function App() {
   useEffect(() => installMangoTexture(), [])
   const dark = useUiPrefs((u) => u.dark)
   const uiHidden = useUiPrefs((u) => u.uiHidden)
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.classList.toggle('lp-dark', dark)
   }, [dark])
 
