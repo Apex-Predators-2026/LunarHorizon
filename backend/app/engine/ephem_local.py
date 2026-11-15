@@ -23,11 +23,25 @@ SUN_RADIUS_KM = 695_700.0
 EARTH_RADIUS_KM = 6_378.137  # equatorial, as Horizons uses for Earth's angular diameter
 
 
+class LocalEphemerisUnavailable(RuntimeError):
+    """Skyfield is not installed in the backend's Python environment.
+
+    It is a runtime requirement (backend/requirements.txt) for custom sites and "Verify with JPL". A venv set up
+    without it used to surface as a bare ModuleNotFoundError, i.e. an unexplained HTTP 500 on POST /api/sites/custom.
+    """
+
+
 @lru_cache(maxsize=1)
 def setup():
     """(ephemeris, planetary constants, MOON_ME_DE421 frame, timescale); downloads kernels once."""
-    from skyfield.api import Loader
-    from skyfield.planetarylib import PlanetaryConstants
+    try:
+        from skyfield.api import Loader
+        from skyfield.planetarylib import PlanetaryConstants
+    except ImportError as e:  # not cached by lru_cache: installing the package fixes it without a restart
+        raise LocalEphemerisUnavailable(
+            "The local ephemeris library (skyfield) is not installed on the backend. "
+            "Run: pip install -r backend/requirements.txt, then restart the API."
+        ) from e
 
     kdir = CACHE_DIR / "kernels"
     paths = {name: fetch_cached(url, kdir / name, timeout=900) for name, url in KERNELS.items()}

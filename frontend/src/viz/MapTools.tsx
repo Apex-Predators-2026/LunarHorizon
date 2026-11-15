@@ -403,7 +403,9 @@ export function MapTools({
   return (
     // Column-reverse: the toolbar is the bottom item; messages and the verify panel open upwards.
     <div className="lp-light pointer-events-none mb-2 flex flex-col-reverse items-center gap-2">
-      <div role="toolbar" aria-label="Map tools" className="pointer-events-auto flex items-center gap-1 rounded-full bg-opal-50 p-2 shadow-lg shadow-black/30">
+      {/* Wraps onto a second row on phones instead of pushing Play and More off-screen. No overflow scrolling: the
+          tool menus open above their buttons and a scroll container would clip them. 28 px = fully round at one row. */}
+      <div role="toolbar" aria-label="Map tools" className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-1 rounded-[28px] bg-opal-50 p-2 shadow-lg shadow-black/30">
         <ToolButton
           tourId="play-time"
           label={playing ? 'Pause' : 'Play'}
@@ -607,7 +609,8 @@ export function MapTools({
               <button
                 type="button"
                 role="menuitem"
-                data-tip="Guided Tour: interactive 8-stop mission briefing across all planner controls"
+                data-tour="menu-tour"
+                data-tip="Guided Tour: one real mission across all four views"
                 onClick={() => {
                   close()
                   useTutorialStore.getState().startTour(0)
@@ -616,7 +619,7 @@ export function MapTools({
               >
                 <span className="flex h-6 w-6 items-center justify-center text-coral"><Icon d={ICON.tour} size={20} /></span>
                 Guided Tour
-                <span className="ml-auto text-xs text-slate-400">8 stops</span>
+                <span className="ml-auto text-xs text-slate-400">3 acts</span>
               </button>
               <button
                 type="button"

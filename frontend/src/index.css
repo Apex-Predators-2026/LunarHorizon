@@ -1010,7 +1010,18 @@
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-coral) 24%, transparent), 0 0 20px color-mix(in srgb, var(--color-coral) 40%, transparent);
   animation: md-tour-pulse 2s var(--md-ease-standard) infinite;
 }
+/* The Guided Tour offer's arrow: a gentle nudge toward More (⋮), M3 standard easing. */
+@keyframes md-offer-nudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(5px); }
+}
+.md-offer-arrow {
+  animation: md-offer-nudge 1.6s var(--md-ease-standard) infinite;
+}
 @media (prefers-reduced-motion: reduce) {
+  .md-offer-arrow {
+    animation: none;
+  }
   .md-tour-card,
   .md-tour-hole {
     transition: none;

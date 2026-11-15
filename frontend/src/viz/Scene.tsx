@@ -191,6 +191,9 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   // Graphics preset (High = full quality, the default; Low for Chromebooks and old laptops).
   const [graphicsQuality, setGraphicsQuality] = useGraphicsQuality()
   const canvasGetRef = useRef<(() => { camera: THREE.Camera; controls: unknown }) | null>(null)
+  // The live canvas element. A replaced canvas is force-lost by react-three-fiber when it unmounts; that
+  // late 'webglcontextlost' must not raise the "graphics card dropped the view" popup.
+  const liveCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const pendingCameraPoseRef = useRef<CameraPose | null>(null)
   const handleGraphicsChange = useCallback(
     (next: GraphicsQuality) => {
@@ -308,6 +311,18 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   const [barHidden, setBarHidden] = useState(false)
   const [barH, setBarH] = useState(0)
   const [barNow, setBarNow] = useState(0) // live height of the timeline panel, so the + button sits just above it
+  // Live height of the map-tools toolbar. Below md the + button shares the bottom strip with the toolbar (which wraps
+  // to two rows on a phone), so there it sits above the toolbar instead of over it.
+  const toolsRef = useRef<HTMLDivElement>(null)
+  const [toolsNow, setToolsNow] = useState(0)
+  useEffect(() => {
+    const bar = toolsRef.current?.querySelector<HTMLElement>('[role="toolbar"]')
+    if (!bar || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setToolsNow(bar.offsetHeight))
+    ro.observe(bar)
+    return () => ro.disconnect()
+  }, [])
+  const aboveTools = (barHidden ? 44 : barNow) + 8 + toolsNow + 16
   useEffect(() => {
     let lastNonce = -1
     const sync = () => {
@@ -570,9 +585,11 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           // instead of a frozen black view. A restored context also gets a fresh canvas: three's
           // own restore doesn't bring back every buffer and texture reliably.
           const el = gl.domElement
+          liveCanvasRef.current = el
           el.addEventListener(
             'webglcontextlost',
             (e) => {
+              if (liveCanvasRef.current !== el || !el.isConnected) return // an old canvas being disposed, not a real loss
               e.preventDefault() // allow the browser to restore it
               const st = get()
               pendingCameraPoseRef.current = captureCameraPose(st.camera, st.controls as { target: THREE.Vector3 } | null)
@@ -580,7 +597,13 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             },
             { once: true },
           )
-          el.addEventListener('webglcontextrestored', () => remountCanvas(), { once: true })
+          el.addEventListener(
+            'webglcontextrestored',
+            () => {
+              if (liveCanvasRef.current === el && el.isConnected) remountCanvas()
+            },
+            { once: true },
+          )
           const pose = pendingCameraPoseRef.current
           if (pose) {
             camera.position.set(...pose.position)
@@ -880,11 +903,17 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         {/* Floating + (new plan): 32 px above the timeline panel, near its right edge; drops to the corner when the panel is hidden. */}
         {fab && (
           <div
-            className={`md-slide pointer-events-auto absolute right-[calc(4vw+var(--lp-side-w)+16px+1vw)] transition-[bottom] max-md:right-3 ${
+            className={`md-slide pointer-events-auto absolute bottom-[var(--fab-b)] right-[calc(4vw+var(--lp-side-w)+16px+1vw)] transition-[bottom] max-md:bottom-[var(--fab-b-sm)] max-md:right-3 ${
               // Same duration and easing as the timeline panel, so the two slide together.
               barHidden ? 'duration-[250ms] ease-[var(--md-ease-emph-accel)]' : 'duration-[400ms] ease-[var(--md-ease-emph-decel)]'
             }`}
-            style={{ bottom: barHidden ? 24 : barNow + 32 }}
+            style={{
+              // Desktop: 32 px above the timeline panel (24 px from the corner when it is hidden). Where the + shares the
+              // strip with the toolbar (below md, or any width where the toolbar has wrapped to a second row, e.g. a
+              // tablet): 16 px above the toolbar, which sits 8 px above the panel (44 px up when the panel is hidden).
+              ['--fab-b' as string]: `${toolsNow > 64 ? aboveTools : barHidden ? 24 : barNow + 32}px`,
+              ['--fab-b-sm' as string]: `${aboveTools}px`,
+            }}
           >
             {fab}
           </div>
@@ -894,7 +923,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           <TerrainProgressBar />
           <MissionPanel mission={mission} />
           {/* Lifted above the "show timeline" arrow while the panel is hidden. */}
-          <div className={`md-slide relative transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>
+          <div ref={toolsRef} className={`md-slide relative transition-[margin] duration-[400ms] ease-[var(--md-ease-emph-decel)] ${barHidden ? 'mb-11' : ''}`}>
             <MapTools
               layers={layers}
               onLayers={setLayers}
