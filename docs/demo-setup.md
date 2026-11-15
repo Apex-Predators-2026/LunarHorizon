@@ -79,6 +79,10 @@ It fails (exit 1) on a failed step, any uncaught page error or any API 5xx, with
 step and `smoke-output/report.json`. A step the app doesn't offer at all (none at the moment) is
 listed as MISSING; `--strict` fails on that too. `--online` adds the live JPL Horizons check.
 
+The release gate runs the smoke test with `--strict`, plus three more real-browser journeys on the production build (run them the same way: `--serve-dist --api http://localhost:8000` from `frontend/`):
+`e2e-guided.mjs` (the guided mission, frozen report and Atlas transfer, 1366x768 and 1920x1080), `e2e-time-missing.mjs` (hourly-grid mission time and incomplete data) and `e2e-evidence.mjs` (Show why from the Comparison into the 3D view and back).
+`node scripts/release-gate.mjs` (repository root, about 25 minutes) runs all of them together with the full suites, the type check, lint and the production build, and also repeats the guided journey against a backend started with `LUNAR_OFFLINE=1`, proving first that the backend is offline. Anything skipped or unavailable is INCOMPLETE, never PASS; the result and the exact commands are written to `release-gate/LATEST.md`. This is a local, offline-backend check: it does not test a public deployment or a browser with the network unplugged.
+
 ### The guided journey (judges' path)
 ```
 cd frontend
