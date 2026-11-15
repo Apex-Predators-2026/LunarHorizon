@@ -130,7 +130,7 @@ describe('analysis on real data', () => {
   it('computes deltas against a baseline in the metric’s preferred direction', () => {
     const e = entries()
     const d = deltaVsBaseline(METRIC_BY_ID.dark_longest, e[1], e[0])!
-    expect(d.value).toBe(byKey.B.solar!.longest_dark_hours - byKey.A.solar!.longest_dark_hours)
+    expect(d.value).toBe(byKey.B.solar!.longest_dark_hours! - byKey.A.solar!.longest_dark_hours!)
     expect(d.better).toBe(true) // shorter darkness is better
     expect(deltaVsBaseline(METRIC_BY_ID.dark_longest, e[0], e[0])).toBeNull()
   })
@@ -557,7 +557,7 @@ describe('comparison interface (Phase 4)', () => {
 
   it('a negligible change against the baseline is neither better nor worse', () => {
     const [b, c] = entries(['B', 'C'])
-    const close = { ...c, result: { ...c.result!, solar: { ...c.result!.solar!, longest_dark_hours: b.result!.solar!.longest_dark_hours + 1 } } }
+    const close = { ...c, result: { ...c.result!, solar: { ...c.result!.solar!, longest_dark_hours: b.result!.solar!.longest_dark_hours! + 1 } } }
     const d = deltaVsBaseline(METRIC_BY_ID.dark_longest, close, b)!
     expect(d.meaningful).toBe(false)
     expect(d.better).toBeNull()
