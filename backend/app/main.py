@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import store
+from .engine.ephem_local import LocalEphemerisUnavailable
 from .engine.net import OfflineError
 from .engine.sites import ALL_SITES
 from .engine.validation_summary import summarize
@@ -153,6 +154,9 @@ def create_custom_site(req: CustomSiteRequest) -> SiteInfo:
         return _site_model(store.create_custom_site(req.lat, req.lon, req.name))
     except ValueError as e:
         raise HTTPException(422, str(e))
+    except LocalEphemerisUnavailable as e:
+        # A setup problem on the server, not the user's input: say exactly what is missing.
+        raise HTTPException(503, f"Custom sites can't be analysed right now. {e}")
     except OfflineError:
         # A pin away from the warmed areas needs LOLA terrain out to 300 km that isn't cached.
         raise HTTPException(
@@ -237,6 +241,8 @@ def verify_site(site_id: str, time: str = Query(..., description="ISO UTC time")
             "This check asks JPL Horizons live, so it needs an internet connection (the backend is in offline "
             "mode). Everything else runs from the stored NASA data.",
         )
+    except LocalEphemerisUnavailable as e:  # before RuntimeError: JPL is fine, our second opinion is missing
+        raise HTTPException(503, f"The independent Skyfield check can't run. {e}")
     except (OSError, RuntimeError) as e:
         raise HTTPException(502, f"Couldn't reach JPL Horizons for the live check ({type(e).__name__}); try again in a minute.")
 
