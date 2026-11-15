@@ -100,10 +100,10 @@ export const ELIGIBILITY_LABEL: Record<Eligibility, string> = {
 
 /** Score as the engine reports it. Never prints a bound alone and never prints 0 for a missing score. */
 export function scoreText(r: RankingInfo | null | undefined, fallback?: number | null): string {
-  if (!r) return fallback === null || fallback === undefined ? '—' : fallback.toFixed(1)
+  if (!r) return fallback === null || fallback === undefined ? '-' : fallback.toFixed(1)
   switch (r.score_status) {
     case 'known':
-      return r.score === null ? '—' : r.score.toFixed(1)
+      return r.score === null ? '-' : r.score.toFixed(1)
     case 'bounded':
       return r.score_lower !== null && r.score_upper !== null
         ? `between ${r.score_lower.toFixed(1)} and ${r.score_upper.toFixed(1)}`
@@ -113,7 +113,7 @@ export function scoreText(r: RankingInfo | null | undefined, fallback?: number |
     case 'no_scorable_components':
       return 'not scored: no active score component'
     default:
-      return r.score === null ? '—' : r.score.toFixed(1)
+      return r.score === null ? '-' : r.score.toFixed(1)
   }
 }
 
@@ -144,7 +144,7 @@ export function inexactText(x: { status: string; lower: number | null; upper: nu
   if (x.status === 'known') return null
   if (x.status === 'bounded' && x.lower !== null && x.upper !== null) return `between ${fmtMetric(x.lower, unit)} and ${fmtMetric(x.upper, unit)}`
   if (x.status === 'not_applicable') return 'not applicable'
-  if (x.status === 'missing') return '—'
+  if (x.status === 'missing') return '-'
   return 'unavailable'
 }
 
@@ -364,7 +364,7 @@ export const METRICS: MetricDef[] = [
 export const METRIC_BY_ID = Object.fromEntries(METRICS.map((m) => [m.id, m])) as Record<string, MetricDef>
 
 export function fmtMetric(v: number | null | undefined, unit: MetricDef['unit']): string {
-  if (v === null || v === undefined || Number.isNaN(v)) return '—'
+  if (v === null || v === undefined || Number.isNaN(v)) return '-'
   switch (unit) {
     case 'h':
       return Math.abs(v) >= 72 ? `${Math.round(v)} h (${(v / 24).toFixed(1)} d)` : `${Math.round(v * 10) / 10} h`

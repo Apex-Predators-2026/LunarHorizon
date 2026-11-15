@@ -135,7 +135,7 @@ def rescue(req: RescueRequest, ev: Evaluator | None = None) -> RescueResponse:
         else:
             verdict_phrase = "passes declared requirements"
         summary = (f"The changed plan stays within declared model limits: {changed_sc.site.name} on "
-                   f"{fmt_time(changed_sc.landing_utc)} — {verdict_phrase}, score {fmt_score(changed.score)}.")
+                   f"{fmt_time(changed_sc.landing_utc)} - {verdict_phrase}, score {fmt_score(changed.score)}.")
         if changed_rob and changed_rob.date_note:
             summary += f" {changed_rob.date_note}"
         summary += " Model screening only; not a survival guarantee."
