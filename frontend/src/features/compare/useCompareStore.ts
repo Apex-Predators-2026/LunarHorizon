@@ -26,7 +26,7 @@ import {
   validateScenario,
   type SiteOption,
 } from './scenario'
-import type { ComparisonScenario, RankingGroup, ResultState, ScenarioOrigin, SpacecraftConfig } from './types'
+import type { ComparisonScenario, PairEvidence, RankingGroup, ResultState, ScenarioOrigin, SpacecraftConfig } from './types'
 
 type Status = 'idle' | 'loading' | 'done' | 'error'
 
@@ -50,6 +50,7 @@ export interface CompareState {
   // while rankingSetKey === selectionKey(...) of the current selection.
   rankingGroups: RankingGroup[]
   rankingMethod: string | null
+  rankingPairs: PairEvidence[] // the engine's pairwise evidence for the same set
   rankingSetKey: string | null
   sites: SiteOption[]
   sitesStatus: Status
@@ -148,6 +149,7 @@ export const useCompareStore = create<CompareState>()(
       viabilitySource: '',
       rankingGroups: [],
       rankingMethod: null,
+      rankingPairs: [],
       rankingSetKey: null,
       sites: FALLBACK_SITES,
       sitesStatus: 'idle',
@@ -338,6 +340,7 @@ export const useCompareStore = create<CompareState>()(
           set({
             results: done, notes: res.notes, viabilitySource: res.viability_source,
             rankingGroups: res.ranking_groups ?? [], rankingMethod: res.ranking_method ?? null, rankingSetKey: setKey,
+            rankingPairs: res.pairwise ?? [],
           })
         } catch (e) {
           if (ctrl.signal.aborted) return
