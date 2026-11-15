@@ -15,6 +15,8 @@ const ICON_PATHS = {
   warning: 'M12 4l9 16H3L12 4zM12 10v4.5M12 17.5v.5',
   info: 'M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v6M12 7.5v.5',
   unknown: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.6 9.4a2.5 2.5 0 114.3 1.7c-.9.8-1.9 1.3-1.9 2.6M12 17v.5',
+  chat: 'M4.5 5.5h15v10h-9l-4.5 3.5v-3.5H4.5z',
+  send: 'M4.5 12h11M11 6.5l5.5 5.5-5.5 5.5',
 } as const
 export type IconName = keyof typeof ICON_PATHS
 
