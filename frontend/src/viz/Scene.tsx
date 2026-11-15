@@ -2,7 +2,7 @@ import { Canvas } from '@react-three/fiber'
 import { createRef, useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
 import * as THREE from 'three'
 import { useAppStore } from '../store'
-import type { SiteInfo } from '../types'
+import type { SiteInfo, TimelineStep } from '../types'
 import { createCustomSite, fetchHorizon, fetchPsr, fetchSites, fetchStatus, fetchTimeline, useAsync } from './api'
 import { CameraRig, type ViewMode } from './CameraRig'
 import { captureCameraPose, type CameraPose } from './cameraPose'
@@ -36,6 +36,7 @@ import { SkyBodies } from './SkyBodies'
 import { StarField } from './StarField'
 import { SkyTrails } from './SkyTrails'
 import { SunLight } from './SunLight'
+import { EarthShine } from './EarthShine'
 import { TimeBar } from './TimeBar'
 import { CameraReadout } from './CameraReadout'
 import { ViewCentre } from './ViewCentre'
@@ -62,7 +63,27 @@ import { SiteSelect, TopInfo, useViewerSetup } from './ViewerHud'
 const SHADOW_HALF_WIDTH_M = 6000 // shadow map covers ~12 km around the lander
 const CURTAIN_RADIUS_M = 28000 // engine skyline (from 300 km of terrain), drawn this far out in eye views
 const SKY_DISTANCE_M = 1e8 // Sun/Earth/stars well beyond the Moon, so the globe can hide them
+const EYE_HIDE_LANDER_M = 15 // Sun/Earth views look out from the lander's eye: don't draw it around the camera
 const MAX_CAMERA_DISTANCE_M = 8_000_000
+
+// Hourly timeline windows already fetched (or being fetched), so the next one can be prefetched while
+// playing and going back to a window is instant. Static data, so a small cache is enough.
+const timelineCache = new Map<string, Promise<TimelineStep[]>>()
+const TIMELINE_CACHE_SIZE = 6
+function cachedTimeline(siteId: string, start: number, end: number): Promise<TimelineStep[]> {
+  const key = `${siteId}|${start}|${end}`
+  let p = timelineCache.get(key)
+  if (p) {
+    timelineCache.delete(key) // most recently used last
+    timelineCache.set(key, p)
+    return p
+  }
+  p = fetchTimeline(siteId, toIsoMinute(start), toIsoMinute(end + HOUR_MS), 1)
+  p.catch(() => timelineCache.delete(key)) // a failure isn't kept: asked for again next time
+  timelineCache.set(key, p)
+  while (timelineCache.size > TIMELINE_CACHE_SIZE) timelineCache.delete(timelineCache.keys().next().value!)
+  return p
+}
 
 const labelClass =
   'pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded px-1.5 py-0.5 text-[11px] text-slate-100'
@@ -178,6 +199,13 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     [graphicsQuality, setGraphicsQuality],
   )
   const gfx = GRAPHICS[graphicsQuality]
+  // WebGL context loss (see the Canvas' onCreated): a new canvas generation remounts it.
+  const [contextLost, setContextLost] = useState(false)
+  const [canvasGen, setCanvasGen] = useState(0)
+  const remountCanvas = useCallback(() => {
+    setContextLost(false)
+    setCanvasGen((g) => g + 1)
+  }, [])
   // Cascaded shadows across the whole view (off by default; needs a preset with shadows).
   const [farShadows, setFarShadows] = useStoredFlag('lunar-navigator.farShadows', false)
   const terrainMaterial = useMemo(
@@ -224,11 +252,31 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     return () => ro.disconnect()
   }, [haveBar])
   const timeline = useAsync(winKey, (sig) =>
-    fetchTimeline(site!.id, toIsoMinute(win![0]), toIsoMinute(win![1] + HOUR_MS), 1, sig),
+    cachedTimeline(site!.id, win![0], win![1]).then((d) => {
+      if (sig.aborted) throw new DOMException('aborted', 'AbortError') // a newer window was asked for
+      return d
+    }),
   )
+  // Playing towards the end of this window: fetch the next one now, so crossing into it is seamless.
+  const nextWin =
+    site && win && inRange && win[1] - now < 24 * HOUR_MS && win[1] < parseUtc(site.data_stop_utc)
+      ? windowFor(win[1] + HOUR_MS, parseUtc(site.data_start_utc), parseUtc(site.data_stop_utc), windowDays)
+      : null
+  const nextKey = nextWin && site ? `${site.id}|${nextWin[0]}|${nextWin[1]}` : null
+  useEffect(() => {
+    if (nextKey && nextWin && site) cachedTimeline(site.id, nextWin[0], nextWin[1]).catch(() => {})
+    // nextKey captures site and window.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextKey])
   const stepTimes = useMemo(() => (timeline.data ?? []).map((s) => parseUtc(s.time_utc)), [timeline.data])
   const i = nearestIndex(stepTimes, now)
-  const current = i >= 0 && Math.abs(stepTimes[i] - now) <= HOUR_MS ? timeline.data![i] : null
+  const fresh = i >= 0 && Math.abs(stepTimes[i] - now) <= HOUR_MS ? timeline.data![i] : null
+  // While the next window loads, keep the last step (same site) instead of none: otherwise the Sun,
+  // its light and the sky would unmount and remount (shadows and shaders rebuilt) at every window edge.
+  const lastStep = useRef<{ siteId: string; step: TimelineStep } | null>(null)
+  if (fresh && site) lastStep.current = { siteId: site.id, step: fresh }
+  const current =
+    fresh ?? (timeline.loading && inRange && site && lastStep.current?.siteId === site.id ? lastStep.current.step : null)
 
   // Next sunset/Earthset need the whole 2-year record, so ask the backend, but only while paused.
   const status = useAsync(inRange && !playing ? `${site!.id}@${timeUtc}` : null, (sig) =>
@@ -474,15 +522,47 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
       {/* Renders only when something changes (camera, time, tiles arriving): an idle view costs
           nothing. Components that animate on their own must call invalidate(). */}
       {/* A new graphics preset gets a fresh canvas: anti-aliasing is fixed when the WebGL context is made. */}
+      {contextLost && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 p-4">
+          <div className="max-w-sm rounded-lg border border-slate-700 bg-slate-900 p-4 text-center text-sm text-slate-200">
+            <p className="mb-3">
+              The graphics card dropped the 3D view (WebGL context lost, often low GPU memory). Lower the graphics
+              setting if this repeats.
+            </p>
+            <button
+              type="button"
+              className="rounded bg-amber-500 px-3 py-1.5 font-medium text-slate-950 hover:bg-amber-400"
+              onClick={remountCanvas}
+            >
+              Reload 3D view
+            </button>
+          </div>
+        </div>
+      )}
       <Canvas
-        key={graphicsQuality}
+        key={`${graphicsQuality}-${canvasGen}`}
         frameloop={PERF_RENDER_ALWAYS ? 'always' : 'demand'}
         dpr={gfx.dpr}
         shadows={gfx.shadows}
         gl={{ logarithmicDepthBuffer: true, antialias: gfx.antialias }}
         camera={{ position: pendingCameraPoseRef.current?.position ?? [2600, 1400, 3400], fov: 50, near: 0.5, far: 1e9 }}
-        onCreated={({ camera, get }) => {
+        onCreated={({ camera, get, gl }) => {
           canvasGetRef.current = get
+          // GPU out of memory, driver reset, etc.: say so and offer a fresh canvas (kept camera pose)
+          // instead of a frozen black view. A restored context also gets a fresh canvas: three's
+          // own restore doesn't bring back every buffer and texture reliably.
+          const el = gl.domElement
+          el.addEventListener(
+            'webglcontextlost',
+            (e) => {
+              e.preventDefault() // allow the browser to restore it
+              const st = get()
+              pendingCameraPoseRef.current = captureCameraPose(st.camera, st.controls as { target: THREE.Vector3 } | null)
+              setContextLost(true)
+            },
+            { once: true },
+          )
+          el.addEventListener('webglcontextrestored', () => remountCanvas(), { once: true })
           const pose = pendingCameraPoseRef.current
           if (pose) {
             camera.position.set(...pose.position)
@@ -496,10 +576,9 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         <ViewCentre shiftLeftPx={viewShiftPx} />
         <CameraReadout frame={frame} target={readoutRef} scaleBar={scaleBarRef} scaleLabel={scaleLabelRef} compassRing={compassRingRef} compassNorth={compassNorthRef} />
         <MiniMapTracker frame={frame} />
-        {/* Display aid, not real light: a dim overhead fill so terrain in shadow still shows its
-            shape. Sunlight (intensity 3 x visible fraction near the lander) stays >10x brighter. */}
-        <ambientLight intensity={0.03} />
-        <directionalLight position={[0, 10000, 0]} intensity={0.25} />
+        {/* Faint earthshine (display aid, see EarthShine.tsx) instead of an overhead fill that was
+            brighter than the low polar Sun and made shadowed craters look lit. */}
+        <EarthShine status={s} />
 
         {frame && (
           <TileTree
@@ -538,7 +617,13 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           {s && <SkyBodies status={s} distance={SKY_DISTANCE_M} frame={frame} />}
           {layers.paths && timeline.data && <SkyTrails steps={timeline.data} radius={SKY_DISTANCE_M * 0.98} />}
         </FollowCamera>
-        <Lander status={s} observerHeight={eye} showBeacon={view === 'overview'} detailed={gfx.detailedModels} />
+        <Lander
+          status={s}
+          observerHeight={eye}
+          showBeacon={view === 'overview'}
+          detailed={gfx.detailedModels}
+          hideWithinM={eyeView ? EYE_HIDE_LANDER_M : 0}
+        />
         <RoverFlag flagRef={flagRef} status={s} frame={frame} tileHeightsRef={tileHeightsRef} />
 
         {/* Google-Earth-style: drag spins the Moon under the cursor, right-drag turns / tilts, wheel
@@ -557,6 +642,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           moonCentre={frame?.moonCentre ?? null}
           resetKey={cameraReset}
           restorePoseRef={pendingCameraPoseRef}
+          eyeHeightM={eye}
         />
         <ScreenLabels
           moonCentre={frame?.moonCentre ?? null}

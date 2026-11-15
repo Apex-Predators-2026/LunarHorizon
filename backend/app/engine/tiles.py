@@ -98,7 +98,7 @@ def validate_tile(face: int, z: int, x: int, y: int) -> None:
         raise ValueError(f"No such tile: face {face}, level {z}, x {x}, y {y}")
 
 
-def tile_heights(face: int, z: int, x: int, y: int, n: int = N, pad: int = 0) -> np.ndarray:
+def tile_heights(face: int, z: int, x: int, y: int, n: int = N, pad: int = 0, coarser_if_offline: bool = True) -> np.ndarray:
     """Heights (m, relative to the 1737.4 km sphere) of the tile's vertices, float32, row-major
     [j, i]: n x n, or (n + 2 pad)^2 with `pad` rings of the neighbours' vertices around it (the
     inner n x n are identical either way). Missing data (should be rare) is filled with the
@@ -106,7 +106,9 @@ def tile_heights(face: int, z: int, x: int, y: int, n: int = N, pad: int = 0) ->
     validate_tile(face, z, x, y)
     lat, lon = tile_latlon(face, z, x, y, n, pad)
     m = n + 2 * pad
-    h = sample_latlon(lat.ravel(), lon.ravel(), vertex_spacing_m(z, n)).reshape(m, m)
+    # Offline (a demo away from the warmed areas): coarser cached data rather than no tile.
+    # (prefetch_tiles.py --check turns this off: it must see what is really missing.)
+    h = sample_latlon(lat.ravel(), lon.ravel(), vertex_spacing_m(z, n), coarser_if_offline=coarser_if_offline).reshape(m, m)
     if np.isnan(h).any():
         h = np.where(np.isnan(h), np.nanmean(h) if not np.isnan(h).all() else 0.0, h)
     return h.astype(np.float32)

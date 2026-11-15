@@ -26,7 +26,10 @@ export const IMAGERY_PREFETCH_M = 0.6 * IMAGERY_FADE_START_M
 /** Levels in the static pack (imageryPack.ts): every tile can show its ancestor's image at once. */
 const STANDIN_ZOOM = 2
 const TILE_FADE_MS = 300 // a tile's first image fades in instead of popping
-const MAX_IN_FLIGHT = 4
+// With the terrain's 4 (TileTree's MAX_IN_FLIGHT_WITH_IMAGERY) this stays within the browser's 6
+// connections per origin, so no request waits unsent in the browser's queue.
+const MAX_IN_FLIGHT = 2
+const RETRY_MS = 5_000 // a failed image is asked for again after this (while still wanted)
 const MAX_TEXTURES = 300 // besides the stand-ins (levels 0-STANDIN_ZOOM), which are always kept
 // Mosaic bytes are display brightness (mean ~40/255 at the pole and on the maria). Read as
 // linear values and scaled so the average looks like the plain grey terrain.
@@ -48,7 +51,7 @@ export const imageryWanted = (altitudeM: number) => altitudeM > IMAGERY_PREFETCH
 // colour and the photo, so the same shader serves every point of the fade.
 const MIX_GLSL = /* glsl */ `
 #ifdef USE_MAP
-  vec3 imageryAlbedo = texture2D( map, vMapUv ).rgb * IMAGERY_GAIN;
+  vec3 imageryAlbedo = vec3( texture2D( map, vMapUv ).r * IMAGERY_GAIN ); // greyscale (one-channel texture)
   diffuseColor.rgb = mix( diffuseColor.rgb, imageryAlbedo, imageryMix );
 #endif
 `
@@ -76,6 +79,39 @@ interface TextureEntry {
   texture: THREE.Texture | null
   lastUsed: number
   readyAt: number // when it arrived (a tile's first image fades in from then)
+  retryAt?: number // after a failure: when it may be requested again
+}
+
+/**
+ * Decode a greyscale PNG into a one-channel texture: a quarter of the GPU memory of the RGBA one
+ * TextureLoader would make (the mosaics are greyscale). Row order as TextureLoader's (flipY): the
+ * image's top row at v = 1.
+ */
+async function loadGreyTexture(url: string): Promise<THREE.Texture> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`imagery ${url}: HTTP ${res.status}`)
+  const bmp = await createImageBitmap(await res.blob(), { colorSpaceConversion: 'none', premultiplyAlpha: 'none' })
+  const w = bmp.width
+  const h = bmp.height
+  const canvas = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h })
+  const ctx = canvas.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null
+  if (!ctx) throw new Error('no 2D canvas')
+  ctx.drawImage(bmp, 0, 0)
+  bmp.close()
+  const rgba = ctx.getImageData(0, 0, w, h).data
+  const grey = new Uint8Array(w * h)
+  for (let y = 0; y < h; y++) {
+    const src = (h - 1 - y) * w * 4
+    const dst = y * w
+    for (let x = 0; x < w; x++) grey[dst + x] = rgba[src + x * 4]
+  }
+  const tex = new THREE.DataTexture(grey, w, h, THREE.RedFormat, THREE.UnsignedByteType)
+  tex.magFilter = THREE.LinearFilter
+  tex.minFilter = THREE.LinearMipmapLinearFilter
+  tex.generateMipmaps = true
+  tex.unpackAlignment = 1
+  tex.needsUpdate = true
+  return tex
 }
 
 interface TileMaterial {
@@ -96,7 +132,7 @@ export class TileImagery {
   private readonly textures = new Map<string, TextureEntry>()
   private readonly materials = new Map<string, TileMaterial>()
   private queue: string[] = [] // backend downloads waiting for a slot: rebuilt at every selection
-  private readonly loader = new THREE.TextureLoader()
+  private readonly noPack = new Set<string>() // stand-ins that weren't in the pack: wait for a slot too
   private readonly onChange: () => void
   private readonly anisotropy: number
   private inFlight = 0
@@ -140,6 +176,7 @@ export class TileImagery {
           this.textures.set(texKey, entry)
         }
         if (!entry) continue
+        if (entry.state === 'error' && now >= (entry.retryAt ?? 0)) entry.state = 'idle' // try again
         if (entry.state === 'idle') wanted.add(texKey)
         entry.lastUsed = now
         if (entry.state === 'ready' && entry.texture) {
@@ -208,6 +245,7 @@ export class TileImagery {
     for (const e of this.textures.values()) e.texture?.dispose()
     this.textures.clear()
     this.queue.length = 0
+    this.noPack.clear()
   }
 
   private makeMaterial(
@@ -240,7 +278,14 @@ export class TileImagery {
   }
 
   private pump() {
-    while (this.inFlight < MAX_IN_FLIGHT && this.queue.length) this.load(this.queue.shift()!, true)
+    while (this.inFlight < MAX_IN_FLIGHT && (this.noPack.size || this.queue.length)) {
+      let k: string
+      if (this.noPack.size) {
+        k = this.noPack.values().next().value!
+        this.noPack.delete(k)
+      } else k = this.queue.shift()!
+      this.load(k, true)
+    }
   }
 
   /** Fetch one image (from the pack if it's there); `slot`: counts against MAX_IN_FLIGHT. */
@@ -250,8 +295,19 @@ export class TileImagery {
     entry.state = 'loading'
     if (slot) this.inFlight++
     imageryPack()
-      .then((pack) => this.loader.loadAsync(pack?.get(texKey) ?? `${API_URL}/api/imagery/tile/${texKey}`))
+      .then((pack) => {
+        const local = pack?.get(texKey)
+        if (!local && !slot) {
+          // No pack (missing or broken): this stand-in comes from the backend after all, so it
+          // waits for a download slot like the others instead of 126 requests at once.
+          entry.state = 'idle'
+          this.noPack.add(texKey)
+          return null
+        }
+        return loadGreyTexture(local ?? `${API_URL}/api/imagery/tile/${texKey}`)
+      })
       .then((texture) => {
+        if (!texture) return
         if (this.disposed || this.textures.get(texKey) !== entry) return texture.dispose()
         texture.colorSpace = THREE.NoColorSpace // see GAIN
         texture.anisotropy = this.anisotropy // sharp at the grazing angles of the site view
@@ -261,7 +317,9 @@ export class TileImagery {
         entry.readyAt = performance.now()
       })
       .catch(() => {
-        entry.state = 'error' // that tile keeps its ancestor's image (or stays plain)
+        // That tile keeps its ancestor's image (or stays plain) and is asked for again later.
+        entry.state = 'error'
+        entry.retryAt = performance.now() + RETRY_MS
       })
       .finally(() => {
         if (slot) this.inFlight--
