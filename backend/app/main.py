@@ -26,6 +26,7 @@ from .models import (
     TerrainGrid,
     TimelineStep,
 )
+from .assistant.router import router as assistant_router
 from .atlas.router import router as atlas_router
 from .compare.router import router as compare_router
 from .rescue.router import router as rescue_router
@@ -40,6 +41,7 @@ app.add_middleware(
 )
 app.include_router(rescue_router)  # Member 5: /api/rescue/*
 app.include_router(compare_router)  # Member 4: /api/compare
+app.include_router(assistant_router)  # Member 4: /api/assistant/* (Mission Assistant)
 app.include_router(terrain_router)  # Andrew: /api/terrain/*, /api/psr
 app.include_router(atlas_router)  # Feasibility Atlas: /api/atlas
 
