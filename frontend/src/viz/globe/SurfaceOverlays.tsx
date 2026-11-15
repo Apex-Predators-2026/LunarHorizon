@@ -1,8 +1,12 @@
 // Things drawn on the Moon's surface in the 3D view: site pins, permanently shadowed regions,
 // surface-ice detections, and "failure lines" from the lander to the terrain that blocks the
 // Sun or Earth. All positions come from backend data (site list, /api/psr, horizon mask).
+import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
+import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js'
+import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js'
+import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js'
 import type { Horizon, PsrData, SiteInfo, TimelineStep } from '../../types'
 import { SiteFrame } from './cubeSphere'
 import type { MeasureAnalysis, MeasureWaypoint, ProfileSample } from './measure'
@@ -218,32 +222,80 @@ export function MeasureOverlay({
     return g
   }, [frame, hoveredSample])
 
-  const pinMat = useDisposable(() => new THREE.LineBasicMaterial({ color: '#ff634a', depthTest: false }), [])
-  const pathMat = useDisposable(() => new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false }), [])
-  const losMat = useDisposable(
-    () =>
-      new THREE.LineBasicMaterial({
-        color: analysis?.losClear === false ? '#f0605a' : '#22b8cf',
-        transparent: true,
-        opacity: 0.55,
-        depthTest: false,
-      }),
-    [analysis?.losClear],
-  )
-  const hoverMat = useDisposable(() => new THREE.LineBasicMaterial({ color: '#ffffff', depthTest: false }), [])
-
   if (!waypoints.length) return null
 
   return (
     <group renderOrder={12}>
-      <lineSegments geometry={pinGeom} material={pinMat} renderOrder={13} />
+      <FatSegments geometry={pinGeom} color="#ff634a" width={4} renderOrder={13} />
       {analysis && (
         <>
-          <lineSegments geometry={losGeom} material={losMat} renderOrder={12} />
-          <lineSegments geometry={pathGeom} material={pathMat} renderOrder={13} />
+          <FatSegments
+            geometry={losGeom}
+            color={analysis.losClear === false ? '#f0605a' : '#22b8cf'}
+            opacity={0.7}
+            width={3}
+            renderOrder={12}
+          />
+          <FatSegments geometry={pathGeom} width={5} renderOrder={13} />
         </>
       )}
-      {hoveredSample && <lineSegments geometry={hoverGeom} material={hoverMat} renderOrder={14} />}
+      {hoveredSample && <FatSegments geometry={hoverGeom} color="#ffffff" width={3} renderOrder={14} />}
     </group>
   )
+}
+
+/**
+ * Screen-space thick line segments. WebGL ignores LineBasicMaterial.linewidth (always 1 px), so
+ * the measuring overlay uses three's LineSegments2/LineMaterial to stay readable over the terrain.
+ * Takes a plain segment-pair BufferGeometry (position + optional per-vertex color).
+ */
+function FatSegments({
+  geometry,
+  color,
+  width,
+  opacity = 1,
+  renderOrder,
+}: {
+  geometry: THREE.BufferGeometry
+  color?: string
+  width: number
+  opacity?: number
+  renderOrder: number
+}) {
+  const size = useThree((s) => s.size)
+  const pos = geometry.getAttribute('position') as THREE.BufferAttribute | undefined
+  const col = geometry.getAttribute('color') as THREE.BufferAttribute | undefined
+  const vertexColors = !color && !!col
+
+  const fatGeom = useDisposable(() => {
+    const g = new LineSegmentsGeometry()
+    if (pos && pos.count >= 2) {
+      g.setPositions(pos.array as Float32Array)
+      if (vertexColors && col) g.setColors(col.array as Float32Array)
+    }
+    return g
+  }, [geometry, vertexColors])
+
+  const mat = useDisposable(
+    () =>
+      new LineMaterial({
+        color: color ?? '#ffffff',
+        linewidth: width,
+        vertexColors,
+        transparent: opacity < 1,
+        opacity,
+        depthTest: false,
+      }),
+    [color, width, opacity, vertexColors],
+  )
+
+  useEffect(() => {
+    mat.resolution.set(size.width, size.height)
+  }, [mat, size.width, size.height])
+
+  const line = useMemo(() => new LineSegments2(fatGeom, mat), [fatGeom, mat])
+
+  if (!pos || pos.count < 2) return null
+  // Overlay only: never intercept terrain picking (LineSegments2.raycast also needs raycaster.camera).
+  return <primitive object={line} renderOrder={renderOrder} raycast={() => null} />
 }
