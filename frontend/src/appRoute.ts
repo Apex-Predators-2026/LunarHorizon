@@ -3,10 +3,11 @@
 //   #app/planner      Mission Planner (the 3D navigator); plain #app (older links, the demo tour) too
 //   #app/compare      Scenario Comparison, optionally with a section: #app/compare/cmp-metrics
 //   #app/atlas        Feasibility Atlas (landing dates x mission durations)
+//   #app/method       Validation & Methodology (where answers come from, how they were checked, limits)
 // Switching views pushes a history entry (Back / Forward move between them, refresh keeps the view);
 // jumping to a comparison section only replaces the entry (no Back step per click, refresh keeps it).
 
-export type AppView = 'planner' | 'compare' | 'atlas'
+export type AppView = 'planner' | 'compare' | 'atlas' | 'method'
 
 export type Route =
   | { page: 'landing' }
@@ -25,11 +26,13 @@ export function parseRoute(hash: string): Route {
   if (root !== 'app') return { page: 'landing' }
   if (view === 'compare') return { page: 'app', view: 'compare', section: section && SECTION.test(section) ? section : null }
   if (view === 'atlas') return { page: 'app', view: 'atlas', section: null }
+  if (view === 'method') return { page: 'app', view: 'method', section: null }
   return { page: 'app', view: 'planner', section: null }
 }
 
 export function routeHash(view: AppView, section?: string | null): string {
   if (view === 'compare') return `#app/compare${section ? `/${section}` : ''}`
+  if (view === 'method') return '#app/method'
   return view === 'atlas' ? '#app/atlas' : '#app/planner'
 }
 
