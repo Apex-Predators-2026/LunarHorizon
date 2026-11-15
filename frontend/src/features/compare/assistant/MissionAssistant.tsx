@@ -48,7 +48,8 @@ function useHeaderOffset(): number {
   const [top, setTop] = useState(88)
   useLayoutEffect(() => {
     const read = () => {
-      const main = document.querySelector('main')
+      // The visible page: the Planner stays mounted (aria-hidden) behind the other pages.
+      const main = document.querySelector('main:not([aria-hidden="true"])')
       const pad = main ? parseFloat(getComputedStyle(main).paddingTop) : NaN
       setTop(Number.isFinite(pad) && pad > 0 ? Math.round(pad) + 4 : 88)
     }
