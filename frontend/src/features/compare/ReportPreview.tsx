@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 import { downloadText, type ExportedMetric, type ExportedMissionTime, type ExportedRequirement, type ExportedScenario } from './export'
 import { cannotGenerate, selectionKeyOf, useReportStore, type ReportSnapshot } from './report'
 import { useCompareStore } from './useCompareStore'
+import { MissionReportBody, SnapshotPdfButton } from './MissionReportBody'
 import './report.css'
 
 const TEAM = 'Team B.A.J.A.N · NASA Space Apps 2026'
@@ -309,6 +310,7 @@ export function ReportPreview() {
   const blocker = useCompareStore((s) => cannotGenerate(s))
   const headRef = useRef<HTMLHeadingElement>(null)
   const opener = useRef<Element | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -331,11 +333,12 @@ export function ReportPreview() {
     <div className="report-portal" role="dialog" aria-modal="true" aria-labelledby="rpt-dialog-title" data-testid="report-preview" data-snapshot={snapshot.snapshot_id}>
       <div className="report-toolbar">
         <div className="report-toolbar-text">
-          <h2 id="rpt-dialog-title" ref={headRef} tabIndex={-1}>Summary report preview</h2>
+          <h2 id="rpt-dialog-title" ref={headRef} tabIndex={-1}>Mission Report preview</h2>
           <p>Scenarios {snapshot.selection.labels.join(', ')} as evaluated at {utc(snapshot.generated_at)} · snapshot {snapshot.snapshot_id}</p>
         </div>
         <div className="report-toolbar-actions">
-          <button type="button" className="report-btn report-btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
+          <SnapshotPdfButton snapshot={snapshot} />
+          <button type="button" className="report-btn" onClick={() => window.print()}>Print</button>
           <button type="button" className="report-btn" onClick={download}>Download JSON</button>
           <button type="button" className="report-btn" onClick={close} aria-label="Close the report preview">Close</button>
         </div>
@@ -349,8 +352,8 @@ export function ReportPreview() {
           </div>
         )}
       </div>
-      <div className="report-scroll">
-        <ReportDocument s={snapshot} />
+      <div className="report-scroll" ref={scrollRef}>
+        <MissionReportBody snapshot={snapshot} scrollRef={scrollRef} />
       </div>
     </div>,
     document.body,
