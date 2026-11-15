@@ -46,23 +46,23 @@ export function ElevationCharts({ entries, view, align, originMs }: { entries: E
           <h3 className="mb-2 text-sm font-medium text-ink">Sun {clear ? 'clearance above terrain' : 'elevation'}</h3>
           <SeriesChart {...common} value={clear ? sunClear : sunEl} unit="°" yLabel="degrees" format={deg}
             refLines={[{ y: 0, label: clear ? 'terrain line: below = blocked' : 'flat horizon' }]}
-            ariaLabel={`Sun ${mode} over time for each compared scenario`} />
+            ariaLabel={`Sun ${mode} over time for each compared plan`} />
         </div>
         <div>
           <h3 className="mb-2 text-sm font-medium text-ink">Earth {clear ? 'clearance above terrain (margin)' : 'elevation'}</h3>
           <SeriesChart {...common} value={clear ? earthClear : earthEl} unit="°" yLabel="degrees" format={deg}
             refLines={[{ y: 0, label: clear ? 'terrain line: below = no line of sight' : 'flat horizon' }]}
-            ariaLabel={`Earth ${mode} over time for each compared scenario`} />
+            ariaLabel={`Earth ${mode} over time for each compared plan`} />
         </div>
       </div>
       <div className="mt-4">
         <h3 className="mb-2 text-sm font-medium text-ink">Idealised solar incidence factor (0–1)</h3>
         <p className="mb-1 text-[11px] text-slate-500">
-          visible solar disk × max(0, cos θ) for each scenario’s panel configuration ({panels.join(', ').replaceAll('_', ' ') || 'n/a'}).
+          visible solar disk × max(0, cos θ) for each plan’s panel configuration ({panels.join(', ').replaceAll('_', ' ') || 'n/a'}).
           This is a geometric upper bound, not electrical power.
         </p>
         <SeriesChart {...common} value={incidence} unit="" yLabel="factor" format={(v) => v.toFixed(3)} yDomain={[0, 1]} height={180}
-          ariaLabel="Idealised panel incidence factor over time for each scenario" />
+          ariaLabel="Idealised panel incidence factor over time for each plan" />
       </div>
       <Explain title="Why can the Sun be up and the site still be dark?">
         <p>Elevation is measured from a perfectly flat horizon. Real terrain is not flat: a crater rim or ridge in the Sun’s direction can rise above it. Switch to <b>clearance above local terrain</b>: whenever a line drops below 0°, the terrain in that direction (LOLA elevation data) is higher than the Sun or Earth, so it is hidden even though it is above the flat horizon.</p>

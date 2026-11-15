@@ -237,8 +237,8 @@ interface ReportState {
 /** Why a report cannot be generated from the live comparison right now, or null. */
 export function cannotGenerate(s: CompareState = useCompareStore.getState()): string | null {
   const v = comparisonView(s)
-  if (!v.selected.length) return 'Select at least one scenario to report on.'
-  if (v.loading) return 'Wait until every selected scenario has been assessed.'
+  if (!v.selected.length) return 'Select at least one plan to report on.'
+  if (v.loading) return 'Wait until every selected plan has been assessed.'
   if (!v.rankingCurrent && v.entries.some((e) => e.state?.state === 'done')) return 'The canonical ranking is being updated for this selection.'
   return null
 }

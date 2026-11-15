@@ -49,7 +49,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
     <div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-separate border-spacing-0 text-sm">
-          <caption className="sr-only">Scientific metrics for each compared scenario</caption>
+          <caption className="sr-only">Scientific metrics for each compared plan</caption>
           <thead>
             <tr>
               <th scope="col" className="sticky left-0 z-10 bg-surface pb-2 text-left text-xs font-medium text-slate-400">Metric</th>
@@ -128,7 +128,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                   return (
                     <td key={e.scenario.id} className="py-1 pl-3 text-xs tabular-nums">
                       {r ? <span className={most ? 'font-medium text-slate-50' : 'text-slate-300'}>{r.passed} of {r.applicable}</span> : <span className="text-slate-500">-</span>}
-                      {most && <span className="ml-1 text-xs text-emerald-300" title="Meets more requirements than every other compared scenario">most</span>}
+                      {most && <span className="ml-1 text-xs text-emerald-300" title="Meets more requirements than every other compared plan">most</span>}
                     </td>
                   )
                 })}
@@ -140,7 +140,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                   {row.name}
                   {Object.values(row.cells).some((c) => c && (c.status === 'fail' || c.status === 'unknown')) && (
                     <AskButton iconOnly className="ml-1 align-middle"
-                      question={`Explain the requirement “${row.name}”: which scenarios fail it or cannot decide it, and why?`} />
+                      question={`Explain the requirement “${row.name}”: which plans fail it or cannot decide it, and why?`} />
                   )}
                 </th>
                 {entries.map((e) => {
@@ -199,7 +199,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                           <span className="mr-1.5 text-slate-500" title={DIRECTION[m.better].text} aria-label={DIRECTION[m.better].text}>{DIRECTION[m.better].mark}</span>
                         )}
                         <ProvenanceTag p={m.provenance} />
-                        <AskButton iconOnly className="ml-1 align-middle" question={`Explain the metric “${m.label}” and how the selected scenarios compare on it.`} />
+                        <AskButton iconOnly className="ml-1 align-middle" question={`Explain the metric “${m.label}” and how the selected plans compare on it.`} />
                       </th>
                       {entries.map((e) => {
                         const v = e.result ? m.get(e.result, e.scenario) : null
@@ -215,7 +215,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                             ) : (
                               <span className={isBest ? 'font-medium text-slate-50' : 'text-slate-300'}>{shown ?? fmtMetric(v, m.unit)}</span>
                             )}
-                            {isBest && <span className="ml-1 text-xs text-emerald-300" title={illustrative ? 'Best among demonstration results only: illustrative' : 'A meaningful, proven lead among comparable real-data scenarios. Descriptive, not a recommendation.'}>{illustrative ? 'best (illustrative)' : 'best'}</span>}
+                            {isBest && <span className="ml-1 text-xs text-emerald-300" title={illustrative ? 'Best among demonstration results only: illustrative' : 'A meaningful, proven lead among comparable real-data plans. Descriptive, not a recommendation.'}>{illustrative ? 'best (illustrative)' : 'best'}</span>}
                             {d && (
                               <span className={`block text-[11px] ${d.better === null ? 'text-slate-500' : d.better ? 'text-emerald-400' : 'text-red-400'}`}>
                                 {d.better === null ? (m.better && !d.meaningful && Math.abs(d.value) > 1e-9 ? '≈ ' : '') : d.better ? '▲ better ' : '▼ worse '}
@@ -237,9 +237,9 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
         Tags: <b>ephemeris</b> = JPL Horizons Sun/Earth positions · <b>derived</b> = computed from the Horizons + LOLA timeline ·{' '}
         <b>idealised</b> = geometric upper bound · <b>viability</b> = team viability evaluator · <b>config</b> = your inputs.
         {' '}↑ / ↓ = which direction is better. “best” is only shown when the lead is meaningful (e.g. ≥ 1 percentage point, ≥ 2 h)
-        over every compared scenario of the same data kind, and never while one of them is unavailable, withheld or only bounded
+        over every compared plan of the same data kind, and never while one of them is unavailable, withheld or only bounded
         in a way that could be ahead; ≈ marks a negligible difference.
-        {!base && ' Set a baseline scenario to see improvements (▲) and regressions (▼).'}
+        {!base && ' Set a baseline plan to see improvements (▲) and regressions (▼).'}
       </p>
       <Explain title="What do these metrics mean?">
         <p><b>Solar elevation</b> is the Sun’s angle above the ideal flat horizon. Near the south pole it stays within a few degrees of 0°, so the Sun skims along the horizon all day.</p>

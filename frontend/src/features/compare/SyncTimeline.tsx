@@ -325,7 +325,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
               const top = AXIS_H + i * rowH
               return e.result ? <Lanes key={e.scenario.id} e={e} top={top} x={x} view={view} w={w} gutter={GUTTER} /> : (
                 <text key={e.scenario.id} x={GUTTER + 8} y={top + LANE + 4} fontSize={11} fill={STATE.muted}>
-                  {e.state?.state === 'loading' ? 'Loading…' : 'No scientific data for this scenario'}
+                  {e.state?.state === 'loading' ? 'Loading…' : 'No scientific data for this plan'}
                 </text>
               )
             })}

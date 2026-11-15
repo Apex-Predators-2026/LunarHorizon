@@ -16,7 +16,7 @@ const STATUS: Record<string, string> = { pass: 'PASS', fail: 'FAIL', unknown: 'U
 const status = (s: AssistantScenario) => (s.eligibility ? STATUS[s.eligibility] : s.result === 'loading' ? 'still loading' : 'not assessed')
 const rank = (s: AssistantScenario) => (s.canonical_rank !== null ? `, rank ${s.canonical_rank}` : '')
 
-const NOTHING_SELECTED = 'No scenarios are selected yet. In the **Scenario workspace** at the top of the page, tick two to four scenarios (or use **+ Add scenario**, or a quick comparison such as **Same date, 3 sites**). The comparison and my answers then use their results.'
+const NOTHING_SELECTED = 'No plans are selected yet. In the **Plan workspace**, tick two to four plans or start with a quick comparison such as **Same date, 3 sites**. To create a saved plan, use **+ Add plan** to go to **Mission Planner**.'
 
 function figureLines(c: AssistantContext, metrics: string[], block: 'Solar' | 'Earth'): string[] {
   const rows = c.at_a_glance.filter((r) => metrics.includes(r.metric)).map((r) => {
@@ -32,7 +32,7 @@ function figureLines(c: AssistantContext, metrics: string[], block: 'Solar' | 'E
 /** Why figures read "unavailable": the backend's own reason, one line per scenario and reason. */
 function withheldLines(c: AssistantContext, block: 'Solar' | 'Earth'): string[] {
   return c.scenarios.flatMap((s) => s.figures_withheld.filter((w) => w.blocks.includes(block))
-    .map((w) => `- Scenario ${s.label}: ${w.blocks.toLowerCase()} withheld, not zero. ${w.reason}`))
+    .map((w) => `- Plan ${s.label}: ${w.blocks.toLowerCase()} withheld, not zero. ${w.reason}`))
 }
 
 /** Each scenario's failed and undecided requirements, with measured value, threshold and margin from the page. */
@@ -51,7 +51,7 @@ function requirementLines(c: AssistantContext, s: AssistantScenario): string[] {
 }
 
 function scenarioVerdict(c: AssistantContext, s: AssistantScenario): string[] {
-  const head = `- **Scenario ${s.label}** (${s.site.name}): ${status(s)}${rank(s)}${s.recommended ? ', recommended' : ''}`
+  const head = `- **Plan ${s.label}** (${s.site.name}): ${status(s)}${rank(s)}${s.recommended ? ', recommended' : ''}`
   if (s.eligibility === 'pass') return [head + (s.headroom ? `. ${s.headroom.verdict}` : '. Meets every applicable requirement.')]
   if (s.eligibility === 'unknown') return [head + ': not a failure; at least one requirement cannot be decided from the data.', ...requirementLines(c, s)]
   if (s.eligibility === 'fail') return [head, ...requirementLines(c, s)]
@@ -70,7 +70,7 @@ export function basicSummary(c: AssistantContext): string {
   const out: string[] = ['### Overall assessment']
   const note = stateNote(c)
   if (note) out.push(note)
-  out.push(`Comparing ${c.scenarios.map((s) => `Scenario ${s.label} (${s.site.name}, ${windowText(s.mission_time)})`).join(', ')}.`)
+  out.push(`Comparing ${c.scenarios.map((s) => `Plan ${s.label} (${s.site.name}, ${windowText(s.mission_time)})`).join(', ')}.`)
   for (const d of c.decisions) out.push(d.headline)
 
   out.push('', '### Solar conditions', ...figureLines(c, [c.at_a_glance[0]?.metric, c.at_a_glance[1]?.metric], 'Solar'))
@@ -78,14 +78,14 @@ export function basicSummary(c: AssistantContext): string {
   out.push('', '### Mission requirements', ...c.scenarios.flatMap((s) => scenarioVerdict(c, s)))
 
   const tradeoffs = c.decisions.flatMap((d) => d.tradeoffs).filter(Boolean).slice(0, 3)
-  out.push('', '### Main trade-off', ...(tradeoffs.length ? tradeoffs.map((t) => `- ${t}`) : ['- No meaningful measured trade-off between the compared scenarios.']))
+  out.push('', '### Main trade-off', ...(tradeoffs.length ? tradeoffs.map((t) => `- ${t}`) : ['- No meaningful measured trade-off between the compared plans.']))
 
   const uncertainty = c.decisions.flatMap((d) => d.uncertainty).slice(0, 2)
   out.push('', '### Conclusion')
-  const rec = c.decisions.filter((d) => d.recommended).map((d) => `Scenario ${d.recommended}`)
+  const rec = c.decisions.filter((d) => d.recommended).map((d) => `Plan ${d.recommended}`)
   out.push(c.state !== 'ready' ? 'Wait for the results to finish updating before drawing a conclusion.'
     : rec.length ? `The page's assessment recommends ${rec.join(' and ')} under the selected requirements.`
-      : 'The page makes no recommendation: no scenario is proven to meet every requirement.')
+      : 'The page makes no recommendation: no plan is proven to meet every requirement.')
   if (uncertainty.length) out.push(...uncertainty.map((u) => `- ${u}`))
   return out.join('\n')
 }
@@ -110,17 +110,17 @@ export function basicRescue(c: AssistantContext): string | null {
   const s = (l: string | null) => (l ? c.scenarios.find((x) => x.label === l) : undefined)
   const out = ['### Mission Rescue', ...r.change.map((x) => `- ${x}`)]
   const orig = s(r.original), changed = s(r.changed)
-  if (orig) out.push(`- **Original plan:** Scenario ${orig.label}, ${status(orig)}`)
+  if (orig) out.push(`- **Original plan:** Plan ${orig.label}, ${status(orig)}`)
   if (changed) {
     const p = r.changed_problems
     const probs = p ? [...p.failed.map((f) => `fails ${f}`), ...p.undecided.map((u) => `cannot decide ${u}`)] : []
-    out.push(`- **Changed plan:** Scenario ${changed.label}, ${status(changed)}${probs.length ? ` (${probs.join('; ')})` : ''}`)
+    out.push(`- **Changed plan:** Plan ${changed.label}, ${status(changed)}${probs.length ? ` (${probs.join('; ')})` : ''}`)
   }
   for (const a of r.alternatives) {
     const fixes = a.fixes.length ? ` Fixes: ${a.fixes.join(', ')}.` : ''
     const rem = a.remaining.length ? ` Still open: ${a.remaining.join(', ')}.` : ''
     const disagree = a.disagrees_with_rescue ? ` (Mission Rescue reported ${a.rescue_verdict?.toUpperCase()}; the re-assessment here differs.)` : ''
-    out.push(`- **Alternative ${a.rescue_rank ?? ''} (Scenario ${a.label}):** ${a.outcome_text}.${fixes}${rem}${disagree}`.replace('Alternative  (', 'Alternative ('))
+    out.push(`- **Alternative ${a.rescue_rank ?? ''} (Plan ${a.label}):** ${a.outcome_text}.${fixes}${rem}${disagree}`.replace('Alternative  (', 'Alternative ('))
   }
   if (stateNote(c)) out.push(stateNote(c)!)
   return out.join('\n')
@@ -140,7 +140,7 @@ export function basicAnswer(question: string, c: AssistantContext): string {
     const g = guideFor('rescue')
     if (g) return `No Mission Rescue plans are in this comparison.\n${guideAnswer(g)}`
   }
-  const letter = /\bscenario\s+([A-Z])\b/i.exec(question)?.[1]?.toUpperCase()
+  const letter = /\b(?:plan|scenario)\s+([A-Z])\b/i.exec(question)?.[1]?.toUpperCase()
   if (/fail|violat|requirement|unknown|pass/i.test(question)) {
     if (letter && c.selected.includes(letter)) return basicRequirements(c, letter)!
     return ['### Mission requirements', ...(stateNote(c) ? [stateNote(c)!] : []), ...c.scenarios.flatMap((s) => scenarioVerdict(c, s))].join('\n')

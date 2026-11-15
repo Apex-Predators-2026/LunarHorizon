@@ -26,7 +26,7 @@ export function GlassDemo() {
         <GlassToolbar className="gap-8 px-8 py-3">
           <span className="font-display text-3xl font-bold tracking-[-0.06em]">Site Navigator</span>
           <span className="text-xl font-bold tracking-[-0.06em] underline">Mission Planner</span>
-          <span className="text-xl font-bold tracking-[-0.06em]">Scenario Comparison</span>
+          <span className="text-xl font-bold tracking-[-0.06em]">Plan Comparison</span>
         </GlassToolbar>
         <GlassSurface className="max-w-md p-6">
           <h2 className="text-xl font-semibold">Glass surface</h2>

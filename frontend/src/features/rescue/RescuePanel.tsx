@@ -311,7 +311,7 @@ export function RescueResults({ res, requestedLanding, explain, selected, sensit
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-slate-400">Meet every original requirement</p>
               <button type="button" onClick={() => goToView('compare')}
-                data-tip="Open Scenario Comparison, where you can bring in the original, the changed plan and these alternatives"
+                data-tip="Open Plan Comparison, where you can bring in the original, the changed plan and these alternatives"
                 className="shrink-0 rounded border border-slate-700 px-2 py-0.5 text-xs hover:bg-slate-800">
                 Compare them
               </button>
