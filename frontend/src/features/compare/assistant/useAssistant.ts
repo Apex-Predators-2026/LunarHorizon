@@ -33,7 +33,12 @@ export interface AssistantState {
   availabilityMessage: string | null
   /** Signature of the comparison the last question was asked about. */
   lastSignature: string | null
+  /** A question asked from a button on the page; the panel sends it with the current comparison. */
+  queued: string | null
   setOpen: (open: boolean) => void
+  /** Open the panel and ask this question (from an "Ask the assistant" button on the page). */
+  askFromPage: (question: string) => void
+  takeQueued: () => string | null
   checkStatus: () => Promise<void>
   ask: (question: string, context: AssistantContext) => Promise<void>
   retry: (context: AssistantContext) => Promise<void>
@@ -101,8 +106,17 @@ export const useAssistant = create<AssistantState>()(
         availability: 'unknown',
         availabilityMessage: null,
         lastSignature: null,
+        queued: null,
 
         setOpen: (open) => set({ open }),
+
+        askFromPage: (question) => set({ open: true, queued: question }),
+
+        takeQueued: () => {
+          const q = get().queued
+          if (q) set({ queued: null })
+          return q
+        },
 
         checkStatus: async () => {
           set({ availability: 'checking' })

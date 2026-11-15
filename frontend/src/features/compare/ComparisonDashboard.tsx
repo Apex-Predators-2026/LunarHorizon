@@ -293,7 +293,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
         </div>
       </div>
       <MissionAssistant entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
-        notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} />
+        notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} onJump={jumpTo} />
       <CompareTour />
     </div>
   )
