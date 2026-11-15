@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
+import { goToView, parseRoute, rememberSection, routeHash } from './appRoute'
 import { ComparisonDashboard } from './features/compare'
 import { PlanDialogHost, PlanFab, PlansPanel } from './features/plans/PlansPanel'
 import { MissionRescue } from './features/rescue'
@@ -19,8 +20,9 @@ import { UiHiddenNotice } from './viz/UiHiddenNotice'
 import { useUiPrefs } from './viz/uiPrefs'
 import { Scene } from './viz/Scene'
 
-// The landing page is the first screen ("/"); the navigator itself lives at #app. Loaded on demand so
-// neither page pays for the other.
+// The landing page is the first screen ("/"); the navigator itself lives at #app/planner and
+// #app/compare (appRoute.ts: Back / Forward and refresh keep the view). Loaded on demand so neither
+// page pays for the other.
 const Landing = lazy(() => import('./features/landing'))
 
 function useHash() {
@@ -34,7 +36,7 @@ function useHash() {
 }
 
 function openNavigator() {
-  window.location.hash = 'app'
+  window.location.hash = routeHash('planner')
   window.scrollTo(0, 0)
 }
 
@@ -101,7 +103,10 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
 const NAV_PAD = 'pl-[clamp(16px,4.5vw,65px)] pt-[clamp(14px,2.5vw,34px)]'
 
 export default function App() {
-  const [view, setView] = useState<View>('planner')
+  // The view comes from the URL, so Back / Forward and refresh show the same page.
+  const hash = useHash()
+  const route = parseRoute(hash)
+  const view: View = route.page === 'app' ? route.view : 'planner'
   const compare = view === 'compare'
   useEffect(() => initMaterialMotion(), [])
   useEffect(() => installMangoTexture(), [])
@@ -111,11 +116,10 @@ export default function App() {
     document.documentElement.classList.toggle('lp-dark', dark)
   }, [dark])
 
-  const hash = useHash()
   const tourLaunchedRef = useRef(false)
 
   useEffect(() => {
-    if (!tourLaunchedRef.current && hash.startsWith('#app')) {
+    if (!tourLaunchedRef.current && parseRoute(hash).page === 'app') {
       tourLaunchedRef.current = true
       initTutorialFromSearch()
     }
@@ -128,7 +132,7 @@ export default function App() {
       if (!st.open || st.prepNonce === lastNonce) return
       lastNonce = st.prepNonce
       const nextView = TUTORIAL_STEPS[st.stepIndex]?.prep?.appView
-      if (nextView) setView((cur) => (cur === nextView ? cur : nextView))
+      if (nextView) goToView(nextView)
     }
     const id = setTimeout(sync, 0)
     const unsub = useTutorialStore.subscribe(sync)
@@ -137,14 +141,14 @@ export default function App() {
       unsub()
     }
   }, [])
-  if (hash === '#mango') return <GradientPreview />
-  if (hash === '#glass') return (
+  if (route.page === 'mango') return <GradientPreview />
+  if (route.page === 'glass') return (
     <>
       <GlassDefs />
       <GlassDemo />
     </>
   )
-  if (!hash.startsWith('#app')) return (
+  if (route.page !== 'app') return (
     <Suspense fallback={<div className="h-full bg-black" />}>
       <Landing onOpen={openNavigator} />
     </Suspense>
@@ -156,12 +160,12 @@ export default function App() {
       {/* The header is rendered once for both pages (floating over the 3D view, or above the comparison). */}
       <GlassDefs />
       <header className={`ui-chrome md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${compare ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
-        <TopNav view={view} onView={setView} />
+        <TopNav view={view} onView={goToView} />
       </header>
       <PlanDialogHost />
       {compare ? (
         <main key="compare" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
-          <ComparisonDashboard onOpen3D={() => setView('planner')} />
+          <ComparisonDashboard onOpen3D={() => goToView('planner')} section={route.section} onSection={rememberSection} />
         </main>
       ) : (
         <main key="planner" className="md-fade-through h-full">
@@ -170,7 +174,7 @@ export default function App() {
             fab={<PlanFab />}
             sidebar={
               <div className="space-y-6">
-                <PlansPanel onCompare={() => setView('compare')} />
+                <PlansPanel onCompare={() => goToView('compare')} />
                 <MissionRescue />
               </div>
             }
@@ -181,8 +185,8 @@ export default function App() {
       <TutorialSpotlight
         uiHidden={uiHidden && !compare}
         appView={view}
-        onOpenCompare={() => setView('compare')}
-        onResetTourView={() => setView('planner')}
+        onOpenCompare={() => goToView('compare')}
+        onResetTourView={() => goToView('planner')}
       />
     </div>
   )

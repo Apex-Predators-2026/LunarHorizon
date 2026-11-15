@@ -10,7 +10,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
 import { useAppStore } from '../../store'
-import type { Scenario } from '../../types'
+import type { MissionRequirements, Scenario } from '../../types'
 import { WEIGHT_PRESETS, type Align, type Weights } from './analysis'
 import { errorMessage, fetchSites, postCompare } from './api'
 import { MAX_COMPARED } from './palette'
@@ -26,7 +26,7 @@ import {
   validateScenario,
   type SiteOption,
 } from './scenario'
-import type { ComparisonScenario, RankingGroup, ResultState, ScenarioOrigin } from './types'
+import type { ComparisonScenario, RankingGroup, ResultState, ScenarioOrigin, SpacecraftConfig } from './types'
 
 type Status = 'idle' | 'loading' | 'done' | 'error'
 
@@ -57,6 +57,9 @@ export interface CompareState {
 
   addScenario: (init?: Partial<ComparisonScenario>) => string
   updateScenario: (id: string, patch: Partial<ComparisonScenario>) => void
+  /** Merge into the scenario's *current* requirements / spacecraft (safe for several quick edits in a row). */
+  updateRequirements: (id: string, patch: Partial<MissionRequirements>) => void
+  updateSpacecraft: (id: string, patch: Partial<SpacecraftConfig>) => void
   removeScenario: (id: string) => void
   duplicateScenario: (id: string, shiftDays?: number) => string | null
   toggleSelected: (id: string) => void
@@ -87,6 +90,9 @@ export interface ImportOptions {
 }
 
 const DEFAULT_DATE = '2027-01-15T00:00:00.000Z'
+
+const defaultSite = (sites: SiteOption[]) =>
+  FALLBACK_SITES.map((f) => sites.find((s) => s.id === f.id)).find((s) => !!s) ?? sites.find((s) => !s.isControl) ?? FALLBACK_SITES[0]
 
 const freeSlot = (scenarios: ComparisonScenario[], selected: string[], forId: string) => {
   const used = new Set(scenarios.filter((s) => selected.includes(s.id) && s.id !== forId).map((s) => s.colorSlot))
@@ -149,7 +155,9 @@ export const useCompareStore = create<CompareState>()(
 
       addScenario: (init) => {
         const { scenarios, selectedIds, sites } = get()
-        const site = init?.site ?? sites.find((s) => !s.isControl) ?? FALLBACK_SITES[0]
+        // Default to a curated landing candidate (Peak Near Shackleton, Malapert Massif, Connecting Ridge), not
+        // whatever happens to be first in the site list (which now also lists historic landings).
+        const site = init?.site ?? defaultSite(sites)
         const sc = makeScenario({ landing_utc: DEFAULT_DATE, ...init, site }, scenarios.map((s) => s.label), init?.origin ?? 'user')
         const select = selectedIds.length < MAX_COMPARED
         sc.colorSlot = freeSlot(scenarios, selectedIds, sc.id)
@@ -163,6 +171,10 @@ export const useCompareStore = create<CompareState>()(
 
       updateScenario: (id, patch) =>
         set({ scenarios: get().scenarios.map((s) => (s.id === id ? { ...s, ...patch, id: s.id, label: s.label } : s)) }),
+      updateRequirements: (id, patch) =>
+        set({ scenarios: get().scenarios.map((s) => (s.id === id ? { ...s, requirements: { ...s.requirements, ...patch } } : s)) }),
+      updateSpacecraft: (id, patch) =>
+        set({ scenarios: get().scenarios.map((s) => (s.id === id ? { ...s, spacecraft: { ...s.spacecraft, ...patch } } : s)) }),
 
       removeScenario: (id) => {
         const { scenarios, selectedIds, activeId, baselineId } = get()
@@ -232,7 +244,9 @@ export const useCompareStore = create<CompareState>()(
         const { sites } = get()
         const landing = opts.landingUtc ?? DEFAULT_DATE
         if (kind === 'locations') {
-          const picks = (sites.filter((s) => !s.isControl).length ? sites.filter((s) => !s.isControl) : FALLBACK_SITES).slice(0, 3)
+          // The three curated south-pole candidates (with real data), whatever else the site list contains.
+          const curated = FALLBACK_SITES.map((f) => sites.find((s) => s.id === f.id) ?? f)
+          const picks = curated.slice(0, 3)
           get().importScenarios(
             picks.map((site) => ({ ...toTeamScenario(makeScenario({ site, landing_utc: landing }, [])) })),
             { origin: 'preset', baselineIndex: 0 },
