@@ -10,7 +10,8 @@ describe('landing page', () => {
   it('renders one h1, the opening Moon picture, the app pictures and the NASA sources', () => {
     const html = renderToString(<Landing onOpen={() => {}} />)
     for (const line of HERO.headlineLines) expect(html).toContain(line)
-    expect(html).not.toContain('Team Apex Predators ·')
+    expect(html).toContain('Built by Team B.A.J.A.N for NASA Space Apps 2026')
+    expect(html).toContain('Built by Team B.A.J.A.N for NASA Space Apps Challenge 2026')
     expect(html.match(/<h1/g)).toHaveLength(1)
     expect(html).toContain('/landing/moon.jpg')
     expect(html).toContain(HERO.lead)
