@@ -8,6 +8,7 @@ import { eligibilityOf, type Entry } from './analysis'
 import { lcFirst, type GroupDecision } from './decision'
 import { DECISION_LABEL, keyConstraint, overallState, preferenceStrength, rolesOf, type RoleInfo } from './decisionView'
 import { ExportButtons } from './ExportButtons'
+import { LastReportButton, ReportButton } from './ReportPreview'
 import { toTeamScenario } from './scenario'
 import type { PairEvidence, RankingGroup } from './types'
 import { btn, EligibilityBadge, Icon, ScenarioChip } from './ui'
@@ -142,6 +143,7 @@ export function DecisionOverview({ entries, groups, pairs, rankingCurrent, notes
             Open {target.scenario.label} in Planner
           </button>
         )}
+        <ReportButton /><LastReportButton />
         {reportAction}
         <ExportButtons entries={entries} groups={groups} pairs={pairs} notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} />
       </div>

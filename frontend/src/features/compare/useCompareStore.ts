@@ -52,6 +52,8 @@ export interface CompareState {
   rankingGroups: RankingGroup[]
   rankingMethod: string | null
   rankingPairs: PairEvidence[] // the engine's pairwise evidence for the same set
+  /** The backend's mission-time policy for the same set (how a landing time becomes the evaluated interval). */
+  timePolicy: string | null
   rankingSetKey: string | null
   /** Set when the selection was imported from Mission Rescue: roles of each imported scenario and what changed. */
   rescueContext: RescueContext | null
@@ -154,6 +156,7 @@ export const useCompareStore = create<CompareState>()(
       rankingGroups: [],
       rankingMethod: null,
       rankingPairs: [],
+      timePolicy: null,
       rankingSetKey: null,
       rescueContext: null,
       setRescueContext: (rescueContext) => set({ rescueContext }),
@@ -349,7 +352,7 @@ export const useCompareStore = create<CompareState>()(
           set({
             results: done, notes: res.notes, viabilitySource: res.viability_source,
             rankingGroups: res.ranking_groups ?? [], rankingMethod: res.ranking_method ?? null, rankingSetKey: setKey,
-            rankingPairs: res.pairwise ?? [],
+            rankingPairs: res.pairwise ?? [], timePolicy: res.time_policy ?? null,
           })
         } catch (e) {
           if (ctrl.signal.aborted) return

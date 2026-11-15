@@ -4,6 +4,7 @@ import { goToView, parseRoute, rememberSection, routeHash } from './appRoute'
 import { AtlasView } from './features/atlas/AtlasView'
 import { MethodologyView } from './features/methodology/MethodologyView'
 import { ComparisonDashboard } from './features/compare'
+import { ReportPreview } from './features/compare/ReportPreview'
 import { PlanDialogHost, PlanFab, PlansPanel } from './features/plans/PlansPanel'
 import { MissionRescue } from './features/rescue'
 import {
@@ -168,6 +169,7 @@ export default function App() {
         <TopNav view={view} onView={goToView} />
       </header>
       <PlanDialogHost />
+      <ReportPreview />
       {compare ? (
         <main key="compare" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
           <ComparisonDashboard onOpen3D={() => goToView('planner')} section={route.section} onSection={rememberSection} />

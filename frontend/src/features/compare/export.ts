@@ -37,19 +37,32 @@ export interface ExportedRequirement {
   comparison: string | null
   threshold: number | null
   measured: ExportedMetric
+  message: string | null // the engine's sentence (rev. 2)
+  evidence_windows: { kind: string; start_utc: string; end_utc: string; duration_hours: number; clipped_at_start: boolean; clipped_at_end: boolean }[] // rev. 2
 }
 
 export interface ExportedScenario {
+  id: string // workspace scenario id (rev. 2)
+  revision: string // the exact inputs the result belongs to (resultKey; rev. 2)
+  role: string | null // story role from a Mission Rescue / guided import (rev. 2)
   label: string
   name: string
   origin: string
   site: { id: string; name: string; lat: number; lon: number }
   landing_utc: string // REQUESTED landing (v1 field, unchanged)
   duration_days: number // REQUESTED duration (v1 field, unchanged)
-  mission_time: ExportedMissionTime
+  mission_time: ExportedMissionTime // the evaluated window and the request, side by side (rev. 2)
+  evaluated_start_utc: string | null // the interval the engine evaluated (rev. 2)
+  evaluated_end_utc: string | null
+  evaluated_hours: number | null
+  coordinate_source: string | null // where the site coordinates come from (rev. 2)
+  notes: string | null // user notes, verbatim (rev. 2)
   requirements: MissionRequirements
   spacecraft: SpacecraftConfig
   data: {
+    dataset_file: string | null // rev. 2
+    dataset_sha256: string | null // rev. 2: only when the backend reports it
+    is_synthetic: boolean | null // rev. 2
     kind: string | null // real | demonstration | unavailable | null (not loaded)
     source: string | null
     dataset_id: string | null
@@ -113,10 +126,37 @@ export interface ExportedHeadroom {
   screening_note: string
 }
 
+
+export interface ExportContext {
+  /** Identity of the evaluated selection (scenario revisions + ranking set); a report records it. */
+  selectionKey?: string | null
+  snapshotId?: string | null
+  roles?: Record<string, string> // scenario id -> role label
+  story?: { kind: 'guided' | 'rescue' | 'manual'; mission_id?: string | null; mission_version?: number | null; title?: string | null; change?: string[] } | null
+  preferences?: { weights: Record<string, number>; traverse_km: number } | null
+  allowDemo?: boolean
+  timePolicy?: string | null
+  revisions?: Record<string, string> // scenario id -> resultKey
+  baselineLabel?: string | null
+}
+
 export interface ComparisonExport {
   format: typeof EXPORT_VERSION
-  export_revision: number // additive revision inside v1 (2 = mission_time, evaluated window)
+  schema_revision: number // additive revision inside v1 (2 = evaluated window, identity, provenance, reproduction)
   generated_at: string
+  snapshot_id: string | null // rev. 2: set when the export belongs to a summary report
+  selection_key: string | null // rev. 2
+  baseline: string | null // rev. 2: label of the baseline scenario
+  story: ExportContext['story'] // rev. 2
+  preferences: (NonNullable<ExportContext['preferences']> & { note: string }) | null // rev. 2
+  reproduction: {
+    inputs: { label: string; request: { scenario: { site: { id: string; name: string; lat: number; lon: number }; landing_utc: string; duration_days: number; requirements: MissionRequirements }; spacecraft: SpacecraftConfig }; allow_demo_data: boolean }[]
+    endpoint: string
+    time_policy: string | null
+    versions: { engine: string[]; scoring_method: string[]; ranking_method: string | null; export_format: string }
+    datasets: { dataset_id: string | null; file: string | null; sha256: string | null }[]
+    limitation: string
+  } // rev. 2
   ranking_method: string | null
   ranking_groups: { id: string; primary: boolean; ranked: string[]; members: string[]; separate_reason: string | null; data_basis: string | null }[]
   decisions: { group: string; kind: string; recommended: string | null; headline: string; requirements: string[]; evidence: string[]; tradeoffs: string[]; uncertainty: string[] }[]
@@ -155,7 +195,7 @@ export function exportMissionTime(e: Pick<Entry, 'scenario' | 'state'>): Exporte
   }
 }
 
-export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: PairEvidence[], notes: string[], now = new Date()): ComparisonExport {
+export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: PairEvidence[], notes: string[], now = new Date(), ctx: ExportContext = {}): ComparisonExport {
   const decision = buildDecision(entries, groups, pairs)
   const recommended = new Set(decision.groups.filter((d) => d.kind === 'recommended' || d.kind === 'single_pass')
     .map((d) => d.recommended?.scenario.id).filter((x): x is string => !!x))
@@ -191,11 +231,19 @@ export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: Pai
       return metric(null)
     }
     return {
+      id: e.scenario.id,
+      revision: ctx.revisions?.[e.scenario.id] ?? '',
+      role: ctx.roles?.[e.scenario.id] ?? null,
       label: e.scenario.label,
       name: e.scenario.name,
       origin: e.scenario.origin,
       site: { ...e.scenario.site },
       landing_utc: e.scenario.landing_utc,
+      evaluated_start_utc: r?.evaluated_start_utc ?? a?.evaluated_start_utc ?? null,
+      evaluated_end_utc: r?.evaluated_end_utc ?? a?.evaluated_end_utc ?? null,
+      evaluated_hours: r?.evaluated_hours ?? null,
+      coordinate_source: r?.site_context?.coordinate_source ?? null,
+      notes: e.scenario.notes ?? null,
       duration_days: e.scenario.duration_days,
       mission_time: exportMissionTime(e),
       requirements: { ...e.scenario.requirements },
@@ -204,6 +252,9 @@ export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: Pai
         kind: e.state?.state === 'done' ? e.state.result.data_kind : null,
         source: e.state?.state === 'done' ? e.state.result.data_source : null,
         dataset_id: a?.dataset_id ?? null,
+        dataset_file: r?.dataset_file ?? null,
+        dataset_sha256: r?.dataset_sha256 ?? null,
+        is_synthetic: a ? a.is_synthetic : null,
         engine_version: a?.engine_version ?? null,
         scoring_method_version: a?.scoring_method_version ?? null,
         sun_coverage_percent: a?.sun_coverage_percent ?? null,
@@ -226,6 +277,8 @@ export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: Pai
       undecided_requirements: req ? req.undecided.map((f) => f.name) : [],
       requirement_verdicts: (a?.constraints ?? []).map((c) => ({
         id: c.id, name: c.name ?? c.id, status: c.status, comparison: c.comparison, threshold: c.threshold, measured: metric(c.measured),
+        message: c.message ?? null,
+        evidence_windows: c.evidence_windows.map((w) => ({ kind: w.kind, start_utc: w.start_utc, end_utc: w.end_utc, duration_hours: w.duration_hours, clipped_at_start: w.clipped_at_start, clipped_at_end: w.clipped_at_end })),
       })),
       headroom: hr ? {
         status: hr.status,
@@ -254,10 +307,36 @@ export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: Pai
   })
 
   const lbl = (k: string) => labelOfKey.get(k) ?? k
+  const uniq = <T,>(xs: T[]) => [...new Set(xs)]
   return {
     format: EXPORT_VERSION,
-    export_revision: EXPORT_REVISION,
+    schema_revision: EXPORT_REVISION,
     generated_at: now.toISOString(),
+    snapshot_id: ctx.snapshotId ?? null,
+    selection_key: ctx.selectionKey ?? null,
+    baseline: ctx.baselineLabel ?? null,
+    story: ctx.story ?? null,
+    preferences: ctx.preferences ? { ...ctx.preferences, note: 'User preference weights for the exploration panel only. They are not used for eligibility, the canonical ranking or the recommendation.' } : null,
+    reproduction: {
+      inputs: entries.map((e) => ({
+        label: e.scenario.label,
+        request: { scenario: { site: { ...e.scenario.site }, landing_utc: e.scenario.landing_utc, duration_days: e.scenario.duration_days, requirements: { ...e.scenario.requirements } }, spacecraft: { ...e.scenario.spacecraft } },
+        allow_demo_data: ctx.allowDemo ?? false,
+      })),
+      endpoint: 'POST /api/compare with every input above in one request (the canonical ranking compares the set together)',
+      time_policy: ctx.timePolicy ?? null,
+      versions: {
+        engine: uniq(scenarios.map((s) => s.data.engine_version).filter((v): v is string => !!v)),
+        scoring_method: uniq(scenarios.map((s) => s.data.scoring_method_version).filter((v): v is string => !!v)),
+        ranking_method: groups[0]?.method_version ?? null,
+        export_format: `${EXPORT_VERSION} rev. ${EXPORT_REVISION}`,
+      },
+      // One entry per site file actually read (its hash identifies the data); the per-mission dataset ids are kept on each scenario.
+      datasets: uniq(scenarios.filter((s) => s.data.kind === 'real').map((s) => JSON.stringify(s.data.dataset_file
+        ? { dataset_id: null, file: s.data.dataset_file, sha256: s.data.dataset_sha256 }
+        : { dataset_id: s.data.dataset_id, file: null, sha256: null }))).map((x) => JSON.parse(x)),
+      limitation: 'Inputs, captured results and the data / method versions are recorded. Historical site files and engine versions are not bundled with the export: rerunning later reproduces these numbers only while the recorded dataset hashes and engine versions match.',
+    },
     ranking_method: groups[0]?.method_version ?? null,
     ranking_groups: groups.map((g) => ({ id: g.id, primary: g.primary, ranked: g.ranked_keys.map(lbl), members: g.keys.map(lbl),
       separate_reason: g.separate_reason, data_basis: g.data_basis })),
