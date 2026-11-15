@@ -203,11 +203,12 @@ const COMMS: MetricDef[] = [
   { id: 'both', metric: 'Sun and Earth visible together', key: 'simultaneous_percent', better: 'higher' },
 ]
 
-/** Meaningful difference: 1 percentage point, max(2 h, 10%) for durations, 0.5° for angles. */
+/** Meaningful difference, as on the comparison page (analysis.ts MEANINGFUL): 1 percentage point, max(2 h, 10%) for
+ *  durations, 0.1° for angles. */
 function meaningful(id: string, a: number, b: number): boolean {
   const d = Math.abs(a - b)
   if (/hours|dark|no_sun|blackout|after_landing/.test(id)) return d >= Math.max(2, 0.1 * Math.max(Math.abs(a), Math.abs(b)))
-  if (/clear|_el$/.test(id)) return d >= 0.5
+  if (/clear|_el$/.test(id)) return d >= 0.1
   return d >= 1
 }
 
