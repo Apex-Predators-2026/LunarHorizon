@@ -3,7 +3,7 @@
 Base: `origin/main` @ `444f3ca` (PR #1 merged). The hourly-grid policy (`backend/app/timegrid.py`) and the canonical
 viability/ranking logic are untouched: this stage changes frontend files only (plus docs).
 
-## Prompt 1 — scientific display, fair comparisons and timing
+## Prompt 1 - scientific display, fair comparisons and timing
 
 | Source | Recovered | How |
 |---|---|---|
@@ -53,7 +53,7 @@ and `CompareResponse.time_policy`.
   (regenerating it changes verdict-dependent assertions in older tests).
 - `viz/mission.ts` canonical-only playback is unchanged; its unknown handling already comes from main.
 
-## Prompt 2 — assessment panel and evidence navigation
+## Prompt 2 - assessment panel and evidence navigation
 
 Recovered from `809c482`, `1b5f5f3` (frontend), and the assessment-state intent of `9b32a4a` / `2432dba`, adapted to
 current main. `App.tsx`, `store.ts`, `appRoute.ts`, `types.ts` and `backend/app/main.py` are NOT edited.

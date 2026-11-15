@@ -231,7 +231,7 @@ export function fmtValue(v: number, unit: string, signed = false): string {
 
 /** A metric exactly as the engine reports it: a value, a proven range, or why there is none. */
 export function fmtMetric(m: WireMetric | null | undefined, signed = false): string {
-  if (!m) return '—'
+  if (!m) return '-'
   if (m.status === 'known' && m.value !== null) return fmtValue(m.value, m.unit, signed)
   if (m.status === 'bounded') {
     const lo = m.lower === null ? '?' : fmtValue(m.lower, m.unit, signed)
@@ -314,7 +314,7 @@ export function constraintViews(a: WireAssessment): { configured: ConstraintView
 export function scoreText(r: WireRankingStatus): string {
   switch (r.score_status) {
     case 'known':
-      return r.score === null ? '—' : `${Number(r.score.toFixed(1))} / 100`
+      return r.score === null ? '-' : `${Number(r.score.toFixed(1))} / 100`
     case 'bounded':
       return r.score_bounds?.lower !== null && r.score_bounds?.lower !== undefined && r.score_bounds.upper !== null
         ? `between ${Number(r.score_bounds.lower.toFixed(1))} and ${Number(r.score_bounds.upper.toFixed(1))}`
