@@ -38,7 +38,7 @@ export function TerrainProgressBar() {
 
   const visible = shownAt !== null
   return (
-    <div className="pointer-events-none mb-2 flex justify-center">
+    <div className="recede-behind-menu pointer-events-none mb-2 flex justify-center">
       <div
         role="status"
         aria-label="Loading terrain"

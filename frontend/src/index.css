@@ -982,3 +982,9 @@
     animation: none;
   }
 }
+
+/* Panels stacked above the map toolbar (loading bar, JPL check, mission, coordinates) step back while one of
+   its menus is open, so the menu floats over a clear space instead of pushing them up the screen. */
+/* filter, not opacity: their entrance animation (md-reveal) holds opacity at 1. */
+.recede-behind-menu { transition: filter var(--md-dur-short4) var(--md-ease-standard); }
+body:has([data-toolbar-menu]) .recede-behind-menu { filter: opacity(0); pointer-events: none; }
