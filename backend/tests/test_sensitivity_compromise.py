@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from app.rescue import compromise, sensitivity
 from app.rescue.schemas import CompromiseRequest, ScienceGoal, SearchOptions, SensitivityRequest
-from app.models import MissionRequirements, Scenario, Site
+from app.models import MissionRequirements, Scenario, Site, Violation
 from app.rescue.catalog import PSRS_BY_ID, custom_site
 
 
@@ -106,9 +106,9 @@ from app.rescue.timeline.synthetic import SyntheticTimelineProvider  # noqa: E40
 class ScriptedEvaluator(Evaluator):
     """Real-data-only behaviour (no simulation, no real data around the site), with chosen answers per slip."""
 
-    def __init__(self, script: dict[float, str], default: str = "pass"):
+    def __init__(self, script: dict[float, str], default: str = "pass", base: str = "pass"):
         super().__init__(provider=SyntheticTimelineProvider(), simulation=False)
-        self.script, self.default = script, default
+        self.script, self.default, self.base = script, default, base
 
     def has_real_data(self, site, start=None, end=None):
         return False
@@ -118,19 +118,22 @@ class ScriptedEvaluator(Evaluator):
         out = []
         for t, r in zip(starts, results):
             off = (t - self.base_time).total_seconds() / 3600
-            what = "pass" if off == 0 else self.script.get(off, self.default)
+            what = self.base if off == 0 else self.script.get(off, self.default)
             if what == "pass":
                 upd = {"passes": True, "eligibility": "pass", "score": 80.0, "violations": []}
             elif what == "fail":
                 upd = {"passes": False, "eligibility": "fail", "score": 20.0}
-            else:
-                upd = {"passes": False, "eligibility": "unknown", "score": None}
+            else:  # undecided on real data: one requirement can't be decided because samples are missing
+                upd = {"passes": False, "eligibility": "unknown", "score": None, "violations": [Violation(
+                    constraint="max_dark_gap_hours", required=50.0, actual=44.0, unit="h", shortfall=0.0,
+                    relative_shortfall=1.0, is_unknown=True,
+                    message="UNKNOWN: darkness can't be decided: 6 h of samples are missing")]}
             out.append(r.model_copy(update=upd))
         return out
 
 
-def _scripted(pns_scenario, script, default="pass"):
-    e = ScriptedEvaluator(script, default)
+def _scripted(pns_scenario, script, default="pass", base="pass"):
+    e = ScriptedEvaluator(script, default, base)
     e.base_time = pns_scenario.landing_utc
     return e
 
@@ -200,3 +203,52 @@ def test_quick_robustness_ignores_unknown_points(pns_scenario):
     assert rob.checked_points == 2 and rob.passing_points == 2 and rob.verdict == "robust"
     none = quick_robustness(pns_scenario, _scripted(pns_scenario, {}, default="unknown"))
     assert none.verdict == "unchecked" and none.pass_rate is None
+
+
+# --- an UNKNOWN plan: neighbouring dates are still judged, each on its own ---------------------------
+
+def test_unknown_plan_judges_each_neighbouring_date_independently(pns_scenario):
+    e = _scripted(pns_scenario, {-24.0: "pass", -12.0: "fail", 12.0: "unknown"}, base="unknown")
+    r = sensitivity(SensitivityRequest(scenario=pns_scenario, date_offsets_hours=[-24, -12, 12],
+                                       position_offsets_km=[1], bearings=2), e)
+    assert r.base.verdict == "unknown" and r.verdict == "unknown"
+    by = {p.date_offset_hours: p for p in r.points if p.distance_km == 0}
+    assert (by[-24.0].status, by[-12.0].status, by[12.0].status) == ("pass", "fail", "unknown")
+    # The undecided slip says why, and which requirement can't be decided; it is not a failure.
+    assert by[12.0].reason == "incomplete_data" and by[12.0].undecided_constraints == ["max_dark_gap_hours"]
+    assert by[12.0].failing_constraints == [] and by[12.0].passes is False
+    assert by[-24.0].reason is None and by[-12.0].reason is None
+    c = r.counts
+    assert (c.passed, c.failed, c.unknown, c.skipped) == (1, 1, 1, 2)
+    assert c.by_reason == {"incomplete_data": 1, "position_unsupported": 2}
+    assert r.safe_date_window_hours is None and r.verdict not in ("robust", "sensitive", "fragile")
+    assert r.date_pass_rate == 0.5  # 1 of the 2 decided slips; the unknown one is in neither count
+    assert r.position_pass_rate is None
+    ex = r.explanation
+    assert "planned date can't be judged" in ex and "missing samples" in ex
+    assert "2 neighbouring date slip(s) that could be judged, 1 pass and 1 fail" in ex
+    assert "says nothing about whether the planned date passes" in ex
+    assert "does not show robustness to landing-position error" in ex
+
+
+def test_unknown_plan_with_no_decidable_neighbour(pns_scenario):
+    e = _scripted(pns_scenario, {}, default="unknown", base="unknown")
+    r = sensitivity(SensitivityRequest(scenario=pns_scenario, date_offsets_hours=[-24, 24], position_offsets_km=[]), e)
+    assert r.verdict == "unknown" and r.date_pass_rate is None
+    assert r.counts.unknown == 2 and r.counts.by_reason == {"incomplete_data": 2}
+    assert "No neighbouring date slip could be judged either" in r.explanation
+
+
+def test_failing_point_lists_its_undecided_requirements_separately(pns_scenario):
+    r = sensitivity(SensitivityRequest(scenario=pns_scenario, date_offsets_hours=[24], position_offsets_km=[]),
+                    _scripted(pns_scenario, {24.0: "fail"}))
+    p = r.points[0]
+    assert p.status == "fail" and p.reason is None
+    assert set(p.undecided_constraints) <= set(p.failing_constraints)
+
+
+def test_quick_robustness_date_checks_carry_the_reason(pns_scenario):
+    rob = quick_robustness(pns_scenario, _scripted(pns_scenario, {-24.0: "unknown"}))
+    by = {c.date_offset_hours: c for c in rob.date_checks}
+    assert by[-24.0].status == "unknown" and by[-24.0].reason == "incomplete_data"
+    assert by[24.0].reason is None

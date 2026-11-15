@@ -7,7 +7,9 @@ import type { MarginMetricValue, MarginStatus } from '../../types'
 import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
 import { canonicalRanking, cm, comparableEntries, constraintMarginById, fmtMetric, headroomOfEntry, humanizeSeconds, inexactText, isLimitedHeadroom, knownValue, okEntries, scoreText, type Entry, type MetricDef } from './analysis'
 import { STATE, seriesColor } from './palette'
-import type { RankingGroup } from './types'
+import type { ConstraintItem, RankingGroup } from './types'
+import { compareEvidence, constraintForViolation } from './evidence'
+import { openEvidence } from '../../viz/evidence'
 import { DataKindBadge, EligibilityBadge, Explain, Icon, ScenarioChip } from './ui'
 
 interface BarRow {
@@ -162,12 +164,28 @@ export function AvailabilityCharts({ entries }: { entries: Entry[] }) {
   )
 }
 
+/** "Show why" for one failed or undecided requirement: opens the 3D view at the engine's evidence window. */
+export function ShowWhy({ e, c, section = 'cmp-performance' }: { e: Entry; c: ConstraintItem | undefined; section?: string }) {
+  if (!c || !e.result) return null
+  const ev = compareEvidence(e.result, e.scenario.site.id, c, e.scenario.label, section)
+  if (!ev.ok) return <span className="ml-1 text-[11px] text-slate-500" data-testid="show-why-unavailable">({ev.reason})</span>
+  return (
+    <button type="button" onClick={() => openEvidence(ev.request)}
+      className="ml-2 rounded-full border border-sky-700 px-2 py-0.5 text-[11px] text-sky-300 hover:bg-sky-950"
+      aria-label={`Show why: ${c.name ?? c.id}, Scenario ${e.scenario.label}`}
+      data-tip={`Open the 3D view at this ${ev.evidence.role === 'missing_data' ? 'missing-data window' : 'evidence window'} and look toward the ${ev.request.body === 'earth' ? 'Earth' : 'Sun'}`}>
+      Show why
+    </button>
+  )
+}
+
 function ScenarioRow({ e, rankLabel }: { e: Entry; rankLabel: string | null }) {
   const v = e.result!.viability
   const r = e.ranking!
   const hr = headroomOfEntry(e)
   const failed = v?.violations.filter((x) => !x.is_unknown) ?? []
   const undecided = v?.violations.filter((x) => x.is_unknown) ?? []
+  const constraintFor = (field: string) => constraintForViolation(e.result!, field)
   const width = r.score_status === 'known' && r.score !== null ? r.score : null // bar only for an exact score
   return (
     <li className="rounded-lg border border-line bg-inset p-3">
@@ -194,6 +212,7 @@ function ScenarioRow({ e, rankLabel }: { e: Entry; rankLabel: string | null }) {
             <li key={x.constraint}>
               <Icon name="close" size={14} className="mr-1 align-[-2px]" />{x.message}{' '}
               <span className="text-red-300/70">(short by {(x.relative_shortfall * 100).toFixed(0)}%)</span>
+              <ShowWhy e={e} c={constraintFor(x.constraint)} />
             </li>
           ))}
         </ul>
@@ -201,7 +220,7 @@ function ScenarioRow({ e, rankLabel }: { e: Entry; rankLabel: string | null }) {
       {undecided.length > 0 && (
         <ul className="mt-2 space-y-0.5 text-xs text-slate-300" aria-label="Requirements that cannot be decided">
           {undecided.map((x) => (
-            <li key={x.constraint}><Icon name="unknown" size={14} className="mr-1 align-[-2px]" />{x.message}</li>
+            <li key={x.constraint}><Icon name="unknown" size={14} className="mr-1 align-[-2px]" />{x.message}<ShowWhy e={e} c={constraintFor(x.constraint)} /></li>
           ))}
         </ul>
       )}
