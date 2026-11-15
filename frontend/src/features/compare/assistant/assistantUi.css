@@ -115,6 +115,5 @@
 }
 .ask-rover:hover .ask-rover-in, .ask-rover:has(button:focus-visible) .ask-rover-in { transform: translateY(2px); }
 
-/* Rover's own voice: titles and the "Rover says..." label use the Baby Doll face. */
-@font-face { font-family: 'Baby Doll'; src: url('/fonts/BabyDoll.ttf') format('truetype'); font-display: swap; }
-.cmp-ai-babydoll { font-family: 'Baby Doll', var(--font-inter, sans-serif); font-weight: 400; letter-spacing: 0.01em; }
+/* Rover's own voice: titles and the "Rover says..." label use a rounded display face (SIL OFL Fredoka). */
+.cmp-ai-babydoll { font-family: 'Fredoka', var(--font-inter, sans-serif); font-weight: 500; letter-spacing: 0.01em; }
