@@ -353,6 +353,18 @@ describe('Guided Mission Briefing Tutorial', () => {
       expect((html.match(/aria-label="Jump to step /g) ?? []).length).toBe(4) // mission, delay, evidence, rescue
     })
 
+    it('a step-specific Next label is used only when the path really goes to that next step', () => {
+      const i = TUTORIAL_STEPS.findIndex((s) => s.id === 'science')
+      const full = renderToString(<TutorialSpotlightView {...base} stepIndex={i} step={TUTORIAL_STEPS[i]} story={null} />)
+      expect(nextButton(full)?.[1]).toBe('Generate the report')
+      // On the quick path the step after Science vs engineering is Your turn, not the report.
+      const quick = renderToString(<TutorialSpotlightView {...base} path="quick" stepIndex={i} step={TUTORIAL_STEPS[i]} story={null} />)
+      expect(nextButton(quick)?.[1]).toBe('Next')
+      const d = TUTORIAL_STEPS.findIndex((s) => s.id === 'delay')
+      const quickDelay = renderToString(<TutorialSpotlightView {...base} path="quick" stepIndex={d} step={TUTORIAL_STEPS[d]} story={null} />)
+      expect(nextButton(quickDelay)?.[1]).toBe('Show me why')
+    })
+
     it('Your turn shows the live recap, offers the full tour on the quick path, and leaves with Explore on my own', () => {
       const i = TUTORIAL_STEPS.findIndex((s) => s.id === 'your-turn')
       const recap = [
