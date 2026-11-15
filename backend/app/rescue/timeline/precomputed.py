@@ -59,13 +59,21 @@ def _from_columns(cols: dict, site: Site, source: str, where: str) -> Timeline:
     if bad:
         raise ValueError(f"{where}: columns {bad} do not have {n} values like time_utc")
     step_s = _check_spacing(times, where)
-    f = lambda c: np.asarray(cols[c], dtype=float)  # noqa: E731
+    f = lambda c: np.asarray([np.nan if v is None else v for v in cols[c]], dtype=float)  # noqa: E731
+    sun_frac, earth_horizon = f("sun_visible_fraction"), f("earth_horizon_deg")
+    # A null flag is unknown, never "not visible": the canonical adapter reads NaN as unknown.
+    earth_flag = cols["earth_visible"]
+    earth_horizon[np.array([v is None for v in earth_flag], dtype=bool)] = np.nan
+    sun_flag = None
+    if "sun_visible" in cols and len(cols["sun_visible"]) == n:
+        sun_flag = np.array([np.nan if v is None else float(bool(v)) for v in cols["sun_visible"]], dtype=float)
+        sun_frac[np.isnan(sun_flag)] = np.nan
     return Timeline(
         site=site, times=times, step_hours=step_s / 3600.0,
         sun_az=f("sun_azimuth_deg"), sun_el=f("sun_elevation_deg"), sun_horizon=f("sun_horizon_deg"),
-        sun_visible_fraction=f("sun_visible_fraction"),
-        earth_az=f("earth_azimuth_deg"), earth_el=f("earth_elevation_deg"), earth_horizon=f("earth_horizon_deg"),
-        earth_visible=np.asarray(cols["earth_visible"], dtype=bool), source=source,
+        sun_visible_fraction=sun_frac,
+        earth_az=f("earth_azimuth_deg"), earth_el=f("earth_elevation_deg"), earth_horizon=earth_horizon,
+        earth_visible=np.array([bool(v) for v in earth_flag], dtype=bool), source=source, sun_visible=sun_flag,
     )
 
 

@@ -46,15 +46,17 @@ class CompareRequest(BaseModel):
 
 
 class Window(BaseModel):
-    """A continuous period (sunlight, darkness, Earth visibility or blackout)."""
+    """A continuous period (sunlight, darkness, Earth visibility, blackout or unknown data), as the viability
+    engine reports it. ``open_*`` = cut by the mission bounds (clipped), not an observed transition."""
 
-    start_hour: float  # hours after landing
+    start_hour: float  # hours after the evaluated landing
     end_hour: float
     duration_hours: float
     start_utc: str
     end_utc: str
-    open_start: bool = Field(description="Already in progress at landing")
-    open_end: bool = Field(description="Still in progress at the end of the mission")
+    open_start: bool = Field(description="Already in progress at landing (clipped by the mission start)")
+    open_end: bool = Field(description="Still in progress at the end of the mission (clipped by the mission end)")
+    kind: str | None = Field(None, description="Canonical window kind (e.g. darkness, sun_unknown)")
 
 
 class MissionEvent(BaseModel):
@@ -64,6 +66,9 @@ class MissionEvent(BaseModel):
 
 
 class SolarStats(BaseModel):
+    """Whole-mission solar statistics, weighted by the time each sample represents (sample-and-hold, clipped to
+    the mission). Present only when the Sun's state is known for the whole mission; otherwise withheld."""
+
     sunlit_hours: float = Field(description="Hours with any part of the solar disk above the terrain")
     sunlit_fraction: float
     mean_visible_fraction: float = Field(description="Mean share of the solar disk above the terrain (0-1)")
@@ -73,15 +78,19 @@ class SolarStats(BaseModel):
     max_elevation_deg: float
     min_elevation_lit_deg: float | None
     mean_clearance_lit_deg: float | None = Field(description="Mean Sun elevation above the terrain horizon while lit")
-    longest_dark_hours: float = Field(description="Longest run with no solar disk visible (geometric)")
-    windows_count: int
+    longest_dark_hours: float | None = Field(
+        description="Longest run with no solar disk visible (geometric; the engine's longest_without_direct_sunlight)")
+    windows_count: int | None = Field(description="Number of the engine's sunlight windows")
 
 
 class EarthStats(BaseModel):
+    """Whole-mission Earth statistics, time-weighted. Present only when Earth's state is known for the whole
+    mission; otherwise withheld."""
+
     visible_hours: float
     visible_fraction: float
-    longest_blackout_hours: float
-    windows_count: int
+    longest_blackout_hours: float | None = Field(description="The engine's longest_communication_blackout")
+    windows_count: int | None = Field(description="Number of the engine's Earth-visible windows")
     mean_elevation_visible_deg: float | None
     min_elevation_visible_deg: float | None
     mean_margin_visible_deg: float | None
@@ -123,15 +132,24 @@ class ScienceContext(BaseModel):
 
 class TimelineColumns(BaseModel):
     """Decimated mission timeline for charts. Index i across all arrays is one sample.
-    ``None`` = unknown at that sample (e.g. terrain or ephemeris gap); never a measured value."""
+    ``None`` = unknown at that sample (e.g. terrain or ephemeris gap); never a measured value. With decimation, a
+    point is ``None`` for a body if any sample it stands for is unknown, so a short gap is never hidden.
+    Each sample holds until the next one (sample-and-hold); ``hour`` is time since the evaluated landing, so the
+    sample holding at landing can be slightly negative."""
 
-    step_hours: float
+    step_hours: float = Field(description="Spacing of the returned points (source cadence x stride)")
+    source_step_hours: float = Field(1.0, description="Cadence of the source data")
+    stride: int = Field(1, description="Chart decimation: one returned point per `stride` source samples")
+    mission_start_utc: str | None = None
+    mission_end_utc: str | None = None
     hour: list[float]
     time_utc: list[str]
     sun_elevation_deg: list[float | None]
     sun_azimuth_deg: list[float | None]
     sun_horizon_deg: list[float | None]
     sun_visible_fraction: list[float | None]
+    sun_visible: list[bool | None] = Field(
+        default_factory=list, description="Any part of the disk visible (authoritative; a sliver can round to 0)")
     earth_elevation_deg: list[float | None]
     earth_azimuth_deg: list[float | None]
     earth_horizon_deg: list[float | None]
@@ -152,14 +170,18 @@ class CanonicalMetric(BaseModel):
 
 
 class EvidenceWindow(BaseModel):
-    """A window the engine cites as evidence for a requirement verdict (e.g. the longest power-dark period)."""
+    """A viability-engine window cited as evidence for a requirement verdict (e.g. the longest power-dark period),
+    as the engine reports it (app/viability/outputs.VisibilityWindow): canonical kind, exact UTC edges, seconds, plus
+    the same edges as hours after the evaluated mission start. ``clipped_*`` = cut by the mission bounds, not an
+    observed transition. Unknown-data windows (``*_unknown``) are reported as such, never as darkness or blackout."""
 
     kind: str  # power_dark, communication_blackout, earth_visible, ...
-    start_hour: float  # hours after mission start
-    end_hour: float
-    duration_hours: float
     start_utc: str
     end_utc: str
+    duration_s: float
+    start_hour: float  # hours after the evaluated mission start
+    end_hour: float
+    duration_hours: float
     clipped_at_start: bool  # the condition was already in progress at landing
     clipped_at_end: bool
 
@@ -176,7 +198,8 @@ class ConstraintItem(BaseModel):
     message: str
     requirement_field: str | None
     unknown_reason: str | None = None
-    evidence_windows: list[EvidenceWindow] = []
+    evidence_windows: list[EvidenceWindow] = Field(
+        default_factory=list, description="The engine's evidence for this verdict (\"Show why\"); empty when it gives none")
 
 
 class RiskItem(BaseModel):
@@ -204,6 +227,10 @@ class AssessmentInfo(BaseModel):
     headroom: OperationalHeadroom | None = None
     explanations: list[str]
     limitations: list[str]
+    evaluated_start_utc: str | None = Field(None, description="The mission interval the engine evaluated (UTC)")
+    evaluated_end_utc: str | None = None
+    windows: list[EvidenceWindow] = Field(
+        default_factory=list, description="Every canonical window of the mission, unknown-data windows included")
 
 
 class RankingInfo(BaseModel):
@@ -300,8 +327,17 @@ class CompareResult(BaseModel):
     dark_windows: list[Window] = []
     earth_windows: list[Window] = []
     blackout_windows: list[Window] = []
-    events: list[MissionEvent] = []
+    unknown_windows: list[Window] = Field(default_factory=list, description="The engine's sun_unknown / earth_unknown windows")
+    events: list[MissionEvent] = Field(default_factory=list, description="Observed rises/sets only: none at a mission edge or next to unknown data")
     timeline: TimelineColumns | None = None
+    dataset_file: str | None = Field(None, description="Site file the result was computed from (relative to data/sites); None for demonstration data")
+    dataset_sha256: str | None = Field(None, description="SHA-256 of that file as evaluated; None for demonstration data")
+    evaluated_start_utc: str | None = Field(None, description="The mission interval evaluated (UTC, on the hourly grid)")
+    evaluated_end_utc: str | None = None
+    evaluated_hours: float | None = None
+    sun_known_hours: float | None = Field(None, description="Mission hours with a known Sun state")
+    earth_known_hours: float | None = Field(None, description="Mission hours with a known Earth state")
+    withheld: dict[str, str] = Field(default_factory=dict, description="solar / earth / power -> why that block is withheld")
 
 
 class CompareResponse(BaseModel):
@@ -311,3 +347,4 @@ class CompareResponse(BaseModel):
     pairwise: list[PairEvidence] = Field(default_factory=list, description="Engine evidence for every pair of assessed scenarios")
     viability_source: str
     notes: list[str]
+    time_policy: str | None = Field(None, description="Mission-time policy (app/timegrid.py POLICY)")

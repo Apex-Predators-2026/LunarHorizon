@@ -424,9 +424,10 @@ def test_missing_terrain_is_unknown_and_never_relaxed(tmp_path: Path) -> None:
 
 
 def test_sub_precision_sliver_never_changes_a_rescue_verdict(tmp_path: Path) -> None:
-    """Rescue's Timeline has no ``sun_visible``: a sliver (flag true, fraction written 0.0) reads as dark
-    on the rescue path but partial on the site-file path. Only direct-sunlight quantities can differ;
-    power-lit time needs fraction > 0, so every rescue requirement is decided identically."""
+    """A sliver (flag true, fraction written 0.0) is light below the file's rounding. Since compat 0.4.0 the
+    rescue Timeline carries the file's ``sun_visible`` flag, so the rescue path reads the sliver as partial Sun
+    exactly like the site-file path (before, it read it as dark and lost that hour of direct sunlight).
+    Power-lit time needs fraction > 0 on both paths."""
     start = "2027-07-20T00:00Z"
     sliver_at: list[int] = []
 
@@ -451,10 +452,9 @@ def test_sub_precision_sliver_never_changes_a_rescue_verdict(tmp_path: Path) -> 
         assert [c.status for c in a1.constraints] == [c.status for c in a2.constraints]
         assert via_rescue.verdict == via_file.verdict and via_rescue.violations == via_file.violations
         for f in METRIC_FIELDS:
-            if f != "mean_sun_clearance_deg":  # averaged over direct-sunlight time
-                assert getattr(via_rescue.metrics, f) == getattr(via_file.metrics, f), f
+            assert getattr(via_rescue.metrics, f) == getattr(via_file.metrics, f), f
         sun_rescue, sun_file = a1.metrics.sunlight_duration.value, a2.metrics.sunlight_duration.value
-        assert sun_rescue is not None and sun_file == sun_rescue + H  # the sliver hour
+        assert sun_rescue is not None and sun_file == sun_rescue  # the sliver hour is sunlight on both paths
         assert a1.metrics.power_lit_duration.value == a2.metrics.power_lit_duration.value
 
 
@@ -494,8 +494,9 @@ def test_precision_metadata_and_generator_fallback(
 def test_committed_files_convert_identically_through_rescue_and_site_file_paths(
     provider: PrecomputedTimelineProvider,
 ) -> None:
-    """The full committed files, four original sites: identical Sun/Earth states sample for sample, except exactly
-    at sub-precision slivers (none in the committed generator 1.2 files), and the same precision."""
+    """The full committed files, four original sites: identical Sun/Earth states sample for sample, slivers
+    included (compat 0.4.0 carries the file's sun_visible flag; Peak Near Shackleton has one at sample 39010, which
+    the rescue path used to read as dark), and the same precision."""
     for site_id in ORIGINAL_FOUR:
         site = site_from_file(site_id)
         tl = provider.timeline(site, DATA_START, DATA_END, 1.0)
@@ -514,7 +515,7 @@ def test_committed_files_convert_identically_through_rescue_and_site_file_paths(
             for i, (a, b) in enumerate(zip(via_rescue.samples, via_file.samples, strict=True))
             if a.sun.state != b.sun.state
         }
-        assert sun_diff == slivers, site_id
+        assert sun_diff == set(), (site_id, sorted(slivers))
         assert all(a.earth.state == b.earth.state for a, b in zip(via_rescue.samples, via_file.samples, strict=True))
 
 
@@ -559,7 +560,8 @@ def test_rescue_with_robustness_runs_on_canonical_engine(canonical: Evaluator) -
     r = rescue(make(RescueRequest, original=plan, change=make(PlanChange, launch_delay_days=10)), canonical)
     assert r.status in ("still_viable", "rescued", "no_viable_alternative")
     for a in r.alternatives:
-        assert a.robustness is not None and 0.0 <= a.robustness.pass_rate <= 1.0
+        assert a.robustness is not None
+        assert a.robustness.pass_rate is None or 0.0 <= a.robustness.pass_rate <= 1.0
 
 
 def test_rescue_past_end_of_data_stays_unknown_on_canonical_engine(canonical: Evaluator) -> None:
