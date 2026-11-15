@@ -547,7 +547,7 @@ export function stageModel(s: Snapshot): StageModel {
       const rows = changeRows(oa, da)
       const failing = da.constraints.filter((c) => c.status === 'fail')
       const others = da.constraints.filter((c) => c.status !== 'not_applicable').length - rows.length
-      return base('ready', `Landing ${MISSION.disruption.launch_delay_days} days later, the same plan ${word(da.eligibility)} ${failing.length === 1 ? 'one requirement' : `${failing.length} requirements`}: ${failing.map((c) => c.name).join('; ')}. ${others > 0 ? `The other ${others} applicable requirements keep their status.` : ''}`.trim(), {
+      return base('ready', `Landing ${MISSION.disruption.launch_delay_days} days later, the same plan ${word(da.eligibility)} ${failing.length === 1 ? 'one requirement' : `${failing.length} requirements`}: ${failing.map(plainName).join('; ')}. ${others > 0 ? `The other ${others} applicable requirements keep their status.` : ''}`.trim(), {
         rows,
         facts: failing.map((c) => ({ label: 'Over the limit', value: headroomText(c), tone: 'fail' as const })),
         primary: { label: 'Show me why', action: 'next' },
@@ -561,9 +561,9 @@ export function stageModel(s: Snapshot): StageModel {
       if (!s.guide.evidenceShown || !s.evidenceVisible) return working('Opening the evidence in the 3D view…')
       const hrs = Math.round(w!.duration_s / 360) / 10
       return base('ready',
-        `Earth is out of the lander’s line of sight from ${utc(w!.start_utc)} ${w!.clipped_at_end ? 'until the mission ends' : 'until'} ${utc(w!.end_utc)}: ${hrs} h without a direct-to-Earth link, against a limit of ${limitHours(constraint!)} h. The 3D view looks from the lander toward Earth at that moment; the band on the time strip marks the blackout.`, {
-          note: w!.clipped_at_end ? 'The blackout is still going on when the mission ends, so the outage itself may last longer; 118 h is what this mission experiences.' : null,
-          facts: [{ label: 'Blackout', value: `${hrs} h (limit ${limitHours(constraint!)} h)`, tone: 'fail' }],
+        `Earth is hidden from the lander from ${utc(w!.start_utc)} ${w!.clipped_at_end ? 'until the mission ends' : 'until'} ${utc(w!.end_utc)}: ${hrs} h without Earth in line of sight, against a limit of ${limitHours(constraint!)} h. The 3D view looks from the lander toward Earth at that moment; the band on the time strip marks the blackout.`, {
+          note: w!.clipped_at_end ? `The blackout is still going on when the mission ends (the outage itself may last longer), so this mission experiences at least ${hrs} h.` : null,
+          facts: [{ label: 'Blackout', value: `${withDays(`${hrs} h`)}, limit ${withDays(`${limitHours(constraint!)} h`)}`, tone: 'fail' }],
           secondary: [{ label: 'Show the evidence again', action: 'evidence' }],
           primary: { label: 'Search for a recovery', action: 'next' },
         })
@@ -585,11 +585,13 @@ export function stageModel(s: Snapshot): StageModel {
       if (!ra) return working('The canonical engine is double-checking the recovery…')
       if (ra.eligibility !== 'pass') return outdated(`The canonical engine assesses Rescue’s recovery as ${ra.eligibility.toUpperCase()}.`)
       const alt = cands[0]
+      const moved = res.alternatives.find((a) => scenarioKey(a.scenario) === scenarioKey(pick))?.distance_km
       const sameDate = new Date(pick.landing_utc).getTime() === new Date(d.landing_utc).getTime()
       return base('ready',
         `Mission Rescue evaluated ${res.stats.candidates_evaluated} candidate landings at ${res.stats.locations_considered} locations; ${res.stats.passing} meet every requirement. The first that keeps the ${pick.duration_days}-day mission and every requirement: ${pick.site.name}, landing ${utc(pick.landing_utc)}${sameDate ? ' (same date, different site)' : ''}. The canonical engine confirms it ${word(ra.eligibility)}.`, {
           facts: [
             { label: 'Recovery', value: `${pick.site.name} · ${utc(pick.landing_utc)}`, tone: 'pass' },
+            ...(moved === undefined ? [] : [{ label: 'Moved', value: Math.round(moved) > 0 ? `${Math.round(moved)} km from the original site` : 'stays at the original site' }]),
             ...marginFacts(ra, MISSION.expected.original.margin_constraints),
           ],
           note: alt.headline ? `Rescue’s note: ${alt.headline}` : null,
@@ -642,18 +644,44 @@ export function stageModel(s: Snapshot): StageModel {
 const utc = (iso: string) => utcText(iso)
 const limitHours = (c: ConstraintEvaluation) => (c.threshold === null ? '?' : Math.round(c.threshold / 360) / 10)
 
+// Plain labels for the live cards (a presentation layer only: the engine's names, ids and numbers are unchanged).
+const PLAIN_NAMES: Record<string, string> = {
+  max_continuous_darkness: 'Longest dark spell (battery only)',
+  max_communication_blackout: 'Longest time Earth is out of sight',
+  min_earth_visibility_percent: 'Time with Earth in sight',
+  min_mean_solar_disk_fraction: 'Average share of the Sun’s disk visible',
+  min_initial_sunlight: 'Sunlight right after landing',
+  min_initial_earth_visibility: 'Earth in sight right after landing',
+}
+
+/** The plain label of a requirement; requirements without one keep the engine's name. */
+export function plainName(c: ConstraintEvaluation): string {
+  return PLAIN_NAMES[c.constraint_id] ?? c.name
+}
+
+/** "118 h" -> "118 h (4.9 days)": every hour value of 48 h or more also shows days; anything else is unchanged. */
+export function withDays(text: string): string {
+  return text.replace(/(\d+(?:\.\d+)?) h\b(?! \()/g, (m, n: string) => {
+    const h = Number(n)
+    return h >= 48 ? `${m} (${Math.round((h / 24) * 10) / 10} days)` : m
+  })
+}
+
+const measured = (c: ConstraintEvaluation) => withDays(measuredText(c))
+const limit = (c: ConstraintEvaluation) => withDays(limitText(c))
+
 function headroomText(c: ConstraintEvaluation): string {
   const h = headroom(c)
-  return `${c.name}: ${measuredText(c)} (limit ${limitText(c)})${h ? `, ${h.text}` : ''}`
+  return `${plainName(c)}: ${measured(c)}, limit ${limit(c)}${h ? `, ${withDays(h.text)}` : ''}`
 }
 
 function marginFacts(a: Assessment, ids: string[]): Fact[] {
   return ids.map((id) => a.constraints.find((c) => c.constraint_id === id)).filter((c): c is ConstraintEvaluation => !!c).map((c) => {
     const h = headroom(c)
-    return { label: c.name, value: `${measuredText(c)} (limit ${limitText(c)})${h ? ` · ${h.text}` : ''}`, tone: tone(c.status) }
+    return { label: plainName(c), value: `${measured(c)} · limit ${limit(c)}${h ? ` · ${withDays(h.text)}` : ''}`, tone: tone(c.status) }
   })
 }
 
 function changeRows(oa: Assessment, da: Assessment): ChangeRow[] {
-  return statusChanges(oa, da).map((x) => ({ name: x.name, before: measuredText(x.before), after: measuredText(x.after), limit: limitText(x.after), from: x.from, to: x.to }))
+  return statusChanges(oa, da).map((x) => ({ name: plainName(x.after), before: measured(x.before), after: measured(x.after), limit: limit(x.after), from: x.from, to: x.to }))
 }
