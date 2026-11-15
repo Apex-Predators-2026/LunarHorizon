@@ -116,10 +116,18 @@ export const TIME_MISSING_UI = [
   'UI: bounds shown instead of numbers', 'UI: unknown time is its own stretch', 'UI: no "best solar" claim', 'UI: no NaN rendered',
   'no page errors', 'no failed /api requests',
 ]
+/** The cross-screen Show-why journey (frontend/scripts/e2e-evidence.mjs): from the Comparison into the 3D view and back, both viewports. */
+export const EVIDENCE_STEPS = [
+  'comparison offers Show why', '3D view not mounted on the comparison page', 'navigates to the Mission Planner', 'banner names the requirement and its origin',
+  'banner shows the threshold', 'scene paused', 'scene looks toward the Sun or Earth', 'scene time is the evidence start', 'a real interval is shaded',
+  'scene site matches the scenario', 'Back returns to the comparison section', 'repeated Show why applies again', "returning to the planner keeps the user's time",
+  'no page errors', 'no failed API requests',
+]
+const EVIDENCE_ESSENTIAL = VIEWPORTS.flatMap((vp) => EVIDENCE_STEPS.map((n) => `${vp} ${n}`))
 const TIME_MISSING_ESSENTIAL = [...TIME_MISSING_API, ...VIEWPORTS.flatMap((vp) => TIME_MISSING_UI.map((n) => `${vp} ${n}`))]
 
 const hitFor = (report, wanted) => report.results.find((x) => x.name.startsWith(wanted))
-const kindOf = (id) => (id === 'production' ? 'smoke' : id === 'time-missing' ? 'time-missing' : 'guided') // guided and offline share a journey
+const kindOf = (id) => (id === 'production' ? 'smoke' : id === 'time-missing' ? 'time-missing' : id === 'evidence' ? 'evidence' : 'guided') // guided and offline share a journey
 
 /** Pass / fail of ONE named step of a browser run (guided/offline names are required at both viewports). */
 export function stepResults(runs, ref) {
@@ -140,7 +148,7 @@ export function stepResults(runs, ref) {
 /** Whole-run result: the process exit, the report's identity, every essential step present and passing, nothing extra failing. */
 export function wholeRunResult(runs, id) {
   const r = runs[id]
-  const what = { production: 'production smoke journey, strict', guided: 'guided journey, production build', offline: 'guided journey, offline backend (LUNAR_OFFLINE=1)', 'time-missing': 'hourly-grid and missing-data journey, production build' }[id]
+  const what = { production: 'production smoke journey, strict', guided: 'guided journey, production build', offline: 'guided journey, offline backend (LUNAR_OFFLINE=1)', 'time-missing': 'hourly-grid and missing-data journey, production build', evidence: 'Show-why journey from the Comparison, production build' }[id]
   if (!r) return { what: `whole run: ${what}`, ok: null, tail: 'browser run not executed' }
   if (!r.report) return { what: `whole run: ${what}`, ok: false, tail: `no report from this run (${r.tail})` }
   if (kindOf(id) === 'smoke') {
@@ -153,7 +161,7 @@ export function wholeRunResult(runs, id) {
         + `${bad.length ? `; not passed: ${bad.map((x) => `${x.name} (${x.status})`).join('; ')}` : ''}${missing.length ? `; MISSING steps: ${missing.join('; ')}` : ''}`,
     }
   }
-  const essential = kindOf(id) === 'time-missing' ? TIME_MISSING_ESSENTIAL : VIEWPORTS.flatMap((vp) => GUIDED_ESSENTIAL.map((n) => `${vp} ${n}`))
+  const essential = kindOf(id) === 'time-missing' ? TIME_MISSING_ESSENTIAL : kindOf(id) === 'evidence' ? EVIDENCE_ESSENTIAL : VIEWPORTS.flatMap((vp) => GUIDED_ESSENTIAL.map((n) => `${vp} ${n}`))
   const missing = essential.filter((n) => !hitFor(r.report, n))
   const failed = r.report.results.filter((x) => !x.ok)
   return {
