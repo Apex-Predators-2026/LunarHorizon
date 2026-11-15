@@ -1,0 +1,875 @@
+{
+  "candidates": {
+    "connecting-ridge": {
+      "coverage": {
+        "earth_percent": 100.0,
+        "sun_percent": 100.0,
+        "uncovered_h": 0.0
+      },
+      "data_basis": "real_terrain_aware",
+      "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+      "eligibility": "pass",
+      "explanation_summary": [
+        "Eligibility PASS: all 7 configured hard constraint(s) are met. It covers illumination and Earth line-of-sight requirements only, not landing safety or mission success.",
+        "Overall screening risk MODERATE, from power-darkness exposure; no indicator is HIGH or UNKNOWN. Risk levels are rule-based screening categories, not probabilities; LOW does not mean safe.",
+        "Desirability score 68.78 / 100 (exact). It is rank-eligible because eligibility is PASS. The score is a relative index of illumination and Earth line-of-sight geometry under the chosen weights, not a probability of mission success, a power or link estimate, or a safety rating.",
+        "Score = 100 x sum of effective weight x component value (0-1): sunlight (mean solar-disk fraction) 25 % x 0.812 = 20.3; Earth line of sight 25 % x 0.9554 = 23.88; darkness margin 25 % x 0.14 = 3.5; blackout margin 25 % x 0.8438 = 21.09. Effective weights are the declared weights (1:1:1:1) divided by their sum over active components; they depend on configuration only, never on measurements.",
+        "Not part of the score: simultaneous power-lit and Earth line of sight: weight 0; clearance margin: not evaluable by this engine version."
+      ],
+      "margins": [
+        {
+          "constraint": "max_continuous_darkness",
+          "margin": "max_continuous_darkness",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 7.0
+          }
+        },
+        {
+          "constraint": "max_communication_blackout",
+          "margin": "max_communication_blackout",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 81.0
+          }
+        },
+        {
+          "constraint": "min_sunlight_percent",
+          "margin": "min_sunlight_percent",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "percent",
+            "upper": null,
+            "value": 38.095238
+          }
+        },
+        {
+          "constraint": "min_earth_visibility_percent",
+          "margin": "min_earth_visibility_percent",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "percent",
+            "upper": null,
+            "value": 55.535714
+          }
+        },
+        {
+          "constraint": "min_simultaneous_percent",
+          "margin": "min_simultaneous_percent",
+          "value": {
+            "lower": null,
+            "status": "not_applicable",
+            "unit": "percent",
+            "upper": null,
+            "value": null
+          }
+        },
+        {
+          "constraint": "min_sun_clearance",
+          "margin": "min_sun_clearance",
+          "value": {
+            "lower": null,
+            "status": "not_applicable",
+            "unit": "deg",
+            "upper": null,
+            "value": null
+          }
+        },
+        {
+          "constraint": "min_earth_clearance",
+          "margin": "min_earth_clearance",
+          "value": {
+            "lower": null,
+            "status": "not_applicable",
+            "unit": "deg",
+            "upper": null,
+            "value": null
+          }
+        },
+        {
+          "constraint": "min_mean_solar_disk_fraction",
+          "margin": "min_mean_solar_disk_fraction",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "fraction",
+            "upper": null,
+            "value": 0.312021
+          }
+        },
+        {
+          "constraint": "min_initial_sunlight",
+          "margin": "min_initial_sunlight",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 248.0
+          }
+        },
+        {
+          "constraint": "min_initial_earth_visibility",
+          "margin": "min_initial_earth_visibility",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 309.0
+          }
+        }
+      ],
+      "overall_risk": "moderate",
+      "requirements": [
+        {
+          "comparison": "at_most",
+          "constraint": "max_continuous_darkness",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 43.0
+          },
+          "name": "Maximum continuous power-darkness",
+          "status": "pass",
+          "threshold": 50.0
+        },
+        {
+          "comparison": "at_most",
+          "constraint": "max_communication_blackout",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 15.0
+          },
+          "name": "Maximum direct-to-Earth line-of-sight blackout",
+          "status": "pass",
+          "threshold": 96.0
+        },
+        {
+          "comparison": "at_least",
+          "constraint": "min_sunlight_percent",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "percent",
+            "upper": null,
+            "value": 88.095238
+          },
+          "name": "Minimum direct-sunlight time",
+          "status": "pass",
+          "threshold": 50.0
+        },
+        {
+          "comparison": "at_least",
+          "constraint": "min_earth_visibility_percent",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "percent",
+            "upper": null,
+            "value": 95.535714
+          },
+          "name": "Minimum Earth line-of-sight time",
+          "status": "pass",
+          "threshold": 40.0
+        },
+        {
+          "comparison": "at_least",
+          "constraint": "min_mean_solar_disk_fraction",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "fraction",
+            "upper": null,
+            "value": 0.812021
+          },
+          "name": "Minimum mean visible solar-disk fraction",
+          "status": "pass",
+          "threshold": 0.5
+        },
+        {
+          "comparison": "at_least",
+          "constraint": "min_initial_sunlight",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 272.0
+          },
+          "name": "Minimum continuous power-lit time after landing",
+          "status": "pass",
+          "threshold": 24.0
+        },
+        {
+          "comparison": "at_least",
+          "constraint": "min_initial_earth_visibility",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 321.0
+          },
+          "name": "Minimum continuous Earth line of sight after landing",
+          "status": "pass",
+          "threshold": 12.0
+        }
+      ],
+      "risk_indicators": [
+        {
+          "code": "darkness_exposure",
+          "level": "moderate",
+          "message": "Longest power-dark period is 43 h (86 % of the 50 h limit); a 11 h outage is in progress at mission end; constraint verdict pass (unchanged)."
+        }
+      ],
+      "score": {
+        "bounds": [
+          68.778203,
+          68.778203
+        ],
+        "components": [
+          {
+            "component": "sunlight",
+            "contribution_points": 20.300523958333333,
+            "normalized": 0.8120209583333333,
+            "weight": 0.25
+          },
+          {
+            "component": "earth_visibility",
+            "contribution_points": 23.883928571428573,
+            "normalized": 0.9553571428571429,
+            "weight": 0.25
+          },
+          {
+            "component": "darkness_margin",
+            "contribution_points": 3.5000000000000004,
+            "normalized": 0.14,
+            "weight": 0.25
+          },
+          {
+            "component": "blackout_margin",
+            "contribution_points": 21.09375,
+            "normalized": 0.84375,
+            "weight": 0.25
+          }
+        ],
+        "method": "desirability-v1",
+        "score": 68.778203,
+        "status": "known"
+      },
+      "site": {
+        "id": "connecting-ridge",
+        "lat": -89.53432,
+        "lon": -150.05233,
+        "name": "Connecting Ridge"
+      }
+    },
+    "malapert-massif": {
+      "coverage": {
+        "earth_percent": 100.0,
+        "sun_percent": 100.0,
+        "uncovered_h": 0.0
+      },
+      "data_basis": "real_terrain_aware",
+      "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+      "eligibility": "pass",
+      "explanation_summary": [
+        "Eligibility PASS: all 7 configured hard constraint(s) are met. It covers illumination and Earth line-of-sight requirements only, not landing safety or mission success.",
+        "Overall screening risk LOW: every indicator is LOW. Risk levels are rule-based screening categories, not probabilities; LOW does not mean safe.",
+        "Desirability score 91.11 / 100 (exact). It is rank-eligible because eligibility is PASS. The score is a relative index of illumination and Earth line-of-sight geometry under the chosen weights, not a probability of mission success, a power or link estimate, or a safety rating.",
+        "Score = 100 x sum of effective weight x component value (0-1): sunlight (mean solar-disk fraction) 25 % x 0.9445 = 23.61; Earth line of sight 25 % x 1 = 25; darkness margin 25 % x 0.7 = 17.5; blackout margin 25 % x 1 = 25. Effective weights are the declared weights (1:1:1:1) divided by their sum over active components; they depend on configuration only, never on measurements.",
+        "Not part of the score: simultaneous power-lit and Earth line of sight: weight 0; clearance margin: not evaluable by this engine version."
+      ],
+      "margins": [
+        {
+          "constraint": "max_continuous_darkness",
+          "margin": "max_continuous_darkness",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 35.0
+          }
+        },
+        {
+          "constraint": "max_communication_blackout",
+          "margin": "max_communication_blackout",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 96.0
+          }
+        },
+        {
+          "constraint": "min_sunlight_percent",
+          "margin": "min_sunlight_percent",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "percent",
+            "upper": null,
+            "value": 50.0
+          }
+        },
+        {
+          "constraint": "min_earth_visibility_percent",
+          "margin": "min_earth_visibility_percent",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "percent",
+            "upper": null,
+            "value": 60.0
+          }
+        },
+        {
+          "constraint": "min_simultaneous_percent",
+          "margin": "min_simultaneous_percent",
+          "value": {
+            "lower": null,
+            "status": "not_applicable",
+            "unit": "percent",
+            "upper": null,
+            "value": null
+          }
+        },
+        {
+          "constraint": "min_sun_clearance",
+          "margin": "min_sun_clearance",
+          "value": {
+            "lower": null,
+            "status": "not_applicable",
+            "unit": "deg",
+            "upper": null,
+            "value": null
+          }
+        },
+        {
+          "constraint": "min_earth_clearance",
+          "margin": "min_earth_clearance",
+          "value": {
+            "lower": null,
+            "status": "not_applicable",
+            "unit": "deg",
+            "upper": null,
+            "value": null
+          }
+        },
+        {
+          "constraint": "min_mean_solar_disk_fraction",
+          "margin": "min_mean_solar_disk_fraction",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "fraction",
+            "upper": null,
+            "value": 0.44454
+          }
+        },
+        {
+          "constraint": "min_initial_sunlight",
+          "margin": "min_initial_sunlight",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 25.0
+          }
+        },
+        {
+          "constraint": "min_initial_earth_visibility",
+          "margin": "min_initial_earth_visibility",
+          "value": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 324.0
+          }
+        }
+      ],
+      "overall_risk": "low",
+      "requirements": [
+        {
+          "comparison": "at_most",
+          "constraint": "max_continuous_darkness",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 15.0
+          },
+          "name": "Maximum continuous power-darkness",
+          "status": "pass",
+          "threshold": 50.0
+        },
+        {
+          "comparison": "at_most",
+          "constraint": "max_communication_blackout",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 0.0
+          },
+          "name": "Maximum direct-to-Earth line-of-sight blackout",
+          "status": "pass",
+          "threshold": 96.0
+        },
+        {
+          "comparison": "at_least",
+          "constraint": "min_sunlight_percent",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "percent",
+            "upper": null,
+            "value": 100.0
+          },
+          "name": "Minimum direct-sunlight time",
+          "status": "pass",
+          "threshold": 50.0
+        },
+        {
+          "comparison": "at_least",
+          "constraint": "min_earth_visibility_percent",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "percent",
+            "upper": null,
+            "value": 100.0
+          },
+          "name": "Minimum Earth line-of-sight time",
+          "status": "pass",
+          "threshold": 40.0
+        },
+        {
+          "comparison": "at_least",
+          "constraint": "min_mean_solar_disk_fraction",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "fraction",
+            "upper": null,
+            "value": 0.94454
+          },
+          "name": "Minimum mean visible solar-disk fraction",
+          "status": "pass",
+          "threshold": 0.5
+        },
+        {
+          "comparison": "at_least",
+          "constraint": "min_initial_sunlight",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 49.0
+          },
+          "name": "Minimum continuous power-lit time after landing",
+          "status": "pass",
+          "threshold": 24.0
+        },
+        {
+          "comparison": "at_least",
+          "constraint": "min_initial_earth_visibility",
+          "measured": {
+            "lower": null,
+            "status": "known",
+            "unit": "h",
+            "upper": null,
+            "value": 336.0
+          },
+          "name": "Minimum continuous Earth line of sight after landing",
+          "status": "pass",
+          "threshold": 12.0
+        }
+      ],
+      "risk_indicators": [],
+      "score": {
+        "bounds": [
+          91.113497,
+          91.113497
+        ],
+        "components": [
+          {
+            "component": "sunlight",
+            "contribution_points": 23.61349717261905,
+            "normalized": 0.9445398869047619,
+            "weight": 0.25
+          },
+          {
+            "component": "earth_visibility",
+            "contribution_points": 25.0,
+            "normalized": 1.0,
+            "weight": 0.25
+          },
+          {
+            "component": "darkness_margin",
+            "contribution_points": 17.5,
+            "normalized": 0.7,
+            "weight": 0.25
+          },
+          {
+            "component": "blackout_margin",
+            "contribution_points": 25.0,
+            "normalized": 1.0,
+            "weight": 0.25
+          }
+        ],
+        "method": "desirability-v1",
+        "score": 91.113497,
+        "status": "known"
+      },
+      "site": {
+        "id": "malapert-massif",
+        "lat": -85.9635,
+        "lon": -2.367399999999975,
+        "name": "Malapert Massif"
+      }
+    }
+  },
+  "datasets": [
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/malapert-massif.json",
+      "generated_at_utc": "2026-11-14T17:34:57Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "9ebfa3157cc934ccce2778729e3dae82a07c0c1a37f2ee9323ddd757ac192d4a",
+      "site_id": "malapert-massif",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/connecting-ridge.json",
+      "generated_at_utc": "2026-11-14T17:34:31Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "e4133d3414f3125623ce2b23401f12f873155a0d714452b147e2271a5ed29c1e",
+      "site_id": "connecting-ridge",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    }
+  ],
+  "demo_version": "member2-part2-demo-v1",
+  "limitations": [
+    "The score is a relative desirability index under the stated weights, not a probability of mission success, and the ranking order is not proof of physical superiority.",
+    "Solar illumination is not electrical power generation; array orientation, efficiency, temperature, dust and power-system design are not modelled.",
+    "Earth line of sight is not guaranteed radio connectivity; antenna pointing, link budget, ground-station availability and interference are not modelled.",
+    "Viability covers illumination and direct-to-Earth line of sight under the stated constraints only; it is not an assessment of landing safety (slopes, hazards, terrain).",
+    "Terrain-aware results inherit the resolution and accuracy of the elevation model and horizon calculation; geometric-only results ignore terrain entirely.",
+    "Sampled time series can miss events shorter than the sampling interval.",
+    "Sampling sensitivity is not statistical uncertainty: it is not a probability, confidence level or error bar.",
+    "Both results interpret the same samples; the two sampling methods are not independent measurements and cannot validate each other."
+  ],
+  "measurements": [
+    {
+      "advantage": "selected",
+      "component": "sunlight",
+      "connecting-ridge": {
+        "lower": null,
+        "status": "known",
+        "unit": "fraction",
+        "upper": null,
+        "value": 0.812021
+      },
+      "contribution_difference_points": [
+        3.312973,
+        3.312974
+      ],
+      "established": true,
+      "malapert-massif": {
+        "lower": null,
+        "status": "known",
+        "unit": "fraction",
+        "upper": null,
+        "value": 0.94454
+      },
+      "meaning": "mean visible fraction of the solar disk",
+      "measurement": "mean_solar_disk_fraction",
+      "weight": 0.25
+    },
+    {
+      "advantage": "selected",
+      "component": "earth_visibility",
+      "connecting-ridge": {
+        "lower": null,
+        "status": "known",
+        "unit": "percent",
+        "upper": null,
+        "value": 95.535714
+      },
+      "contribution_difference_points": [
+        1.116071,
+        1.116072
+      ],
+      "established": true,
+      "malapert-massif": {
+        "lower": null,
+        "status": "known",
+        "unit": "percent",
+        "upper": null,
+        "value": 100.0
+      },
+      "meaning": "share of time Earth is in line of sight",
+      "measurement": "earth_visible_percent",
+      "weight": 0.25
+    },
+    {
+      "advantage": "inactive",
+      "component": "simultaneous",
+      "connecting-ridge": {
+        "lower": null,
+        "status": "known",
+        "unit": "percent",
+        "upper": null,
+        "value": 82.738095
+      },
+      "contribution_difference_points": null,
+      "established": false,
+      "malapert-massif": {
+        "lower": null,
+        "status": "known",
+        "unit": "percent",
+        "upper": null,
+        "value": 95.535714
+      },
+      "meaning": "share of time power-lit and Earth-visible together",
+      "measurement": "simultaneous_percent",
+      "weight": 0.0
+    },
+    {
+      "advantage": "selected",
+      "component": "darkness_margin",
+      "connecting-ridge": {
+        "lower": null,
+        "status": "known",
+        "unit": "h",
+        "upper": null,
+        "value": 43.0
+      },
+      "contribution_difference_points": [
+        13.999999,
+        14.0
+      ],
+      "established": true,
+      "malapert-massif": {
+        "lower": null,
+        "status": "known",
+        "unit": "h",
+        "upper": null,
+        "value": 15.0
+      },
+      "meaning": "longest period below the panel threshold",
+      "measurement": "longest_continuous_darkness",
+      "weight": 0.25
+    },
+    {
+      "advantage": "selected",
+      "component": "blackout_margin",
+      "connecting-ridge": {
+        "lower": null,
+        "status": "known",
+        "unit": "h",
+        "upper": null,
+        "value": 15.0
+      },
+      "contribution_difference_points": [
+        3.90625,
+        3.90625
+      ],
+      "established": true,
+      "malapert-massif": {
+        "lower": null,
+        "status": "known",
+        "unit": "h",
+        "upper": null,
+        "value": 0.0
+      },
+      "meaning": "longest period without Earth line of sight",
+      "measurement": "longest_communication_blackout",
+      "weight": 0.25
+    },
+    {
+      "advantage": "inactive",
+      "component": "clearance_margin",
+      "connecting-ridge": {
+        "lower": null,
+        "status": "known",
+        "unit": "deg",
+        "upper": null,
+        "value": 3.650564
+      },
+      "contribution_difference_points": null,
+      "established": false,
+      "malapert-massif": {
+        "lower": null,
+        "status": "known",
+        "unit": "deg",
+        "upper": null,
+        "value": 11.159042
+      },
+      "meaning": "mean Earth clearance above the terrain",
+      "measurement": "mean_earth_clearance",
+      "weight": 0.0
+    }
+  ],
+  "mission": {
+    "duration_days": 14,
+    "end_utc": "2027-12-17T00:00:00Z",
+    "lander": {
+      "blackout_h": 96.0,
+      "dark_h": 50.0,
+      "min_earth_percent": 40.0,
+      "min_initial_earth_h": 12.0,
+      "min_initial_sun_h": 24.0,
+      "min_mean_disk_fraction": 0.5,
+      "min_sunlight_percent": 50.0,
+      "panel_threshold": 0.25
+    },
+    "landing_utc": "2027-12-03T00:00:00Z"
+  },
+  "ranking": [
+    {
+      "lower_bound": 91.113497,
+      "rank": 1,
+      "scenario_id": "malapert-massif",
+      "score": 91.113497
+    },
+    {
+      "lower_bound": 68.778203,
+      "rank": 2,
+      "scenario_id": "connecting-ridge",
+      "score": 68.778203
+    }
+  ],
+  "ranking_explanations": {
+    "connecting-ridge": "Rank 2: all hard constraints pass; exact score 68.778203; overall risk moderate. Ordered by score lower bound (scored before unscored); at an equal lower bound an exact score precedes a bounded one, then lower risk, then higher coverage, then scenario id.",
+    "malapert-massif": "Rank 1: all hard constraints pass; exact score 91.113497; overall risk low. Ordered by score lower bound (scored before unscored); at an equal lower bound an exact score precedes a bounded one, then lower risk, then higher coverage, then scenario id."
+  },
+  "sampling_sensitivity": {
+    "connecting-ridge": {
+      "changed_constraints": [],
+      "eligibility": [
+        "pass",
+        "pass"
+      ],
+      "outages_h": {
+        "longest_communication_blackout": [
+          15.0,
+          15.5
+        ],
+        "longest_continuous_darkness": [
+          43.0,
+          43.0
+        ],
+        "longest_without_direct_sunlight": [
+          33.0,
+          33.0
+        ]
+      },
+      "overall_risk": [
+        "moderate",
+        "moderate"
+      ],
+      "score": [
+        68.778203,
+        68.573589
+      ],
+      "summary": "Verdict unchanged under the two tested sampling methods: PASS under both, with the same status for every configured constraint.",
+      "verdict": "unchanged"
+    },
+    "malapert-massif": {
+      "changed_constraints": [],
+      "eligibility": [
+        "pass",
+        "pass"
+      ],
+      "outages_h": {
+        "longest_communication_blackout": [
+          0.0,
+          0.0
+        ],
+        "longest_continuous_darkness": [
+          15.0,
+          15.0
+        ],
+        "longest_without_direct_sunlight": [
+          0.0,
+          0.0
+        ]
+      },
+      "overall_risk": [
+        "low",
+        "low"
+      ],
+      "score": [
+        91.113497,
+        91.113497
+      ],
+      "summary": "Verdict unchanged under the two tested sampling methods: PASS under both, with the same status for every configured constraint.",
+      "verdict": "unchanged"
+    }
+  },
+  "versions": {
+    "alternate_sampling_policy": "nearest_sample",
+    "default_sampling_policy": "sample_hold",
+    "engine": "0.6.0-phase6",
+    "explanations": "explanations-v1",
+    "ranking_evidence": "ranking-evidence-v1",
+    "ranking_method": "ranking-phase5b-v1",
+    "sampling_policies_supported": "sample_hold, nearest_sample",
+    "sampling_sensitivity": "1.0.0-part2b",
+    "scoring_method": "desirability-v1",
+    "validation": "member2-part2-validation-v1"
+  },
+  "why_first": {
+    "clearly_established": true,
+    "deciding_criterion": "score_lower_bound",
+    "deciding_detail": "Conservative score lower bound: malapert-massif 91.113497 vs connecting-ridge 68.778203 (malapert-massif: exact score 91.113497; connecting-ridge: exact score 68.778203).",
+    "explanation": "malapert-massif ranks above connecting-ridge: its desirability score is higher everywhere within the recorded bounds (exact score 91.113497 vs exact score 68.778203). malapert-massif benefits from greater darkness headroom, greater communication-blackout headroom, more sunlight (a higher mean visible solar-disk fraction) and stronger Earth visibility. The score is a relative desirability index under the stated weights, not a probability of mission success, and the ranking order is not proof of physical superiority.",
+    "first": "malapert-massif",
+    "score_difference_points": [
+      22.335293999999998,
+      22.335294
+    ],
+    "score_difference_status": "selected_higher",
+    "statement": "malapert-massif's exact score is higher than connecting-ridge's (difference malapert-massif minus connecting-ridge: [+22.335294, +22.335294] points)."
+  }
+}
