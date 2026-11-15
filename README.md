@@ -134,15 +134,11 @@ Full detail, frames and caveats: [`docs/data-sources.md`](docs/data-sources.md).
 
 ## AI assistance
 
-- **In the product:** the optional *Mission Assistant* in Comparison sends the comparison's own numbers to an LLM
+- The optional *Mission Assistant* in Comparison sends the comparison's own numbers to an LLM
   through OpenRouter (default model `openai/gpt-4o-mini`, set by `OPENROUTER_MODEL`). It runs only when the server
   has `OPENROUTER_API_KEY` (in `backend/.env` or the environment); otherwise it says it isn't configured. It explains
   results; it never decides verdicts, scores or rankings.
-- **In development:** the team used AI coding assistants, including Anthropic's Claude (Claude Code). Thirteen
-  commits carry a Claude co-author trailer, and other AI-assisted work does not. The exact list of tools and uses
-  per member still needs each member's confirmation before submission (see
-  [`docs/submission.md`](docs/submission.md)).
-
+  
 ## Team
 
 Apex Predators (Space Apps 2026). Responsibilities: [`IdeasWorkdistribution.md`](IdeasWorkdistribution.md).
