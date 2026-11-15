@@ -1,4 +1,5 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { TUTORIAL_STEPS, useTutorialStore } from '../features/tutorial'
 import { InteractiveGrainGradient } from '../ui/InteractiveGrainGradient'
 import { useDraggable } from './useDraggable'
 
@@ -32,6 +33,21 @@ export function FloatingSidebar({ children }: { children: ReactNode }) {
   const { pos, setPos, size, setSize, dragging, handlers, consumeClick, refit } = useDraggable(rootRef)
   const [openHeight, setOpenHeight] = useState(0) // height while expanded, kept across collapse / moves
   const [userSized, setUserSized] = useState(false) // true once resized by hand: then height is exact, not a max
+  useEffect(() => {
+    let lastNonce = -1
+    const sync = () => {
+      const st = useTutorialStore.getState()
+      if (!st.open || st.prepNonce === lastNonce) return
+      lastNonce = st.prepNonce
+      if (TUTORIAL_STEPS[st.stepIndex]?.prep?.sidebarOpen) setOpen(true)
+    }
+    const id = setTimeout(sync, 0)
+    const unsub = useTutorialStore.subscribe(sync)
+    return () => {
+      clearTimeout(id)
+      unsub()
+    }
+  }, [])
 
   const onClick = () => {
     if (consumeClick()) return
@@ -88,6 +104,7 @@ export function FloatingSidebar({ children }: { children: ReactNode }) {
   return (
     <div
       ref={rootRef}
+      data-tour="sidebar-card"
       className={`lp-light pointer-events-auto relative flex min-h-0 w-full flex-col overflow-hidden rounded-[20px] bg-opal-100 transition-shadow ${dragging ? 'shadow-2xl shadow-black/50' : 'shadow-lg shadow-black/30'}`}
       style={
         fixed
