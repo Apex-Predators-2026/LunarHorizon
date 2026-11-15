@@ -13,6 +13,7 @@ import { PERF_ENABLED, recordCameraClearance, recordTileBuild, recordTileLevels 
 import { MAX_ZOOM, MOON_RADIUS_M, SiteFrame, TILE_N, tileVertexUV, uvToVec, vertexSpacingM, type Vec3 } from './cubeSphere'
 import { groundHeightAt, liftAboveGround, type TileHeights } from './terrainHeight'
 import { buildTileMesh, innerHeights, tilePadding, tileTopology } from './tileGeometry'
+import { shadowDecision, TILE_SHADOW_EVERY_MS, waitMs } from '../shadowThrottle'
 import { basePack } from './basePack'
 import { advanceLoad, initialLoad, useTerrainLoad } from './terrainLoad'
 import { imageryMix, imageryWanted, TileImagery } from './tileImagery'
@@ -147,6 +148,9 @@ export function TileTree({
   const failStreak = useRef(0) // failed loads since the last one that worked (an outage, if it grows)
   const maxInFlight = useRef(MAX_IN_FLIGHT)
   const throttleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const shadowDirty = useRef(false)
+  const lastShadow = useRef(0)
+  const shadowTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastPrune = useRef(0)
   // Loading indicators (terrainLoad.ts): finished loads, tiles on screen, oldest request in flight.
   const finished = useRef(0) // tile loads finished for this site
@@ -207,6 +211,8 @@ export function TileTree({
     return () => {
       window.removeEventListener('online', onOnline)
       if (throttleTimer.current) clearTimeout(throttleTimer.current)
+      if (shadowTimer.current) clearTimeout(shadowTimer.current)
+      shadowTimer.current = null
       throttleTimer.current = null
     }
   })
@@ -362,6 +368,24 @@ export function TileTree({
     if (tileHeightsRef) tileHeightsRef.current = tileHeights
   })
 
+  /** The shadow map re-renders every near tile: while a fast zoom swaps tiles each selection, redraw it at most
+   * every TILE_SHADOW_EVERY_MS (the Sun's shadows are fixed in world space, so the last map stays valid), and
+   * once more after the last change. */
+  const flushShadow = () => {
+    const since = performance.now() - lastShadow.current
+    const step = shadowDecision(shadowDirty.current, since, TILE_SHADOW_EVERY_MS)
+    if (step === 'redraw') {
+      get().gl.shadowMap.needsUpdate = true
+      shadowDirty.current = false
+      lastShadow.current = performance.now()
+    } else if (step === 'wait' && shadowTimer.current === null) {
+      shadowTimer.current = setTimeout(() => {
+        shadowTimer.current = null
+        invalidate()
+      }, waitMs(since, TILE_SHADOW_EVERY_MS))
+    }
+  }
+
   useFrame((state) => {
     // Runs after GlobeControls (zoom easing at priority -1) has moved the camera, before this frame renders.
     const c = state.camera.position
@@ -386,6 +410,7 @@ export function TileTree({
 
     const g = group.current
     if (!g) return
+    flushShadow()
     const sizeKey = `${size.width}x${size.height}`
     const moved =
       !lastView.equals(camera.matrixWorld) || !lastProj.equals(camera.projectionMatrix) || lastSize.current !== sizeKey
@@ -517,7 +542,10 @@ export function TileTree({
         changed = true
       }
     }
-    if (changed) state.gl.shadowMap.needsUpdate = true
+    if (changed) {
+      shadowDirty.current = true
+      flushShadow() // this frame's render draws it, if the throttle allows
+    }
     // Imagery only when zoomed out far enough for it to show (no requests close up).
     if (imageryWanted(altitude))
       imageryRef.current?.apply(
