@@ -3,9 +3,10 @@
 // It reads the comparison exactly as the page shows it (context.ts), asks the backend (which holds the API key),
 // and only explains: it cannot change scenarios, requirements, rankings or Rescue plans. When the AI service is
 // unavailable it says so plainly and never makes an answer up.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type Ref } from 'react'
 import { createPortal } from 'react-dom'
 
+import { RoverMascot } from '../../../ui/RoverMascot'
 import type { Entry } from '../analysis'
 import type { PairEvidence, RankingGroup } from '../types'
 import { Icon } from '../ui'
@@ -53,6 +54,17 @@ export function MissionAssistant({ entries, groups, pairs, notes, ready, onJump 
   onJump?: (sectionId: string) => void
 }) {
   const open = useAssistant((s) => s.open)
+  const launcherRef = useRef<HTMLButtonElement>(null)
+  const restoreFocus = useRef(false)
+  useLayoutEffect(() => {
+    if (open || !restoreFocus.current) return
+    restoreFocus.current = false
+    launcherRef.current?.focus({ preventScroll: true })
+  }, [open])
+  const close = () => {
+    restoreFocus.current = true
+    useAssistant.getState().setOpen(false)
+  }
   const rescue = useCompareStore((s) => s.rescueContext)
   // Rebuilt whenever the selection, the requirements, the results or the Rescue import change, so a question always
   // goes out with the comparison as it is at that moment (never a stale copy).
@@ -65,29 +77,43 @@ export function MissionAssistant({ entries, groups, pairs, notes, ready, onJump 
     else onJump?.(target)
   }
   if (typeof document === 'undefined') return null
-  return createPortal(open ? <Panel context={context} onNav={onNav} /> : <Launcher />, document.body)
+  return createPortal(
+    <>
+      {!open && <Launcher buttonRef={launcherRef} />}
+      <div className="pointer-events-none fixed inset-0 z-[70] overflow-hidden" inert={!open}>
+        <Panel open={open} context={context} onNav={onNav} onClose={close} />
+      </div>
+    </>,
+    document.body,
+  )
 }
 
-function Launcher() {
+function Launcher({ buttonRef }: { buttonRef: Ref<HTMLButtonElement> }) {
   const { setOpen } = useAssistant.getState()
   return (
     <div className={`${SCOPE} fixed bottom-5 right-5 z-[70]`} style={SCOPE_STYLE}>
-      <button type="button" data-tour="compare-assistant" onClick={() => setOpen(true)}
+      <button ref={buttonRef} type="button" data-tour="compare-assistant" onClick={() => setOpen(true)}
         className="cmp-btn-primary shadow-lg" aria-label="Open the Mission Assistant" data-tip="Ask about this comparison">
-        <Icon name="chat" size={18} /> Mission Assistant
+        <RoverMascot facing="left" size={24} animated={false} /> Mission Assistant
       </button>
     </div>
   )
 }
 
-function Panel({ context, onNav }: { context: AssistantContext; onNav: (t: NavTarget) => void }) {
+function Panel({ open, context, onNav, onClose }: {
+  open: boolean
+  context: AssistantContext
+  onNav: (t: NavTarget) => void
+  onClose: () => void
+}) {
   const messages = useAssistant((s) => s.messages)
   const pending = useAssistant((s) => s.pending)
+  const streamingReply = useAssistant((s) => s.streamingReply)
   const error = useAssistant((s) => s.error)
   const availability = useAssistant((s) => s.availability)
   const availabilityMessage = useAssistant((s) => s.availabilityMessage)
   const queued = useAssistant((s) => s.queued)
-  const { takeQueued, setOpen, ask, askBasic, showBasic, retry, stop, clear, checkStatus } = useAssistant.getState()
+  const { takeQueued, ask, askBasic, showBasic, retry, stop, clear, checkStatus } = useAssistant.getState()
   const [draft, setDraft] = useState('')
   const top = useHeaderOffset()
   const logRef = useRef<HTMLDivElement>(null)
@@ -95,15 +121,17 @@ function Panel({ context, onNav }: { context: AssistantContext; onNav: (t: NavTa
 
   // Check once per opening whether the backend can answer (no AI call, nothing billed).
   useEffect(() => {
+    if (!open) return
+    setDraft('')
     void checkStatus()
     inputRef.current?.focus({ preventScroll: true })
-  }, [checkStatus])
+  }, [open, checkStatus])
 
   // Keep the newest message in view.
   useEffect(() => {
     const el = logRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [messages.length, pending, error])
+    if (open && el) el.scrollTop = el.scrollHeight
+  }, [open, messages.length, pending, streamingReply, error])
 
   const unavailable = availability === 'unavailable'
   const submit = (text: string) => {
@@ -123,28 +151,28 @@ function Panel({ context, onNav }: { context: AssistantContext; onNav: (t: NavTa
 
   // A question asked from a button on the page: sent once the availability check is done, with the current context.
   useEffect(() => {
-    if (!queued || pending || availability === 'checking' || availability === 'unknown') return
+    if (!open || !queued || pending || availability === 'checking' || availability === 'unknown') return
     const q = takeQueued()
     if (q) submit(q)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- submit reads the latest context on each render
-  }, [queued, pending, availability])
+  }, [open, queued, pending, availability])
 
   return (
-    <div className={`${SCOPE} fixed bottom-4 right-4 z-[70] flex`} style={{ ...SCOPE_STYLE, top, width: `min(${ASSISTANT_WIDTH}px, calc(100vw - 32px))` }}>
-      <aside aria-label="Mission Assistant" data-tour="compare-assistant"
-        onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false) }}
+    <div className={`${SCOPE} cmp-assistant-panel absolute bottom-4 right-4 flex`} data-open={open} style={{ ...SCOPE_STYLE, top, width: `min(${ASSISTANT_WIDTH}px, calc(100vw - 32px))` }}>
+      <aside aria-label="Mission Assistant" data-tour={open ? 'compare-assistant' : undefined}
+        onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
         className="flex min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface text-ink shadow-xl">
         {/* Header */}
         <header className="flex items-start gap-3 border-b border-line px-4 py-3">
-          <Icon name="chat" size={18} className="mt-0.5 text-ink-3" />
+          <RoverMascot facing="right" size={36} state={streamingReply ? 'talking' : 'idle'} />
           <div className="min-w-0 flex-1">
-            <h2 className="text-[15px] font-medium leading-tight text-ink">Mission Assistant</h2>
+            <h2 className="text-[15px] font-medium leading-tight text-ink">Rover · Mission Assistant</h2>
             <p className="mt-0.5 text-xs leading-snug text-ink-3">Explains this comparison and how to use the page. Read-only: it can't change your plans.</p>
           </div>
           {messages.length > 0 && (
             <button type="button" className="cmp-btn-quiet text-xs" onClick={clear} data-tip="Start a new conversation">New chat</button>
           )}
-          <button type="button" className="cmp-btn-quiet" onClick={() => setOpen(false)} aria-label="Close the Mission Assistant">
+          <button type="button" className="cmp-btn-quiet" onClick={onClose} aria-label="Close the Mission Assistant">
             <Icon name="close" size={16} />
           </button>
         </header>
@@ -169,15 +197,22 @@ function Panel({ context, onNav }: { context: AssistantContext; onNav: (t: NavTa
         <div ref={logRef} role="log" aria-live="polite" aria-label="Conversation" className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm leading-relaxed text-ink-2">
           {messages.length === 0 && (
             <div className="space-y-3">
-              <p>
-                {context.state === 'empty'
-                  ? 'No scenarios are selected yet. I can show you how to set up a comparison, or explain what the page shows.'
-                  : 'Ask me to summarize this comparison, explain a result or a trade-off, or find something on the page. My answers come from the results shown here.'}
-              </p>
+              <div className="flex items-center gap-3 rounded-xl bg-inset px-3 py-3">
+                <p>Hi, I'm Rover! I'm here to help you understand your missions. Ask me anything about your mission data.</p>
+                <RoverMascot facing="left" size={56} />
+              </div>
+              {context.state === 'empty' && (
+                <p>No scenarios are selected yet. I can show you how to set up a comparison, or explain what the page shows.</p>
+              )}
               <Suggestions items={suggestions} disabled={pending} onPick={submit} />
             </div>
           )}
           {messages.map((m) => <Message key={m.id} m={m} onNav={onNav} />)}
+          {streamingReply && (
+            <div aria-live="off">
+              <RichText text={streamingReply} />
+            </div>
+          )}
           {pending && (
             <div className="flex items-center gap-2 text-xs text-ink-3" role="status">
               <span className="inline-flex gap-1" aria-hidden="true">
@@ -185,7 +220,7 @@ function Panel({ context, onNav }: { context: AssistantContext; onNav: (t: NavTa
                 <span className="h-1.5 w-1.5 rounded-full bg-ink-4 motion-safe:animate-pulse [animation-delay:150ms]" />
                 <span className="h-1.5 w-1.5 rounded-full bg-ink-4 motion-safe:animate-pulse [animation-delay:300ms]" />
               </span>
-              Reading the comparison…
+              {streamingReply ? 'Rover is responding…' : 'Reading the comparison…'}
               <button type="button" className="cmp-btn-quiet ml-auto text-xs" onClick={stop}>Stop</button>
             </div>
           )}
