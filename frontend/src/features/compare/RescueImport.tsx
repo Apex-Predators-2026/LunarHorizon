@@ -1,15 +1,32 @@
 // Integration with Mission Rescue (Member 5 / Arush): bring the original plan, the changed plan and Rescue's top
 // alternatives into the comparison, and remember each one's role for the rescue story. Read-only use of the rescue
 // store; nothing is re-optimised here, and every imported plan is re-assessed by the canonical engine.
+import type { PlanChange, RescueResponse } from '../rescue/types'
 import { useRescueStore } from '../rescue/useRescueStore'
 import { describeChange, rescueImportPlan } from './rescueFlow'
 import { btnPrimary } from './ui'
 import { sendToComparison, useCompareStore } from './useCompareStore'
 
+/**
+ * Bring the original plan, the changed plan and Rescue's top alternatives into the comparison (the changed plan is the
+ * baseline: deltas show what each alternative fixes) and remember each one's role for the rescue story.
+ */
+export function importRescueIntoComparison(rescue: RescueResponse, change: PlanChange) {
+  const plan = rescueImportPlan(rescue)
+  const ids = sendToComparison(plan.scenarios, { origin: 'rescue', names: plan.names, notes: plan.notes,
+    baselineIndex: plan.includesOriginal ? 1 : 0 })
+  useCompareStore.getState().setRescueContext({
+    importedAt: new Date().toISOString(),
+    status: rescue.status,
+    summary: rescue.summary,
+    change: describeChange(change),
+    roles: Object.fromEntries(ids.map((id, i) => [id, plan.roles[i]])),
+  })
+}
+
 export function RescueImport() {
   const rescue = useRescueStore((s) => s.rescue)
   const change = useRescueStore((s) => s.change)
-  const setRescueContext = useCompareStore((s) => s.setRescueContext)
   if (!rescue) {
     return (
       <p className="text-[11px] text-slate-500">
@@ -19,17 +36,7 @@ export function RescueImport() {
   }
   const plan = rescueImportPlan(rescue)
   const alts = plan.roles.filter((r) => r.role === 'alternative').length
-  const importAll = () => {
-    const ids = sendToComparison(plan.scenarios, { origin: 'rescue', names: plan.names, notes: plan.notes,
-      baselineIndex: plan.includesOriginal ? 1 : 0 }) // the changed plan is the baseline: deltas show what each alternative fixes
-    setRescueContext({
-      importedAt: new Date().toISOString(),
-      status: rescue.status,
-      summary: rescue.summary,
-      change: describeChange(change),
-      roles: Object.fromEntries(ids.map((id, i) => [id, plan.roles[i]])),
-    })
-  }
+  const importAll = () => importRescueIntoComparison(rescue, change)
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-sky-900/70 bg-sky-950/20 px-3 py-2 text-xs">
       <span className="text-sky-200">

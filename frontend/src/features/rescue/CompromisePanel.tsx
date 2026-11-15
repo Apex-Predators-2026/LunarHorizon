@@ -15,7 +15,7 @@ import type { CompromiseOption, CompromiseResponse, RescueCatalog } from './type
 import { useRescueStore } from './useRescueStore'
 
 
-function OptionRow({ o, label, onSelect }: { o: CompromiseOption; label?: string; onSelect: () => void }) {
+function OptionRow({ o, label, onSelect, tip }: { o: CompromiseOption; label?: string; onSelect: () => void; tip?: string }) {
   const hr = resolveHeadroom(o.viability)
   const elig = verdictOf(o.viability)
   const tone = headroomTone(hr, elig)
@@ -32,7 +32,7 @@ function OptionRow({ o, label, onSelect }: { o: CompromiseOption; label?: string
     <tr className="border-t border-slate-800 align-top">
       <td className="py-1.5 pr-2">
         {label && <div className="text-[11px] text-slate-500">{label}</div>}
-        <button type="button" onClick={onSelect} className="text-left text-slate-200 hover:text-sky-300 hover:underline">
+        <button type="button" onClick={onSelect} data-tip={tip} className="text-left text-slate-200 hover:text-sky-300 hover:underline">
           {o.scenario.site.name}
         </button>
         <div className="text-[11px] text-slate-500">{fmtUtc(o.scenario.landing_utc)}</div>
@@ -55,9 +55,18 @@ function OptionRow({ o, label, onSelect }: { o: CompromiseOption; label?: string
   )
 }
 
-export function CompromisePanel() {
+/**
+ * `base` / `onPick` / `pickLabel` let the Scenario Comparison page use the same panel: it asks about one of the
+ * compared plans and "picks" a result by adding it to the comparison (instead of showing it on the planner's map).
+ */
+export function CompromisePanel({ base, onPick, pickLabel = 'Use recommended plan' }: {
+  base?: Scenario | null
+  onPick?: (s: Scenario) => void
+  pickLabel?: string
+} = {}) {
   const s = useRescueStore()
-  const res = s.compromise
+  // On another page the result only shows if it was computed for the plan being asked about.
+  const res = base && s.compromiseFor !== `${base.site.id}|${base.landing_utc}|${base.duration_days}` ? null : s.compromise
   const loading = s.compromiseStatus === 'loading'
   const sciShare = s.weights.science / (s.weights.science + s.weights.engineering || 1)
   const [psrs, setPsrs] = useState<RescueCatalog['psrs']>([])
@@ -102,7 +111,7 @@ export function CompromisePanel() {
               s.setWeights({ science: Math.max(v, 0.001), engineering: Math.max(1 - v, 0.001) })
             }} />
         </label>
-        <button type="button" disabled={loading || !s.original} onClick={() => void s.findCompromise()}
+        <button type="button" disabled={loading || !(base ?? s.original)} onClick={() => void s.findCompromise(base ?? undefined)}
           data-tip="Find the landing that best balances what science and engineering each want."
           className="md-btn bg-sky-600 text-white hover:bg-sky-500 disabled:opacity-50">
           {loading ? <><LoadingIndicator size={20} contained={false} color="#ffffff" label="Searching" /><span className="ml-2">Searching…</span></> : 'Find best compromise'}
@@ -113,7 +122,7 @@ export function CompromisePanel() {
         <p role="alert" className="rounded border border-red-900 bg-red-950/50 p-2 text-xs text-red-300">{s.compromiseError}</p>
       )}
 
-      {res && <CompromiseResults res={res} onSelect={s.select} />}
+      {res && <CompromiseResults res={res} onSelect={onPick ?? s.select} pickLabel={pickLabel} />}
     </section>
   )
 }
@@ -122,7 +131,7 @@ const sameOption = (a: CompromiseOption | null, b: CompromiseOption) =>
   a !== null && a.scenario.site.id === b.scenario.site.id && a.scenario.landing_utc === b.scenario.landing_utc
 
 /** Pure display of a CompromiseResponse (no store access). */
-export function CompromiseResults({ res, onSelect }: { res: CompromiseResponse; onSelect: (s: Scenario) => void }) {
+export function CompromiseResults({ res, onSelect, pickLabel = 'Use recommended plan' }: { res: CompromiseResponse; onSelect: (s: Scenario) => void; pickLabel?: string }) {
   // The best-for-engineering and best-for-science rows are already shown first; don't repeat them.
   const isShownAbove = (o: CompromiseOption) => sameOption(res.best_for_engineering, o) || sameOption(res.best_for_science, o)
   const bestHr = res.best ? resolveHeadroom(res.best.viability) : null
@@ -154,7 +163,7 @@ export function CompromiseResults({ res, onSelect }: { res: CompromiseResponse; 
         {res.best && (
           <button type="button" onClick={() => onSelect(res.best!.scenario)}
             className="mt-2 rounded bg-sky-600 px-2 py-1 font-medium text-white hover:bg-sky-500">
-            Use recommended plan
+            {pickLabel}
           </button>
         )}
       </div>

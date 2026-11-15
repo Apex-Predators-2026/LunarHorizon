@@ -27,6 +27,7 @@ import { Empty, Explain, Icon, Section } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { useView } from './useTimeAxis'
 import { COMPARE_TABS, TAB_ENTRY, tabOfSection, useCompareView } from './sections'
+import { DataAssumptionsBlock, MissionAssessmentBlock, ScienceVsEngineeringBlock } from './PlanAnalysis'
 import { MissionAssistant } from './assistant/MissionAssistant'
 import { useAssistantLayout } from './assistant/layout'
 import { useAssistant } from './assistant/useAssistant'
@@ -133,7 +134,11 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
     }
     show()
     const ro = new ResizeObserver(show)
-    if (pageRef.current) ro.observe(pageRef.current)
+    // The page box can keep its size while its content grows, so watch the content box too.
+    if (pageRef.current) {
+      ro.observe(pageRef.current)
+      if (pageRef.current.firstElementChild) ro.observe(pageRef.current.firstElementChild)
+    }
     const events = ['wheel', 'touchstart', 'keydown', 'pointerdown'] as const
     const stop = () => {
       active = false
@@ -141,9 +146,13 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
       events.forEach((ev) => window.removeEventListener(ev, stop))
     }
     events.forEach((ev) => window.addEventListener(ev, stop, { passive: true }))
-    const timer = setTimeout(stop, 5000)
+    // Results keep arriving and growing the page above the section for a while, so it stays in view until the user
+    // scrolls, clicks or types (which stops it above), or after 40 s.
+    const timer = setTimeout(stop, 40000)
+    const poll = setInterval(show, 300) // the resize observer alone missed late growth
     return () => {
       clearTimeout(timer)
+      clearInterval(poll)
       stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the URL's section changes
@@ -232,6 +241,10 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                   {anyData ? <MetricsTable entries={entries} /> : <Empty>No scientific data for the selected scenarios yet.</Empty>}
                 </Section>
 
+                <Section id="cmp-assessment" title="Mission assessment">
+                  {anyData ? <MissionAssessmentBlock entries={entries} /> : <Empty>The assessment appears once scenarios have data.</Empty>}
+                </Section>
+
                 <Section id="cmp-timeline" title="Solar availability and Earth communication timeline">
                   {anyData ? (
                     <>
@@ -269,6 +282,14 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                 <Disclosure id="cmp-tradeoff" card lazy level={2} title="Trade-off analysis"
                   summary="Scenarios compared across several measures at once">
                   <TradeoffPanel entries={entries} />
+                </Disclosure>
+                <Disclosure id="cmp-science" card lazy level={2} title="Science vs engineering"
+                  summary="Find the landing that best balances what the science team wants against what is safe to operate">
+                  <ScienceVsEngineeringBlock entries={entries} />
+                </Disclosure>
+                <Disclosure id="cmp-assumptions" card lazy level={2} title="Data, assumptions and limitations"
+                  summary="What the assessment is built from, what it assumes and what it cannot tell you">
+                  <DataAssumptionsBlock entries={entries} />
                 </Disclosure>
               </div>
             </TabPanel>

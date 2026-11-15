@@ -53,7 +53,7 @@ export function RescueStory({ entries, groups, pairs, rescueContext: ctxProp }: 
   const changedLimited = changedEl === 'pass' && isLimitedHeadroom(changedHr)
   let n = 0
   return (
-    <section aria-label="Mission Rescue: from problem to decision" className="mb-4 rounded-xl border border-line bg-surface p-4">
+    <section id="cmp-rescue" aria-label="Mission Rescue: from problem to decision" className="mb-4 scroll-mt-16 rounded-xl border border-line bg-surface p-4">
       <header className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-medium text-slate-100">Mission Rescue: from problem to decision</h3>
         <span className="text-[11px] text-slate-500">imported {fmtUtc(ctx.importedAt)}</span>
