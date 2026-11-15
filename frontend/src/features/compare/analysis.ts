@@ -373,6 +373,44 @@ export function requirementSummary(e: Entry): RequirementSummary | null {
   return { applicable: app.length, passed: pick('pass').length, failed: pick('fail'), undecided: pick('unknown') }
 }
 
+// ---------------------------------------------------------------- requirement evidence on the timeline
+
+export interface ViolationWindow {
+  constraintId: string
+  name: string
+  status: 'fail' | 'unknown'
+  lane: 'sun' | 'earth'
+  start_hour: number
+  end_hour: number
+  duration_hours: number
+  start_utc: string
+  end_utc: string
+  text: string // e.g. "Fails Maximum continuous power-darkness: 107 h window (required ≤ 100 h)"
+}
+
+/**
+ * Windows the engine cites as evidence for a failed or undecided requirement, placed on the Sun or Earth lane.
+ * Taken verbatim from the canonical assessment; nothing is detected or measured here.
+ */
+export function violationWindows(r: CompareResult | null | undefined): ViolationWindow[] {
+  const out: ViolationWindow[] = []
+  for (const c of r?.assessment?.constraints ?? []) {
+    if (c.status !== 'fail' && c.status !== 'unknown') continue
+    const threshold = thresholdText(c)
+    for (const w of c.evidence_windows) {
+      const lane = /earth|communication/.test(w.kind) ? 'earth' : 'sun'
+      const name = c.name ?? c.id
+      const verb = c.status === 'fail' ? 'Fails' : 'Cannot decide'
+      out.push({
+        constraintId: c.id, name, status: c.status, lane, start_hour: w.start_hour, end_hour: w.end_hour,
+        duration_hours: w.duration_hours, start_utc: w.start_utc, end_utc: w.end_utc,
+        text: `${verb} ${name}: ${fmtMetric(w.duration_hours, 'h')} ${w.kind.replace(/_/g, ' ')} window${w.clipped_at_start ? ' (already in progress at landing)' : ''}${threshold ? ` (required ${threshold})` : ''}`,
+      })
+    }
+  }
+  return out
+}
+
 // ---------------------------------------------------------------- canonical ranking (viability engine)
 
 export interface GroupView {

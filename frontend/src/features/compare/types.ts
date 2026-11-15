@@ -154,6 +154,18 @@ export interface ConstraintItem {
   message: string
   requirement_field: string | null
   unknown_reason: string | null
+  evidence_windows: EvidenceWindow[] // windows the engine cites for this verdict (e.g. the longest darkness)
+}
+
+export interface EvidenceWindow {
+  kind: string // power_dark, communication_blackout, earth_visible, ...
+  start_hour: number // hours after mission start
+  end_hour: number
+  duration_hours: number
+  start_utc: string
+  end_utc: string
+  clipped_at_start: boolean
+  clipped_at_end: boolean
 }
 
 /** Canonical evidence beyond pass/fail and score: metric states, constraints, risk, coverage, versions. */
