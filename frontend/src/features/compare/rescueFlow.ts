@@ -1,9 +1,9 @@
 // Mission Rescue -> comparison (Phase 6). Pure functions. Rescue (Member 5) finds the alternatives; the comparison
 // re-assesses every imported plan with the same canonical engine and reports the result, so a "potentially better"
 // alternative is never shown as a confirmed fix unless it actually passes here.
-import type { Eligibility, Scenario } from '../../types'
+import type { Eligibility, OperationalHeadroom, Scenario } from '../../types'
 import type { AltKind, PlanChange, RescueResponse, RescueStatus } from '../rescue/types'
-import { eligibilityOf, requirementSummary, type Entry } from './analysis'
+import { eligibilityOf, headroomOfEntry, isLimitedHeadroom, qualifiedPassClause, requirementSummary, type Entry } from './analysis'
 import { MAX_COMPARED } from './palette'
 
 export type RescueRole = 'original' | 'changed' | 'alternative'
@@ -90,6 +90,8 @@ export interface AltStep {
   entry: Entry
   info: RescueRoleInfo
   outcome: AltOutcome
+  headroom: OperationalHeadroom | null
+  outcomeText: string
   fixes: string[] // requirements the changed plan fails that this alternative passes
   remaining: string[] // requirements this alternative still fails or cannot decide
   disagreesWithRescue: boolean // Rescue's verdict differs from the re-assessment here
@@ -122,9 +124,10 @@ export function rescueSteps(ctx: RescueContext, entries: Entry[]): RescueSteps {
     else outcome = 'still_fails'
     const passedIds = new Set(e.result?.assessment?.constraints.filter((c) => c.status === 'pass').map((c) => c.id) ?? [])
     const fixes = (cs?.failed ?? []).filter((f) => passedIds.has(f.id)).map((f) => f.name)
+    const hr = headroomOfEntry(e)
     const remaining = s ? [...names(s.failed), ...names(s.undecided)] : []
     alternatives.push({
-      entry: e, info: r, outcome, fixes, remaining,
+      entry: e, info: r, outcome, headroom: hr, outcomeText: rescueOutcomeText(outcome, hr), fixes, remaining,
       disagreesWithRescue: !!el && !!r.rescueVerdict && r.rescueVerdict !== el,
     })
   }
@@ -141,6 +144,19 @@ export const OUTCOME_TEXT: Record<AltOutcome, string> = {
   undecided: 'Cannot be decided from the data: a potential option, not a confirmed fix',
   still_fails: 'Still fails a requirement here: not a fix',
   not_assessed: 'Not assessed here (no data): not a confirmed fix',
+}
+
+export function rescueOutcomeText(outcome: AltOutcome, headroom: OperationalHeadroom | null): string {
+  if (headroom && isLimitedHeadroom(headroom)) {
+    const clause = qualifiedPassClause(headroom).replace(/^./, (ch) => ch.toUpperCase())
+    if (outcome === 'confirmed') {
+      return `${clause}: a confirmed fix with limited operational headroom`
+    }
+    if (outcome === 'passes_separately') {
+      return `${clause}, under different requirements or mission length, so it is not directly comparable with the changed plan`
+    }
+  }
+  return OUTCOME_TEXT[outcome]
 }
 
 /** Has any imported plan been changed or deselected since the import? (The story then describes a stale set.) */

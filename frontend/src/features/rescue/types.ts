@@ -53,6 +53,18 @@ export interface MetricDelta {
   better: boolean | null
 }
 
+export interface DateSlipCheck {
+  date_offset_hours: number
+  status: SensitivityStatus
+  passes: boolean
+  darkness_headroom_h?: number | null
+  comms_headroom_h?: number | null
+  closest_label?: string | null
+  closest_headroom_text?: string | null
+  headroom_status?: string | null
+  failing_constraints: RequirementKey[]
+}
+
 export interface Robustness {
   checked_points: number
   passing_points: number
@@ -60,6 +72,10 @@ export interface Robustness {
   worst_score: number | null // null = none of the checks was scored
   verdict: 'robust' | 'sensitive' | 'fragile' | 'unchecked'
   note: string
+  date_checks?: DateSlipCheck[]
+  date_passing?: number
+  date_checked?: number
+  date_note?: string | null
 }
 
 export interface Alternative {
@@ -122,6 +138,7 @@ export interface RescueResponse {
   summary: string
   original: ViabilityResult
   changed: ViabilityResult
+  changed_robustness?: Robustness | null
   alternatives: Alternative[]
   near_misses: NearMiss[]
   loosening: LooseningSuggestion[]
@@ -153,6 +170,11 @@ export interface SensitivityPoint {
   score: number | null
   failing_constraints: RequirementKey[]
   status: SensitivityStatus
+  darkness_headroom_h?: number | null
+  comms_headroom_h?: number | null
+  closest_label?: string | null
+  closest_headroom_text?: string | null
+  headroom_status?: string | null
 }
 
 export interface SensitivityCounts {
@@ -179,6 +201,9 @@ export interface SensitivityResponse {
   // unknown = no real data for the plan; not_assessed = no neighbouring point could be evaluated
   verdict: 'robust' | 'sensitive' | 'fragile' | 'fails' | 'unknown' | 'not_assessed'
   explanation: string
+  date_limited_offsets_hours?: number[]
+  tightest_passing_headroom?: string | null
+  screening_note?: string
 }
 
 // ---------------------------------------------------------------- science vs engineering

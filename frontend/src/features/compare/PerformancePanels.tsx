@@ -2,7 +2,10 @@
 // Eligibility, ranks and order come from the canonical viability engine via the backend (never recomputed here).
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-import { canonicalRanking, cm, comparableEntries, fmtMetric, inexactText, knownValue, okEntries, scoreText, type Entry, type MetricDef } from './analysis'
+import { formatMarginMetric, marginStatusClassLabel } from '../../lib/headroom'
+import type { MarginMetricValue, MarginStatus } from '../../types'
+import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
+import { canonicalRanking, cm, comparableEntries, constraintMarginById, fmtMetric, headroomOfEntry, inexactText, isLimitedHeadroom, knownValue, okEntries, scoreText, type Entry, type MetricDef } from './analysis'
 import { STATE, seriesColor } from './palette'
 import type { RankingGroup } from './types'
 import { DataKindBadge, EligibilityBadge, Explain, Icon, ScenarioChip } from './ui'
@@ -13,6 +16,9 @@ interface BarRow {
   value: number
   limit?: number
   entry: Entry
+  margin?: MarginMetricValue
+  marginClass?: MarginStatus
+  narrowReason?: string | null
 }
 
 function ScenarioBars({ rows, unit, title, max, format, limitLabel, notPlotted = [] }: {
@@ -55,13 +61,38 @@ function ScenarioBars({ rows, unit, title, max, format, limitLabel, notPlotted =
       </div>
       {rows.some((r) => r.limit !== undefined) && (
         <ul className="mt-1 space-y-0.5 text-[11px] text-slate-400">
-          {rows.map((r) => r.limit !== undefined && (
-            <li key={r.id} className="flex items-center gap-1.5">
-              <ScenarioChip s={r.entry.scenario} size="sm" />
-              {r.value > r.limit ? <span className="inline-flex items-center gap-1 text-red-300"><Icon name="close" size={14} />exceeds {limitLabel} {format(r.limit)} by {format(r.value - r.limit)}</span>
-                : <span className="inline-flex items-center gap-1 text-emerald-300"><Icon name="check" size={14} />within {limitLabel} {format(r.limit)} (margin {format(r.limit - r.value)})</span>}
-            </li>
-          ))}
+          {rows.map((r) => {
+            if (r.limit === undefined) return null
+            const exceeds = r.marginClass === 'negative' || r.value > r.limit
+            const isNarrow = !exceeds && (r.marginClass === 'narrow' || r.marginClass === 'at_threshold')
+            const marginText = r.margin && r.margin.status !== 'unavailable'
+              ? formatMarginMetric(r.margin, true)
+              : `${exceeds ? '-' : '+'}${format(Math.abs(r.limit - r.value))}`
+            return (
+              <li key={r.id} className="flex flex-wrap items-center gap-1.5" title={r.narrowReason ?? undefined}>
+                <ScenarioChip s={r.entry.scenario} size="sm" />
+                {exceeds ? (
+                  <span className="inline-flex items-center gap-1 text-red-300">
+                    <Icon name="close" size={14} />
+                    exceeds {limitLabel} {format(r.limit)} by {format(r.value - r.limit)}
+                  </span>
+                ) : isNarrow ? (
+                  <span className="inline-flex flex-wrap items-center gap-1.5 text-warn">
+                    <Icon name="warning" size={14} />
+                    <span>within {limitLabel} {format(r.limit)} (headroom {marginText})</span>
+                    <span className="inline-flex items-center rounded border border-warn/45 bg-inset px-1.5 py-px text-[10px] font-medium text-warn">
+                      {marginStatusClassLabel(r.marginClass!)}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-emerald-300">
+                    <Icon name="check" size={14} />
+                    within {limitLabel} {format(r.limit)} (headroom {marginText})
+                  </span>
+                )}
+              </li>
+            )
+          })}
         </ul>
       )}
       {notPlotted.length > 0 && (
@@ -88,21 +119,34 @@ export function AvailabilityCharts({ entries }: { entries: Entry[] }) {
   const ok = comparableEntries(entries).filter((e) => e.result?.assessment)
   const left = okEntries(entries).filter((e) => !ok.includes(e))
   if (ok.length === 0) return <p className="text-xs text-slate-500">No results with data yet.</p>
-  const chart = (key: string, unit: MetricDef['unit'], limit?: (e: Entry) => number) => {
+  const chart = (key: string, unit: MetricDef['unit'], limit?: (e: Entry) => number, constraintId?: string) => {
     const rows: BarRow[] = []
     const notPlotted: { entry: Entry; text: string }[] = []
     for (const e of ok) {
       const m = cm(e.result, key)
       const v = knownValue(m)
-      if (v !== null) rows.push({ id: e.scenario.id, name: e.scenario.label, value: v, limit: limit?.(e), entry: e })
-      else notPlotted.push({ entry: e, text: m ? (inexactText(m, unit) ?? 'unavailable') : 'unavailable' })
+      if (v !== null) {
+        const resolved = constraintId ? constraintMarginById(e.result, constraintId) : null
+        rows.push({
+          id: e.scenario.id,
+          name: e.scenario.label,
+          value: v,
+          limit: limit?.(e),
+          entry: e,
+          margin: resolved?.margin,
+          marginClass: resolved?.marginClass,
+          narrowReason: resolved?.narrowReason ?? null,
+        })
+      } else {
+        notPlotted.push({ entry: e, text: m ? (inexactText(m, unit) ?? 'unavailable') : 'unavailable' })
+      }
     }
     return { rows, notPlotted }
   }
   const sun = chart('sunlight_percent', '%')
   const earth = chart('earth_visible_percent', '%')
-  const dark = chart('longest_power_darkness_h', 'h', (e) => e.scenario.requirements.battery_hours)
-  const black = chart('longest_blackout_h', 'h', (e) => e.scenario.requirements.max_comms_gap_hours)
+  const dark = chart('longest_power_darkness_h', 'h', (e) => e.scenario.requirements.battery_hours, 'max_continuous_darkness')
+  const black = chart('longest_blackout_h', 'h', (e) => e.scenario.requirements.max_comms_gap_hours, 'max_communication_blackout')
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       {left.length > 0 && (
@@ -121,6 +165,7 @@ export function AvailabilityCharts({ entries }: { entries: Entry[] }) {
 function ScenarioRow({ e, rankLabel }: { e: Entry; rankLabel: string | null }) {
   const v = e.result!.viability
   const r = e.ranking!
+  const hr = headroomOfEntry(e)
   const failed = v?.violations.filter((x) => !x.is_unknown) ?? []
   const undecided = v?.violations.filter((x) => x.is_unknown) ?? []
   const width = r.score_status === 'known' && r.score !== null ? r.score : null // bar only for an exact score
@@ -131,6 +176,7 @@ function ScenarioRow({ e, rankLabel }: { e: Entry; rankLabel: string | null }) {
         <ScenarioChip s={e.scenario} />
         <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{e.scenario.name}</span>
         <EligibilityBadge eligibility={r.eligibility} />
+        <PassHeadroomBadge headroom={hr} eligibility={r.eligibility} surface="compare" />
         <DataKindBadge kind={e.result!.data_kind} />
         <span className="ml-1 text-right">
           <span className="block text-sm font-medium tabular-nums text-slate-50">{scoreText(r)}</span>
@@ -160,7 +206,27 @@ function ScenarioRow({ e, rankLabel }: { e: Entry; rankLabel: string | null }) {
         </ul>
       )}
       {r.eligibility === 'pass' && (
-        <p className="mt-2 text-xs text-emerald-300"><Icon name="check" size={14} className="mr-1 align-[-2px]" />Every applicable requirement is met</p>
+        hr ? (
+          <div className="mt-2 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              {isLimitedHeadroom(hr) ? (
+                <span className="inline-flex items-center gap-1 text-warn">
+                  <Icon name="warning" size={14} />
+                  {hr.qualified_verdict}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-emerald-300">
+                  <Icon name="check" size={14} />
+                  {hr.qualified_verdict}
+                </span>
+              )}
+              {isLimitedHeadroom(hr) && <PassHeadroomBadge headroom={hr} eligibility={r.eligibility} surface="compare" />}
+            </div>
+            <PassHeadroom headroom={hr} surface="compare" compact />
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-emerald-300"><Icon name="check" size={14} className="mr-1 align-[-2px]" />Every applicable requirement is met</p>
+        )
       )}
       <p className="mt-2 text-[11px] leading-snug text-slate-500">{r.explanation}</p>
     </li>

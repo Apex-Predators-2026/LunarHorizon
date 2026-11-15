@@ -1,35 +1,56 @@
 // Science vs engineering: the landing that best satisfies both teams, or what each side
 // would have to give up when nothing satisfies both.
+import { headroomTone, resolveHeadroom, SCREENING_NOTE } from '../../lib/headroom'
 import { LoadingIndicator } from '../../ui/LoadingIndicator'
 import { MangoRange } from '../../ui/MangoRange'
 import { SelectField, TextField } from '../../ui/MdFields'
+import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
 import { useEffect, useState } from 'react'
 
 import { fetchRescueCatalog } from './api'
 import { fmtUtc } from './format'
 import { DataNote } from './RescuePanel'
-import type { Scenario } from '../../types'
+import { verdictOf, type Scenario } from '../../types'
 import type { CompromiseOption, CompromiseResponse, RescueCatalog } from './types'
 import { useRescueStore } from './useRescueStore'
 
 
 function OptionRow({ o, label, onSelect }: { o: CompromiseOption; label?: string; onSelect: () => void }) {
+  const hr = resolveHeadroom(o.viability)
+  const elig = verdictOf(o.viability)
+  const tone = headroomTone(hr, elig)
+  const toneClass =
+    tone === 'crit'
+      ? 'text-red-300'
+      : tone === 'warn'
+        ? 'text-amber-200'
+        : tone === 'unknown'
+          ? 'text-slate-400'
+          : 'text-emerald-200'
+
   return (
-    <tr className="border-t border-slate-800">
-      <td className="py-1">
+    <tr className="border-t border-slate-800 align-top">
+      <td className="py-1.5 pr-2">
         {label && <div className="text-[11px] text-slate-500">{label}</div>}
         <button type="button" onClick={onSelect} className="text-left text-slate-200 hover:text-sky-300 hover:underline">
           {o.scenario.site.name}
         </button>
         <div className="text-[11px] text-slate-500">{fmtUtc(o.scenario.landing_utc)}</div>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <PassHeadroomBadge headroom={hr} eligibility={elig} surface="planner" />
+        </div>
+        <div className={`mt-0.5 text-[11px] leading-snug ${toneClass}`}>{hr.qualified_verdict}</div>
+        {hr.closest_constraint && (
+          <div className="text-[11px] text-slate-400">Closest: {hr.closest_constraint.summary_text}</div>
+        )}
       </td>
-      <td className={`tabular-nums ${o.meets_engineering ? 'text-emerald-400' : 'text-red-400'}`}>
+      <td className={`py-1.5 tabular-nums ${o.meets_engineering ? 'text-emerald-400' : 'text-red-400'}`}>
         {(o.engineering_score * 100).toFixed(0)}
       </td>
-      <td className={`tabular-nums ${o.meets_science ? 'text-emerald-400' : 'text-red-400'}`}>
+      <td className={`py-1.5 tabular-nums ${o.meets_science ? 'text-emerald-400' : 'text-red-400'}`}>
         {(o.science_score * 100).toFixed(0)}
       </td>
-      <td className="tabular-nums text-slate-300">{o.distance_to_science_km.toFixed(1)} km</td>
+      <td className="py-1.5 tabular-nums text-slate-300">{o.distance_to_science_km.toFixed(1)} km</td>
     </tr>
   )
 }
@@ -104,17 +125,31 @@ const sameOption = (a: CompromiseOption | null, b: CompromiseOption) =>
 export function CompromiseResults({ res, onSelect }: { res: CompromiseResponse; onSelect: (s: Scenario) => void }) {
   // The best-for-engineering and best-for-science rows are already shown first; don't repeat them.
   const isShownAbove = (o: CompromiseOption) => sameOption(res.best_for_engineering, o) || sameOption(res.best_for_science, o)
+  const bestHr = res.best ? resolveHeadroom(res.best.viability) : null
+  const bestElig = res.best ? verdictOf(res.best.viability) : null
+  const bestLimited = bestHr !== null && (bestHr.status === 'limited' || bestHr.status === 'at_threshold')
+  const bannerTone =
+    res.status === 'both_met' && !bestLimited
+      ? 'border-emerald-800 bg-emerald-950/40 text-emerald-200'
+      : 'border-amber-800 bg-amber-950/40 text-amber-100'
+
   return (
     <div className="space-y-3 text-xs">
-      <div role="status" className={`rounded-md border p-3 ${res.status === 'both_met'
-        ? 'border-emerald-800 bg-emerald-950/40 text-emerald-200'
-        : 'border-amber-800 bg-amber-950/40 text-amber-100'}`}>
-        <h3 className="text-sm font-medium">{res.status === 'both_met' ? 'Both teams can be satisfied' : 'Trade-off required'}</h3>
+      <div role="status" className={`rounded-md border p-3 ${bannerTone}`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-medium">{res.status === 'both_met' ? 'Both teams can be satisfied' : 'Trade-off required'}</h3>
+          {bestHr && bestElig && (
+            <PassHeadroomBadge headroom={bestHr} eligibility={bestElig} surface="planner" />
+          )}
+        </div>
         <p className="mt-1">{res.summary}</p>
         {res.suggestions.length > 0 && (
           <ul className="mt-2 list-disc space-y-1 pl-4">
             {res.suggestions.map((t) => <li key={t}>{t}</li>)}
           </ul>
+        )}
+        {res.best && bestHr && (
+          <PassHeadroom headroom={bestHr} surface="planner" compact className="mt-2" />
         )}
         {res.best && (
           <button type="button" onClick={() => onSelect(res.best!.scenario)}
@@ -153,6 +188,9 @@ export function CompromiseResults({ res, onSelect }: { res: CompromiseResponse; 
           ))}
         </tbody>
       </table>
+      <p className="text-[11px] text-slate-400" data-testid="compromise-screening-note">
+        {SCREENING_NOTE}
+      </p>
     </div>
   )
 }

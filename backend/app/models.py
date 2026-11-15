@@ -191,6 +191,81 @@ class ViabilityMetrics(BaseModel):
 
 
 Eligibility = Literal["pass", "fail", "unknown"]
+MarginStatus = Literal[
+    "comfortable",
+    "narrow",
+    "at_threshold",
+    "negative",
+    "uncertain",
+    "unsupported",
+    "not_applicable",
+]
+HeadroomStatus = Literal[
+    "comfortable",
+    "limited",
+    "at_threshold",
+    "failed",
+    "uncertain",
+    "vacuous",
+]
+
+
+class MarginMetricValue(BaseModel):
+    status: Literal["known", "bounded", "unavailable", "not_applicable"]
+    unit: str
+    value: float | None = None
+    lower: float | None = None
+    upper: float | None = None
+    reason: str | None = None
+
+
+class CanonicalMarginItem(BaseModel):
+    id: str
+    requirement_field: str | None = None
+    name: str
+    short_label: str
+    comparison: Literal["at_least", "at_most"] | None = None
+    unit: str
+    threshold: float | None = None
+    measured: MarginMetricValue
+    margin: MarginMetricValue
+    relative_margin: MarginMetricValue | None = None
+    margin_class: MarginStatus
+    narrow_reason: str | None = None
+    description: str
+
+
+class InitialWindowSummary(BaseModel):
+    kind: Literal["sunlight", "earth"]
+    duration: MarginMetricValue
+    first_end_hours: MarginMetricValue
+    requirement_hours: float | None = None
+    headroom: CanonicalMarginItem | None = None
+    summary_text: str
+
+
+class ClosestRequirementInfo(BaseModel):
+    constraint_id: str
+    requirement_field: str | None = None
+    label: str
+    margin_class: MarginStatus
+    unit: str
+    headroom_text: str
+    relative_pct: float | None = None
+    summary_text: str
+
+
+class OperationalHeadroom(BaseModel):
+    status: HeadroomStatus
+    qualified_verdict: str
+    limited_constraints: list[str] = Field(default_factory=list)
+    darkness: CanonicalMarginItem | None = None
+    communication_blackout: CanonicalMarginItem | None = None
+    initial_sunlight: InitialWindowSummary
+    initial_earth: InitialWindowSummary
+    closest_constraint: ClosestRequirementInfo | None = None
+    constraints: list[CanonicalMarginItem] = Field(default_factory=list)
+    screening_note: str
 
 
 class ViabilityResult(BaseModel):
@@ -202,6 +277,10 @@ class ViabilityResult(BaseModel):
     score: float | None = Field(None, ge=0, le=100, description="0-100, or None if the scenario was not scored")
     metrics: ViabilityMetrics
     violations: list[Violation]
+    headroom: OperationalHeadroom | None = Field(
+        None,
+        description="Canonical operational headroom and initial window context computed by the viability engine",
+    )
     source: str = Field(description="Which viability implementation produced this result")
     data_source: str = Field(description="Which timeline source the metrics came from")
 

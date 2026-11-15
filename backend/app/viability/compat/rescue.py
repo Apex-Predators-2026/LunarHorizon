@@ -588,6 +588,8 @@ def assessment_to_result(assessment: ViabilityAssessment, scenario: Scenario, da
         raise RescueCompatError("eligibility and violations disagree")
     if eligibility is Eligibility.UNKNOWN and not all(v.is_unknown for v in violations):
         raise RescueCompatError("UNKNOWN eligibility with a decided failure")
+    from .headroom import build_operational_headroom
+
     return ViabilityResult(
         scenario=scenario,
         passes=passes,
@@ -595,6 +597,7 @@ def assessment_to_result(assessment: ViabilityAssessment, scenario: Scenario, da
         score=assessment.score.score,  # None = not scored
         metrics=metrics_to_rescue(assessment),
         violations=violations,
+        headroom=build_operational_headroom(assessment),
         source=SOURCE,
         data_source=data_source,
     )

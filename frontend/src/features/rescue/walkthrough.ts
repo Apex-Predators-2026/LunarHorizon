@@ -1,5 +1,6 @@
 // Educator "Explain" mode: a five-step story of what rescue did, built only from values in the
 // RescueResponse (no invented numbers), plus plain-language definitions of the terms it uses.
+import { resolveHeadroom } from '../../lib/headroom'
 import type { MissionRequirements, RequirementKey, Violation } from '../../types'
 import { fmtUtc, fmtValue } from './format'
 import type { MetricDelta, RescueResponse } from './types'
@@ -75,7 +76,14 @@ function stepPlan(res: RescueResponse): string {
     return `The changed plan could not be judged: real data inside the range is incomplete for ${which.length ? list(which) : 'at least one requirement'}, so the verdict is unknown (not a fail).`
   }
   const broken = c.violations.filter((v) => !v.is_unknown)
-  if (c.passes && !broken.length) return `The changed plan still passes every requirement${c.score === null ? '' : ` (score ${Math.round(c.score)})`}.`
+  if (c.passes && !broken.length) {
+    const hr = resolveHeadroom(c)
+    const qual = hr.qualified_verdict
+      ? hr.qualified_verdict.charAt(0).toLowerCase() + hr.qualified_verdict.slice(1)
+      : 'passes declared model requirements'
+    const closest = hr.closest_constraint ? ` Closest limit: ${hr.closest_constraint.summary_text}.` : ''
+    return `The changed plan ${qual}${c.score === null ? '' : ` (score ${Math.round(c.score)})`}.${closest} Model screening result only — not a guarantee of spacecraft survival.`
+  }
   if (!broken.length) return 'The changed plan fails, but no single broken rule was reported.'
   const main = broken.reduce((m, v) => (v.relative_shortfall > m.relative_shortfall ? v : m))
   const more = broken.length - 1
@@ -102,16 +110,23 @@ const gain = (m: MetricDelta) => (m.delta === null ? 0 : m.unit === 'fraction' ?
 function stepWinner(res: RescueResponse): string {
   const top = res.alternatives[0]
   if (!top && noneJudged(res.stats)) return 'None of the options could be judged with real data, so there is no winner to explain.'
-  if (!top) return res.status === 'still_viable' ? 'No alternative is needed, because the plan still works.' : 'No alternative passes, so there is no winner to explain.'
+  if (!top) {
+    return res.status === 'still_viable'
+      ? 'No alternative is needed, because the changed plan stays within declared model limits (screening result only; not a guarantee of spacecraft survival).'
+      : 'No alternative passes, so there is no winner to explain.'
+  }
   const sc = top.scenario
   const still = new Set(top.viability.violations.map((v) => v.constraint))
   const fixed = res.changed.violations.filter((v) => !v.is_unknown && !still.has(v.constraint)).map((v) => label(v.constraint))
   const best = top.improvements
     .filter((m) => m.better === true && m.metric !== 'score' && m.delta !== null)
     .reduce<MetricDelta | null>((m, x) => (m && gain(m) >= gain(x) ? m : x), null)
+  const hr = resolveHeadroom(top.viability)
   let t = `Top pick: ${sc.site.name} on ${fmtUtc(sc.landing_utc)}.`
-  t += fixed.length ? ` It fixes ${list(fixed)}.` : ' It keeps the plan within every requirement.'
+  t += fixed.length ? ` It fixes ${list(fixed)}.` : ' It keeps the plan within declared model limits.'
   if (best) t += ` Main gain: ${best.label.toLowerCase()} goes from ${fmtValue(best.before, best.unit)} to ${fmtValue(best.after, best.unit)}.`
+  if (hr.qualified_verdict) t += ` ${hr.qualified_verdict} (model screening only; not a guarantee).`
+  else t += ' Model screening only; not a guarantee.'
   return t
 }
 
@@ -122,11 +137,12 @@ function stepRobust(res: RescueResponse): string {
   const r = top.robustness
   if (!r || r.verdict === 'unchecked') return 'Robustness was not checked for this pick.'
   const word = {
-    robust: 'robust: it keeps passing when the date slips a little',
-    sensitive: 'sensitive: it passes, but some small slips make it fail',
-    fragile: 'fragile: most small slips make it fail',
+    robust: 'robust across tested offsets: it keeps passing at those checked slips',
+    sensitive: 'sensitive: it passes, but some tested slips make it fail',
+    fragile: 'fragile: most tested slips make it fail',
   }[r.verdict]
-  return `The top pick is ${word}. ${r.passing_points} of ${r.checked_points} nearby checks pass. ${r.note}`
+  const datePart = r.date_note ? ` ${r.date_note}` : ''
+  return `The top pick is ${word}. ${r.passing_points} of ${r.checked_points} nearby checks pass.${datePart} ${r.note} (Covers tested offsets only; not a guarantee in between.)`
 }
 
 /** Five plain-English steps for a rescue result. Never throws on a result with no winner or unknown data. */
