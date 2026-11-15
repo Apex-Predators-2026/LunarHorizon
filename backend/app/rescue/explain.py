@@ -96,7 +96,7 @@ def reasons_for(c: Candidate, changed: ViabilityResult, deltas: list[MetricDelta
     losses = sorted((m for m in metric_only if m.better is False), key=lambda m: -abs(m.delta) / SCALE[m.unit])
     reasons += [_sentence(m) for m in gains[:3]]
     if losses and abs(losses[0].delta) / SCALE[losses[0].unit] >= 0.05:
-        reasons.append("Trade-off — " + _sentence(losses[0]))
+        reasons.append("Trade-off: " + _sentence(losses[0]))
     m = c.result.metrics
     hr = getattr(c.result, "headroom", None)
     if hr is not None:
@@ -114,7 +114,7 @@ def reasons_for(c: Candidate, changed: ViabilityResult, deltas: list[MetricDelta
         reasons.append(f"Initial illumination: {hr.initial_sunlight.summary_text}.")
         reasons.append(f"Initial Earth contact: {hr.initial_earth.summary_text}.")
         if hr.closest_constraint is not None:
-            reasons.append(f"Closest limit — {hr.closest_constraint.summary_text}.")
+            reasons.append(f"Closest limit: {hr.closest_constraint.summary_text}.")
     else:
         if m.hours_to_first_sunset is not None:
             reasons.append(f"First sunset {m.hours_to_first_sunset:.0f} h after landing.")
@@ -137,7 +137,7 @@ def headline_for(c: Candidate, changed: ViabilityResult) -> str:
         verdict = hr.qualified_verdict[0].lower() + hr.qualified_verdict[1:]
     else:
         verdict = "passes declared requirements (screening only)"
-    return (f"Land at {where} on {fmt_time(c.scenario.landing_utc)} ({'; '.join(parts)}) — "
+    return (f"Land at {where} on {fmt_time(c.scenario.landing_utc)} ({'; '.join(parts)}) - "
             f"{verdict}, score {fmt_score(c.result.score)} (delayed plan: {fmt_score(changed.score)}).")
 
 

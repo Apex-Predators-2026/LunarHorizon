@@ -4,6 +4,7 @@ import { LoadingIndicator } from '../ui/LoadingIndicator'
 import { MangoRange } from '../ui/MangoRange'
 import type { SiteInfo, TimelineStep } from '../types'
 import { DatePopup } from './DatePopup'
+import { useDragGuard } from './dragGuard'
 import { HOUR_MS, longestRun, parseUtc, roundHour, runs, sunKnown, sunUp, toIsoMinute } from './timeline'
 import { useTutorialStore } from '../features/tutorial'
 
@@ -131,6 +132,7 @@ function Strip({
 }) {
   const [boxRef, width] = useWidth<HTMLDivElement>()
   const dragging = useRef(false)
+  const guard = useDragGuard()
   const [hoveringStrip, setHoveringStrip] = useState(false)
   const w = Math.max(50, width - GUTTER - 4)
   const x = (t: number) => GUTTER + ((t - win[0]) / (win[1] - win[0])) * w
@@ -236,14 +238,24 @@ function Strip({
         onPointerLeave={() => {
           setHoveringStrip(false)
           dragging.current = false
+          guard.end()
         }}
+        onDragStart={guard.onDragStart}
         onPointerDown={(ev) => {
           dragging.current = true
+          guard.begin() // scrubbing must not start a browser text selection or an image-style drag
           ev.currentTarget.setPointerCapture(ev.pointerId)
           seekAt(ev)
         }}
         onPointerMove={(ev) => dragging.current && seekAt(ev)}
-        onPointerUp={() => (dragging.current = false)}
+        onPointerUp={() => {
+          dragging.current = false
+          guard.end()
+        }}
+        onPointerCancel={() => {
+          dragging.current = false
+          guard.end()
+        }}
       >
         <defs>
           <pattern id={hatchId} width={6} height={6} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
