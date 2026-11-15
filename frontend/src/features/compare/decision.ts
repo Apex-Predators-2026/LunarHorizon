@@ -54,6 +54,9 @@ export interface DecisionReport {
   notes: string[] // cross-group and data notes
 }
 
+/** Lower-case only the first letter, so proper nouns inside a requirement name ("Earth") keep their capital. */
+export const lcFirst = (t: string) => t.charAt(0).toLowerCase() + t.slice(1)
+
 const L = (e: Entry) => `Scenario ${e.scenario.label}`
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
 
@@ -146,8 +149,8 @@ function requirementLine(e: Entry): string {
     return `${L(e)} meets all ${r.applicable} applicable requirements.`
   }
   const parts: string[] = []
-  if (r.failed.length) parts.push(`fails ${list(r.failed.map((f) => f.name.toLowerCase()))}`)
-  if (r.undecided.length) parts.push(`${r.failed.length ? 'and ' : ''}cannot decide ${list(r.undecided.map((f) => f.name.toLowerCase()))} from the data`)
+  if (r.failed.length) parts.push(`fails ${list(r.failed.map((f) => lcFirst(f.name)))}`)
+  if (r.undecided.length) parts.push(`${r.failed.length ? 'and ' : ''}cannot decide ${list(r.undecided.map((f) => lcFirst(f.name)))} from the data`)
   return `${L(e)} ${parts.join(' ')}.`
 }
 

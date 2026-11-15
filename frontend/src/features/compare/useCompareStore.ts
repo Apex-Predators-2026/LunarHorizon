@@ -11,7 +11,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 
 import { useAppStore } from '../../store'
 import type { MissionRequirements, Scenario } from '../../types'
-import { WEIGHT_PRESETS, axisOrigin, gridLandingMs, type Align, type Weights } from './analysis'
+import { WEIGHT_PRESETS, axisOrigin, type Align, type Weights } from './analysis'
 import { errorMessage, fetchSites, postCompare } from './api'
 import { MAX_COMPARED } from './palette'
 import type { RescueContext } from './rescueFlow'
@@ -52,6 +52,8 @@ export interface CompareState {
   rankingGroups: RankingGroup[]
   rankingMethod: string | null
   rankingPairs: PairEvidence[] // the engine's pairwise evidence for the same set
+  /** The backend's mission-time policy for the same set (how a landing time becomes the evaluated interval). */
+  timePolicy: string | null
   rankingSetKey: string | null
   /** Set when the selection was imported from Mission Rescue: roles of each imported scenario and what changed. */
   rescueContext: RescueContext | null
@@ -154,6 +156,7 @@ export const useCompareStore = create<CompareState>()(
       rankingGroups: [],
       rankingMethod: null,
       rankingPairs: [],
+      timePolicy: null,
       rankingSetKey: null,
       rescueContext: null,
       setRescueContext: (rescueContext) => set({ rescueContext }),
@@ -277,12 +280,14 @@ export const useCompareStore = create<CompareState>()(
         set({ cursor })
         if (cursor === null) return
         // Mirror into the shared app store for the 3D view (Andrew) and other panels.
-        const { scenarios, selectedIds, activeId, align } = get()
+        const { scenarios, selectedIds, activeId, align, results, allowDemo } = get()
         const selected = scenarios.filter((s) => selectedIds.includes(s.id))
         const follow = selected.find((s) => s.id === activeId) ?? selected[0]
         if (!follow) return
-        // The charts' data start at the evaluated (hourly-grid) landing, so the 3D view's time must too (00:15 -> 00:00).
-        const origin = align === 'utc' ? axisOrigin(selected) : gridLandingMs(follow)
+        // The cursor sits on the shared axis, whose origin is the evaluated landing (missionTime.ts), exactly as
+        // the dashboard lays it out; using the requested landing would shift the 3D view (00:15 vs 00:00 data).
+        const item = (s: ComparisonScenario) => ({ scenario: s, state: results[resultKey(s, allowDemo)] })
+        const origin = align === 'utc' ? axisOrigin(selected.map(item)) : axisOrigin([item(follow)])
         const t = new Date(origin + cursor * 3_600_000)
         if (Number.isNaN(t.getTime())) return
         const app = useAppStore.getState()
@@ -347,7 +352,7 @@ export const useCompareStore = create<CompareState>()(
           set({
             results: done, notes: res.notes, viabilitySource: res.viability_source,
             rankingGroups: res.ranking_groups ?? [], rankingMethod: res.ranking_method ?? null, rankingSetKey: setKey,
-            rankingPairs: res.pairwise ?? [],
+            rankingPairs: res.pairwise ?? [], timePolicy: res.time_policy ?? null,
           })
         } catch (e) {
           if (ctrl.signal.aborted) return
