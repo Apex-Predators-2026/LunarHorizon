@@ -1,3 +1,5 @@
-# Browser-run artefacts (screenshots, downloads) are reproducible: keep only the gate records.
-smoke-production/
-smoke-offline/
+# Browser-run artefacts (screenshots, downloads, PDFs) are reproducible: keep only the gate records (LATEST.md and gate-*.json).
+*/
+
+# Partial runs (--only / --quick / --no-browser) are scratch records, never the release record.
+*-partial*

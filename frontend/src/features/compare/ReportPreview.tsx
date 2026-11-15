@@ -277,8 +277,8 @@ export function ReportDocument({ s }: { s: ReportSnapshot }) {
         <ul className="rpt-list">
           <li>NASA JPL Horizons System: apparent Sun and Earth azimuth / elevation from each site (CENTER=coord@301, DE441), precomputed hourly.</li>
           <li>NASA Moon Trek / LRO LOLA digital elevation models: terrain horizons in 720 directions with lunar curvature (5 m to 200 m resolution, out to 300 km).</li>
-          <li>NASA LROC Quickmap WAC_POLE_ILL_TWI_SOUTH: empirical illumination used to validate the sunlight model (see Validation &amp; methodology).</li>
-          <li>Validation reference: Gracy &amp; Lee, LPSC 2024 (south-polar illumination of Connecting Ridge and Peak Near Shackleton).</li>
+          <li>NASA LROC Quickmap WAC_POLE_ILL_TWI_SOUTH: orbital illumination map the sunlight model is compared with, site by site (agreement and its limits: Validation &amp; methodology).</li>
+          <li>Gracy &amp; Lee, LPSC 2024: source of the Connecting Ridge and Peak Near Shackleton coordinates. It locates those two sites; it is not a validation of this model.</li>
           {x.reproduction.datasets.map((d) => <li key={d.file ?? d.dataset_id ?? ''} className="rpt-wrap">Site file {d.file ? `data/sites/${d.file}` : d.dataset_id ?? '-'}{d.sha256 ? ` · SHA-256 ${d.sha256}` : ' · hash not reported by the backend'}</li>)}
         </ul>
         <h2>Assumptions and limitations</h2>
