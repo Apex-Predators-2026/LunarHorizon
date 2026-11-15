@@ -91,8 +91,11 @@ def context_message(context: dict[str, Any]) -> str:
 def report_message(report: Any) -> str:
     """The Mission Report on its own, with its state stated first, so it is never overlooked inside the context."""
     if not isinstance(report, dict):
-        return ("MISSION REPORT: none. The user has not generated a Mission Report yet. For questions about \"my report\", "
-                "say so and explain how to generate one.")
+        # Worded so it only applies to questions that are about a report: "summarize my comparison" must still be
+        # answered from the comparison (an emphatic "none" here was being applied to every question).
+        return ("Mission Report status: no Mission Report has been generated yet. This matters only if the user asks about "
+                "a report (\"my report\", \"the report\", the PDF): then say none exists yet and how to generate one. "
+                "Every other question, including summaries of the comparison, is answered from the comparison context.")
     if report.get("out_of_date"):
         state = ("OUT OF DATE: the scenarios or their results changed after it was generated, so it describes the earlier "
                  "comparison, not the one on screen now. Whenever you use it, begin the answer with exactly \"Note: this report "
@@ -110,9 +113,10 @@ def build_messages(history: list[dict[str, str]], context: dict[str, Any]) -> li
     """System instruction + current context (+ the Mission Report, when the page sends one) + recent turns."""
     messages = [{"role": "system", "content": CORE_INSTRUCTION + "\n\n" + OPERATING_RULES}]
     if "report" in context:
+        # The comparison context goes last, where it carries the most weight for comparison questions.
         rest = {k: v for k, v in context.items() if k != "report"}
-        messages += [{"role": "system", "content": context_message(rest)},
-                     {"role": "system", "content": report_message(context["report"])}]
+        messages += [{"role": "system", "content": report_message(context["report"])},
+                     {"role": "system", "content": context_message(rest)}]
     else:
         messages.append({"role": "system", "content": context_message(context)})
     return [*messages, *history[-MAX_HISTORY:]]
