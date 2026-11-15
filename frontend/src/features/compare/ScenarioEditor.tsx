@@ -32,9 +32,13 @@ export function ScenarioEditor({ s }: { s: ComparisonScenario }) {
     const next = { ...s, ...p }
     update(s.id, auto && p.name === undefined ? { ...p, name: autoName(next.site, next.landing_utc, next.duration_days) } : p)
   }
-  const req = (k: keyof MissionRequirements, v: number | null) =>
-    v !== null && Number.isFinite(v) && patch({ requirements: { ...s.requirements, [k]: v } })
-  const craft = (p: Partial<SpacecraftConfig>) => patch({ spacecraft: { ...s.spacecraft, ...p } })
+  const updateRequirements = useCompareStore((st) => st.updateRequirements)
+  const updateSpacecraft = useCompareStore((st) => st.updateSpacecraft)
+  // Merge into the stored scenario, not this render's copy, so quick successive edits never overwrite each other.
+  const req = (k: keyof MissionRequirements, v: number | null) => {
+    if (v !== null && Number.isFinite(v)) updateRequirements(s.id, { [k]: v })
+  }
+  const craft = (p: Partial<SpacecraftConfig>) => updateSpacecraft(s.id, p)
   const siteInfo = sites.find((x) => x.id === s.site.id)
   const endurance = s.spacecraft.battery_capacity_wh && s.spacecraft.average_load_w
     ? s.spacecraft.battery_capacity_wh / s.spacecraft.average_load_w : null
