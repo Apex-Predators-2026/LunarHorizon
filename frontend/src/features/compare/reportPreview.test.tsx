@@ -12,7 +12,7 @@ import { useReportStore, type ReportSnapshot } from './report'
 import { buildReportCard } from './reportCard'
 import { ReportCardDocument } from './ReportCardDocument'
 import { ReportCardPdf } from './ReportCardPdf'
-import { PAGE_COUNT, SECTIONS, headlineCharts, pdfText, reportFileName } from './reportLayout'
+import { PAGE_COUNT, SECTIONS, barGeometry, niceAxis, outcomeGeometry, pdfText, reportFigures, reportFileName, type BarFigure, type OutcomeFigure } from './reportLayout'
 import { makeScenario, resultKey, selectionKey } from './scenario'
 import type { CompareResponse, ResultState } from './types'
 import { useCompareStore } from './useCompareStore'
@@ -54,8 +54,9 @@ describe('layout helpers', () => {
     expect(pdfText('rocket 🚀 −3')).toBe('rocket  -3')
   })
 
-  it('defines the six report pages and nine sections once, for the preview, the PDF and the assistant', () => {
-    expect(PAGE_COUNT).toBe(6)
+  it('defines the title page plus seven pages and nine sections once, for the preview, the PDF and the assistant', () => {
+    expect(PAGE_COUNT).toBe(7)
+    expect(SECTIONS[0].page).toBe(2) // page 1 is the title page with the contents
     expect(SECTIONS.map((s) => s.title)).toEqual([
       'Executive summary', 'Mission overview', 'Mission performance', 'Comparison analysis', 'Mission requirements assessment',
       'Strengths and weaknesses', 'Final assessment and recommendation', 'Data sources and methodology', 'Disclaimer',
@@ -63,18 +64,36 @@ describe('layout helpers', () => {
     expect(reportFileName({ snapshot_id: 'rpt-1' })).toBe('lunar-mission-report-rpt-1.pdf')
   })
 
-  it('charts the headline measures with no bar where there is no exact value', () => {
-    const charts = headlineCharts(buildReportCard(snapshot(['A', 'B', 'C', 'D'])))
-    expect(charts.map((c) => c.title)).toEqual(['Mean visible solar disk', 'Longest continuous power darkness', 'Earth in line of sight', 'Longest communication blackout'])
-    const disk = charts[0]
-    expect(disk.bars.find((b) => b.label === 'B')).toMatchObject({ best: true, share: expect.closeTo(0.956, 2) })
-    expect(disk.bars.find((b) => b.label === 'D')).toMatchObject({ share: null, value: { text: 'Not assessed' } })
-    for (const c of charts) for (const b of c.bars) if (b.share !== null) expect(b.share).toBeGreaterThanOrEqual(0)
+  it('rounds chart axes to readable steps', () => {
+    expect(niceAxis(90)).toEqual({ max: 100, ticks: [0, 25, 50, 75, 100] })
+    expect(niceAxis(17)).toEqual({ max: 20, ticks: [0, 5, 10, 15, 20] })
+    expect(niceAxis(150).max).toBe(150)
+    expect(niceAxis(0)).toEqual({ max: 10, ticks: [0, 2.5, 5, 7.5, 10] })
+  })
+
+  it('builds five real figures with the requirement limit, and no bar where there is no exact value', () => {
+    const figs = reportFigures(buildReportCard(snapshot(['A', 'B', 'C', 'D'])))
+    expect(figs.map((f) => f.title)).toEqual(['Mean visible solar disk', 'Longest continuous power darkness', 'Earth in line of sight', 'Longest communication blackout', 'Requirement outcomes by plan'])
+    const disk = figs[0] as BarFigure
+    expect(disk.limit).toEqual({ value: 50, text: 'Limit ≥ 50.0%' })
+    expect(disk.bars.find((b) => b.label === 'B')?.v).toBeCloseTo(95.6, 1)
+    expect(disk.bars.find((b) => b.label === 'D')).toMatchObject({ v: null, value: { text: 'Not assessed' } })
+    const dark = figs[1] as BarFigure
+    expect(dark.limit?.value).toBe(100)
+    expect(dark.max).toBeGreaterThanOrEqual(100) // the axis reaches the limit
+    const g = barGeometry(dark)
+    for (const r of g.rows) if (r.w !== null) expect(r.x + r.w).toBeLessThanOrEqual(g.plot.x1 + 0.01)
+    expect(g.rows.find((r) => r.label === 'Scenario D')).toMatchObject({ w: null, missing: true })
+    const out = figs[4] as OutcomeFigure
+    expect(out.rows.map((r) => [r.label, r.pass, r.fail, r.unknown, r.assessed])).toEqual([
+      ['A', 5, 1, 0, true], ['B', 6, 0, 0, true], ['C', 6, 0, 0, true], ['D', 0, 0, 0, false],
+    ])
+    expect(outcomeGeometry(out).rows.find((r) => r.label === 'Scenario D')?.note).toBe('Not assessed')
   })
 })
 
 describe('preview document', () => {
-  it('lays the report out as six pages with running headers, footers and page numbers', () => {
+  it('lays the report out as a title page and numbered pages with running headers, footers and page numbers', () => {
     const card = buildReportCard(snapshot(['A', 'B', 'C', 'D']))
     const html = renderToString(<ReportCardDocument card={card} />)
     expect(html).toContain('Lunar Mission Comparison Report')
@@ -85,7 +104,8 @@ describe('preview document', () => {
 
   it('shows statuses as words, missing data as "Not assessed", and never NaN or undefined', () => {
     const html = renderToString(<ReportCardDocument card={buildReportCard(snapshot(['A', 'B', 'C', 'D']))} />)
-    for (const w of ['>FAIL<', '>PASS<', '>UNKNOWN<', 'Not assessed', 'not an official NASA mission approval']) expect(html).toContain(w)
+    for (const w of ['>FAIL<', '>PASS<', '>UNKNOWN<', 'Not assessed', 'not an official NASA mission approval', 'Figure <!-- -->5<!-- -->.', 'Contents']) expect(html).toContain(w)
+    expect(html).not.toMatch(/rc-chip|background:/) // formal style: plain status words, no coloured badges
     expect(html).not.toMatch(/NaN|undefined/)
   })
 
