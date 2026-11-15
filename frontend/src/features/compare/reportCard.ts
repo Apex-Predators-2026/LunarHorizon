@@ -259,8 +259,8 @@ function viabilityRows(scenarios: ExportedScenario[], plans: PlanSummary[]): Met
     { id: 'rank', metric: 'Canonical rank', better: null, note: 'Only eligible PASS plans, within their comparable group', values: by((_, p) => p.rank), best: [] },
     { id: 'failed', metric: 'Failed requirements', better: null, note: null, values: by((s) => (!s.assessed ? 'Not assessed' : s.failed_requirements.length ? s.failed_requirements.join('; ') : 'None')), best: [] },
     { id: 'undecided', metric: 'Undecided requirements (not failures)', better: null, note: null, values: by((s) => (!s.assessed ? 'Not assessed' : s.undecided_requirements.length ? s.undecided_requirements.join('; ') : 'None')), best: [] },
-    { id: 'headroom', metric: 'Operating headroom', better: null, note: 'How comfortably a passing plan clears its limits', values: by((s) => (s.eligibility === 'pass' && s.headroom ? s.headroom.qualified_verdict : '—')), best: [] },
-    { id: 'risk', metric: 'Screening risk', better: null, note: null, values: by((s) => s.overall_risk ?? '—'), best: [] },
+    { id: 'headroom', metric: 'Operating headroom', better: null, note: 'How comfortably a passing plan clears its limits', values: by((s) => (s.eligibility === 'pass' && s.headroom ? s.headroom.qualified_verdict : '-')), best: [] },
+    { id: 'risk', metric: 'Screening risk', better: null, note: null, values: by((s) => s.overall_risk ?? '-'), best: [] },
     {
       id: 'score', metric: 'Desirability score', better: null, note: 'Relative index under the engine weights; not a probability of success',
       values: by((s) => (s.score.status === 'known' && s.score.exact !== null ? s.score.exact.toFixed(1)
@@ -285,7 +285,7 @@ function requirementRows(scenarios: ExportedScenario[]): { rows: RequirementRow[
     for (const s of scenarios) {
       const r = s.requirement_verdicts.find((x) => x.id === id)
       if (!s.assessed) { cells[s.label] = { status: 'NOT ASSESSED', limit: null, measured: 'Not assessed', margin: null, note: null }; continue }
-      if (!r || r.status === 'not_applicable') { cells[s.label] = { status: 'NOT CONFIGURED', limit: null, measured: '—', margin: null, note: 'Not a requirement of this plan' }; continue }
+      if (!r || r.status === 'not_applicable') { cells[s.label] = { status: 'NOT CONFIGURED', limit: null, measured: '-', margin: null, note: 'Not a requirement of this plan' }; continue }
       const limit = limitText(r)
       if (limit) limits.add(limit)
       const st = statusOf(r.status)
@@ -363,7 +363,7 @@ function strengthsOf(s: ExportedScenario, card: Pick<ReportCard, 'performance' |
   }
   if (s.data.kind === 'demonstration') weaknesses.push('Uses synthetic demonstration data: illustrative only, not for planning')
   const cov = [s.data.sun_coverage_percent, s.data.earth_coverage_percent].filter((x): x is number => x !== null)
-  if (cov.length && Math.min(...cov) < 100) weaknesses.push(`Data covers only part of the mission (Sun ${s.data.sun_coverage_percent?.toFixed(1) ?? '—'}%, Earth ${s.data.earth_coverage_percent?.toFixed(1) ?? '—'}%)`)
+  if (cov.length && Math.min(...cov) < 100) weaknesses.push(`Data covers only part of the mission (Sun ${s.data.sun_coverage_percent?.toFixed(1) ?? '-'}%, Earth ${s.data.earth_coverage_percent?.toFixed(1) ?? '-'}%)`)
   return { label: s.label, strengths, weaknesses }
 }
 
@@ -480,7 +480,7 @@ export function buildReportCard(s: ReportSnapshot): ReportCard {
     datasets: s.export.reproduction.datasets.map((d) => `${d.file ? `data/sites/${d.file}` : d.dataset_id ?? 'dataset'}${d.sha256 ? ` · SHA-256 ${d.sha256}` : ''}`),
     coverage: x.map((e) => ({
       label: e.label,
-      text: !e.assessed ? 'Not assessed (no data)' : `${e.data.kind ?? 'unknown'} data · Sun state known ${e.data.sun_coverage_percent?.toFixed(1) ?? '—'}% / Earth ${e.data.earth_coverage_percent?.toFixed(1) ?? '—'}% of the evaluated mission`,
+      text: !e.assessed ? 'Not assessed (no data)' : `${e.data.kind ?? 'unknown'} data · Sun state known ${e.data.sun_coverage_percent?.toFixed(1) ?? '-'}% / Earth ${e.data.earth_coverage_percent?.toFixed(1) ?? '-'}% of the evaluated mission`,
     })),
     methodology: [
       'Each plan is evaluated hour by hour over its evaluated mission window: the Sun is treated as a 0.53° disk (partial sunlight counts partially) and Earth as visible when its centre is above the terrain horizon.',
@@ -489,8 +489,8 @@ export function buildReportCard(s: ReportSnapshot): ReportCard {
       ...(s.export.reproduction.time_policy ? [`Time policy: ${s.export.reproduction.time_policy}`] : []),
     ],
     versions: [
-      `Engine ${s.export.reproduction.versions.engine.join(', ') || '—'}`,
-      `Scoring ${s.export.reproduction.versions.scoring_method.join(', ') || '—'}`,
+      `Engine ${s.export.reproduction.versions.engine.join(', ') || '-'}`,
+      `Scoring ${s.export.reproduction.versions.scoring_method.join(', ') || '-'}`,
       `Export ${s.export.reproduction.versions.export_format}`,
       `Report snapshot ${s.snapshot_id} · ${REPORT_CARD_VERSION}`,
     ],

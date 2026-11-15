@@ -1,7 +1,7 @@
 """Comparison statistics for one or more scenarios.
 
 Inputs come from other members' modules and are only read here:
-  - timelines: the data engine's site records (app/store.py) — JPL Horizons + LOLA
+  - timelines: the data engine's site records (app/store.py) - JPL Horizons + LOLA
   - viability: app/viability/compat/rescue.evaluate_timeline_detailed (Member 2's canonical engine, the same
     adapter Rescue uses) for the shared ViabilityResult plus the full canonical assessment
   - ranking: app/viability/ranking via compare/ranking.py (only eligible PASS scenarios are ranked)

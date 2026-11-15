@@ -35,7 +35,7 @@ This challenge is particularly acute at the Moon's south pole, where many future
 
 In practice, mission development rarely proceeds on a fixed timeline. Hardware development challenges, launch delays, or other factors often force mission planners to reconsider their original landing date and location. When this happens, engineers need to quickly evaluate alternative sites in the same region, or alternative dates at the same site, to understand how these changes impact mission feasibility. A tool that enables rapid, intuitive comparison of multiple scenarios would accelerate this decision-making process and help teams identify viable alternatives when constraints shift.
 
-Tools that provide this information — such as NASA's Quickmap, Moon Trek, and the JPL Horizons System — are built for detailed analysis and are often difficult for non-specialists to use effectively for rapid scenario comparison. Evaluating each site-data combination means navigating multiple interfaces and interpreting raw data. This leaves a gap between the technical data available and the accessible tools needed to support agile mission planning. An intuitive interface that translates complex ephemeris and topographic data into clear, comparable visualizations could help bridge that gap.
+Tools that provide this information - such as NASA's Quickmap, Moon Trek, and the JPL Horizons System - are built for detailed analysis and are often difficult for non-specialists to use effectively for rapid scenario comparison. Evaluating each site-data combination means navigating multiple interfaces and interpreting raw data. This leaves a gap between the technical data available and the accessible tools needed to support agile mission planning. An intuitive interface that translates complex ephemeris and topographic data into clear, comparable visualizations could help bridge that gap.
 
 ## **Objectives**
 
@@ -49,7 +49,7 @@ Your challenge is to create a tool or application that enables rapid evaluation 
 * **Temporal dynamics:** You may consider creating animations or timeline views that show how Sun and Earth positions change over a lunar day or across multiple days, helping users understand the duration and timing of operational windows.  
 * **Accessibility across skill levels:** Your tool could serve mission planners seeking detailed technical information for rapid decision-making, as well as educators and the general public curious about why the Moon presents such distinct engineering challenges.
 
-You are encouraged to be creative in how you present this information. Your solution might be a web application, a mobile app, an interactive visualization, an educational game, or another format entirely — as long as it makes rapid site evaluation clear and efficient.
+You are encouraged to be creative in how you present this information. Your solution might be a web application, a mobile app, an interactive visualization, an educational game, or another format entirely - as long as it makes rapid site evaluation clear and efficient.
 
 ## **Potential Considerations**
 
@@ -66,7 +66,7 @@ User experience:
 
 * Your interface could prioritize rapid scenario comparison, allowing mission planners to evaluate multiple site-date combinations efficiently.  
 * Consider how to clearly communicate time remaining before sunset or Earthset, as this is critical operational information.  
-* Think about how to make the extreme differences between lunar and terrestrial conditions apparent—they can be compelling when visualized effectively.  
+* Think about how to make the extreme differences between lunar and terrestrial conditions apparent - they can be compelling when visualized effectively.  
 * You may consider features that help users understand why small location or date changes have large impacts on mission feasibility.
 
 Data and accuracy:

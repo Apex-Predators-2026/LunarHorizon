@@ -476,7 +476,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     }
     setMeasureArmed(true)
     setPin((p) => (p.phase === 'armed' ? { phase: 'idle' } : p))
-    showSnackbar('Waypoint A anchored at Lander — click terrain to measure outward')
+    showSnackbar('Waypoint A anchored at Lander - click terrain to measure outward')
   }, [site, waypoints])
 
   const finestResM = terrainStats ? Math.max(5, Math.round(vertexSpacingM(terrainStats.deepest))) : null
