@@ -108,8 +108,8 @@ const CHECKS = [
   },
   {
     id: 'evidence', name: 'Show why: evidence in the 3D view', outcome: 'The canonical window, at the right site and time, with the way back',
-    vitest: ['src/viz/evidence.test.tsx', 'src/features/assessment/sharedState.test.tsx'],
-    browser: g('5 evidence opens the blackout window in 3D'),
+    vitest: ['src/viz/evidence.test.tsx', 'src/features/assessment/sharedState.test.tsx', 'src/features/assessment/evidenceReturn.test.tsx'],
+    browser: [...g('5 evidence opens the blackout window in 3D'), ...sm('Plan assessment dialog: Show in 3D, then Back returns to the same dialog')],
   },
   {
     id: 'planner', name: "Planner and Playback show the canonical assessment", outcome: 'Verdict from the viability engine on the plan card, tied to the plan; Playback never invents a PASS',
