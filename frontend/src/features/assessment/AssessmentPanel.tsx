@@ -1,6 +1,6 @@
 // Mission assessment: the viability engine's full answer for one Planner plan (POST /api/viability/assess-scenario,
 // read through lib/assessment.ts). Each requirement with its measured value or proven range, threshold, margin and
-// screening headroom; the evidence windows behind each verdict (with "Show in 3D"); the other screening risks; the
+// screening headroom; the evidence windows behind each verdict (with "Show me why"); the other screening risks; the
 // dataset's provenance, coverage and assumptions; the engine's limitations and method versions.
 //
 // Display only: every status, value, range, margin and sentence is the engine's. Nothing is re-derived here.
@@ -64,7 +64,7 @@ function EvidenceRow({ w, siteId, missionStart, onShown, origin }: { w: WireWind
       {ev && (
         <button
           type="button"
-          className="ml-auto rounded-full border border-sky-700/60 px-2 py-0.5 text-[11px] text-sky-300 hover:bg-sky-900/30"
+          className="ml-auto rounded-full bg-coral px-2 py-0.5 text-[11px] font-medium text-[#1f2326] hover:brightness-110"
           title="Jump the 3D view to this moment, looking at the body concerned from the lander"
           onClick={() => {
             // From the comparison page the 3D view opens itself and its way back leads to that section; elsewhere (a
@@ -76,7 +76,7 @@ function EvidenceRow({ w, siteId, missionStart, onShown, origin }: { w: WireWind
             }
           }}
         >
-          Show in 3D
+          Show me why
         </button>
       )}
     </li>
@@ -138,6 +138,9 @@ function ConstraintRow({ v, siteId, missionStart, onShown, origin }: { v: Constr
               ))}
             </ul>
           </div>
+        )}
+        {(c.status === 'fail' || c.status === 'unknown') && !c.evidence_windows.some((w) => evidenceFromWindow(siteId, w)) && (
+          <p className="mt-2 text-[11px] text-slate-500">The assessment has no 3D evidence for this requirement.</p>
         )}
         {c.requirement_field && <p className="mt-1 text-[10px] text-slate-500">Requirement field: {c.requirement_field}</p>}
       </details>
@@ -217,7 +220,7 @@ function Provenance({ r }: { r: AssessResponse }) {
 export function AssessmentPanel({ state, onShown, origin, part = 'all' }: {
   state: AssessmentState | null
   onShown?: () => void
-  /** Set when the panel sits on the comparison page: "Show in 3D" then opens the 3D view and leads back here. */
+  /** Set when the panel sits on the comparison page: "Show me why" then opens the 3D view and leads back here. */
   origin?: EvidenceOrigin
   /** 'assessment' = verdict, requirements, risks; 'data' = provenance, assumptions, limitations; default both. */
   part?: 'all' | 'assessment' | 'data'
@@ -320,7 +323,7 @@ export function AssessmentPanel({ state, onShown, origin, part = 'all' }: {
 }
 
 /**
- * "Details" for a plan card: the full assessment in a dialog. "Show in 3D" closes it and opens the evidence; when
+ * "Details" for a plan card: the full assessment in a dialog. "Show me why" closes it and opens the evidence; when
  * `onReopen` is given, the evidence banner's Back button brings this same dialog back (not the running plan's panel).
  */
 export function AssessmentDialog({ title, scenario, onClose, onReopen }: { title: string; scenario: Scenario; onClose: () => void; onReopen?: () => void }) {

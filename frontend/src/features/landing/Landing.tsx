@@ -57,7 +57,7 @@ function Nav({ onOpen }: { onOpen: () => void }) {
     <header className="lnd-nav" data-tone={tone}>
       <GlassSurface radius="0px" interactive={false} enabled={scrolled} className="lnd-nav-bar lnd-glass-dark">
         <a className="lnd-wordmark" href="#" onClick={toBeat('top')}>
-          <LunarHorizonLogo variant="wordmark" />
+          <LunarHorizonLogo variant="full" />
         </a>
         <nav aria-label="Mission" className="lnd-nav-links">
           <a href="#preview" onClick={toBeat('preview')}>The app</a>
@@ -236,7 +236,7 @@ function Footer() {
   return (
     <footer className="lnd-footer">
       <div className="lnd-wrap">
-        <LunarHorizonLogo variant="wordmark" className="lnd-footer-logo" />
+        <LunarHorizonLogo variant="full" className="lnd-footer-logo" />
         <div className="lnd-close-meta">
           <span>Built by Team B.A.J.A.N for NASA Space Apps Challenge 2026</span>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer">

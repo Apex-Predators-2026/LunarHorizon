@@ -6,7 +6,7 @@ export const COMPARE_SECTIONS = [
   ['cmp-scenarios', 'Plans'], ['cmp-overview', 'At a glance'], ['cmp-metrics', 'Key metrics'], ['cmp-summary', 'Decision'],
   ['cmp-timeline', 'Timeline'], ['cmp-performance', 'Ranking'], ['cmp-charts', 'Elevation'], ['cmp-terrain', 'Terrain'],
   ['cmp-tradeoff', 'Trade-off'], ['cmp-assessment', 'Assessment'], ['cmp-assumptions', 'Assumptions'],
-  ['cmp-science', 'Science vs engineering'], ['cmp-rescue', 'Mission Rescue'],
+  ['cmp-science', 'Science vs engineering'], ['cmp-rescue', 'Mission Rescue'], ['cmp-why', 'Requirement evidence'],
 ] as const
 
 export type CompareSectionId = (typeof COMPARE_SECTIONS)[number][0]
@@ -25,11 +25,11 @@ export const SECTION_TAB: Record<CompareSectionId, CompareTab | null> = {
   'cmp-overview': 'overview', 'cmp-summary': 'overview', 'cmp-rescue': 'overview',
   'cmp-metrics': 'evidence', 'cmp-timeline': 'evidence', 'cmp-performance': 'evidence',
   'cmp-assessment': 'evidence',
-  'cmp-charts': 'detail', 'cmp-terrain': 'detail', 'cmp-tradeoff': 'detail', 'cmp-assumptions': 'detail', 'cmp-science': 'detail',
+  'cmp-why': 'detail', 'cmp-charts': 'detail', 'cmp-terrain': 'detail', 'cmp-tradeoff': 'detail', 'cmp-assumptions': 'detail', 'cmp-science': 'detail',
 }
 
 /** The section a view's URL remembers (the Overview is the page itself, so it remembers none). */
-export const TAB_ENTRY: Record<CompareTab, CompareSectionId | null> = { overview: null, evidence: 'cmp-metrics', detail: 'cmp-charts' }
+export const TAB_ENTRY: Record<CompareTab, CompareSectionId | null> = { overview: null, evidence: 'cmp-metrics', detail: 'cmp-why' }
 
 export const tabOfSection = (id: string | null | undefined): CompareTab | null =>
   id && id in SECTION_TAB ? SECTION_TAB[id as CompareSectionId] : null

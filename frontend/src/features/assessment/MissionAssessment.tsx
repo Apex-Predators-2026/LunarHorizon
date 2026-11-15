@@ -87,7 +87,7 @@ function ConstraintRow({ r, c, skey }: { r: AssessResponse; c: ConstraintEvaluat
           active ? (
             <button type="button" className="md-btn h-8 border border-coral px-3 text-xs text-coral" onClick={clearShowing} aria-label={`Back to the assessment from ${c.name}`}>Back to assessment</button>
           ) : (
-            <button type="button" className="md-btn h-8 bg-sky-600 px-3 text-xs text-white hover:bg-sky-500" onClick={why} aria-label={`Show why: ${c.name}`} data-tip={`Jump the 3D view and timeline to this moment and look toward the ${ev.request.body === 'earth' ? 'Earth' : 'Sun'}`}>
+            <button type="button" className="md-btn h-8 bg-coral px-3 text-xs text-[#1f2326] hover:brightness-110" onClick={why} aria-label={`Show why: ${c.name}`} data-tip={`Jump the 3D view and timeline to this moment and look toward the ${ev.request.body === 'earth' ? 'Earth' : 'Sun'}`}>
               Show why
             </button>
           )
@@ -275,9 +275,10 @@ export function EvidenceBanner() {
   return (
     host(<div role="status" aria-live="polite" data-testid="evidence-banner" className={`ui-chrome pointer-events-auto fixed ${left} top-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+24px)] z-40 w-[min(34rem,calc(100%-2rem))] -translate-x-1/2 rounded-2xl bg-black/75 px-4 py-3 text-xs text-white shadow-lg backdrop-blur`}>
       <p className="font-semibold">
-        {h.dataMissing ? 'Data missing: ' : 'Evidence: '}{h.title ?? 'selected moment'}
+        Show me why: {h.title ?? 'selected moment'}
         {h.origin && <span className="font-normal text-white/60"> · from {h.origin.label}</span>}
       </p>
+      {h.dataMissing && <p className="mt-0.5 font-medium text-amber-200">Data missing</p>}
       {(h.requirement || h.measured) && (
         <p className="mt-0.5 tabular-nums text-white/90">
           {h.requirement && <>Required {h.requirement}</>}{h.requirement && h.measured && ' · '}{h.measured && <>Measured {h.measured}</>}

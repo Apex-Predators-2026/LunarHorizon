@@ -68,7 +68,7 @@ describe('AssessmentPanel', () => {
     const html = renderToString(<AssessmentPanel state={{ status: 'done', response: fail }} />)
     expect(html).toContain('Minimum continuous power-lit time after landing')
     expect(html).toContain('Failed')
-    expect(html).toContain('Show in 3D')
+    expect(html).toContain('Show me why')
     expect(html).toContain('JPL Horizons')
     expect(html).toContain('Moon Trek')
     expect(html).toContain(fail.input_dataset.sha256.slice(0, 16))
