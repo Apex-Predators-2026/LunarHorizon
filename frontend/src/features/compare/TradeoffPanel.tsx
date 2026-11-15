@@ -14,7 +14,7 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
   const setTraverseKm = useCompareStore((s) => s.setTraverseKm)
   const rows = computeTradeoff(entries, weights, traverseKm)
   const total = weights.solar + weights.comms + weights.science + weights.safety
-  const radar = CRITERIA.map((c) => ({ criterion: c.label, ...Object.fromEntries(rows.map((r) => [r.entry.scenario.id, Math.round(r.scores[c.key] * 100)])) }))
+  const radar = CRITERIA.map((c) => ({ criterion: c.label, ...Object.fromEntries(rows.map((r) => [r.entry.scenario.id, r.scores[c.key] === null ? null : Math.round(r.scores[c.key]! * 100)])) }))
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)]">
@@ -84,15 +84,17 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                   {rows.map((r) => (
                     <li key={r.entry.scenario.id}>
                       <div className="mb-0.5 flex items-center gap-2 text-xs">
-                        <span className="w-5 font-medium text-slate-500">#{r.rank}</span>
+                        <span className="w-5 font-medium text-slate-500">{r.rank === null ? '—' : `#${r.rank}`}</span>
                         <ScenarioChip s={r.entry.scenario} size="sm" />
                         <span className="min-w-0 flex-1 truncate text-slate-200">{r.entry.scenario.site.name}</span>
-                        <span className="tabular-nums font-medium text-slate-100">{(r.weighted * 100).toFixed(0)}</span>
+                        <span className="tabular-nums font-medium text-slate-100" title={r.missing.join('; ') || undefined}>
+                          {r.weighted === null ? 'incomplete' : (r.weighted * 100).toFixed(0)}
+                        </span>
                       </div>
                       <div className="flex h-3 overflow-hidden rounded bg-slate-800" aria-hidden="true">
                         {CRITERIA.map((c, i) => (
-                          <div key={c.key} title={`${c.label}: +${(r.contributions[c.key] * 100).toFixed(1)}`}
-                            style={{ width: `${r.contributions[c.key] * 100}%`, background: ['#e8b84a', '#5aa9f0', '#b58cf0', '#4fbf8f'][i] }}
+                          <div key={c.key} title={`${c.label}: ${r.contributions[c.key] === null ? 'unknown' : '+' + (r.contributions[c.key]! * 100).toFixed(1)}`}
+                            style={{ width: `${(r.contributions[c.key] ?? 0) * 100}%`, background: ['#e8b84a', '#5aa9f0', '#b58cf0', '#4fbf8f'][i] }}
                             className="border-r-2 border-surface last:border-r-0" />
                         ))}
                       </div>
@@ -121,7 +123,7 @@ export function TradeoffPanel({ entries }: { entries: Entry[] }) {
                       <td className="py-1"><ScenarioChip s={r.entry.scenario} size="sm" /></td>
                       {CRITERIA.map((c) => (
                         <td key={c.key} className="py-1 pl-2 text-slate-300">
-                          {r.raw[c.key]} <span className="tabular-nums text-slate-500">[{Math.round(r.scores[c.key] * 100)}]</span>
+                          {r.raw[c.key]} <span className="tabular-nums text-slate-500">[{r.scores[c.key] === null ? '—' : Math.round(r.scores[c.key]! * 100)}]</span>
                         </td>
                       ))}
                     </tr>
