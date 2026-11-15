@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 're
 
 import { goToView, parseRoute, rememberSection, routeHash } from './appRoute'
 import { AtlasView } from './features/atlas/AtlasView'
+import { MethodologyView } from './features/methodology/MethodologyView'
 import { ComparisonDashboard } from './features/compare'
 import { PlanDialogHost, PlanFab, PlansPanel } from './features/plans/PlansPanel'
 import { MissionRescue } from './features/rescue'
@@ -45,6 +46,7 @@ const VIEWS = [
   { id: 'planner', label: 'Mission Planner' },
   { id: 'compare', label: 'Scenario Comparison' }, // Member 4
   { id: 'atlas', label: 'Feasibility Atlas' },
+  { id: 'method', label: 'Methodology' },
 ] as const
 
 type View = (typeof VIEWS)[number]['id']
@@ -110,7 +112,7 @@ export default function App() {
   const route = parseRoute(hash)
   const view: View = route.page === 'app' ? route.view : 'planner'
   const compare = view === 'compare'
-  const pageView = view !== 'planner' // a scrolling page (Comparison, Atlas) rather than the 3D view
+  const pageView = view !== 'planner' // a scrolling page (Comparison, Atlas, Methodology) rather than the 3D view
   useEffect(() => initMaterialMotion(), [])
   useEffect(() => installMangoTexture(), [])
   const dark = useUiPrefs((u) => u.dark)
@@ -174,6 +176,10 @@ export default function App() {
         <main key="atlas" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
           <AtlasView />
         </main>
+      ) : view === 'method' ? (
+        <main key="method" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
+          <MethodologyView />
+        </main>
       ) : (
         <main key="planner" className="md-fade-through h-full">
           {/* Full-screen 3D simulation; the sidebar content is Member 5's mission-rescue panel. */}
@@ -191,7 +197,7 @@ export default function App() {
       <TutorialOfferChip uiHidden={uiHidden && !pageView} compareActive={compare} />
       <TutorialSpotlight
         uiHidden={uiHidden && !pageView}
-        appView={view === 'atlas' ? undefined : view} // the guided tour has no Atlas steps
+        appView={view === 'atlas' || view === 'method' ? undefined : view} // the guided tour has no Atlas or Methodology steps
         onOpenCompare={() => goToView('compare')}
         onResetTourView={() => goToView('planner')}
       />
