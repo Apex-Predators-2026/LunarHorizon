@@ -1,0 +1,77 @@
+LUNAR LANDING SITE NAVIGATOR - TECH STACK
+==========================================
+
+FRONTEND
+--------
+Framework:          React + TypeScript + Vite
+                    The app is a dashboard with lots of shared state across six people's
+                    components. TypeScript enforces the shared data format between them.
+3D:                 Three.js via React Three Fiber + drei
+                    Ready-made orbit controls, sky and shadows. Each site's Moon Trek
+                    elevation map becomes a 3D surface, with Quickmap/LROC imagery laid
+                    over it where we can get it.
+2D site map:        OpenLayers
+                    Handles the polar map projection of the south pole properly and can
+                    load Moon Trek's south-polar map tiles.
+Charts/timelines:   Recharts (or Plotly if you need zoom)
+                    Fast to build the sunlight and comms timelines and the side-by-side
+                    comparison charts.
+State:              Zustand
+                    One small shared store (site, date, time slider, scenarios) that every
+                    member's components can read.
+Styling:            Tailwind CSS
+                    Quick consistent styling.
+
+BACKEND
+-------
+API:                Python + FastAPI
+                    Quick to write, checks request and response data for you, and
+                    generates API docs automatically.
+Ephemeris:          JPL Horizons via astroquery
+                    Gives Sun/Earth positions as seen from a point on the Moon. Its API
+                    blocks direct calls from the browser, so it goes through the backend.
+Terrain source:     Moon Trek (elevation maps) + LROC Quickmap (imagery, slope and
+                    permanently-shadowed-region layers)
+                    The official terrain links from the challenge brief.
+Terrain processing: rasterio + numpy
+                    Read the Moon Trek elevation files and compute how high the terrain
+                    blocks the sky in each direction.
+Viability/ranking/
+rescue:             numpy / pandas
+                    Scoring and searching for alternatives is array maths over the
+                    timelines.
+Validation:         pytest
+                    Checks our calculations against saved Horizons reference data.
+
+DATA STRATEGY
+-------------
+Precompute the curated sites (Peak Near Shackleton, Malapert Massif, Connecting Ridge, etc.):
+  1. Crop a Moon Trek elevation map around each site.
+  2. Compute the site's horizon profile.
+  3. Fetch hourly Sun/Earth positions from Horizons for about two years.
+  4. Save it all as JSON or Parquet in data/.
+Call the live backend only for custom coordinates. This keeps the demo fast and working
+offline.
+
+Check early: confirm which file formats and resolutions Moon Trek offers at the south pole.
+Pull one sample elevation map (e.g. Shackleton) to confirm it loads and the resolution is
+good enough.
+
+TEAM GLUE
+---------
+Shared data format: docs/interfaces.md, mirrored as TypeScript types and Pydantic models
+                    (Python's equivalent)
+Repo layout:        Monorepo: frontend/, backend/, data/, docs/
+Frontend tests:     Vitest
+Deploy:             Frontend on Vercel or Netlify, backend on Render or Fly.io (free tiers)
+
+WHO USES WHAT
+-------------
+Andrew (data + 3D):            Horizons, Moon Trek, Quickmap, rasterio/numpy,
+                               React Three Fiber, Recharts
+Brandon (viability/ranking):   FastAPI, numpy/pandas
+Nimansh (UI + rescue):         React, OpenLayers, Zustand, Tailwind for the UI;
+                               FastAPI and numpy for the rescue search
+Comparison:                    React, Recharts, Zustand
+Validation:                    pytest, saved Horizons reference data, Quickmap for
+                               cross-checks
