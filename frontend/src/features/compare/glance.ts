@@ -1,6 +1,6 @@
 // Headline conditions for the "At a glance" panel: engine metrics, the requirement each is checked against, and a
 // meaningful-difference rule for the "best" mark. Pure functions; no React.
-import { cm, measuredText, type Entry } from './analysis'
+import { bestOf, bestPool, cm, measuredText, type Candidate, type Entry } from './analysis'
 
 export interface Headline {
   key: string
@@ -27,25 +27,34 @@ export interface HeadlineRow {
   value: number | null // exact display value, null when bounded / unavailable / not assessed
   text: string
   status: string | null // the requirement verdict this metric is checked against
-  best: boolean
+  best: boolean // a proven, meaningful lead on this quantity within the comparable pool (bestPool)
+  illustrative: boolean // the lead is among demonstration results only
 }
 
-/** Per headline metric: each scenario's exact value (or why there is none) and which one is meaningfully best. */
+/**
+ * Per headline metric: each scenario's exact value (or why there is none) and which one is meaningfully best. The
+ * pool is the shared bestPool: real results compete only with real ones (two or more), demonstration-only pools
+ * are illustrative, and a missing value or a mix of durations / requirements gives no "best". Bounded values
+ * compete with their bounds (a winner must beat every other candidate's most favourable value).
+ */
 export function headlineRows(h: Headline, entries: Entry[]): HeadlineRow[] {
+  const pool = bestPool(entries)
   const rows = entries.map((e) => {
     const m = cm(e.result, h.key)
     const value = m && m.status === 'known' && m.value !== null ? m.value * h.scale : null
     const status = e.result?.assessment?.constraints.find((c) => c.id === h.constraint)?.status ?? null
-    return { entry: e, value, text: m ? measuredText(m) : e.result ? 'unavailable' : 'not assessed', status, best: false }
+    return { entry: e, value, text: m ? measuredText(m) : e.result ? 'unavailable' : 'not assessed', status, best: false, illustrative: false }
   })
-  const real = rows.filter((r) => r.value !== null && r.entry.result?.data_kind === 'real')
-  const pool = real.length >= 2 ? real : rows.filter((r) => r.value !== null)
-  if (pool.length >= 2) {
-    const sorted = [...pool].sort((a, b) => (h.better === 'higher' ? b.value! - a.value! : a.value! - b.value!))
-    const top = sorted.filter((r) => r.value === sorted[0].value)
-    const next = sorted.find((r) => r.value !== sorted[0].value)
-    if (next && meaningful(h, sorted[0].value!, next.value!)) top.forEach((r) => (r.best = true))
-  }
+  const cands: Candidate[] = pool.entries.map((e) => {
+    const m = cm(e.result, h.key)
+    if (m?.status === 'known' && m.value !== null) return { id: e.scenario.id, lo: m.value * h.scale, hi: m.value * h.scale }
+    if (m?.status === 'bounded' && m.lower !== null && m.upper !== null) return { id: e.scenario.id, lo: m.lower * h.scale, hi: m.upper * h.scale }
+    return { id: e.scenario.id, lo: null, hi: null }
+  })
+  const winners = bestOf(cands, h.better, (a, b) => meaningful(h, a, b))
+  for (const r of rows) if (winners.has(r.entry.scenario.id)) Object.assign(r, { best: true, illustrative: pool.basis === 'illustrative' })
   return rows
 }
 
+/** Why no "best" can be marked, or what a "best" means here (null when nothing needs saying). */
+export const headlineNote = (entries: Entry[]) => bestPool(entries).note
