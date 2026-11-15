@@ -37,6 +37,7 @@ import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
 import { duplicateShifted, makeScenario, nextLabel, resultKey, toTeamScenario, validateScenario } from './scenario'
 import { SummaryPanel } from './SummaryPanel'
+import { TradeoffPanel } from './TradeoffPanel'
 import type { CanonicalMetric, CompareResponse, CompareResult, ComparisonScenario, RankingInfo } from './types'
 import { sendToComparison, useCompareStore } from './useCompareStore'
 
@@ -160,7 +161,7 @@ describe('analysis on real data', () => {
     const e = entries(['A', 'B', 'C', 'E'])
     const ex = e[3]
     expect(ex.ranking!.group).toBe('G2')
-    expect(rankText(ex.ranking, 2)).toBe('#1 of 1 in separate group G2')
+    expect(rankText(ex.ranking, 2)).toBe('only passing option in separate group G2') // no "#1 of 1": it beat nothing
     expect(rankText(e[1].ranking, 2)).toBe('#1 of 2')
     const sep = res.ranking_groups.find((g) => g.id === 'G2')!
     expect(sep.primary).toBe(false)
@@ -217,7 +218,9 @@ describe('analysis on real data', () => {
     const power = computeTradeoff(e, WEIGHT_PRESETS.power.weights, 15)
     expect(power[0].entry.scenario.site.id).toBe('malapert-massif')
     const sci = computeTradeoff(e, { solar: 0, comms: 0, science: 1, safety: 0 }, 15)
-    const closest = [...e].sort((a, b) => a.result!.science_context!.distance_to_psr_edge_km - b.result!.science_context!.distance_to_psr_edge_km)[0]
+    // Science weight orders the feasible options by PSR distance; the failing ones never go first.
+    const closest = [...e].filter((x) => eligibilityOf(x) === 'pass')
+      .sort((a, b) => a.result!.science_context!.distance_to_psr_edge_km - b.result!.science_context!.distance_to_psr_edge_km)[0]
     expect(sci[0].entry.scenario.id).toBe(closest.scenario.id)
     expect(power[0].raw.solar).toMatch(/% mean disk/)
     for (const r of power) expect(r.weighted).toBeCloseTo(Object.values(r.contributions).reduce<number>((a, b) => a + (b ?? 0), 0))
@@ -464,11 +467,39 @@ describe('canonical evidence (Phase 3)', () => {
     expect(inc.rank).toBeNull()
     expect(inc.scores.safety).toBeNull()
     expect(inc.missing.join(' ')).toMatch(/Operational safety/)
-    expect(rows.filter((r) => r.rank !== null).map((r) => r.rank)).toEqual([1, 2])
-    expect(rows[rows.length - 1]).toBe(inc) // listed after the complete rows
+    expect(rows.filter((r) => r.rank !== null).map((r) => r.rank)).toEqual([1]) // C only: A fails, B incomplete
+    expect(rows.indexOf(inc)).toBe(1) // after the complete feasible row, before the infeasible ones
     // With safety weighted 0 the bounded blackout is not needed, so the row is complete again.
     const noSafety = computeTradeoff([withMetric(b, 'longest_blackout_h', BOUNDED_H)], { solar: 1, comms: 1, science: 1, safety: 0 }, 15)
     expect(noSafety[0].weighted).not.toBeNull()
+  })
+
+  it('preference weights rank only feasible (PASS) options; a failing one is listed apart with its blocking requirement', () => {
+    const e = entries(['A', 'B', 'C'])
+    const a = e[0] // Peak Near Shackleton: FAIL
+    expect(eligibilityOf(a)).toBe('fail')
+    // Whatever the weights favour, the failing option gets no rank and comes after every feasible one.
+    for (const w of [WEIGHT_PRESETS.balanced.weights, { solar: 0, comms: 0, science: 1, safety: 0 }, WEIGHT_PRESETS.power.weights]) {
+      const rows = computeTradeoff(e, w, 15)
+      const fail = rows.find((r) => r.entry.scenario.id === a.scenario.id)!
+      expect(fail.rank).toBeNull()
+      expect(fail.weighted).not.toBeNull() // still scored: it shows why it is attractive
+      expect(rows.indexOf(fail)).toBe(rows.length - 1)
+      expect(rows.filter((r) => r.rank !== null).every((r) => r.eligibility === 'pass')).toBe(true)
+      expect(fail.blockers.length).toBeGreaterThan(0)
+      expect(fail.blockers).toEqual(requirementSummary(a)!.failed.map((c) => c.name))
+    }
+  })
+
+  it('the trade-off panel separates recommended feasible options from the others and never shows "#1" alone', () => {
+    const html = renderToString(<TradeoffPanel entries={entries(['A', 'B', 'C'])} />)
+    expect(html).toContain('Recommended feasible options')
+    expect(html).toContain('Other options and trade-offs')
+    expect(html).toContain('Ruled out by:')
+    // With one feasible option there is nothing to rank it against.
+    const lone = renderToString(<TradeoffPanel entries={entries(['A', 'B'])} />)
+    expect(lone).toContain('The only option that meets every requirement')
+    expect(lone).not.toMatch(/#1</)
   })
 
   it('a scenario without data is UNKNOWN (not assessed), not failed and not ranked', () => {

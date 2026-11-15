@@ -82,10 +82,13 @@ export function inexactText(x: { status: string; lower: number | null; upper: nu
 /** Number of distinct canonical ranking groups among the entries. */
 export const groupCountOf = (entries: Entry[]) => new Set(entries.map((e) => e.ranking?.group).filter(Boolean)).size
 
-/** Rank text scoped to its group, e.g. "#1 of 3" or "#1 of 1 in separate group G2". Null without a rank. */
+/**
+ * Rank text scoped to its group, e.g. "#1 of 3", or "only passing option in separate group G2" when nothing
+ * else in its group passed (a "#1 of 1" would suggest it beat alternatives). Null without a rank.
+ */
 export function rankText(r: RankingInfo | null | undefined, groupCount: number): string | null {
   if (!r || r.rank === null) return null
-  const base = `#${r.rank} of ${r.ranked_in_group}`
+  const base = r.ranked_in_group > 1 ? `#${r.rank} of ${r.ranked_in_group}` : 'only passing option'
   return groupCount > 1 && r.group !== 'G1' ? `${base} in separate group ${r.group}` : base
 }
 
@@ -434,12 +437,28 @@ export const scienceIndex = (distanceKm: number, traverseKm: number) =>
 
 export interface TradeoffRow {
   entry: Entry
+  /** Canonical eligibility. Only PASS rows can be preference-ranked: weights explain, they never make an option feasible. */
+  eligibility: Eligibility | null
+  /** For rows that aren't feasible: the requirements that fail (or can't be decided), by name. */
+  blockers: string[]
   scores: Record<CriterionKey, number | null> // null = the measurement behind it is not exactly known
   raw: Record<CriterionKey, string>
   weighted: number | null // null when any weighted criterion is unknown: such rows are never ranked
   contributions: Record<CriterionKey, number | null>
-  rank: number | null
+  rank: number | null // preference rank among feasible (PASS) rows with complete data; null otherwise
   missing: string[] // criteria that could not be computed, with the reason
+}
+
+/** Feasible = the viability engine says it meets every requirement. */
+export const isFeasible = (r: TradeoffRow) => r.eligibility === 'pass'
+
+/** The requirements standing between an option and feasibility, by name (empty for PASS). */
+function blockersOf(e: Entry, eligibility: Eligibility | null): string[] {
+  if (eligibility === 'pass') return []
+  const req = requirementSummary(e)
+  if (eligibility === 'fail') return req?.failed.map((c) => c.name) ?? []
+  if (!req || eligibility === null) return ['not assessed']
+  return req.undecided.map((c) => `${c.name} (can't be decided)`)
 }
 
 export function computeTradeoff(entries: Entry[], w: Weights, traverseKm: number): TradeoffRow[] {
@@ -472,12 +491,16 @@ export function computeTradeoff(entries: Entry[], w: Weights, traverseKm: number
         CRITERIA.map((c) => [c.key, scores[c.key] === null ? null : total > 0 ? (w[c.key] * scores[c.key]!) / total : 0]),
       ) as Record<CriterionKey, number | null>
       const weighted = missing.length ? null : CRITERIA.reduce((acc, c) => acc + (contributions[c.key] ?? 0), 0)
-      return { entry, scores, raw, weighted, contributions, rank: null, missing }
+      const eligibility = eligibilityOf(entry)
+      return { entry, eligibility, blockers: blockersOf(entry, eligibility), scores, raw, weighted, contributions, rank: null, missing }
     })
-  // Complete rows first (by weighted value), incomplete rows after them, unranked.
-  rows.sort((a, b) => (a.weighted === null ? 1 : 0) - (b.weighted === null ? 1 : 0) || (b.weighted ?? 0) - (a.weighted ?? 0))
+  // Feasible rows first, then the others; within each, complete rows (by weighted value) before incomplete ones.
+  // Only feasible, complete rows get a preference rank: the others are listed to show why they are attractive
+  // or not, never as a recommendation.
+  const tier = (r: TradeoffRow) => (isFeasible(r) ? 0 : 2) + (r.weighted === null ? 1 : 0)
+  rows.sort((a, b) => tier(a) - tier(b) || (b.weighted ?? 0) - (a.weighted ?? 0))
   let n = 0
-  for (const r of rows) r.rank = r.weighted === null ? null : ++n
+  for (const r of rows) r.rank = isFeasible(r) && r.weighted !== null ? ++n : null
   return rows
 }
 
