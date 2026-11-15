@@ -52,11 +52,11 @@ describe('returnFromEvidence', () => {
 })
 
 // Clicking the control (origin passed through, dialog reopened by Back) is exercised in a real browser:
-// frontend/scripts/smoke-prod.mjs, step "Plan assessment dialog: Show in 3D, then Back returns to the same dialog".
+// frontend/scripts/smoke-prod.mjs, step "Plan assessment dialog: Show me why, then Back returns to the same dialog".
 describe('the plan dialog panel', () => {
-  it('offers Show in 3D on the evidence windows of a failing requirement', () => {
+  it('offers Show me why on the evidence windows of a failing requirement', () => {
     const state = { status: 'done', response: fail } as unknown as AssessmentState
     const html = renderToString(<AssessmentPanel state={state} origin={{ kind: 'assessment', label: 'Plan X assessment', returnTo: () => {} }} />)
-    expect(html).toContain('Show in 3D')
+    expect(html).toContain('Show me why')
   })
 })

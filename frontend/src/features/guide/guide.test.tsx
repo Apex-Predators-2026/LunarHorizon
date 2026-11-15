@@ -142,15 +142,15 @@ describe('guided mission flow', () => {
     expect(ev.body).toBe('earth')
     const em = model()
     expect(em.lead).not.toContain('direct-to-Earth link')
-    expect(em.lead).toContain('without Earth in line of sight')
-    if (MISSION.expected.evidence.clipped_at_end) expect(em.note).toMatch(/so this mission experiences at least 118 h\.$/)
+    expect(em.lead).toContain('Earth drops out of view')
+    if (MISSION.expected.evidence.clipped_at_end) expect(em.note).toContain('Earth is still out of view when the mission ends')
 
     await advanceTo('rescue')
     await flush(12)
     expect(useGuide.getState().recovery?.site.id).toBe('malapert-massif')
     expect(useRescueStore.getState().selected?.site.id).toBe('malapert-massif')
     expect(model().status).toBe('ready')
-    expect(model().lead).toMatch(/same date, different site/)
+    expect(model().lead).toMatch(/keeps the delayed landing date and moves to another site/)
     expect(model().facts).toContainEqual(expect.objectContaining({ label: 'Moved', value: '143 km from the original site' }))
 
     await advanceTo('compare')
@@ -165,7 +165,7 @@ describe('guided mission flow', () => {
     expect(useNav.getState().view).toBe('compare')
     const cm = model()
     expect(cm.status).toBe('ready')
-    expect(cm.lead).toMatch(/recommends the recovery/)
+    expect(cm.lead).toMatch(/recovery ranks first/)
   })
 
   it('pauses with a clear "modified" state when the user edits the guided inputs', async () => {
