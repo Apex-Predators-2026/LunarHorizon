@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Query, Response
 
 from .engine import psr
 from .engine.imagery import IMAGERY_MAX_ZOOM, TEXTURE_PX, imagery_tile, png_gray
-from .engine.dem import SOURCES
+from .engine.dem import SOURCES, DownloadBusy
 from .engine.tiles import FACES, MAX_ZOOM, N, max_zoom_for, tile_heights, validate_tile
 
 router = APIRouter(prefix="/api")
@@ -56,6 +56,8 @@ def terrain_tile(
         raise HTTPException(404, str(e))
     try:
         content, hmin, hmax, leaf = _tile_payload(face, z, x, y, pad)
+    except DownloadBusy as e:  # Moon Trek slow: too many downloads waiting (the 3D view retries)
+        raise HTTPException(503, f"Terrain source busy, try again shortly: {e}")
     except OSError as e:  # Moon Trek unreachable or refused the request
         raise HTTPException(502, f"Terrain source unavailable: {e}")
     return Response(
@@ -88,6 +90,8 @@ def imagery_tile_png(face: int, z: int, x: int, y: int) -> Response:
         raise HTTPException(404, str(e))
     try:
         content = _imagery_png(face, z, x, y)
+    except DownloadBusy as e:
+        raise HTTPException(503, f"Imagery source busy, try again shortly: {e}")
     except OSError as e:
         raise HTTPException(502, f"Imagery source unavailable: {e}")
     return Response(
