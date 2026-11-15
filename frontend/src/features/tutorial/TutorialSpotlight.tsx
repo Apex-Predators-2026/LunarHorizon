@@ -19,6 +19,7 @@ function findTargetElement(selectors: string[]): HTMLElement | null {
   for (const selector of selectors) {
     const matches = document.querySelectorAll<HTMLElement>(selector)
     for (const el of matches) {
+      if (el.closest('[inert]')) continue // inside the hidden Planner while another page is open
       const r = el.getBoundingClientRect()
       if (r.width > 0 && r.height > 0) return el
     }
