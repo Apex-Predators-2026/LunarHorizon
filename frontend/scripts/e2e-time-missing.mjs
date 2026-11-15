@@ -11,6 +11,10 @@
 //      "best" claim) at 1366x768 and 1920x1080.
 //
 //   node scripts/e2e-time-missing.mjs [--url http://localhost:5173] [--api http://localhost:8000] [--out e2e-output]
+//   node scripts/e2e-time-missing.mjs --serve-dist --api http://127.0.0.1:8011   the PRODUCTION build (dist/), served here
+//
+// --run-id <id> is written into report.json so a caller can tell this run's results from an older file. The backend
+// must read the repository's data/sites/ (it picks up the temporary test copy written under data/sites/custom/).
 //
 // Exits non-zero on any failed expectation, page error or failed /api request. Needs Chrome or Edge (CHROME_PATH).
 // It writes one temporary file under data/sites/custom/ and removes it in a `finally`; it never edits a real site file.
@@ -24,10 +28,21 @@ const opt = (name, fallback) => {
   const i = args.indexOf(`--${name}`)
   return i >= 0 && args[i + 1] ? args[i + 1] : fallback
 }
-const URL_APP = opt('url', 'http://localhost:5173')
-const API = opt('api', URL_APP) // the dev server proxies /api; pass --api for a preview without a proxy
 const OUT = opt('out', 'e2e-output')
+const RUN_ID = opt('run-id', null)
+const STARTED = new Date().toISOString()
+rmSync(OUT, { recursive: true, force: true }) // never leave an older run's screenshots or report beside this one
 mkdirSync(OUT, { recursive: true })
+let server = null
+let URL_APP = opt('url', 'http://localhost:5173')
+if (args.includes('--serve-dist')) {
+  if (!existsSync('dist/index.html')) throw new Error('dist/ is missing: run npm run build first')
+  const { preview } = await import('vite')
+  server = await preview({ preview: { port: 4181, strictPort: false, proxy: { '/api': opt('api', 'http://127.0.0.1:8000') } }, logLevel: 'warn' })
+  URL_APP = server.resolvedUrls.local[0].replace(/\/$/, '')
+}
+const API = opt('api', URL_APP) // the dev server proxies /api; pass --api for a preview without a proxy
+console.log(`App: ${URL_APP}  (API: ${API})`)
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const GAP_ID = 'custom_e2e_incomplete_test'
 const GAP_FILE = join(ROOT, 'data', 'sites', 'custom', `${GAP_ID}.json`)
@@ -142,11 +157,13 @@ try {
     const card = page.getByRole('article', { name: 'Scenario B overview' })
     // The card names what is withheld; the Key metrics table shows the engine's range instead of a number.
     check(`${tag} UI: the card lists what is withheld`, /Withheld: solar, power, earth/i.test(noteText) || /withheld/i.test(await card.innerText()))
-    await page.locator('#cmp-metrics').scrollIntoViewIfNeeded().catch(() => {})
-    const pageText = await page.locator('body').innerText()
-    check(`${tag} UI: bounds shown instead of numbers (Key metrics)`, /bounds: data incomplete/.test(pageText))
     const sha = await card.locator('[data-testid=dataset-identity]').first().innerText().catch(() => '')
     check(`${tag} UI: the card names its dataset file and hash`, /[0-9a-f]{8}/.test(sha) && /custom_e2e_incomplete_test|malapert/.test(sha), sha.slice(0, 80))
+    // The metrics table and the timeline are in the Evidence view (the Overview holds the decision and the cards).
+    await page.getByRole('tab', { name: 'Evidence' }).click()
+    await page.locator('#cmp-metrics').waitFor({ state: 'visible', timeout: 15_000 })
+    await page.locator('#cmp-metrics').scrollIntoViewIfNeeded().catch(() => {})
+    check(`${tag} UI: bounds shown instead of numbers (Key metrics)`, /bounds: data incomplete/.test(await page.locator('#cmp-metrics').innerText()))
     await page.locator('#cmp-timeline').scrollIntoViewIfNeeded().catch(() => {})
     const unknownTitles = await page.locator('svg title', { hasText: /unknown/i }).count()
     check(`${tag} UI: unknown time is its own stretch on the Sun and Earth lanes`, unknownTitles >= 2, `${unknownTitles} unknown stretches`)
@@ -163,7 +180,8 @@ try {
 } finally {
   rmSync(GAP_FILE, { force: true }) // the test copy never outlives the check
 }
-writeFileSync(join(OUT, 'time-missing-report.json'), JSON.stringify({ finished: new Date().toISOString(), app: URL_APP, results }, null, 2))
+await server?.close()
+writeFileSync(join(OUT, 'report.json'), JSON.stringify({ run_id: RUN_ID, started: STARTED, finished: new Date().toISOString(), app: URL_APP, api: API, results }, null, 2))
 const failed = results.filter((r) => !r.ok)
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`)
 process.exit(failed.length ? 1 : 0)
