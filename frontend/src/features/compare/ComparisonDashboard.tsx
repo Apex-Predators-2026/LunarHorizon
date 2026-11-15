@@ -6,7 +6,7 @@ import { routeHash } from '../../appRoute'
 
 import { GlassSurface } from '../../ui/GlassSurface'
 
-import { axisOffsets, axisOrigin, fullDomain, type Entry } from './analysis'
+import { axisOrigin, fullDomain, type Entry } from './analysis'
 import { AtAGlance } from './AtAGlance'
 import { ConditionsPanel } from './ConditionsPanel'
 import { axisPlacement, missionTime } from './missionTime'
@@ -15,6 +15,7 @@ import { HorizonCompare } from './HorizonCompare'
 import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
+import { buildEntries } from './entries'
 import { resultKey, selectionKey, validateScenario } from './scenario'
 import { DecisionOverview } from './DecisionOverview'
 import { RescueStory } from './RescueStory'
@@ -93,19 +94,8 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   // A canonical ranking belongs to one selected set; while the set is being re-ranked no rank is shown.
   const rankingCurrent = rankingSetKey === selectionKey(selected.filter((s) => !validateScenario(s).length), allowDemo)
 
-  const entries: Entry[] = useMemo(() => {
-    // Results are cached by resultKey (the scenario's inputs), so an edited scenario never shows the old result.
-    const items = selected.map((s) => ({ scenario: s, state: results[resultKey(s, allowDemo)] }))
-    // The shared axis is laid out on the windows the backend evaluated (missionTime.ts).
-    const offsets = axisOffsets(items, align)
-    return items.map(({ scenario: s, state }) => {
-      const result = state?.state === 'done' && state.result.status === 'ok' ? state.result : null
-      // Unassessed scenarios (e.g. no data) still carry their UNKNOWN ranking entry.
-      const raw = state?.state === 'done' ? state.result : null
-      const ranking = rankingCurrent && raw ? raw.ranking : null
-      return { scenario: s, state, result, offsetHours: offsets[s.id] ?? 0, ranking }
-    })
-  }, [selected, results, allowDemo, align, rankingCurrent])
+  const entries: Entry[] = useMemo(() => buildEntries(selected, results, allowDemo, align, rankingCurrent),
+    [selected, results, allowDemo, align, rankingCurrent])
 
   const full = useMemo(() => fullDomain(entries), [entries])
   const view = useView(full)

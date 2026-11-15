@@ -299,7 +299,7 @@ describe('JSON export describes the evaluated window', () => {
   it('keeps format v1, adds revision 2 with explicit evaluated and requested fields', () => {
     const x = exp([caseB()])
     expect(x.format).toBe('comparison-export-v1')
-    expect(x.export_revision).toBe(2)
+    expect(x.schema_revision).toBe(2)
     expect(EXPORT_VERSION).toBe('comparison-export-v1')
     const s = x.scenarios[0]
     expect(s.mission_time).toEqual({
