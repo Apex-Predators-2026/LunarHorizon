@@ -36,6 +36,8 @@ test('vitestCounts reads the Tests and Test Files lines (with colours)', () => {
 
 test('oxlintCounts', () => {
   assert.deepEqual(oxlintCounts('Found 21 warnings and 0 errors.'), { warnings: 21, errors: 0 })
+  assert.deepEqual(oxlintCounts('{"diagnostics":[{"severity":"warning"},{"severity":"warning"}],"number_of_files":3}'), { warnings: 2, errors: 0, files: 3 })
+  assert.equal(oxlintCounts('{"diagnostics":[{"severity":"error"}]}').errors, 1)
   assert.equal(oxlintCounts('crashed'), null)
 })
 
