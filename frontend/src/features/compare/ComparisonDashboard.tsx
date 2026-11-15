@@ -16,7 +16,7 @@ import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
 import { resultKey, selectionKey, validateScenario } from './scenario'
-import { ExportButtons } from './ExportButtons'
+import { DecisionOverview } from './DecisionOverview'
 import { RescueStory } from './RescueStory'
 import { ScenarioManager } from './ScenarioManager'
 import { SummaryPanel } from './SummaryPanel'
@@ -232,6 +232,11 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
           ) : (
             <>
               <Section id="cmp-overview" title={`At a glance${sameSite && differentDates ? ': landing dates' : !differentDates && !sameSite ? ': landing sites' : ''}`}>
+                {/* Decision first: the supported recommendation (or why there is none), the decisive requirement, the next action. */}
+                <div className="mb-6" data-tour="compare-decision">
+                  <DecisionOverview entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
+                    rankingCurrent={rankingCurrent} notes={notes} />
+                </div>
                 <AtAGlance entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
                   ready={rankingCurrent} onJump={jumpTo} />
                 <RescueStory entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
@@ -242,10 +247,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                 {anyData ? <MetricsTable entries={entries} /> : <Empty>No scientific data for the selected scenarios yet.</Empty>}
               </Section>
 
-              <Section id="cmp-summary" title="Decision and trade-offs" actions={
-                <ExportButtons entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
-                  notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} />
-              }>
+              <Section id="cmp-summary" title="Decision and trade-offs">
                 <SummaryPanel entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
               </Section>
 
