@@ -18,13 +18,13 @@
   margin-top: 32px;
   border: 1px solid var(--color-line);
   border-radius: 16px;
-  background: linear-gradient(135deg, #ffffff 0%, #ffffff 55%, #fff4f1 100%);
+  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface) 55%, var(--cmp-rose-surface) 100%);
   padding: 20px 24px;
 }
 .cmp-page .cmp-method-chip {
   border: 1px solid var(--color-line);
   border-radius: 9999px;
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 3px 10px;
   font-size: 12px;
   color: var(--color-ink-2);
@@ -34,7 +34,7 @@
 .cmp-page .cmp-method-hero {
   border: 1px solid var(--color-line);
   border-radius: 20px;
-  background: linear-gradient(160deg, #ffffff 0%, #ffffff 60%, #fff4f1 100%);
+  background: linear-gradient(160deg, var(--color-surface) 0%, var(--color-surface) 60%, var(--cmp-rose-surface) 100%);
   padding: 28px;
 }
 .cmp-page .cmp-method-stat {
@@ -45,17 +45,17 @@
 .cmp-page .cmp-method-part {
   border: 1px solid var(--color-line);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 24px;
 }
 .cmp-page .cmp-method-card,
 .cmp-page .cmp-method-figure {
   border: 1px solid var(--color-line);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 16px;
 }
-.cmp-page .cmp-method-part .cmp-method-figure { background: #fcfcfd; }
+.cmp-page .cmp-method-part .cmp-method-figure { background: var(--cmp-figure-surface); }
 .cmp-page .cmp-method-link {
   color: var(--color-accent-strong);
   text-decoration: underline;
@@ -70,7 +70,7 @@
   z-index: 20;
   margin: 0 -4px 16px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
   backdrop-filter: blur(8px);
   padding: 6px;
   box-shadow: 0 0 0 1px var(--color-line);
@@ -89,7 +89,7 @@
   font-size: 13px;
   color: var(--color-ink-3);
 }
-.cmp-page .cmp-method-toc a:hover { background: rgba(60, 64, 68, 0.06); color: var(--color-ink); }
+.cmp-page .cmp-method-toc a:hover { background: color-mix(in srgb, var(--color-ink) 6%, transparent); color: var(--color-ink); }
 .cmp-page .cmp-method-toc a[aria-current] { background: rgba(217, 71, 47, 0.1); color: var(--color-accent-strong); font-weight: 500; }
 @media (min-width: 1024px) {
   .cmp-page .cmp-method-toc {
@@ -131,13 +131,13 @@
   gap: 10px;
   border: 1px solid var(--color-line);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--color-surface);
   padding: 10px 12px;
   text-align: left;
   transition: border-color var(--md-dur-short4) var(--md-ease-standard), background-color var(--md-dur-short4) var(--md-ease-standard);
 }
-.cmp-page .cmp-method-step:hover { background: rgba(60, 64, 68, 0.04); }
-.cmp-page .cmp-method-step[aria-selected='true'] { border-color: var(--color-accent); background: #fff4f1; }
+.cmp-page .cmp-method-step:hover { background: color-mix(in srgb, var(--color-ink) 4%, transparent); }
+.cmp-page .cmp-method-step[aria-selected='true'] { border-color: var(--color-accent); background: var(--cmp-rose-surface); }
 .cmp-page .cmp-method-step-n {
   display: grid;
   height: 22px;
@@ -149,7 +149,7 @@
   font-weight: 500;
   color: var(--color-ink-2);
 }
-.cmp-page .cmp-method-step[aria-selected='true'] .cmp-method-step-n { background: var(--color-accent); color: #ffffff; }
+.cmp-page .cmp-method-step[aria-selected='true'] .cmp-method-step-n { background: var(--cmp-primary); color: #ffffff; }
 
 /* Option buttons used as radios (metric group, requirement) */
 .cmp-page .cmp-method-figure [role='radio'][aria-checked='true'] {

@@ -1,6 +1,16 @@
-export { TUTORIAL_STEPS, type TutorialActionKey, type TutorialPlacement, type TutorialStep } from './steps'
+export {
+  TOUR_ACTS,
+  TUTORIAL_STEPS,
+  actStart,
+  type TourAct,
+  type TourView,
+  type TutorialActionKey,
+  type TutorialPlacement,
+  type TutorialStep,
+} from './steps'
 export { TutorialOfferChip } from './TutorialOfferChip'
 export { TutorialSpotlight, TutorialSpotlightView } from './TutorialSpotlight'
+export { installTourBridge } from './storyBridge'
 export { computeCoachmarkPosition, handleTutorialKeyDown, type RectBox } from './utils'
 export {
   TUTORIAL_STORAGE_KEY,
