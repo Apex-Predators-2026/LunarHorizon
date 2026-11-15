@@ -7,6 +7,7 @@ import { routeHash } from '../../appRoute'
 import { GlassSurface } from '../../ui/GlassSurface'
 
 import { axisOffsets, axisOrigin, fullDomain, type Entry } from './analysis'
+import { AtAGlance } from './AtAGlance'
 import { ConditionsPanel } from './ConditionsPanel'
 import { ElevationCharts } from './ElevationCharts'
 import { HorizonCompare } from './HorizonCompare'
@@ -26,10 +27,11 @@ import { Empty, Explain, Icon, Section } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { useView } from './useTimeAxis'
 
+// Reading order: choose plans -> the answer -> the evidence -> when it happens -> ranking -> deeper analysis.
 const NAV = [
-  ['cmp-scenarios', 'Scenarios'], ['cmp-overview', 'Overview'], ['cmp-metrics', 'Metrics'], ['cmp-timeline', 'Timeline'],
-  ['cmp-charts', 'Elevation'], ['cmp-terrain', 'Terrain'], ['cmp-performance', 'Performance'], ['cmp-tradeoff', 'Trade-off'],
-  ['cmp-summary', 'Summary'],
+  ['cmp-scenarios', 'Scenarios'], ['cmp-overview', 'At a glance'], ['cmp-metrics', 'Key metrics'], ['cmp-summary', 'Decision'],
+  ['cmp-timeline', 'Timeline'], ['cmp-performance', 'Ranking'], ['cmp-charts', 'Elevation'], ['cmp-terrain', 'Terrain'],
+  ['cmp-tradeoff', 'Trade-off'],
 ] as const
 
 /** An M3 switch row, the same markup as the planner's layer switches (md-row + md-switch). */
@@ -218,13 +220,22 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
             <Empty>Select at least two scenarios above to start comparing.</Empty>
           ) : (
             <>
-              <Section id="cmp-overview" title={sameSite && differentDates ? 'Landing date comparison' : !differentDates && !sameSite ? 'Landing location comparison' : 'Scenario overview'}>
+              <Section id="cmp-overview" title={`At a glance${sameSite && differentDates ? ': landing dates' : !differentDates && !sameSite ? ': landing sites' : ''}`}>
+                <AtAGlance entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
+                  ready={rankingCurrent} onJump={jumpTo} />
                 <RescueStory entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
                 <OverviewCards entries={entries} />
               </Section>
 
-              <Section id="cmp-metrics" title="Scientific metrics">
+              <Section id="cmp-metrics" title="Key metrics and requirements">
                 {anyData ? <MetricsTable entries={entries} /> : <Empty>No scientific data for the selected scenarios yet.</Empty>}
+              </Section>
+
+              <Section id="cmp-summary" title="Decision and trade-offs" actions={
+                <ExportButtons entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
+                  notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} />
+              }>
+                <SummaryPanel entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
               </Section>
 
               <Section id="cmp-timeline" title="Solar availability and Earth communication timeline">
@@ -242,6 +253,18 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                 ) : <Empty>Timelines appear once scenarios have data.</Empty>}
               </Section>
 
+              <Section id="cmp-performance" title="Ranking, availability and outages">
+                <AvailabilityCharts entries={entries} />
+                <div className="mt-6 border-t border-line pt-6">
+                  <MissionPerformance entries={entries} groups={rankingCurrent ? rankingGroups : []} ranking={!rankingCurrent && entries.some((e) => e.result) ? 'updating' : 'ready'} />
+                </div>
+              </Section>
+
+              <div className="flex items-center gap-3 pt-4">
+                <h2 className="text-sm font-medium uppercase tracking-wide text-ink-3">Detailed analysis</h2>
+                <span className="h-px flex-1 bg-line" aria-hidden="true" />
+              </div>
+
               <Section id="cmp-charts" title="Solar and Earth elevation over time">
                 {anyData ? <ElevationCharts entries={entries} view={view} align={align} originMs={originMs} /> : <Empty>No data to chart.</Empty>}
               </Section>
@@ -250,22 +273,8 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                 <HorizonCompare entries={entries} />
               </Section>
 
-              <Section id="cmp-performance" title="Availability, outages and ranking">
-                <AvailabilityCharts entries={entries} />
-                <div className="mt-6 border-t border-line pt-6">
-                  <MissionPerformance entries={entries} groups={rankingCurrent ? rankingGroups : []} ranking={!rankingCurrent && entries.some((e) => e.result) ? 'updating' : 'ready'} />
-                </div>
-              </Section>
-
               <Section id="cmp-tradeoff" title="Trade-off analysis">
                 <TradeoffPanel entries={entries} />
-              </Section>
-
-              <Section id="cmp-summary" title="Comparison summary" actions={
-                <ExportButtons entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
-                  notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} />
-              }>
-                <SummaryPanel entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
               </Section>
 
               {notes.length > 0 && (
