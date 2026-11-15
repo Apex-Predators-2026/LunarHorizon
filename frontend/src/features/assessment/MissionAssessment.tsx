@@ -293,7 +293,7 @@ export function EvidenceBanner() {
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         <button type="button" onClick={() => returnFromEvidence(h)} className="rounded-full border border-white/40 px-3 py-1 text-white hover:bg-white/10">
-          {h.origin?.kind === 'comparison' ? 'Back to comparison' : h.origin?.kind === 'guide' ? 'Exit evidence view' : 'Back to assessment'}
+          {h.origin?.kind === 'comparison' ? 'Back to comparison' : h.origin?.kind === 'guide' ? 'Exit evidence view' : h.origin?.returnTo ? `Back to ${h.origin.label}` : 'Back to assessment'}
         </button>
         {other && (
           <button type="button" onClick={() => showEvidence({ ...h, body: other })} className="rounded-full border border-white/40 px-3 py-1 text-white hover:bg-white/10">
