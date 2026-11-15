@@ -152,8 +152,8 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
   {
     id: 'export', title: 'Export the comparison',
     keywords: /\b(export|download|csv|json|save)\b/i,
-    steps: ['In **Decision**, click **Export JSON** or **Export CSV** (available once every selected scenario is assessed and ranked).'],
-    go: ['cmp-summary'],
+    steps: ['In **At a glance**, under the decision summary, click **Export JSON** or **Export CSV** (available once every selected scenario is assessed and ranked).'],
+    go: ['cmp-overview'],
   },
   {
     id: 'view3d', title: 'See the terrain in 3D',
@@ -167,7 +167,7 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
   {
     id: 'tour', title: 'Restart the tutorial',
     keywords: /\b(tutorial|tour|walkthrough|guide|how does this page work|how to use)\b/i,
-    steps: ['Click **How to compare missions** at the top of the page: the five-step guided tour starts again.'],
+    steps: ['Click **How to compare missions** at the top of the page: the short guided tour starts again from the first step.'],
     go: ['tour'],
   },
   {

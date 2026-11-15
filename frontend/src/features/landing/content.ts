@@ -4,7 +4,7 @@
 export const REPO_URL = 'https://github.com/Apex-Predators-2026/Nasa-Space-Apps-Challenge'
 
 /** The hero headline, one entry per line: each line rises from behind its own mask on load. */
-const HEADLINE_LINES = ['Land in sunlight,', 'in sight of Earth']
+const HEADLINE_LINES = ['Finding the Right Place.', 'At the Right Time.']
 
 export const HERO = {
   headlineLines: HEADLINE_LINES,

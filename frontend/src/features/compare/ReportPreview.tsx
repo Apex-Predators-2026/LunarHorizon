@@ -370,14 +370,14 @@ export function LastReportButton({ className = 'cmp-btn' }: { className?: string
   )
 }
 
-/** The decision area's "Generate Summary Report" action. */
+/** The decision area's "Generate Mission Report" action (the page header has the same action). */
 export function ReportButton({ className = 'cmp-btn-primary' }: { className?: string }) {
   const blocker = useCompareStore((s) => cannotGenerate(s))
   const generate = useReportStore((s) => s.generate)
   return (
-    <button type="button" className={className} disabled={!!blocker} title={blocker ?? 'Freeze this evaluated selection into a printable decision report'}
+    <button type="button" className={className} disabled={!!blocker} title={blocker ?? 'Freeze this evaluated selection into a Mission Report you can preview and download'}
       onClick={() => generate()} data-testid="generate-report">
-      Generate Summary Report
+      Generate Mission Report
     </button>
   )
 }
