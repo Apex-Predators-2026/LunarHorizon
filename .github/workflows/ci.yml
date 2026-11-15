@@ -43,6 +43,7 @@ jobs:
       # npm ci installs exactly the lockfile and fails if it does not match package.json (never rewrites it).
       # After changing dependencies, regenerate it with `npm install` under Node 24 and commit both files.
       - run: npm ci
+      - run: node --test "../scripts/*.test.mjs" # the release gate's decision logic (skipped or missing evidence never passes)
       - run: npx oxlint
       - run: npx vitest run
       - run: npm run build # tsc -b + vite build
