@@ -29,6 +29,7 @@ from app.rescue.loosen import fixable_by_relaxing, requirement_changes
 from app.rescue.timeline import SyntheticTimelineProvider, Timeline
 from app.rescue.viability import CHECKS
 from app.rescue.viability.placeholder import evaluate_timeline as placeholder_evaluate
+from app.timegrid import snap_duration_days
 from app.viability.adapters.site_file import normalize_longitude_deg
 from app.viability.compat.rescue import (
     CONSTRAINT_TO_RESCUE,
@@ -461,7 +462,11 @@ def test_missions_shorter_than_two_samples_evaluate(hours: float) -> None:
     result, assessment = evaluate_timeline_detailed(sc, tl)
     assert assessment.data_quality.uncovered_duration_s == pytest.approx(max(0.0, hours - 1.0) * H)
     assert assessment.evaluated_duration_s == pytest.approx(hours * H)
-    assert result == Evaluator(provider=provider, evaluate=make_evaluate_fn(), simulation=True).evaluate(sc)
+    # The Evaluator runs on the hourly data grid (app.timegrid): lengths are whole hours, so 0.48 h and 1.44 h are
+    # evaluated as 1 h. Compare it with the direct path on that same snapped mission.
+    snapped = sc.model_copy(update={"duration_days": snap_duration_days(sc.duration_days)})
+    expected, _ = evaluate_timeline_detailed(snapped, rescue_slice(provider, snapped))
+    assert expected == Evaluator(provider=provider, evaluate=make_evaluate_fn(), simulation=True).evaluate(sc)
 
 
 def test_single_sample_without_a_bin_is_still_rejected() -> None:
