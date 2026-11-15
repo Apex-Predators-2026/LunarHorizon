@@ -1,6 +1,7 @@
-// Headline conditions for the "At a glance" panel: engine metrics, the requirement each is checked against, and a
-// meaningful-difference rule for the "best" mark. Pure functions; no React.
+// Headline conditions for the "At a glance" panel: engine metrics, the requirement each is checked against, and the
+// shared comparison-pool rules (pool.ts) for the "best" mark. Pure functions; no React.
 import { cm, measuredText, type Entry } from './analysis'
+import { comparisonPool, contenderOf, pickBest, type BestOutcome } from './pool'
 
 export interface Headline {
   key: string
@@ -19,9 +20,6 @@ export const HEADLINES: Headline[] = [
   { key: 'longest_blackout_h', label: 'Longest communication blackout', better: 'lower', constraint: 'max_communication_blackout', scale: 1, unit: 'h' },
 ]
 
-const meaningful = (h: Headline, a: number, b: number) =>
-  Math.abs(a - b) >= (h.unit === '%' ? 1 : Math.max(2, 0.1 * Math.max(Math.abs(a), Math.abs(b))))
-
 export interface HeadlineRow {
   entry: Entry
   value: number | null // exact display value, null when bounded / unavailable / not assessed
@@ -30,22 +28,19 @@ export interface HeadlineRow {
   best: boolean
 }
 
-/** Per headline metric: each scenario's exact value (or why there is none) and which one is meaningfully best. */
+/** One headline's fair "best" outcome (pool.ts rules: one data kind, every member counts, bounds can block). */
+export function headlineBest(h: Headline, entries: Entry[]): BestOutcome {
+  return pickBest(comparisonPool(entries), (e) => contenderOf(cm(e.result, h.key), h.scale), h.better, h.unit)
+}
+
+/** Per headline metric: each scenario's exact value (or why there is none) and which one is fairly best. */
 export function headlineRows(h: Headline, entries: Entry[]): HeadlineRow[] {
-  const rows = entries.map((e) => {
+  const best = headlineBest(h, entries).ids
+  return entries.map((e) => {
     const m = cm(e.result, h.key)
     const value = m && m.status === 'known' && m.value !== null ? m.value * h.scale : null
     const status = e.result?.assessment?.constraints.find((c) => c.id === h.constraint)?.status ?? null
-    return { entry: e, value, text: m ? measuredText(m) : e.result ? 'unavailable' : 'not assessed', status, best: false }
+    return { entry: e, value, text: m ? measuredText(m) : e.result ? 'unavailable' : 'not assessed', status, best: best.has(e.scenario.id) }
   })
-  const real = rows.filter((r) => r.value !== null && r.entry.result?.data_kind === 'real')
-  const pool = real.length >= 2 ? real : rows.filter((r) => r.value !== null)
-  if (pool.length >= 2) {
-    const sorted = [...pool].sort((a, b) => (h.better === 'higher' ? b.value! - a.value! : a.value! - b.value!))
-    const top = sorted.filter((r) => r.value === sorted[0].value)
-    const next = sorted.find((r) => r.value !== sorted[0].value)
-    if (next && meaningful(h, sorted[0].value!, next.value!)) top.forEach((r) => (r.best = true))
-  }
-  return rows
 }
 
