@@ -39,7 +39,7 @@ Judges score every project across **five equally weighted pillars**. Below is th
   * **Physics & Terrain Rigor:** Account for lunar curvature ($\text{angle} = \arctan((h_{\text{terrain}} - h_{\text{observer}} - d^2 / 2R) / d)$ where $R = 1737.4\text{ km}$), multi-resolution Moon Trek LOLA DEMs (5 m out to 5 km, 30 m out to 45 km, 200 m out to 300 km), and 720-azimuth horizon masks ($0.5^\circ$ resolution).
   * **Explicit Scientific Validation & Uncertainty UI:** Include a visible **Validation & Methodology** view/panel showing:
     * Cross-checks against JPL Horizons raw ephemerides and LROC `WAC_POLE_ILL_TWI_SOUTH` empirical illumination maps.
-    * Alignment with published literature (e.g., Gracy & Lee, LPSC 2024 illumination thresholds for Connecting Ridge and Peak Near Shackleton, plus summit correction at Malapert Massif).
+    * Alignment with published literature (e.g., Gracy & Lee, LPSC 2024 illumination thresholds for Connecting Ridge and Peak Near Shackleton, plus summit correction at Malapert Massif). **As implemented: Gracy & Lee is the coordinate source for those two sites; the model is not compared against the paper's thresholds. See `docs/submission.md`.**
     * Transparent documentation of model approximations and uncertainty bounds (no atmosphere, straight-map sightlines, Earth center vs. disk margin).
   * **Zero-Crash Reliability:** Precomputed JSON/Parquet datasets for curated Artemis III sites ensure instant, offline-safe responsiveness during judging demos while supporting live `/api/sites/custom` queries ($80^\circ\text{S}$ to $90^\circ\text{S}$).
 
@@ -91,7 +91,7 @@ Before clicking **Submit for Judging** on Sunday, November 15 at 11:59 p.m., ver
   * NASA JPL Horizons System (`CENTER='coord@301'`)
   * NASA Moon Trek / Lunar Reconnaissance Orbiter LOLA DEMs & PSR layers
   * NASA LROC Quickmap (`WAC_POLE_ILL_TWI_SOUTH`)
-  * Published validation reference: Gracy & Lee (LPSC 2024)
+  * Gracy & Lee (LPSC 2024), cited as the source of the Connecting Ridge and Peak Near Shackleton coordinates (not as a validation result)
 
 ### Demo Format Rules (Choose Slide Deck OR Video)
 Judges review **either** a slide deck **or** a video demo (verify exact upload slots on the 2026 submission form):

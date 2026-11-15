@@ -49,6 +49,12 @@ const check = (name, ok, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`)
 }
 
+const USER_PLAN = {
+  id: 'user-plan-e2e', name: 'My own plan',
+  scenario: { site: { id: 'malapert-massif', name: 'Malapert Massif', lat: -85.9635, lon: 357.6326 }, landing_utc: '2027-02-01T00:00:00Z', duration_days: 5,
+    requirements: { min_sunlight_fraction: 0.5, battery_hours: 50, panel_threshold: 0.25, min_earth_visibility_fraction: 0.4, max_comms_gap_hours: 96, min_initial_sun_hours: 24, min_initial_comms_hours: 12 } },
+}
+
 async function run(viewport) {
   const browser = await chromium.launch({ executablePath: chrome, args: ['--use-angle=d3d11', '--ignore-gpu-blocklist'] })
   const page = await (await browser.newContext({ viewport, acceptDownloads: true })).newPage()
@@ -57,7 +63,10 @@ async function run(viewport) {
   const pageErrors = []
   page.on('response', (r) => r.url().includes('/api/') && r.status() >= 500 && apiFailures.push(`${r.status()} ${r.url()}`))
   page.on('pageerror', (e) => pageErrors.push(String(e)))
-  // A fresh browser profile: no saved plans. Start from the landing page, as a visitor would.
+  // A fresh browser profile with ONE plan the user made earlier (saved before the page loads): the guided mission must
+  // never duplicate, replace or delete it, however often it is restarted or left.
+  await page.addInitScript((plan) => { if (!localStorage.getItem('lunar-plans')) localStorage.setItem('lunar-plans', JSON.stringify({ state: { plans: [plan], activeId: null, compareIds: [] }, version: 0 })) }, USER_PLAN)
+  // Start from the landing page, as a visitor would.
   await page.goto(`${URL_APP}/`, { waitUntil: 'domcontentloaded' })
   await page.getByTestId('landing-try-mission').click()
 
@@ -120,8 +129,12 @@ async function run(viewport) {
   const snapId = await preview.getAttribute('data-snapshot')
   check(`${tag} 8 summary report opens for the evaluated selection`, s.status === 'ready' && /^rpt-/.test(snapId ?? ''), snapId)
   const docText = await preview.innerText()
+  // The Mission Report: a six-page card (executive summary, overview, performance, analysis, requirements, strengths,
+  // recommendation, sources, disclaimer) from the frozen snapshot, with the technical record as an appendix.
+  const reportPages = await preview.locator('.rc-page').count()
+  const sectionNames = ['Executive summary', 'Mission overview', 'Mission performance', 'Comparison analysis', 'Mission requirements assessment', 'Strengths and weaknesses', 'Final assessment and recommendation', 'Data sources and methodology']
   check(`${tag} 8 report first page: decision, plans, requirements, uncertainty, attribution`,
-    ['Mission decision summary', 'Recommended', 'Plans evaluated', 'Declared requirements', 'Main uncertainty', 'NASA JPL Horizons'].every((t) => docText.includes(t)))
+    reportPages === 6 && ['Lunar Mission Comparison Report', 'Peak Near Shackleton', 'Malapert Massif', 'PASS', 'FAIL', 'NASA JPL Horizons', ...sectionNames].every((t) => docText.includes(t)), `${reportPages} pages`)
   await shot('8-report')
   // The JSON download is the same snapshot.
   const dl = page.waitForEvent('download')
@@ -137,12 +150,22 @@ async function run(viewport) {
   check(`${tag} 8 JSON records dataset hashes, revisions and the mission definition`,
     snap.export.reproduction.datasets.every((d) => /^[0-9a-f]{64}$/.test(d.sha256 ?? '')) && snap.export.scenarios.every((x) => x.revision)
     && snap.mission.mission_id === 'pns-oct-2027-launch-delay')
-  // Browser-native print output (the same print stylesheet as Print / Save as PDF).
+  // One-click PDF (the report, laid out in the browser): a real PDF file. Its pages flow with the content (the guided
+  // mission gives 7 against the preview's 6 sections-pages), so the check is a valid PDF of at least the six report pages.
+  const pdfDownload = page.waitForEvent('download', { timeout: 120_000 })
+  await preview.getByTestId('download-report-pdf').click()
+  const pdfDl = await pdfDownload
+  const pdfFile = join(OUT, `${tag}-report-download.pdf`)
+  await pdfDl.saveAs(pdfFile)
+  const pdfBytes = readFileSync(pdfFile)
+  const pdfPages = (pdfBytes.toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g) ?? []).length
+  check(`${tag} 8 Download PDF produces the report PDF`, /\.pdf$/i.test(pdfDl.suggestedFilename()) && pdfBytes.subarray(0, 5).toString('latin1') === '%PDF-' && pdfBytes.length > 20_000 && pdfBytes.subarray(-1024).toString('latin1').includes('%%EOF') && pdfPages >= 6 && pdfPages <= 9, `${pdfDl.suggestedFilename()}, ${pdfBytes.length} bytes, ${pdfPages} pages`)
+  // Browser-native print output (the same print stylesheet as Print / Save as PDF): the report and its technical appendix.
   await page.emulateMedia({ media: 'print' })
   for (const format of ['A4', 'Letter']) {
     const pdf = await page.pdf({ path: join(OUT, `${tag}-report-${format}.pdf`), format, printBackground: true })
     const pages = (pdf.toString('latin1').match(/\/Type \/Page[^s]/g) ?? []).length
-    check(`${tag} 8 ${format} PDF renders only the report`, pages >= 4 && pages <= 10, `${pages} pages`)
+    check(`${tag} 8 ${format} PDF renders only the report`, pages >= 10 && pages <= 16, `${pages} pages (6 report pages + the technical appendix)`)
   }
   await page.emulateMedia({ media: 'screen' })
   await page.keyboard.press('Escape')
@@ -151,6 +174,9 @@ async function run(viewport) {
   check(`${tag} finish leaves the story`, (await card.count()) === 0)
 
   // A live edit after generation: the report keeps its snapshot, says it is out of date, and regenerates on request.
+  // The scenario checkboxes live in the "Manage scenarios" disclosure, collapsed once two scenarios are compared.
+  const manage = page.locator('#cmp-scenarios').getByRole('button', { name: /Manage scenarios/ })
+  if ((await manage.getAttribute('aria-expanded')) !== 'true') await manage.click()
   await page.locator('#cmp-scenarios').getByRole('checkbox', { checked: true }).first().uncheck()
   await page.getByTestId('reopen-report').first().click() // the page header and the decision area both offer it
   await page.getByTestId('report-stale').waitFor({ timeout: 10_000 })
@@ -175,6 +201,8 @@ async function run(viewport) {
   const guidedPlans = await page.evaluate(() =>
     (JSON.parse(localStorage.getItem('lunar-plans') ?? '{}').state?.plans ?? []).filter((p) => p.name.startsWith('Try a mission')).length)
   check(`${tag} repeated restarts do not duplicate the saved plan`, guidedPlans === 1, `${guidedPlans} plan card(s)`)
+  const kept = await page.evaluate(() => (JSON.parse(localStorage.getItem('lunar-plans') ?? '{}').state?.plans ?? []).filter((p) => p.id === 'user-plan-e2e'))
+  check(`${tag} the user's own plan survives the restarts and leaving the guide unchanged`, kept.length === 1 && kept[0].name === 'My own plan' && kept[0].scenario.duration_days === 5 && kept[0].scenario.landing_utc === '2027-02-01T00:00:00Z', JSON.stringify(kept.map((p) => p.name)))
 
   // Atlas: a map cell goes to the Planner as the mission that map evaluated, even after the search form is edited
   // without re-mapping, by Enter and by the button (the same path).
