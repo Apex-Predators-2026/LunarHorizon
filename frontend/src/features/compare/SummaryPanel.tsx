@@ -55,7 +55,7 @@ function GroupCard({ d, showGroup }: { d: GroupDecision; showGroup: boolean }) {
   const badgeLabel = (recLimited ? LIMITED_KIND_LABEL[d.kind] : undefined) ?? k.label
   return (
     <article aria-label={`Decision${showGroup ? ` for group ${d.group.id}` : ''}`} className="space-y-3 rounded-xl border border-line bg-surface p-4">
-      <header data-tour="compare-decision" className="flex flex-wrap items-center gap-2">
+      <header data-tour="compare-tradeoffs" className="flex flex-wrap items-center gap-2">
         <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
           <Icon name={badgeIcon} size={14} /> {badgeLabel}
         </span>
