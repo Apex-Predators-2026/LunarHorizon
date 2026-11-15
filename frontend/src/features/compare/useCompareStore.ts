@@ -1,6 +1,7 @@
 // Zustand store for the comparison workspace (Member 4).
 //
-// - Scenarios, selection, weights and view settings persist in sessionStorage for the current
+// - Saved plans live in usePlansStore. Comparison labels, selection, weights and view settings
+//   persist in sessionStorage for the current
 //   browser session. Results are cached in memory by resultKey() and refetched only when a
 //   scenario's inputs change.
 // - Other modules push scenarios in with `sendToComparison()` (e.g. Mission Rescue alternatives).
@@ -12,12 +13,14 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import rescueDemo from '../../../../backend/app/rescue/demo_scenario.json'
 import { useAppStore } from '../../store'
 import type { MissionRequirements, Scenario } from '../../types'
+import { usePlansStore, type Plan } from '../plans/usePlansStore'
 import { WEIGHT_PRESETS, axisOrigin, type Align, type Weights } from './analysis'
 import { errorMessage, fetchSites, postCompare } from './api'
 import { MAX_COMPARED } from './palette'
 import type { RescueContext } from './rescueFlow'
 import {
   FALLBACK_SITES,
+  DEFAULT_SPACECRAFT,
   duplicateShifted,
   fromTeamScenario,
   makeScenario,
@@ -36,7 +39,7 @@ export type QuickComparison = 'locations' | 'dates' | 'durations' | 'battery' | 
 export interface CompareState {
   scenarios: ComparisonScenario[]
   selectedIds: string[] // scenarios in the comparison, max MAX_COMPARED, in display order
-  activeId: string | null // scenario being edited / followed by the 3D view
+  activeId: string | null // plan followed by the 3D view
   baselineId: string | null // deltas are shown against this one
   allowDemo: boolean
   educational: boolean
@@ -70,7 +73,7 @@ export interface CompareState {
   updateRequirements: (id: string, patch: Partial<MissionRequirements>) => void
   updateSpacecraft: (id: string, patch: Partial<SpacecraftConfig>) => void
   removeScenario: (id: string) => void
-  duplicateScenario: (id: string, shiftDays?: number) => string | null
+  duplicateScenario: (id: string, shiftDays?: number, options?: { select?: boolean }) => string | null
   toggleSelected: (id: string) => void
   setSelected: (ids: string[]) => void
   setActive: (id: string | null) => void
@@ -129,12 +132,41 @@ function assignSlots(scenarios: ComparisonScenario[], selected: string[]): Compa
   })
 }
 
-function initialScenarios(): { scenarios: ComparisonScenario[]; selectedIds: string[] } {
-  const scenarios: ComparisonScenario[] = []
-  FALLBACK_SITES.forEach((site, i) => {
-    scenarios.push(makeScenario({ site, landing_utc: DEFAULT_DATE, colorSlot: i }, scenarios.map((s) => s.label), 'preset'))
-  })
-  return { scenarios, selectedIds: scenarios.map((s) => s.id) }
+function savedPlan(s: ComparisonScenario): Plan {
+  return { id: s.id, name: s.name, scenario: toTeamScenario(s), spacecraft: s.spacecraft, notes: s.notes, origin: s.origin }
+}
+
+function comparisonPlan(plan: Plan, scenarios: ComparisonScenario[]): ComparisonScenario {
+  const current = scenarios.find((s) => s.id === plan.id)
+  const metadata = current ?? fromTeamScenario(plan.scenario, scenarios.map((s) => s.label), plan.origin ?? 'user')
+  return {
+    ...metadata,
+    ...plan.scenario,
+    id: plan.id,
+    name: plan.name,
+    landing_utc: new Date(plan.scenario.landing_utc).toISOString(),
+    spacecraft: plan.spacecraft ?? DEFAULT_SPACECRAFT,
+    notes: plan.notes,
+  }
+}
+
+function reconcilePlans(state: CompareState, plans: Plan[], previous?: Plan[]) {
+  const removed = new Set((previous ?? state.scenarios).filter((p) => !plans.some((plan) => plan.id === p.id)).map((p) => p.id))
+  let scenarios = removed.size ? state.scenarios.filter((s) => !removed.has(s.id)) : state.scenarios
+  for (const plan of plans) {
+    if (previous?.includes(plan)) continue
+    const scenario = comparisonPlan(plan, scenarios)
+    scenarios = scenarios.some((s) => s.id === plan.id)
+      ? scenarios.map((s) => s.id === plan.id ? scenario : s)
+      : [...scenarios, scenario]
+  }
+  const hasPlan = (id: string | null) => scenarios.some((s) => s.id === id)
+  return {
+    scenarios,
+    selectedIds: state.selectedIds.filter(hasPlan),
+    activeId: hasPlan(state.activeId) ? state.activeId : null,
+    baselineId: hasPlan(state.baselineId) ? state.baselineId : null,
+  }
 }
 
 let inflight: AbortController | null = null
@@ -142,7 +174,8 @@ let inflight: AbortController | null = null
 export const useCompareStore = create<CompareState>()(
   persist(
     (set, get) => ({
-      ...initialScenarios(),
+      scenarios: [],
+      selectedIds: [],
       activeId: null,
       baselineId: null,
       allowDemo: false,
@@ -179,17 +212,29 @@ export const useCompareStore = create<CompareState>()(
           selectedIds: select ? [...selectedIds, sc.id] : selectedIds,
           activeId: sc.id,
         })
+        usePlansStore.getState().addPlans([savedPlan(sc)])
         return sc.id
       },
 
-      updateScenario: (id, patch) =>
-        set({ scenarios: get().scenarios.map((s) => (s.id === id ? { ...s, ...patch, id: s.id, label: s.label } : s)) }),
-      updateRequirements: (id, patch) =>
-        set({ scenarios: get().scenarios.map((s) => (s.id === id ? { ...s, requirements: { ...s.requirements, ...patch } } : s)) }),
-      updateSpacecraft: (id, patch) =>
-        set({ scenarios: get().scenarios.map((s) => (s.id === id ? { ...s, spacecraft: { ...s.spacecraft, ...patch } } : s)) }),
+      updateScenario: (id, patch) => {
+        const current = get().scenarios.find((s) => s.id === id)
+        if (!current) return
+        const next = { ...current, ...patch, id, label: current.label }
+        const plan = savedPlan(next)
+        usePlansStore.getState().update(id, plan.name, plan.scenario, { spacecraft: plan.spacecraft, notes: plan.notes })
+        set({ scenarios: get().scenarios.map((s) => s.id === id ? next : s) })
+      },
+      updateRequirements: (id, patch) => {
+        const current = get().scenarios.find((s) => s.id === id)
+        if (current) get().updateScenario(id, { requirements: { ...current.requirements, ...patch } })
+      },
+      updateSpacecraft: (id, patch) => {
+        const current = get().scenarios.find((s) => s.id === id)
+        if (current) get().updateScenario(id, { spacecraft: { ...current.spacecraft, ...patch } })
+      },
 
       removeScenario: (id) => {
+        usePlansStore.getState().remove(id)
         const { scenarios, selectedIds, activeId, baselineId } = get()
         set({
           scenarios: scenarios.filter((s) => s.id !== id),
@@ -199,14 +244,19 @@ export const useCompareStore = create<CompareState>()(
         })
       },
 
-      duplicateScenario: (id, shiftDays = 0) => {
+      duplicateScenario: (id, shiftDays = 0, { select: shouldSelect = true } = {}) => {
         const { scenarios, selectedIds } = get()
         const src = scenarios.find((s) => s.id === id)
         if (!src) return null
         const copy = duplicateShifted(src, shiftDays, scenarios.map((s) => s.label))
-        const select = selectedIds.length < MAX_COMPARED
+        const select = shouldSelect && selectedIds.length < MAX_COMPARED
         copy.colorSlot = freeSlot(scenarios, selectedIds, copy.id)
-        set({ scenarios: [...scenarios, copy], selectedIds: select ? [...selectedIds, copy.id] : selectedIds, activeId: copy.id })
+        set({
+          scenarios: [...scenarios, copy],
+          selectedIds: select ? [...selectedIds, copy.id] : selectedIds,
+          activeId: shouldSelect ? copy.id : get().activeId,
+        })
+        usePlansStore.getState().addPlans([savedPlan(copy)])
         return copy.id
       },
 
@@ -247,6 +297,7 @@ export const useCompareStore = create<CompareState>()(
         const all = [...scenarios, ...added]
         const ids = added.map((s) => s.id)
         set({ scenarios: all, view: null, cursor: null })
+        usePlansStore.getState().addPlans(added.map(savedPlan))
         const keep = opts.replaceSelection === false ? get().selectedIds : []
         get().setSelected([...keep, ...ids])
         if (opts.baselineIndex !== undefined && ids[opts.baselineIndex]) set({ baselineId: ids[opts.baselineIndex] })
@@ -393,8 +444,39 @@ export const useCompareStore = create<CompareState>()(
     }),
     {
       name: 'lunar-compare-workspace',
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => sessionStorage),
+      migrate: (persisted) => {
+        const workspace = persisted as Pick<CompareState, 'scenarios' | 'selectedIds' | 'activeId' | 'baselineId' | 'rescueContext'>
+        const store = usePlansStore.getState()
+        const ids = new Map<string, string>()
+        const migrated = new Map<string, ComparisonScenario>()
+        const additions: Plan[] = []
+        for (const scenario of workspace.scenarios ?? []) {
+          // Older Planner-to-Comparison transfers copied all of these fields without carrying the saved ID.
+          const match = store.plans.find((plan) => plan.id === scenario.id || (
+            plan.name === scenario.name &&
+            resultKey(comparisonPlan(plan, []), false) === resultKey(scenario, false)
+          ))
+          const id = match?.id ?? scenario.id
+          ids.set(scenario.id, id)
+          if (!migrated.has(id)) migrated.set(id, { ...scenario, id })
+          if (!match) additions.push(savedPlan(scenario))
+        }
+        store.addPlans(additions)
+        const remap = (id: string | null) => id ? ids.get(id) ?? id : null
+        return {
+          ...workspace,
+          scenarios: [...migrated.values()],
+          selectedIds: [...new Set((workspace.selectedIds ?? []).map((id) => ids.get(id) ?? id))],
+          activeId: remap(workspace.activeId),
+          baselineId: remap(workspace.baselineId),
+          rescueContext: workspace.rescueContext && {
+            ...workspace.rescueContext,
+            roles: Object.fromEntries(Object.entries(workspace.rescueContext.roles).map(([id, role]) => [ids.get(id) ?? id, role])),
+          },
+        }
+      },
       partialize: (s) => ({
         scenarios: s.scenarios, selectedIds: s.selectedIds, activeId: s.activeId, baselineId: s.baselineId,
         allowDemo: s.allowDemo, educational: s.educational, align: s.align, weights: s.weights, traverseKm: s.traverseKm,
@@ -403,6 +485,21 @@ export const useCompareStore = create<CompareState>()(
     },
   ),
 )
+
+useCompareStore.setState(reconcilePlans(useCompareStore.getState(), usePlansStore.getState().plans))
+usePlansStore.subscribe((state, previous) => {
+  if (state.plans !== previous.plans) {
+    useCompareStore.setState(reconcilePlans(useCompareStore.getState(), state.plans, previous.plans))
+  }
+})
+
+export function selectSavedPlans(ids: string[]) {
+  const comparison = useCompareStore.getState()
+  comparison.setSelected(ids)
+  comparison.setBaseline(useCompareStore.getState().selectedIds[0] ?? null)
+  comparison.setView(null)
+  comparison.setCursor(null)
+}
 
 /**
  * Integration point for other modules (e.g. Mission Rescue): put team Scenarios into the

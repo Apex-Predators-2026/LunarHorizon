@@ -2,11 +2,13 @@
 // the full scenario manager and the view options behind explicit disclosures. It sits above the three views, so
 // the selection is always visible and editable whichever view is open.
 import { SelectField } from '../../ui/MdFields'
+import { PlanActionButton } from '../plans/PlanCardLayout'
+import { editSavedPlan } from '../plans/usePlansStore'
 import { fmtUtc } from '../rescue/format'
-import { Disclosure, useReveal } from './disclosure'
+import { Disclosure } from './disclosure'
 import { MAX_COMPARED } from './palette'
 import { ScenarioManager } from './ScenarioManager'
-import { Icon, ScenarioChip, btnQuiet } from './ui'
+import { Icon, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
 
 /** An M3 switch row, the same markup as the planner's layer switches (md-row + md-switch). */
@@ -30,8 +32,7 @@ export function ScenarioStrip() {
   const align = useCompareStore((s) => s.align)
   const educational = useCompareStore((s) => s.educational)
   const allowDemo = useCompareStore((s) => s.allowDemo)
-  const { setActive, setAlign, setEducational, setAllowDemo } = useCompareStore.getState()
-  const reveal = useReveal((s) => s.reveal)
+  const { setAlign, setEducational, setAllowDemo } = useCompareStore.getState()
 
   const selected = selectedIds.map((id) => scenarios.find((s) => s.id === id)).filter((s): s is NonNullable<typeof s> => !!s)
 
@@ -63,13 +64,7 @@ export function ScenarioStrip() {
                     </span>
                   )}
                 </span>
-                <button type="button" className={btnQuiet} aria-label={`Edit plan ${s.label}`}
-                  onClick={() => {
-                    setActive(s.id)
-                    reveal('cmp-scenarios-manage')
-                  }}>
-                  Edit
-                </button>
+                <PlanActionButton action="edit" label={`Edit ${s.name}`} tip="Edit this plan" onClick={() => editSavedPlan(s.id)} />
               </li>
             ))}
           </ul>

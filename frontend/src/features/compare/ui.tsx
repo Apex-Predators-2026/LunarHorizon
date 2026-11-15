@@ -4,6 +4,7 @@ import { Component, type ReactNode } from 'react'
 
 import type { Provenance } from './analysis'
 import { seriesColor, seriesDash } from './palette'
+import { scenarioDisplayName } from './scenario'
 import type { ComparisonScenario, DataKind } from './types'
 import type { Eligibility } from '../../types'
 import { useCompareStore } from './useCompareStore'
@@ -172,6 +173,19 @@ export const btnQuiet = 'cmp-btn-quiet'
 export const input = 'cmp-input'
 
 /** Tooltip box used by every chart. */
+export function ScenarioLegend({ scenarios, className = '' }: { scenarios: ComparisonScenario[]; className?: string }) {
+  return (
+    <ul className={`flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-ink-2 ${className}`} aria-label="Plan legend">
+      {scenarios.map((s) => (
+        <li key={s.id} className="flex min-w-0 items-start gap-1.5">
+          <ScenarioChip s={s} size="sm" />
+          <span className="min-w-0 break-words">{scenarioDisplayName(s)}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function TooltipBox({ title, rows }: { title: string; rows: { s: ComparisonScenario; text: string }[] }) {
   return (
     <div className="cmp-tip">
@@ -179,6 +193,7 @@ export function TooltipBox({ title, rows }: { title: string; rows: { s: Comparis
       {rows.map(({ s, text }) => (
         <div key={s.id} className="flex items-center gap-2 py-0.5 text-ink-2">
           <ScenarioChip s={s} size="sm" />
+          <span className="min-w-0 break-words">{scenarioDisplayName(s)}</span>
           <span className="tabular-nums">{text}</span>
         </div>
       ))}

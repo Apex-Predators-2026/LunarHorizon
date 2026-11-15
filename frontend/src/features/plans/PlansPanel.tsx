@@ -24,15 +24,18 @@ import { showSnackbar } from '../../viz/snackbarStore'
 import { verdictFor } from '../../viz/useMissionPlayback'
 import { routeHash } from '../../appRoute'
 import { EvidenceBanner } from '../assessment/MissionAssessment'
-import { sendToComparison } from '../compare'
+import { selectSavedPlans, useCompareStore } from '../compare/useCompareStore'
+import { DEFAULT_SPACECRAFT } from '../compare/scenario'
 import { EligibilityBadge } from '../compare/ui'
 import { fetchRescueCatalog } from '../rescue/api'
-import { fmtUtc, fromUtcInput, toUtcInput } from '../rescue/format'
+import { fromUtcInput, toUtcInput } from '../rescue/format'
 import { REQUIREMENT_FIELDS, REQUIREMENT_TIPS } from '../rescue/PlanForm'
 import type { RescueCatalog } from '../rescue/types'
 import { useRescueStore } from '../rescue/useRescueStore'
 import { useTutorialStore } from '../tutorial'
 import { usePlanDialog, usePlansStore, type Plan } from './usePlansStore'
+import { PlanActionButton, PlanCardHeading, PlanCardLayout } from './PlanCardLayout'
+import { SpacecraftFields } from './SpacecraftFields'
 
 
 const SHORT_CONSTRAINT: Record<string, string> = {
@@ -43,6 +46,9 @@ const SHORT_CONSTRAINT: Record<string, string> = {
   min_initial_sun_hours: 'init sun',
   min_initial_comms_hours: 'init comms',
 }
+
+const PLAN_EDITOR_SECTION = 'rounded-xl border border-slate-800 px-4 py-2'
+const PLAN_EDITOR_CONTROL = 'w-full rounded-lg border border-[color:var(--ui-field-outline)] bg-transparent px-2 py-2 text-slate-100'
 
 function formatTightestHeadroom(hr: OperationalHeadroom, elig: Eligibility): string | null {
   if (elig === 'unknown') return 'Coverage gap'
@@ -62,8 +68,6 @@ const PLUS_MASK = 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000
 const ICON = {
   add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
   play: 'M8 5v14l11-7z',
-  edit: 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
-  del: 'M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
   compare: 'M10 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5v2h2V1h-2v2zm0 15H5l5-6v6zm9-15h-5v2h5v13l-5-6v9h5a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z',
 }
 const Icon = ({ d, size = 20 }: { d: string; size?: number }) => (
@@ -81,6 +85,8 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
   const [landing, setLanding] = useState(toUtcInput(plan?.scenario.landing_utc ?? '2027-10-15T00:00:00Z'))
   const [duration, setDuration] = useState(plan?.scenario.duration_days ?? 7)
   const [req, setReq] = useState<MissionRequirements>(plan?.scenario.requirements ?? DEFAULT_REQUIREMENTS)
+  const [spacecraft, setSpacecraft] = useState(plan?.spacecraft ?? DEFAULT_SPACECRAFT)
+  const [notes, setNotes] = useState(plan?.notes ?? '')
   const [calendar, setCalendar] = useState(false)
   const [closing, setClosing] = useState(false)
   const [loadError, setLoadError] = useState(false)
@@ -97,8 +103,9 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
     return () => ctl.abort()
   }, [])
 
-  const site = catalog?.sites.find((s) => s.id === siteId)
-  const valid = !!site && name.trim().length > 0 && duration >= 1
+  const savedSite = plan?.scenario.site
+  const site = savedSite?.id === siteId ? savedSite : catalog?.sites.find((s) => s.id === siteId)
+  const valid = !!site && name.trim().length > 0 && duration > 0 && duration <= 365
   const close = () => setClosing(true)
 
   const save = (e: React.FormEvent) => {
@@ -106,12 +113,13 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
     if (!site) return
     const scenario: Scenario = {
       site: { id: site.id, name: site.name, lat: site.lat, lon: site.lon },
-      landing_utc: fromUtcInput(landing),
+      landing_utc: plan && landing === toUtcInput(plan.scenario.landing_utc) ? plan.scenario.landing_utc : fromUtcInput(landing),
       duration_days: duration,
       requirements: req,
     }
-    if (plan) update(plan.id, name.trim(), scenario)
-    else add(name.trim(), scenario)
+    const details = { spacecraft, notes }
+    if (plan) update(plan.id, name.trim(), scenario, details)
+    else add(name.trim(), scenario, details)
     showSnackbar(plan ? `Plan saved: ${name.trim()}` : `Plan created: ${name.trim()}`, 'success')
     close()
   }
@@ -129,19 +137,19 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
       >
         <h2 className="px-6 pb-2 pt-6 text-2xl leading-8">{plan ? 'Edit plan' : 'New plan'}</h2>
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-6 pb-2 text-xs">
-          <TextField label="Plan name" tip="A name for this plan, shown on its card." value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoFocus />
-          {loadError ? (
+          <TextField label="Plan name" tip="A name for this plan, shown on its card." value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          {loadError && (
             <p role="alert" className="text-red-400">Could not load sites from the backend. Is it running?</p>
-          ) : (
-            <SelectField label="Landing site" tip="Where the lander touches down." value={siteId} onChange={(e) => setSiteId(e.target.value)} disabled={!catalog}>
-              {catalog?.sites.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                  {s.has_real_data ? '' : ' (no real data: simulation only)'}
-                </option>
-              ))}
-            </SelectField>
           )}
+          <SelectField label="Landing site" tip="Where the lander touches down." value={siteId} onChange={(e) => setSiteId(e.target.value)} disabled={!catalog}>
+              {savedSite && !catalog?.sites.some((s) => s.id === savedSite.id) && <option value={savedSite.id}>{savedSite.name}</option>}
+            {catalog?.sites.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+                {s.has_real_data ? '' : ' (no real data: simulation only)'}
+              </option>
+            ))}
+          </SelectField>
           <DateField label="Landing (UTC)" tip="Planned landing date and time (UTC). Opens a date picker." value={landing.replace('T', ' ')} expanded={calendar} onOpen={() => setCalendar((o) => !o)} />
           {calendar && (
             <DatePopup
@@ -152,9 +160,9 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
               onClose={() => setCalendar(false)}
             />
           )}
-          <TextField label="Mission length (days)" tip="How many days the mission lasts after landing." type="number" min={1} max={365} step={1} value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
-          <details className="rounded-xl border border-slate-800 px-4 py-2">
-            <summary className="flex min-h-10 cursor-pointer items-center text-slate-300" data-tip="What the spacecraft needs to survive and communicate. The plan is checked against these.">
+          <TextField label="Mission length (days)" tip="How many days the mission lasts after landing." type="number" min={0} max={365} step="any" value={duration} onChange={(e) => setDuration(Number(e.target.value))} />
+          <details className={PLAN_EDITOR_SECTION}>
+            <summary className="flex min-h-10 cursor-pointer items-center font-medium text-slate-100" data-tip="What the spacecraft needs to survive and communicate. The plan is checked against these.">
               Spacecraft requirements
             </summary>
             <div className="grid grid-cols-1 gap-2 pb-2">
@@ -176,6 +184,18 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
               ))}
             </div>
           </details>
+          <details className={PLAN_EDITOR_SECTION}>
+            <summary className="flex min-h-10 cursor-pointer items-center font-medium text-slate-100">Spacecraft configuration</summary>
+            <SpacecraftFields spacecraft={spacecraft} batteryHours={req.battery_hours}
+              onChange={(patch) => setSpacecraft((current) => ({ ...current, ...patch }))}
+              onBatteryHours={(hours) => setReq((current) => ({ ...current, battery_hours: hours }))}
+              inputClass={PLAN_EDITOR_CONTROL} />
+          </details>
+          <label className="block px-1 py-2">
+            <span className="mb-1 block font-medium text-slate-100">Notes</span>
+            <textarea className={PLAN_EDITOR_CONTROL} rows={2}
+              value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </label>
         </div>
         <div className="flex justify-end gap-2 px-4 pb-4 pt-4">
           <button type="button" className="md-dp-text-button" onClick={close}>
@@ -223,16 +243,10 @@ export function PlanCard({
   const toneText =
     tone === 'crit' ? 'text-red-300' : tone === 'warn' ? 'text-amber-200' : tone === 'ok' ? 'text-emerald-200' : 'text-slate-400'
 
-  const iconBtn = 'flex h-10 w-10 items-center justify-center rounded-full text-slate-400'
   return (
-    <li className={`md-reveal rounded-2xl border p-4 transition-colors ${active ? 'border-coral bg-coral/10' : 'border-slate-800 bg-panel-fill/60'}`} aria-label={`Plan ${plan.name}`}>
+    <PlanCardLayout name={plan.name} active={active}>
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-slate-100">{plan.name}</p>
-          <p className="mt-1 text-xs text-slate-400">
-            {sc.site.name} · {fmtUtc(sc.landing_utc)} · {sc.duration_days} d
-          </p>
-        </div>
+        <PlanCardHeading name={plan.name} scenario={sc} />
         <div className="flex shrink-0 flex-col items-end gap-1">
           {elig && <EligibilityBadge eligibility={elig} />}
           {active && (
@@ -263,7 +277,7 @@ export function PlanCard({
         className="mt-1.5 text-[11px] font-medium text-sky-400 underline decoration-dotted underline-offset-2 hover:text-sky-300"
         data-tip="Open Plan Comparison with this plan: every requirement with its measured value, margin and evidence, plus the data and assumptions behind it"
         onClick={() => {
-          sendToComparison([sc], { origin: 'user', names: [plan.name], replaceSelection: true, baselineIndex: 0 })
+          selectSavedPlans([plan.id])
           window.location.hash = routeHash('compare', 'cmp-assessment')
         }}
       >
@@ -275,28 +289,27 @@ export function PlanCard({
           Compare
         </label>
         <div className="ml-auto flex">
-          <button type="button" aria-label={`Edit ${plan.name}`} data-tip="Edit this plan" className={iconBtn} onClick={onEdit}>
-            <Icon d={ICON.edit} />
-          </button>
-          <button
-            type="button"
-            aria-label={`Delete ${plan.name}`}
-            data-tip="Delete this plan"
-            className={iconBtn}
+          <PlanActionButton action="edit" label={`Edit ${plan.name}`} tip="Edit this plan" onClick={onEdit} />
+          <PlanActionButton action="duplicate" label={`Duplicate ${plan.name}`} tip="Duplicate this plan"
+            onClick={() => {
+              if (useCompareStore.getState().duplicateScenario(plan.id, 0, { select: false })) {
+                showSnackbar(`Plan copied: ${plan.name}`, 'success')
+              }
+            }}
+          />
+          <PlanActionButton action="remove" label={`Delete ${plan.name}`} tip="Delete this plan from both views"
             onClick={() => {
               remove(plan.id)
               showSnackbar(`Plan deleted: ${plan.name}`)
             }}
-          >
-            <Icon d={ICON.del} />
-          </button>
+          />
           <button type="button" aria-label={`Run ${plan.name}`} data-tip="Run: show this plan on the map and use it for Mission rescue" className="md-btn plan-card-run ml-2 bg-sky-600 text-white hover:bg-sky-500" onClick={onRun}>
             <Icon d={ICON.play} size={18} />
             <span className="plan-card-run-label ml-1">Run</span>
           </button>
         </div>
       </div>
-    </li>
+    </PlanCardLayout>
   )
 }
 
@@ -346,7 +359,7 @@ export function PlansPanel({ onCompare, active = true }: { onCompare: () => void
   }
   const picked = plans.filter((p) => compareIds.includes(p.id)).slice(0, MAX_COMPARE)
   const compare = () => {
-    sendToComparison(picked.map((p) => p.scenario), { origin: 'user', names: picked.map((p) => p.name), replaceSelection: true, baselineIndex: 0 })
+    selectSavedPlans(picked.map((p) => p.id))
     useTutorialStore.getState().recordInteraction('compare-open')
     onCompare()
   }
