@@ -6,16 +6,18 @@ import { routeHash } from '../../appRoute'
 
 import { GlassSurface } from '../../ui/GlassSurface'
 
-import { axisOffsets, axisOrigin, fullDomain, type Entry } from './analysis'
+import { axisOrigin, fullDomain, type Entry } from './analysis'
 import { AtAGlance } from './AtAGlance'
 import { ConditionsPanel } from './ConditionsPanel'
+import { axisPlacement, missionTime } from './missionTime'
 import { ElevationCharts } from './ElevationCharts'
 import { HorizonCompare } from './HorizonCompare'
 import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
+import { buildEntries } from './entries'
 import { resultKey, selectionKey, validateScenario } from './scenario'
-import { ExportButtons } from './ExportButtons'
+import { DecisionOverview } from './DecisionOverview'
 import { RescueStory } from './RescueStory'
 import { ScenarioManager } from './ScenarioManager'
 import { SummaryPanel } from './SummaryPanel'
@@ -35,6 +37,8 @@ import { TourButton, TourOffer } from './tour/TourButton'
 
 // Reading order: choose plans -> the answer -> the evidence -> when it happens -> ranking -> deeper analysis.
 const NAV = COMPARE_SECTIONS
+
+const originOf = (e: Entry) => axisPlacement(missionTime(e)).landingMs
 
 /** An M3 switch row, the same markup as the planner's layer switches (md-row + md-switch). */
 function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint: string }) {
@@ -93,27 +97,19 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   // A canonical ranking belongs to one selected set; while the set is being re-ranked no rank is shown.
   const rankingCurrent = rankingSetKey === selectionKey(selected.filter((s) => !validateScenario(s).length), allowDemo)
 
-  const entries: Entry[] = useMemo(() => {
-    const offsets = axisOffsets(selected, align)
-    return selected.map((s) => {
-      const state = results[resultKey(s, allowDemo)]
-      const result = state?.state === 'done' && state.result.status === 'ok' ? state.result : null
-      // Unassessed scenarios (e.g. no data) still carry their UNKNOWN ranking entry.
-      const raw = state?.state === 'done' ? state.result : null
-      const ranking = rankingCurrent && raw ? raw.ranking : null
-      return { scenario: s, state, result, offsetHours: offsets[s.id] ?? 0, ranking }
-    })
-  }, [selected, results, allowDemo, align, rankingCurrent])
+  const entries: Entry[] = useMemo(() => buildEntries(selected, results, allowDemo, align, rankingCurrent),
+    [selected, results, allowDemo, align, rankingCurrent])
 
   const full = useMemo(() => fullDomain(entries), [entries])
   const view = useView(full)
-  const originMs = useMemo(() => axisOrigin(selected), [selected])
+  const originMs = useMemo(() => axisOrigin(entries), [entries])
   const anyData = entries.some((e) => e.result)
   const hasDemo = entries.some((e) => e.result?.data_kind === 'demonstration')
   const loading = entries.some((e) => e.state?.state === 'loading')
   const backendDown = entries.some((e) => e.state?.state === 'error' && /Backend unavailable/.test(e.state.message))
   const sameSite = selected.length > 1 && new Set(selected.map((s) => s.site.id)).size === 1
-  const differentDates = new Set(selected.map((s) => s.landing_utc)).size > 1
+  // Evaluated landings: two requests that the grid evaluates at the same hour are the same date.
+  const differentDates = new Set(entries.map((e) => originOf(e))).size > 1
 
   const timelineProps = { entries, full, view, align, originMs }
 
@@ -229,6 +225,11 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
           ) : (
             <>
               <Section id="cmp-overview" title={`At a glance${sameSite && differentDates ? ': landing dates' : !differentDates && !sameSite ? ': landing sites' : ''}`}>
+                {/* Decision first: the supported recommendation (or why there is none), the decisive requirement, the next action. */}
+                <div className="mb-6" data-tour="compare-decision">
+                  <DecisionOverview entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
+                    rankingCurrent={rankingCurrent} notes={notes} />
+                </div>
                 <AtAGlance entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
                   ready={rankingCurrent} onJump={jumpTo} />
                 <RescueStory entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
@@ -239,10 +240,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                 {anyData ? <MetricsTable entries={entries} /> : <Empty>No scientific data for the selected scenarios yet.</Empty>}
               </Section>
 
-              <Section id="cmp-summary" title="Decision and trade-offs" actions={
-                <ExportButtons entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
-                  notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} />
-              }>
+              <Section id="cmp-summary" title="Decision and trade-offs">
                 <SummaryPanel entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
               </Section>
 

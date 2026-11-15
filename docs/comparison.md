@@ -126,8 +126,20 @@ ranking. Logic: `frontend/src/features/compare/rescueFlow.ts`.
 
 "Export JSON" / "Export CSV" in the comparison summary save the comparison exactly as displayed (enabled once the
 selection has been ranked). Built in the browser from the same data (`frontend/src/features/compare/export.ts`,
-format `comparison-export-v1`); nothing is recomputed and nothing is sent anywhere.
+format `comparison-export-v1`, export revision 2 (`export_revision`)); nothing is recomputed and nothing is sent anywhere.
 
+- Mission window (revision 2, additive): the window the backend **evaluated** on its hourly grid (`evaluated_landing_utc`,
+  `evaluated_duration_days` from each result, see `backend/app/timegrid.py`), with the user's request kept
+  separately. JSON `mission_time`: `evaluation_status` (`evaluated` | `pending` | `error` | `not_requested` |
+  `not_assessed` | `not_reported` | `stale`), `evaluated_landing_utc`, `evaluated_duration_days`,
+  `evaluated_duration_hours`, `evaluated_end_utc`, `requested_landing_utc`, `requested_duration_days`,
+  `requested_duration_hours`, `requested_end_utc`, `time_adjusted`, `time_note` (the backend's own explanation). CSV columns are appended after every v1 column
+  (`evaluation_status`, `evaluated_landing_utc`, `evaluated_duration_hours`, `evaluated_end_utc`, `requested_landing_utc`,
+  `requested_duration_days`, `requested_end_utc`, `time_adjusted`, `time_note`). When nothing was evaluated the evaluated
+  fields are `null` / empty, never the request and never 0. v1's `landing_utc` / `duration_days` are unchanged and remain
+  the *requested* values (kept for existing consumers). The same snapshot (`frontend/src/features/compare/missionTime.ts`) drives the shared time axis, mission
+  extents, the scenario cards, the Mission Assistant context (`comparison-assistant-context-v3`, `mission_time`)
+  and the 3D-view cursor.
 - JSON: per scenario the plan and requirements, data provenance (kind, source, dataset, engine and scoring
   versions, coverage), eligibility, canonical rank and group, `recommended`, score (status, exact, bounds), risk,
   failed / undecided requirements, every requirement verdict, the canonical metrics with their status, and the
@@ -179,3 +191,27 @@ into the shared `useAppStore` for the followed scenario; "View in 3D ↗" switch
 | UI / design | The comparison uses the shared Tailwind tokens and the page's own `compare.css` | None |
 | Member 6 (validation) | `docs/comparison.md` (this page) states every rule: no zero-filling, UNKNOWN kept, ranks only for PASS within a group | Review welcome |
 
+
+## Summary report (frozen snapshot)
+
+"Generate Summary Report" (Decision area of the Comparison) freezes the evaluated selection into a detached, deep-frozen
+snapshot (`frontend/src/features/compare/report.ts`, `ReportPreview.tsx`, print CSS in `report.css`). The preview renders
+only the snapshot: later edits to scenarios, landing date, duration, requirements, rankings or background requests never
+change an open report. The preview flags itself out of date and offers **Regenerate**; regeneration is refused while any
+result is loading or the ranking is stale. **Close** returns to the Comparison workspace exactly as it was (the dashboard
+stays mounted under the preview). **Print / Save as PDF** uses the browser print dialog; the print stylesheet prints only
+the report.
+
+- Same data everywhere: the report embeds the structured export built from the same entries (`snapshot.export`), and
+  **Download JSON** saves that snapshot. Report rows and export agree on identity, requested vs evaluated window
+  (`mission_time`), verdicts, ranking groups, scores and bounds, requirement margins, evidence windows, dataset file +
+  SHA-256, engine / scoring versions, limitations.
+- Requested and evaluated time are separate. The plans table leads with the evaluated window and shows the request when
+  the grid adjusted it; with no evaluated window it says "not evaluated" and never substitutes the request.
+- UNKNOWN stays UNKNOWN (never FAIL); a bounded score prints as bounds; a missing value or hash prints as unavailable.
+- Export compatibility: format stays `comparison-export-v1`; `schema_revision: 2` is additive (identity, evaluated
+  interval, dataset file + hash, selection key, story, preferences, reproduction block, `mission_time`). `landing_utc` /
+  `duration_days` keep their v1 meaning (requested) and CSV columns keep their positions; new CSV columns are appended.
+- Entry points: `useReportStore.getState().generate()` / `.reopen()` / `.close()`, `cannotGenerate()`,
+  `ReportButton`, `LastReportButton`, `ReportPreview` (mounted once in `App.tsx`), `reportHooks.mission` for a guided
+  mission to attach its title / objective.

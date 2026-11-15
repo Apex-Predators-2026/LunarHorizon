@@ -256,8 +256,9 @@ describe('analysis on real data', () => {
   it('aligns scenarios by mission time or calendar date', () => {
     const a = makeScenario({ site: SITES.B, landing_utc: '2027-01-15T00:00:00Z' }, [])
     const b = duplicateShifted(a, 14, ['A'])
-    expect(axisOffsets([a, b], 'met')).toEqual({ [a.id]: 0, [b.id]: 0 })
-    expect(axisOffsets([a, b], 'utc')).toEqual({ [a.id]: 0, [b.id]: 336 })
+    const items = [{ scenario: a, state: undefined }, { scenario: b, state: undefined }]
+    expect(axisOffsets(items, 'met')).toEqual({ [a.id]: 0, [b.id]: 0 })
+    expect(axisOffsets(items, 'utc')).toEqual({ [a.id]: 0, [b.id]: 336 })
     const e = entries()
     expect(fullDomain(e)).toEqual([0, 168])
     const rows = mergeSeries(e, (tl, i) => tl.sun_elevation_deg[i], [0, 168])
@@ -386,7 +387,7 @@ describe('components render real results', () => {
     )
     expect(html).toContain('Peak Near Shackleton')
     expect(html).toContain('JPL Horizons + LOLA')
-    expect(html).toContain('title="Best among compared real-data scenarios, ahead by a meaningful margin">best</span>') // the best value is marked
+    expect(html).toContain('title="A meaningful, proven lead among comparable real-data scenarios. Descriptive, not a recommendation.">best</span>') // the best value is marked
     expect(html).toContain('Longest continuous darkness')
     expect(html).toContain('falls outside it') // D: unavailable message, not fabricated numbers
     expect(html).toContain('Canonical ranking from the viability engine')
@@ -594,7 +595,9 @@ describe('comparison interface (Phase 4)', () => {
     const html = plain(renderToString(<OverviewCards entries={entries(['A', 'B', 'C', 'D'])} />))
     expect(html).toContain('requirements met')
     expect(html).toContain('Minimum mean visible solar-disk fraction')
-    expect(html).toContain('Lands ')
+    // The fixture predates the evaluated fields: the card shows the request as the request, never as evaluated.
+    expect(html).toContain('Evaluated: not reported by the backend')
+    expect(html).toContain('Requested: 2027-01-15 00:00 UTC, 7 d')
     expect(html).toContain('89.017°S')
     expect(html).toContain('not ranked')
     expect(html).toContain('Cannot be decided') // D: no data
