@@ -1,7 +1,8 @@
 // Routes, in the URL hash so the static build needs no server routing:
 //   (none) / #        the landing page
 //   #app/planner      Mission Planner (the 3D navigator); plain #app (older links, the demo tour) too
-//   #app/compare      Scenario Comparison, optionally with a section: #app/compare/cmp-metrics
+//   #app/compare      Scenario Comparison, optionally with a section: #app/compare/cmp-metrics, or its methodology
+//                     subpage: #app/compare/methodology (a secondary page of the comparison, not a main view)
 //   #app/atlas        Feasibility Atlas (landing dates x mission durations)
 //   #app/method       Validation & Methodology (where answers come from, how they were checked, limits)
 // Switching views pushes a history entry (Back / Forward move between them, refresh keeps the view);
@@ -16,6 +17,8 @@ export type Route =
   | { page: 'app'; view: AppView; section: string | null }
 
 const SECTION = /^cmp-[a-z0-9-]+$/
+/** Scenario Comparison's one subpage (#app/compare/methodology): a secondary page, not a main view. */
+export const COMPARE_METHODOLOGY = 'methodology'
 
 export function parseRoute(hash: string): Route {
   if (hash === '#mango') return { page: 'mango' }
@@ -24,7 +27,7 @@ export function parseRoute(hash: string): Route {
   if (SECTION.test(hash.slice(1))) return { page: 'app', view: 'compare', section: hash.slice(1) }
   const [root, view, section] = hash.slice(1).split('/')
   if (root !== 'app') return { page: 'landing' }
-  if (view === 'compare') return { page: 'app', view: 'compare', section: section && SECTION.test(section) ? section : null }
+  if (view === 'compare') return { page: 'app', view: 'compare', section: section && (SECTION.test(section) || section === COMPARE_METHODOLOGY) ? section : null }
   if (view === 'atlas') return { page: 'app', view: 'atlas', section: null }
   if (view === 'method') return { page: 'app', view: 'method', section: null }
   return { page: 'app', view: 'planner', section: null }

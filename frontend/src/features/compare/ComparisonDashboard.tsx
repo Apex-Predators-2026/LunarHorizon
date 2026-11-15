@@ -34,6 +34,9 @@ import { useAssistant } from './assistant/useAssistant'
 import { CompareTour } from './tour/CompareTour'
 import { TourButton, TourOffer } from './tour/TourButton'
 import { ReportHeaderAction } from './ReportHeaderAction'
+import { COMPARE_METHODOLOGY } from '../../appRoute'
+import { ComparisonMethodology } from './methodology/ComparisonMethodology'
+import { MethodologyIntro } from './methodology/MethodologyIntro'
 
 const originOf = (e: Entry) => axisPlacement(missionTime(e)).landingMs
 
@@ -122,12 +125,13 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   }
   // The section from the URL (refresh, Back / Forward): shown, and kept in view while the results load
   // and the page above it grows, until the user scrolls or clicks, or after a few seconds.
+  const onMethodology = section === COMPARE_METHODOLOGY // the methodology subpage, not a section of this page
   useLayoutEffect(() => {
-    if (section) revealSection(section)
+    if (section && !onMethodology) revealSection(section)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the URL's section changes
   }, [section])
   useEffect(() => {
-    if (!section) return
+    if (!section || onMethodology) return
     let active = true
     const show = () => {
       if (active) scrollToSection(section, 'auto')
@@ -167,6 +171,9 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
     setTab(t)
     onSection?.(TAB_ENTRY[t]) // the URL remembers the view (no history step)
   }
+
+  // The methodology subpage replaces the page while it is open; every plan and result stays in the store.
+  if (onMethodology) return <ComparisonMethodology />
 
   return (
     <div ref={pageRef} data-tour="compare-dashboard" className="cmp-page lp-light md-host min-h-full">
@@ -302,6 +309,9 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
             )}
           </div>
         )}
+
+        {/* Last on the page, after every result: a compact way into the methodology subpage. */}
+        <MethodologyIntro />
       </div>
       <MissionAssistant entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
         notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} onJump={jumpTo} />
