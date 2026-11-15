@@ -141,12 +141,12 @@ export function MeasureCard({
   }
 
   const pillBtn =
-    'h-6 rounded-full border border-opal-300 bg-white px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-calcite-peach/40 disabled:opacity-40'
+    'h-6 rounded-full border border-opal-300 bg-panel-fill px-2 text-[11px] font-medium text-slate-200 transition-colors hover:bg-calcite-peach/40 disabled:opacity-40'
   const tabBtn = (active: boolean) =>
     `h-6 rounded-full border px-2.5 text-[11px] font-medium transition-colors ${
       active
         ? 'border-coral bg-coral text-white'
-        : 'border-opal-300 bg-white text-slate-200 hover:bg-calcite-peach/40'
+        : 'border-opal-300 bg-panel-fill text-slate-200 hover:bg-calcite-peach/40'
     }`
 
   // SVG chart dimensions
@@ -168,7 +168,7 @@ export function MeasureCard({
   const xOf = (d: number) => padL + (d / maxD) * pw
   const yOf = (h: number) => padT + ph - ((h - minH) / spanH) * ph
   const slopeColor = (status: 'ok' | 'warn' | 'crit') =>
-    status === 'crit' ? '#b42323' : status === 'warn' ? '#b45309' : '#17703f'
+    status === 'crit' ? 'var(--color-red-400)' : status === 'warn' ? 'var(--color-amber-400)' : 'var(--color-emerald-300)'
 
   const fixed = pos && size
   const cardWidth = customWidth ?? (open ? 500 : 320)
@@ -292,7 +292,7 @@ export function MeasureCard({
 
           {/* 0 or 1 Waypoint Compact Prompt */}
           {!analysis && (
-            <div className="rounded-lg bg-white/60 px-2.5 py-1.5 text-[11px] text-slate-300">
+            <div className="rounded-lg bg-panel-fill/60 px-2.5 py-1.5 text-[11px] text-slate-300">
               {waypoints.length === 0 ? (
                 <span>
                   Click terrain to place <strong>Point A</strong> (or click <strong>+ Lander</strong>). Click any point’s pill to inspect/rename, or click <strong>×</strong> to remove.
@@ -308,7 +308,7 @@ export function MeasureCard({
 
           {/* Minimalist Single-Row Telemetry Strip (when >= 2 waypoints exist) */}
           {analysis && (
-            <div className="grid grid-cols-5 gap-1.5 rounded-xl border border-opal-300 bg-white/75 px-2.5 py-1.5 font-mono tabular-nums">
+            <div className="grid grid-cols-5 gap-1.5 rounded-xl border border-opal-300 bg-panel-fill/75 px-2.5 py-1.5 font-mono tabular-nums">
               <div data-tip="True 3D surface distance following LOLA terrain vs. great-circle geodesic distance">
                 <div className="font-sans text-[9px] uppercase tracking-wider text-slate-400">Surface</div>
                 <div className="text-xs font-semibold text-slate-100">{fmtDistance(analysis.surfaceDistanceM)}</div>
@@ -386,7 +386,7 @@ export function MeasureCard({
                   value={speedKmh}
                   onChange={(e) => setSpeedKmh(Number(e.target.value))}
                   aria-label="Traverse mobility speed"
-                  className="h-5 rounded border border-opal-300 bg-white px-1 text-[10px] text-slate-200"
+                  className="h-5 rounded border border-opal-300 bg-panel-fill px-1 text-[10px] text-slate-200"
                 >
                   {SPEEDS.map((s) => (
                     <option key={s.id} value={s.kmh}>
@@ -398,7 +398,7 @@ export function MeasureCard({
 
               <svg
                 viewBox={`0 0 ${W} ${H}`}
-                className="h-[92px] w-full cursor-crosshair touch-none rounded-lg border border-opal-300 bg-white/80"
+                className="h-[92px] w-full cursor-crosshair touch-none rounded-lg border border-opal-300 bg-panel-fill/80"
                 role="img"
                 aria-label="Terrain elevation and slope profile along the measured path"
                 onPointerMove={(e) => {
@@ -427,8 +427,8 @@ export function MeasureCard({
                   const y = yOf(val)
                   return (
                     <g key={g}>
-                      <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#d3d3d5" strokeWidth="1" />
-                      <text x={padL - 4} y={y + 3} textAnchor="end" fontSize="9" fill="#5b6168" fontFamily="monospace">
+                      <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="var(--color-opal-300)" strokeWidth="1" />
+                      <text x={padL - 4} y={y + 3} textAnchor="end" fontSize="9" fill="var(--color-slate-400)" fontFamily="monospace">
                         {val}m
                       </text>
                     </g>
@@ -438,7 +438,7 @@ export function MeasureCard({
                 {samples.length > 1 && (
                   <path
                     d={`M ${xOf(0)} ${padT + ph} ${samples.map((s) => `L ${xOf(s.distanceM)} ${yOf(s.heightM)}`).join(' ')} L ${xOf(maxD)} ${padT + ph} Z`}
-                    fill="rgba(60, 64, 68, 0.08)"
+                    fill="var(--color-calcite-ink)" fillOpacity={0.08}
                   />
                 )}
 
@@ -455,7 +455,7 @@ export function MeasureCard({
                   <path
                     d={samples.map((s, idx) => `${idx === 0 ? 'M' : 'L'} ${xOf(s.distanceM)} ${yOf(s.losHeightM)}`).join(' ')}
                     fill="none"
-                    stroke={analysis.losClear ? '#0ea5e9' : '#b42323'}
+                    stroke={analysis.losClear ? '#0ea5e9' : 'var(--color-red-400)'}
                     strokeWidth="1.3"
                     strokeDasharray="4 3"
                   />
@@ -506,7 +506,7 @@ export function MeasureCard({
                           cy={cy}
                           r={isSel ? '5.2' : '3.6'}
                           fill="#ff634a"
-                          stroke="#ffffff"
+                          stroke="var(--color-panel-fill)"
                           strokeWidth="1.4"
                         />
                         <text
@@ -515,9 +515,9 @@ export function MeasureCard({
                           textAnchor={textAnchor}
                           fontSize="9.5"
                           fontWeight="bold"
-                          fill="#1f2326"
+                          fill="var(--color-slate-100)"
                           paintOrder="stroke"
-                          stroke="#ffffff"
+                          stroke="var(--color-panel-fill)"
                           strokeWidth="2.5"
                           strokeLinejoin="round"
                         >
@@ -543,19 +543,19 @@ export function MeasureCard({
                       cy={yOf(hoveredSample.heightM)}
                       r="3.8"
                       fill="#ff634a"
-                      stroke="#ffffff"
+                      stroke="var(--color-panel-fill)"
                       strokeWidth="1.4"
                     />
                   </g>
                 )}
 
-                <text x={padL} y={H - 3} fontSize="9" fill="#5b6168" fontFamily="monospace">
+                <text x={padL} y={H - 3} fontSize="9" fill="var(--color-slate-400)" fontFamily="monospace">
                   0 m
                 </text>
-                <text x={padL + pw / 2} y={H - 3} textAnchor="middle" fontSize="9" fill="#5b6168" fontFamily="monospace">
+                <text x={padL + pw / 2} y={H - 3} textAnchor="middle" fontSize="9" fill="var(--color-slate-400)" fontFamily="monospace">
                   {fmtDistance(maxD / 2)}
                 </text>
-                <text x={W - padR} y={H - 3} textAnchor="end" fontSize="9" fill="#5b6168" fontFamily="monospace">
+                <text x={W - padR} y={H - 3} textAnchor="end" fontSize="9" fill="var(--color-slate-400)" fontFamily="monospace">
                   {fmtDistance(maxD)}
                 </text>
               </svg>
@@ -578,7 +578,7 @@ export function MeasureCard({
                     className={`flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1 text-[11px] transition-colors cursor-pointer ${
                       isSelected || isHovered
                         ? 'border-coral bg-coral/10'
-                        : 'border-opal-300/80 bg-white/70 hover:bg-white'
+                        : 'border-opal-300/80 bg-panel-fill/70 hover:bg-panel-fill'
                     }`}
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-1.5">
@@ -595,7 +595,7 @@ export function MeasureCard({
                           onSelectWaypoint(wp.id)
                         }}
                         onChange={(e) => onRenameWaypoint(wp.id, e.target.value)}
-                        className="h-6 w-24 shrink-0 rounded border border-opal-300 bg-white px-1.5 text-[11px] font-medium text-slate-100 placeholder:text-slate-500 focus:border-coral focus:outline-none"
+                        className="h-6 w-24 shrink-0 rounded border border-opal-300 bg-panel-fill px-1.5 text-[11px] font-medium text-slate-100 placeholder:text-slate-500 focus:border-coral focus:outline-none"
                       />
                       <span
                         className="truncate font-mono text-[10px] tabular-nums text-slate-400"
@@ -632,7 +632,7 @@ export function MeasureCard({
                           onAnalyseEndpoint(wp.lat, wp.lon)
                         }}
                         data-tip={`Promote Waypoint ${wp.label} to a custom landing site for full Sun & Earth analysis`}
-                        className="rounded border border-opal-300 bg-white px-1.5 py-0.5 font-sans text-[10px] font-medium text-slate-200 hover:bg-calcite-peach/40"
+                        className="rounded border border-opal-300 bg-panel-fill px-1.5 py-0.5 font-sans text-[10px] font-medium text-slate-200 hover:bg-calcite-peach/40"
                       >
                         Pin site
                       </button>
@@ -645,7 +645,7 @@ export function MeasureCard({
                         }}
                         aria-label={`Delete waypoint ${wp.label}`}
                         data-tip={`Remove Waypoint ${wp.label} (or click it again on the 3D terrain)`}
-                        className="flex h-5 w-5 items-center justify-center rounded border border-opal-300 bg-white text-slate-300 hover:bg-red-950 hover:text-red-300"
+                        className="flex h-5 w-5 items-center justify-center rounded border border-opal-300 bg-panel-fill text-slate-300 hover:bg-red-950 hover:text-red-300"
                       >
                         ×
                       </button>

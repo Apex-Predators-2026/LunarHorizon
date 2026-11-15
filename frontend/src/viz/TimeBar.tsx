@@ -14,7 +14,7 @@ const COLORS = {
   dark: '#111a2e',
   gap: '#d03b3b',
   grid: '#22304d',
-  axis: '#5b6168',
+  axis: 'var(--color-slate-400)',
   unknown: '#5b6475', // hatch stripes: no data (never drawn as darkness)
   unknownBg: '#262b36',
 }
@@ -454,7 +454,7 @@ export function TimeBar({
   const stepBtn =
     'h-7 rounded-full px-2.5 text-xs font-medium tabular-nums text-slate-200 transition-colors hover:bg-calcite-peach/40 disabled:opacity-40'
   const selectCls =
-    'h-8 cursor-pointer appearance-none rounded-full border border-opal-300 bg-white pl-3 pr-7 text-xs font-medium text-slate-200 transition-colors hover:border-coral/50 focus:border-coral focus:outline-none'
+    'h-8 cursor-pointer appearance-none rounded-full border border-opal-300 bg-panel-fill pl-3 pr-7 text-xs font-medium text-slate-200 transition-colors hover:border-coral/50 focus:border-coral focus:outline-none'
 
   const datePill = (
     <div className="ml-auto flex items-center gap-2">
@@ -465,7 +465,7 @@ export function TimeBar({
         aria-expanded={calendarOpen}
         aria-label={`Simulation time ${fmtTime(now)}. Click to open calendar.`}
         data-tip="Click to pick a date & time (UTC)"
-        className="inline-flex h-6 items-center gap-1.5 rounded-full border border-opal-300 bg-white px-2.5 font-mono text-[11px] font-semibold tabular-nums text-slate-100 shadow-2xs transition-colors hover:border-coral hover:bg-calcite-peach/30"
+        className="inline-flex h-6 items-center gap-1.5 rounded-full border border-opal-300 bg-panel-fill px-2.5 font-mono text-[11px] font-semibold tabular-nums text-slate-100 shadow-2xs transition-colors hover:border-coral hover:bg-calcite-peach/30"
       >
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden className="text-coral">
           <path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5z" />
@@ -478,7 +478,7 @@ export function TimeBar({
   return (
     <div className="lp-light pointer-events-auto relative max-h-[48vh] overflow-y-auto rounded-t-[24px] bg-opal-50 px-4 pb-2.5 pt-2.5 text-xs shadow-lg shadow-black/30">
       <div className="relative mb-2 flex min-h-9 flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex items-center rounded-full border border-opal-300 bg-white p-0.5 shadow-2xs">
+        <div className="inline-flex items-center rounded-full border border-opal-300 bg-panel-fill p-0.5 shadow-2xs">
           <button type="button" className={stepBtn} onClick={() => step(-windowDays * 24)} aria-label={`Previous ${windowDays}-day window`} data-tip="Previous window">⏮</button>
           <span className="mx-0.5 h-4 w-px bg-opal-300" aria-hidden />
           <button type="button" className={stepBtn} onClick={() => step(-24)} aria-label="Step back 1 day" data-tip="Back 1 day">−1 d</button>

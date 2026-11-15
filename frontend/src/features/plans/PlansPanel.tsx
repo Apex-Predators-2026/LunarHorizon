@@ -225,7 +225,7 @@ export function PlanCard({
 
   const iconBtn = 'flex h-10 w-10 items-center justify-center rounded-full text-slate-400'
   return (
-    <li className={`md-reveal rounded-2xl border p-4 transition-colors ${active ? 'border-coral bg-coral/10' : 'border-slate-800 bg-white/60'}`} aria-label={`Plan ${plan.name}`}>
+    <li className={`md-reveal rounded-2xl border p-4 transition-colors ${active ? 'border-coral bg-coral/10' : 'border-slate-800 bg-panel-fill/60'}`} aria-label={`Plan ${plan.name}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-slate-100">{plan.name}</p>
@@ -408,7 +408,7 @@ export function PlanFab() {
         useTutorialStore.getState().recordInteraction('plan-create')
         show(null)
       }}
-      className="md-pop-fab flex h-[clamp(72px,8.7vw,125px)] w-[clamp(72px,8.7vw,125px)] items-center justify-center rounded-[20%] bg-opal-50 text-coral shadow-lg shadow-black/40"
+      className="lp-light md-pop-fab flex h-[clamp(72px,8.7vw,125px)] w-[clamp(72px,8.7vw,125px)] items-center justify-center rounded-[20%] bg-opal-50 text-coral shadow-lg shadow-black/40"
     >
       {/* The plus is cut out of the mango mesh. */}
       <span aria-hidden className="block h-[48%] w-[48%]" style={{ WebkitMaskImage: PLUS_MASK, maskImage: PLUS_MASK, WebkitMaskSize: '100% 100%', maskSize: '100% 100%' }}>

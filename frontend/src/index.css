@@ -52,6 +52,8 @@
   --color-calcite-orange: #fd7b41;
   --color-calcite-peach: #edbf9b;
   --color-calcite-ink: #3c4044;
+  --color-panel-fill: #ffffff;
+  --color-field-error: #b3261e;
   --font-display: "Helvetica", "Helvetica Neue", Arial, sans-serif;
   --font-inter: "Inter", ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
 
@@ -135,6 +137,13 @@
   color-scheme: light;
   color: var(--color-calcite-ink);
   font-family: var(--font-inter);
+  --ui-slider-track: #cbd5e1;
+  --ui-slider-thumb: #f8fafc;
+  --ui-slider-thumb-border: #ffffff;
+  --ui-field-outline: #79747e;
+  --ui-field-support: #49454f;
+  --ui-field-placeholder: #8a8d91;
+  --ui-inverse-surface: #3c4044;
   --color-slate-100: #1f2326;
   --color-slate-200: #2b2f33;
   --color-slate-300: #3c4044;
@@ -192,7 +201,7 @@
 .lp-light input[type='range']::-webkit-slider-runnable-track {
   box-sizing: border-box;
   height: 16px;
-  background: #cbd5e1;
+  background: var(--ui-slider-track);
   border: 0;
   border-radius: 30px;
 }
@@ -203,8 +212,8 @@
   width: 34px;
   height: 34px;
   margin-top: -9px; /* centres the thumb on the track */
-  background: #f8fafc;
-  border: 2px solid #ffffff;
+  background: var(--ui-slider-thumb);
+  border: 2px solid var(--ui-slider-thumb-border);
   border-radius: 50%;
   box-shadow: 0 4px 15px rgba(100, 116, 139, 0.2);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -215,7 +224,7 @@
 .lp-light input[type='range']::-moz-range-track {
   box-sizing: border-box;
   height: 16px;
-  background: #cbd5e1;
+  background: var(--ui-slider-track);
   border: 0;
   border-radius: 30px;
 }
@@ -223,8 +232,8 @@
   box-sizing: border-box;
   width: 34px;
   height: 34px;
-  background: #f8fafc;
-  border: 2px solid #ffffff;
+  background: var(--ui-slider-thumb);
+  border: 2px solid var(--ui-slider-thumb-border);
   border-radius: 50%;
   box-shadow: 0 4px 15px rgba(100, 116, 139, 0.2);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -327,10 +336,10 @@
 
 /* Sliders: active track fill, halo on hover / press, handle shrinks slightly while pressed. */
 .lp-light input[type='range']::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0), var(--mango-img) center / cover;
+  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), var(--ui-slider-track, #cbd5e1) 0), var(--mango-img) center / cover;
 }
 .lp-light input[type='range']::-moz-range-track {
-  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0), var(--mango-img) center / cover;
+  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), var(--ui-slider-track, #cbd5e1) 0), var(--mango-img) center / cover;
 }
 .lp-light input[type='range']::-webkit-slider-thumb {
   transition: transform var(--md-dur-short4) var(--md-ease-standard), box-shadow var(--md-dur-short4) var(--md-ease-standard);
@@ -536,7 +545,7 @@
   width: 100%;
   height: 56px;
   padding: 0 16px;
-  border: 1px solid #79747e;
+  border: 1px solid var(--ui-field-outline, #79747e);
   border-radius: 4px;
   background: transparent;
   color: var(--color-calcite-ink);
@@ -551,7 +560,7 @@
   transition: color var(--md-dur-short4) var(--md-ease-standard);
 }
 .md-field-control:focus::placeholder {
-  color: #8a8d91;
+  color: var(--ui-field-placeholder, #8a8d91);
 }
 .md-field:hover .md-field-control:not(:focus):not(:disabled) {
   border-color: var(--color-calcite-ink);
@@ -563,8 +572,8 @@
   box-shadow: inset 0 0 0 1px var(--color-coral);
 }
 .md-field-control:user-invalid {
-  border-color: #b3261e;
-  box-shadow: inset 0 0 0 1px #b3261e;
+  border-color: var(--color-field-error);
+  box-shadow: inset 0 0 0 1px var(--color-field-error);
 }
 .md-field-control:disabled {
   opacity: 0.5;
@@ -578,7 +587,7 @@
   padding: 0 4px;
   overflow: hidden;
   background: var(--md-field-bg);
-  color: #49454f;
+  color: var(--ui-field-support, #49454f);
   font-size: 14px;
   line-height: 16px;
   white-space: nowrap;
@@ -598,7 +607,7 @@
   color: var(--color-coral);
 }
 .md-field-control:user-invalid ~ .md-field-label {
-  color: #b3261e;
+  color: var(--color-field-error);
 }
 .md-field-select {
   appearance: none;
@@ -613,7 +622,7 @@
   top: 28px;
   width: 24px;
   height: 24px;
-  color: #49454f;
+  color: var(--ui-field-support, #49454f);
   pointer-events: none;
   transform: translateY(-50%);
   transition: transform var(--md-dur-short4) var(--md-ease-standard);
@@ -628,8 +637,9 @@
   margin: 4px 16px 0; /* M3: supporting text sits 4 dp under the field, inset 16 dp */
   font-size: 11px;
   line-height: 16px;
-  color: #49454f;
+  color: var(--ui-field-support, #49454f);
 }
+.md-field-support.text-field-error { color: var(--color-field-error); }
 
 /* ==========================================================================
  * M3 plain tooltip (https://m3.material.io/components/tooltips).
@@ -738,10 +748,10 @@
 
 /* MangoRange: the live gradient sits under the input, so the filled part of the track is left transparent. */
 .lp-light input[type='range'].mango-range::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), var(--ui-slider-track, #cbd5e1) 0);
 }
 .lp-light input[type='range'].mango-range::-moz-range-track {
-  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), var(--ui-slider-track, #cbd5e1) 0);
 }
 
 /* ==========================================================================
@@ -842,7 +852,7 @@
   color: var(--color-calcite-ink);
 }
 .glass-on .cmp-navlink:hover {
-  color: #000;
+  color: var(--color-ink);
 }
 
 /* The sidebar's drag bar does not react to presses: no shrink, so no panel edge shows around it. */
@@ -855,10 +865,10 @@
 
 /* Scenario Comparison keeps plain coral slider fills (no mango mesh there). */
 .cmp-page.lp-light input[type='range']::-webkit-slider-runnable-track {
-  background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+  background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), var(--ui-slider-track, #cbd5e1) 0);
 }
 .cmp-page.lp-light input[type='range']::-moz-range-track {
-  background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), #cbd5e1 0);
+  background: linear-gradient(to right, var(--color-coral) calc(17px + (100% - 34px) * var(--p)), var(--ui-slider-track, #cbd5e1) 0);
 }
 
 /* ---- Hide all UI: everything marked .ui-chrome fades away; Esc brings it back ---- */
@@ -872,10 +882,20 @@
   transition: opacity 300ms var(--md-ease-standard), visibility 0s 300ms;
 }
 
-/* ---- Dark mode (html.lp-dark): the planner's light panels take dark surfaces. Scenario Comparison is left alone. ---- */
-.lp-dark .lp-light:not(.cmp-page) {
+/* Dark equivalents for the shared Opaline surface scope. */
+.lp-dark .lp-light {
   color-scheme: dark;
   --color-opal-50: #26282c;
+  --color-panel-fill: #2f3237;
+  --color-field-error: #ffb4ab;
+  --color-calcite-peach: #825849;
+  --ui-slider-track: #50535a;
+  --ui-slider-thumb: #b4b7bc;
+  --ui-slider-thumb-border: #d3d6dc;
+  --ui-field-outline: #8e9197;
+  --ui-field-support: #b4b7bc;
+  --ui-field-placeholder: #a8abb0;
+  --ui-inverse-surface: #33363c;
   --color-opal-100: #1d1f22;
   --color-opal-300: #3f4247;
   --color-calcite-ink: #ecedee;
@@ -891,7 +911,15 @@
   --color-slate-950: #2d2f33;
   --color-sky-200: #ffb4a6;
   --color-sky-300: #ff9a88;
+  --color-sky-500: #c33a25;
+  --color-sky-600: #b83222;
+  --color-sky-800: #8b4c40;
   --color-sky-950: #4a2019;
+  --color-red-800: #874446;
+  --color-red-900: #71373b;
+  --color-amber-800: #826837;
+  --color-amber-900: #705826;
+  --color-emerald-800: #386b51;
   --color-red-200: #ffc9c9;
   --color-red-300: #ffb0b0;
   --color-red-400: #ff9c9c;
@@ -906,39 +934,41 @@
   --color-amber-400: #eec25a;
   --color-amber-950: #352a0d;
 }
-.lp-dark .lp-light:not(.cmp-page) .bg-white {
-  background-color: #2f3237;
-}
-.lp-dark .lp-light:not(.cmp-page) .md-field {
-  --md-field-bg: var(--md-field-surface, var(--color-opal-100));
-}
-.lp-dark .lp-light:not(.cmp-page) .md-field-label,
-.lp-dark .lp-light:not(.cmp-page) .md-field-trailing {
-  color: #b4b7bc;
-}
-.lp-dark .lp-light:not(.cmp-page) .md-field-control {
-  border-color: #8e9197;
-}
-.lp-dark .lp-light:not(.cmp-page) .md-switch {
+.lp-dark .lp-light .md-switch {
   background: #2d2f33;
   border-color: #cfd0d3;
 }
-.lp-dark .lp-light:not(.cmp-page) .md-switch-handle {
+.lp-dark .lp-light .md-field {
+  --md-field-bg: var(--md-field-surface, var(--color-opal-100));
+}
+.lp-dark .lp-light .md-switch-handle {
   background: #cfd0d3;
 }
-.lp-dark .lp-light:not(.cmp-page) input[type='checkbox'] {
+.lp-dark .lp-light input[type='checkbox']:not(:checked) {
   border-color: #cfd0d3;
 }
-.lp-dark .lp-light:not(.cmp-page) input[type='range']::-webkit-slider-runnable-track,
-.lp-dark .lp-light:not(.cmp-page) input[type='range']::-moz-range-track {
-  background: linear-gradient(to right, transparent calc(17px + (100% - 34px) * var(--p)), #44474c 0);
-}
-.lp-dark .lp-light:not(.cmp-page) [aria-checked='true'] > .md-switch {
+.lp-dark .lp-light [aria-checked='true'] > .md-switch {
   background: var(--color-coral);
   border-color: var(--color-coral);
 }
-.lp-dark .lp-light:not(.cmp-page) [aria-checked='true'] > .md-switch .md-switch-handle {
-  background: #fff;
+.lp-dark .lp-light [aria-checked='true'] > .md-switch .md-switch-handle {
+  background: #1f2326;
+  color: #fff;
+}
+.lp-dark :is(.md-dp-day[aria-pressed='true'], .bg-coral.text-white) { color: #1f2326; }
+.lp-dark .lp-light input[type='checkbox']:checked::after { border-color: #1f2326; }
+
+.lp-light .glass-on.glass-selection {
+  background: linear-gradient(135deg, rgb(255 255 255 / 50%), rgb(255 255 255 / 22%));
+}
+.lp-dark .lp-light .glass-on {
+  background: color-mix(in srgb, var(--color-opal-100) 86%, transparent);
+  border-color: var(--color-opal-300);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 28%);
+}
+.lp-dark .lp-light .glass-on::before { opacity: 0.12; }
+.lp-dark .lp-light .glass-on.glass-selection {
+  background: color-mix(in srgb, var(--color-opal-300) 85%, transparent);
 }
 
 .glass-on:not(.absolute):not(.fixed):not(.sticky) {
@@ -980,7 +1010,18 @@
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-coral) 24%, transparent), 0 0 20px color-mix(in srgb, var(--color-coral) 40%, transparent);
   animation: md-tour-pulse 2s var(--md-ease-standard) infinite;
 }
+/* The Guided Tour offer's arrow: a gentle nudge toward More (⋮), M3 standard easing. */
+@keyframes md-offer-nudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(5px); }
+}
+.md-offer-arrow {
+  animation: md-offer-nudge 1.6s var(--md-ease-standard) infinite;
+}
 @media (prefers-reduced-motion: reduce) {
+  .md-offer-arrow {
+    animation: none;
+  }
   .md-tour-card,
   .md-tour-hole {
     transition: none;
