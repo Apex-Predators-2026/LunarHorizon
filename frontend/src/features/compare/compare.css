@@ -201,3 +201,66 @@
     transition: none;
   }
 }
+
+/* ---- Progressive disclosure: tabs, expandable blocks, the shared reveal motion (see disclosure.tsx) ---- */
+.cmp-page .cmp-tabs { display: flex; gap: 4px; overflow-x: auto; }
+.cmp-page .cmp-tab {
+  position: relative;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-ink-3);
+  white-space: nowrap;
+  transition: background-color 150ms var(--md-ease-standard), color 150ms var(--md-ease-standard);
+}
+.cmp-page .cmp-tab:hover { background: rgba(60, 64, 68, 0.08); color: var(--color-ink); }
+.cmp-page .cmp-tab::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: #d9472f;
+  transform: scaleX(0);
+  transition: transform 180ms var(--md-ease-standard);
+}
+.cmp-page .cmp-tab[aria-selected='true'] { color: var(--color-ink); }
+.cmp-page .cmp-tab[aria-selected='true']::after { transform: scaleX(1); }
+
+.cmp-page .cmp-disc-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 4px;
+  border-radius: 8px;
+  text-align: left;
+  transition: background-color 150ms var(--md-ease-standard);
+}
+.cmp-page .cmp-disc-btn:hover { background: rgba(60, 64, 68, 0.06); }
+.cmp-page .cmp-chevron { color: var(--color-ink-3); transition: transform 180ms var(--md-ease-standard); }
+.cmp-page .cmp-disc-btn[aria-expanded='true'] .cmp-chevron { transform: rotate(180deg); }
+
+/* Opening a view or block: a short fade and 4 px rise, only when it is shown (not on re-renders or data refreshes). */
+@keyframes cmp-reveal { from { opacity: 0; transform: translateY(4px); } }
+.cmp-page .cmp-reveal:not([hidden]) { animation: cmp-reveal 200ms var(--md-ease-emph-decel) backwards; }
+
+/* Selection feedback on grid cells and chips. */
+.cmp-page .atlas-cell { transition: box-shadow 120ms var(--md-ease-standard), filter 120ms var(--md-ease-standard); }
+.cmp-page .atlas-cell:hover { filter: brightness(1.08); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cmp-page .cmp-reveal:not([hidden]) { animation: none; }
+  .cmp-page .cmp-tab, .cmp-page .cmp-tab::after, .cmp-page .cmp-disc-btn, .cmp-page .cmp-chevron, .cmp-page .atlas-cell { transition: none; }
+}
+
+/* Printing the workspace shows everything the user had collapsed or not yet opened. */
+@media print {
+  .cmp-page [data-collapsible][hidden] { display: block !important; }
+  .cmp-page [role='tablist'] { display: none; }
+}

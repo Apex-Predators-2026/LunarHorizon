@@ -110,7 +110,7 @@ export function ScenarioManager() {
 
   return (
     <div className="space-y-3">
-      <div data-tour="compare-select" className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <button type="button" className={btnPrimary} onClick={() => add()}>+ Add scenario</button>
         <span className="mx-1 h-5 w-px bg-slate-700" aria-hidden="true" />
         <span className="text-xs text-slate-400">Quick comparisons:</span>
