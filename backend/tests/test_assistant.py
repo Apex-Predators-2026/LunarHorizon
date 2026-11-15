@@ -58,6 +58,40 @@ def ask(question="Summarize my comparison", context=CONTEXT, history=()):
     return client.post("/api/assistant/chat", json={"messages": [*history, {"role": "user", "content": question}], "context": context})
 
 
+@pytest.mark.parametrize("terminal", ["done", "interrupted", "provider_error"])
+def test_stream_returns_text_deltas_and_a_terminal_event(monkeypatch, terminal):
+    monkeypatch.setenv("OPENROUTER_API_KEY", FAKE_KEY)
+
+    def open_stream(req, timeout=None):
+        assert json.loads(req.data)["stream"] is True
+        events = (
+            b": OPENROUTER PROCESSING\n\n"
+            b'data: {"model":"test/model","choices":[{"delta":{"content":"Scenario A"}}]}\n\n'
+            b'data: {"choices":[{"delta":{"content":" is unknown."}}]}\n\n'
+        )
+        if terminal == "done":
+            events += b"data: [DONE]\n\n"
+        if terminal == "provider_error":
+            events += b'data: {"error":{"code":429,"message":"private provider detail"}}\n\n'
+        return io.BytesIO(events)
+
+    monkeypatch.setattr(urllib.request, "urlopen", open_stream)
+    result = client.post(
+        "/api/assistant/chat",
+        headers={"Accept": "application/x-ndjson"},
+        json={"messages": [{"role": "user", "content": "Summarize"}], "context": CONTEXT},
+    )
+    assert result.headers["content-type"] == "application/x-ndjson"
+    events = [json.loads(line) for line in result.text.splitlines()]
+    assert events[:2] == [{"type": "delta", "text": "Scenario A"}, {"type": "delta", "text": " is unknown."}]
+    if terminal == "done":
+        assert events[2] == {"type": "done", "model": "test/model"}
+    else:
+        assert events[2]["type"] == "error"
+        assert events[2]["reason"] == ("network" if terminal == "interrupted" else "rate_limited")
+        assert "private provider detail" not in result.text
+
+
 def test_status_and_chat_without_a_key_say_not_configured_and_never_fake_an_answer(monkeypatch):
     fake = FakeAI()
     monkeypatch.setattr(urllib.request, "urlopen", fake)
