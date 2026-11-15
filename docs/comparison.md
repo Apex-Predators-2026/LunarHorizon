@@ -191,3 +191,27 @@ into the shared `useAppStore` for the followed scenario; "View in 3D ↗" switch
 | UI / design | The comparison uses the shared Tailwind tokens and the page's own `compare.css` | None |
 | Member 6 (validation) | `docs/comparison.md` (this page) states every rule: no zero-filling, UNKNOWN kept, ranks only for PASS within a group | Review welcome |
 
+
+## Summary report (frozen snapshot)
+
+"Generate Summary Report" (Decision area of the Comparison) freezes the evaluated selection into a detached, deep-frozen
+snapshot (`frontend/src/features/compare/report.ts`, `ReportPreview.tsx`, print CSS in `report.css`). The preview renders
+only the snapshot: later edits to scenarios, landing date, duration, requirements, rankings or background requests never
+change an open report. The preview flags itself out of date and offers **Regenerate**; regeneration is refused while any
+result is loading or the ranking is stale. **Close** returns to the Comparison workspace exactly as it was (the dashboard
+stays mounted under the preview). **Print / Save as PDF** uses the browser print dialog; the print stylesheet prints only
+the report.
+
+- Same data everywhere: the report embeds the structured export built from the same entries (`snapshot.export`), and
+  **Download JSON** saves that snapshot. Report rows and export agree on identity, requested vs evaluated window
+  (`mission_time`), verdicts, ranking groups, scores and bounds, requirement margins, evidence windows, dataset file +
+  SHA-256, engine / scoring versions, limitations.
+- Requested and evaluated time are separate. The plans table leads with the evaluated window and shows the request when
+  the grid adjusted it; with no evaluated window it says "not evaluated" and never substitutes the request.
+- UNKNOWN stays UNKNOWN (never FAIL); a bounded score prints as bounds; a missing value or hash prints as unavailable.
+- Export compatibility: format stays `comparison-export-v1`; `schema_revision: 2` is additive (identity, evaluated
+  interval, dataset file + hash, selection key, story, preferences, reproduction block, `mission_time`). `landing_utc` /
+  `duration_days` keep their v1 meaning (requested) and CSV columns keep their positions; new CSV columns are appended.
+- Entry points: `useReportStore.getState().generate()` / `.reopen()` / `.close()`, `cannotGenerate()`,
+  `ReportButton`, `LastReportButton`, `ReportPreview` (mounted once in `App.tsx`), `reportHooks.mission` for a guided
+  mission to attach its title / objective.
