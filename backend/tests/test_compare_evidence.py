@@ -3,6 +3,7 @@ unknown samples that stay unknown."""
 import math
 
 import numpy as np
+import pytest
 from fastapi.testclient import TestClient
 
 from app import store
@@ -84,9 +85,18 @@ def test_unknown_samples_stay_unknown(monkeypatch):
     patched = Patched(real)
     monkeypatch.setattr(service, "_site_record", lambda sid: patched if sid == "malapert-massif" else store.get_site(sid))
     r = _post(("m", MAL))["m"]
-    # No fabricated darkness/blackout: window statistics are withheld, unknown samples are null.
-    assert r["solar"] is None and r["earth"] is None and r["dark_windows"] == [] and r["blackout_windows"] == []
+    # No fabricated darkness/blackout: whole-mission statistics are withheld per body, the gap is its own unknown
+    # window, no darkness/blackout window overlaps it, and no rise/set is invented at its edges.
+    assert r["solar"] is None and r["earth"] is None and r["power"] is None
+    assert set(r["withheld"]) == {"solar", "earth", "power"}
     assert "Incomplete data" in r["message"]
+    gap = ("2027-01-16T00:00:00Z", "2027-01-16T06:00:00Z")
+    unknown = {(w["kind"], w["start_utc"], w["end_utc"]) for w in r["unknown_windows"]}
+    assert unknown == {("sun_unknown", *gap), ("earth_unknown", *gap)}
+    for w in r["dark_windows"] + r["blackout_windows"] + r["sun_windows"] + r["earth_windows"]:
+        assert w["end_utc"] <= gap[0] or w["start_utc"] >= gap[1], w
+    assert all(ev["time_utc"] not in gap for ev in r["events"])
+    assert r["sun_known_hours"] == pytest.approx(7 * 24 - 6) and r["earth_known_hours"] == pytest.approx(7 * 24 - 6)
     tl = r["timeline"]
     assert tl["sun_visible_fraction"][24:30] == [None] * 6 and tl["earth_visible"][24:30] == [None] * 6
     a = r["assessment"]
@@ -105,6 +115,115 @@ def test_custom_site_source_points_at_its_file(monkeypatch):
     assert service._source_path("custom_x") == "custom/custom_x.json"
 
 
+def test_show_why_evidence_windows_are_the_engines_own():
+    """"Show why" in the comparison reads the engine's evidence windows; they must be exactly the canonical ones,
+    inside the evaluated mission, with ordered UTC edges (the frontend refuses anything else)."""
+    from app.viability.api.service import assess, assess_request_for_scenario
+    from app.models import Scenario
+
+    body = {"site": MAL, "landing_utc": "2027-01-15T00:00:00Z", "duration_days": 7,
+            "requirements": {"battery_hours": 10, "max_comms_gap_hours": 10}}  # strict: duration constraints fail
+    r = client.post("/api/compare", json={"scenarios": [{"key": "m", "scenario": body}]}).json()["results"][0]
+    a = r["assessment"]
+    assert a["evaluated_start_utc"] == "2027-01-15T00:00:00Z" and a["evaluated_end_utc"] == "2027-01-22T00:00:00Z"
+    canonical = assess(assess_request_for_scenario(Scenario.model_validate(body))).assessment
+    by_id = {c.constraint_id.value: c for c in canonical.constraints}
+    with_windows = [c for c in a["constraints"] if c["evidence_windows"]]
+    assert with_windows, "a failed duration constraint carries its evidence window"
+    for c in a["constraints"]:
+        want = [(w.kind.value, w.duration_s) for w in by_id[c["id"]].evidence_windows]
+        assert [(w["kind"], w["duration_s"]) for w in c["evidence_windows"]] == want
+        for w in c["evidence_windows"]:
+            assert a["evaluated_start_utc"] <= w["start_utc"] < w["end_utc"] <= a["evaluated_end_utc"]
+            assert w["start_utc"].endswith("Z") and w["end_utc"].endswith("Z")
+    assert {w["kind"] for w in a["windows"]} >= {"sunlight", "earth_visible"}
+
+
+# ---------------------------------------------------------------- missing-data integrity (per body, per metric)
+
+def _patched(edit):
+    real = store.get_site("malapert-massif")
+
+    class Patched:
+        def __init__(self, d):
+            self.record, self.site, self.times = d.record, d.site, d.times
+            self.cols = {k: np.array(v, copy=True) for k, v in d.cols.items()}
+            self.known = {k: np.array(v, copy=True) for k, v in d.known.items()}
+            edit(self, int(np.searchsorted(d.times, np.datetime64("2027-01-16T00:00:00"))))
+
+    return Patched(real)
+
+
+def _post_patched(monkeypatch, edit, **kw):
+    patched = _patched(edit)
+    monkeypatch.setattr(service, "_site_record", lambda sid: patched if sid == "malapert-massif" else store.get_site(sid))
+    return _post(("m", MAL), **kw)["m"]
+
+
+def test_missing_sun_does_not_erase_valid_earth_information(monkeypatch):
+    def sun_only(p, i):
+        p.cols["sun_horizon_deg"][i:i + 5] = np.nan
+        p.cols["sun_visible_fraction"][i:i + 5] = np.nan
+        p.known["sun_visible"][i:i + 5] = False
+
+    full = _post(("m", MAL))["m"]  # before patching
+    r = _post_patched(monkeypatch, sun_only)
+    assert r["solar"] is None and r["power"] is None and set(r["withheld"]) == {"solar", "power"}
+    assert r["earth"] is not None  # Earth is fully known: its statistics stand
+    assert r["earth"] == full["earth"]
+    assert r["sun_known_hours"] == pytest.approx(7 * 24 - 5) and r["earth_known_hours"] == pytest.approx(7 * 24)
+    m = r["assessment"]["metrics"]
+    assert m["sunlight_percent"]["status"] == "bounded" and m["earth_visible_percent"]["status"] == "known"
+
+
+def test_decimation_never_hides_a_one_hour_unknown(monkeypatch):
+    def one_hour(p, i):
+        p.cols["earth_horizon_deg"][i + 3] = np.nan
+        p.known["earth_visible"][i + 3] = False
+
+    r = _post_patched(monkeypatch, one_hour, max_points=50)  # 168 samples -> stride 4
+    tl = r["timeline"]
+    assert tl["stride"] == 4 and tl["source_step_hours"] == 1.0 and tl["step_hours"] == 4.0
+    k = next(j for j, t in enumerate(tl["time_utc"]) if t > "2027-01-16T03:00Z") - 1  # the point standing for 03:00
+    assert tl["earth_visible"][k] is None and tl["earth_horizon_deg"][k] is None
+    assert tl["sun_visible_fraction"][k] is not None  # the Sun is known there
+    assert [w["kind"] for w in r["unknown_windows"]] == ["earth_unknown"]
+
+
+def test_visible_sliver_with_rounded_zero_fraction_is_not_darkness(monkeypatch):
+    real = store.get_site("malapert-massif")
+    i0 = int(np.searchsorted(real.times, np.datetime64("2027-01-15T00:00:00")))
+    dark = [k for k in range(i0, i0 + 168) if real.cols["sun_visible_fraction"][k] == 0.0]
+    assert dark, "need a dark hour in the mission"
+    k = dark[0]
+
+    def sliver(p, _i):
+        p.cols["sun_visible"][k] = True  # visible, fraction written 0.0 (below the file's rounding)
+
+    base = _post(("m", MAL))["m"]  # before patching
+    r = _post_patched(monkeypatch, sliver)
+    assert r["solar"]["sunlit_hours"] == pytest.approx(base["solar"]["sunlit_hours"] + 1)
+    assert r["assessment"]["metrics"]["sunlight_percent"]["value"] > base["assessment"]["metrics"]["sunlight_percent"]["value"]
+    j = r["timeline"]["time_utc"].index(str(real.times[k])[:16] + "Z")
+    assert r["timeline"]["sun_visible"][j] is True and r["timeline"]["sun_visible_fraction"][j] == 0.0
+
+
+def test_genuine_zero_and_unknown_stay_distinct_in_json(monkeypatch):
+    def gap(p, i):
+        p.cols["sun_visible_fraction"][i:i + 2] = np.nan
+        p.cols["sun_horizon_deg"][i:i + 2] = np.nan
+        p.known["sun_visible"][i:i + 2] = False
+
+    patched = _patched(gap)
+    monkeypatch.setattr(service, "_site_record", lambda sid: patched)
+    raw = client.post("/api/compare", json={"scenarios": [
+        {"key": "m", "scenario": {"site": MAL, "landing_utc": "2027-01-15T00:00:00Z", "duration_days": 7}}]}).text
+    assert "NaN" not in raw and "Infinity" not in raw  # every public number is finite or null
+    tl = __import__("json").loads(raw)["results"][0]["timeline"]
+    fr = tl["sun_visible_fraction"]
+    assert None in fr and 0.0 in fr  # unknown is null, a measured zero stays 0.0
+
+
 def test_failed_requirements_carry_the_engine_evidence_windows():
     r = _post(("p", PNS))["p"]
     cons = {c["id"]: c for c in r["assessment"]["constraints"]}
@@ -117,3 +236,21 @@ def test_failed_requirements_carry_the_engine_evidence_windows():
     # The cited window is the measured longest darkness (same engine metric).
     assert abs(w["duration_hours"] - dark["measured"]["value"]) < 1e-6
     assert w["start_utc"].endswith("Z")
+
+
+def test_real_results_carry_the_evaluated_site_file_and_its_hash():
+    """The comparison names the exact site file each real result was computed from, with the same SHA-256 the
+    canonical assessment API reports for it (the summary report records it for reproduction)."""
+    body = {"site": MAL, "landing_utc": "2027-01-15T00:00:00Z", "duration_days": 7}
+    r = client.post("/api/compare", json={"scenarios": [{"key": "m", "scenario": body}]}).json()["results"][0]
+    a = client.post("/api/viability/assess-scenario", json={"scenario": body}).json()
+    assert r["dataset_file"] == "malapert-massif.json"
+    assert r["dataset_sha256"] == a["input_dataset"]["sha256"]
+    assert len(r["dataset_sha256"]) == 64
+
+
+def test_demonstration_results_have_no_dataset_hash():
+    body = {"site": MAL, "landing_utc": "2035-01-15T00:00:00Z", "duration_days": 7}
+    r = client.post("/api/compare", json={"scenarios": [{"key": "d", "scenario": body}], "allow_demo_data": True}).json()["results"][0]
+    assert r["data_kind"] == "demonstration"
+    assert r["dataset_file"] is None and r["dataset_sha256"] is None

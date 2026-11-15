@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { GlassDefs, GlassSurface } from '../../ui/GlassSurface'
 import { InteractiveGrainGradient } from '../../ui/InteractiveGrainGradient'
-import { ExternalIcon } from '../../ui/icons'
+import { ChevronRightIcon, ExternalIcon } from '../../ui/icons'
 import { LiveNow } from './LiveNow'
 import { DATA_SOURCES, HERO, PICTURES, REPO_URL } from './content'
 import './landing.css'
@@ -58,23 +58,67 @@ function Nav({ onOpen }: { onOpen: () => void }) {
   )
 }
 
-/** The app's real screens, large, after the preview. */
-function Gallery() {
+function FeatureCarousel() {
+  const track = useRef<HTMLUListElement>(null)
+  const [active, setActive] = useState(0)
+  const last = PICTURES.length - 1
+
+  function goTo(index: number) {
+    const list = track.current
+    const slide = list?.children.item(Math.max(0, Math.min(last, index)))
+    if (!(slide instanceof HTMLElement) || !list) return
+    list.scrollTo({ left: slide.offsetLeft })
+  }
+
+  function syncActive(list: HTMLUListElement) {
+    let nearest = 0
+    let distance = Infinity
+    Array.from(list.children).forEach((slide, index) => {
+      const offset = Math.abs((slide as HTMLElement).offsetLeft - list.scrollLeft)
+      if (offset < distance) {
+        nearest = index
+        distance = offset
+      }
+    })
+    setActive(nearest)
+  }
+
   return (
-    <section id="inside" className="lnd-section lnd-light lnd-gallery" aria-labelledby="gallery-h">
+    <section id="preview" className="lnd-preview" aria-labelledby="preview-h" aria-roledescription="carousel">
       <div className="lnd-wrap">
-        <div className="lnd-gallery-head" data-reveal>
-          <h2 id="gallery-h">Inside the navigator</h2>
-          <p>Explore how the navigator uses Horizons and LOLA data to plan a lunar landing.</p>
+        <div className="lnd-preview-header">
+          <h2 id="preview-h">Inside the navigator</h2>
+          <div className="lnd-preview-controls">
+            <button type="button" aria-label="Previous feature" aria-controls="feature-slides" disabled={active === 0} onClick={() => goTo(active - 1)}>
+              <ChevronRightIcon size={22} />
+            </button>
+            <button type="button" aria-label="Next feature" aria-controls="feature-slides" disabled={active === last} onClick={() => goTo(active + 1)}>
+              <ChevronRightIcon size={22} />
+            </button>
+          </div>
         </div>
-        <ul className="lnd-gallery-grid">
-          {PICTURES.map((p, i) => (
-            <li key={p.id} data-reveal style={{ '--i': i % 2 } as React.CSSProperties}>
+        <ul
+          id="feature-slides"
+          ref={track}
+          className="lnd-preview-track"
+          role="list"
+          aria-label="App features"
+          tabIndex={0}
+          onScroll={(event) => syncActive(event.currentTarget)}
+          onKeyDown={(event) => {
+            const target = { ArrowLeft: active - 1, ArrowRight: active + 1, Home: 0, End: last }[event.key]
+            if (target === undefined) return
+            event.preventDefault()
+            goTo(target)
+          }}
+        >
+          {PICTURES.map((picture) => (
+            <li key={picture.id}>
               <figure>
-                <img src={p.src} alt={`${p.title}: ${p.caption}`} />
+                <img src={picture.src} alt={picture.alt} loading="lazy" />
                 <figcaption>
-                  <strong>{p.title}</strong>
-                  <span>{p.caption}</span>
+                  <h3>{picture.title}</h3>
+                  <p>{picture.caption}</p>
                 </figcaption>
               </figure>
             </li>
@@ -201,17 +245,7 @@ export default function Landing({ onOpen }: { onOpen: () => void }) {
       <Nav onOpen={onOpen} />
       <main>
         <Hero onOpen={onOpen} />
-        <div id="preview" className="lnd-preview">
-          <figure className="lnd-preview-frame">
-            <img
-              src="/landing/mission-planner-preview.png"
-              alt="Mission Planner showing Connecting Ridge on the Moon, the sunlight and Earth visibility timeline, and the Mission Rescue panel."
-              width={1919}
-              height={1079}
-            />
-          </figure>
-        </div>
-        <Gallery />
+        <FeatureCarousel />
         <Data />
         <Close onOpen={onOpen} />
       </main>
