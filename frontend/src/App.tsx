@@ -46,10 +46,10 @@ function openNavigator() {
   window.scrollTo(0, 0)
 }
 
-/** Landing page "Take the guided tour": open the navigator and start the one Guided Tour from Act 1. */
+/** Landing page "Take the guided tour": open the navigator and start the ~90 s quick tour. */
 function openGuidedTour() {
   openNavigator()
-  useTutorialStore.getState().startTour(0)
+  useTutorialStore.getState().startTour(undefined, 'quick')
 }
 
 const VIEWS = [

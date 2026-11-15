@@ -109,7 +109,7 @@ export function MissionAssistant({ entries, groups, pairs, notes, ready, onJump 
     if (typeof window !== 'undefined' && (window.innerWidth < SIDE_BY_SIDE_MIN || useAssistantLayout.getState().layout === 'full')) {
       useAssistantLayout.getState().setLayout('min')
     }
-    if (target === 'tour') useTutorialStore.getState().startTour(actStart(2))
+    if (target === 'tour') useTutorialStore.getState().startTour(actStart(2), 'full')
     else if (target === 'report') openReport()
     else onJump?.(target)
   }
