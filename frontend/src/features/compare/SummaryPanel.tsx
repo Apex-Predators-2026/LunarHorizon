@@ -30,7 +30,7 @@ function GroupCard({ d, showGroup }: { d: GroupDecision; showGroup: boolean }) {
   const k = KIND[d.kind]
   return (
     <article aria-label={`Decision${showGroup ? ` for group ${d.group.id}` : ''}`} className="space-y-3 rounded-xl border border-line bg-surface p-4">
-      <header className="flex flex-wrap items-center gap-2">
+      <header data-tour="compare-decision" className="flex flex-wrap items-center gap-2">
         <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium ${k.cls}`}>
           <Icon name={k.icon} size={14} /> {k.label}
         </span>
