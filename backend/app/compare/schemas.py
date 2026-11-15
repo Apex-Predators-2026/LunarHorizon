@@ -285,6 +285,9 @@ class CompareResult(BaseModel):
     message: str | None = None
     data_kind: DataKind
     data_source: str
+    evaluated_landing_utc: str | None = Field(None, description="Landing time actually evaluated (hourly data grid)")
+    evaluated_duration_days: float | None = Field(None, description="Mission length actually evaluated (whole hours)")
+    time_note: str | None = Field(None, description="Plain note when the evaluated time or length differs from the request")
     site_context: SiteContext | None = None
     science_context: ScienceContext | None = None
     viability: ViabilityResult | None = None

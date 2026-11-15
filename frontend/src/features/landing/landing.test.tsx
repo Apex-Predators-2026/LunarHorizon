@@ -9,7 +9,8 @@ import { currentHourIso, describeEarth, describeSun, untilText } from './liveFor
 describe('landing page', () => {
   it('renders one h1, the opening Moon picture, the app pictures and the NASA sources', () => {
     const html = renderToString(<Landing onOpen={() => {}} />)
-    expect(html).toContain(HERO.headline)
+    for (const line of HERO.headlineLines) expect(html).toContain(line)
+    expect(html).not.toContain('Team Apex Predators ·')
     expect(html.match(/<h1/g)).toHaveLength(1)
     expect(html).toContain('/landing/moon.jpg')
     expect(html).toContain(HERO.lead)
