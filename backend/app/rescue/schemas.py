@@ -81,6 +81,17 @@ class MetricDelta(BaseModel):
     better: bool | None = Field(description="True if the change is an improvement, None if unchanged/unknown")
 
 
+UndecidedReason = Literal["incomplete_data", "outside_coverage", "no_real_data", "position_unsupported"]
+"""Why a sensitivity point has no pass/fail answer.
+
+incomplete_data       evaluated on real data, but samples are missing (a gap, or the mission runs past the end of
+                      the data) so at least one requirement can't be decided
+outside_coverage      the site has real data, but not for this mission's dates
+no_real_data          the site has no real data at all
+position_unsupported  landing-position check skipped: no real terrain data around the site
+"""
+
+
 class DateSlipCheck(BaseModel):
     date_offset_hours: float
     status: Literal["pass", "fail", "unknown", "not_evaluated"]
@@ -91,6 +102,7 @@ class DateSlipCheck(BaseModel):
     closest_headroom_text: str | None = None
     headroom_status: str | None = None
     failing_constraints: list[str] = Field(default_factory=list)
+    reason: UndecidedReason | None = Field(None, description="Why the slip has no pass/fail answer (unknown only)")
 
 
 class Robustness(BaseModel):
@@ -203,6 +215,11 @@ class SensitivityPoint(BaseModel):
     closest_label: str | None = None
     closest_headroom_text: str | None = None
     headroom_status: str | None = None
+    reason: UndecidedReason | None = Field(
+        None, description="Why the point has no pass/fail answer; set only for unknown and not_evaluated points")
+    undecided_constraints: list[str] = Field(
+        default_factory=list, description="Requirements the available data can't decide (unknown points, and "
+                                          "undecided extras on a failing point)")
 
 
 class SensitivityCounts(BaseModel):
@@ -212,6 +229,8 @@ class SensitivityCounts(BaseModel):
     passed: int
     failed: int
     unknown: int = Field(description="Evaluated, but real data does not fully cover the point")
+    by_reason: dict[str, int] = Field(
+        default_factory=dict, description="Unknown and not_evaluated points split by UndecidedReason")
 
 
 class SensitivityResponse(BaseModel):

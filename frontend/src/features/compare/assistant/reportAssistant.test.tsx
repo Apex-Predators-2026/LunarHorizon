@@ -14,6 +14,7 @@ import { basicAnswer } from './fallback'
 import { guideFor } from './navigation'
 import { openReport } from './openReport'
 import { REPORT_SECTIONS, reportForAssistant } from './reportContext'
+import { NO_REPORT, basicReportAnswer, isReportQuestion } from './reportFallback'
 import { RichText } from './RichText'
 import { suggestedQuestions } from './suggestions'
 
@@ -22,9 +23,10 @@ const SITES = {
   A: { id: 'peak-near-shackleton', name: 'Peak Near Shackleton', lat: -89.01701, lon: 126.27302 },
   B: { id: 'malapert-massif', name: 'Malapert Massif', lat: -85.9635, lon: 357.6326 },
   C: { id: 'connecting-ridge', name: 'Connecting Ridge', lat: -89.53432, lon: 209.94767 },
+  D: { id: 'malapert-massif', name: 'Malapert Massif', lat: -85.9635, lon: 357.6326 }, // fixture D: no data (UNKNOWN)
 } as const
 
-function load(keys: ('A' | 'B' | 'C')[]): ComparisonScenario[] {
+function load(keys: ('A' | 'B' | 'C' | 'D')[]): ComparisonScenario[] {
   const scenarios = keys.map((k, i) => ({
     ...makeScenario({ site: SITES[k], landing_utc: '2027-01-15T00:00:00Z', duration_days: 7 }, []),
     id: `s-${k}`, label: k, colorSlot: i, name: `Plan ${k}`,
@@ -115,5 +117,100 @@ describe('report suggestions and navigation', () => {
     useReportStore.getState().close()
     expect(openReport()).toBe('reopened')
     expect(useReportStore.getState().open).toBe(true)
+  })
+})
+
+describe('report answers without AI', () => {
+  const report = (keys: ('A' | 'B' | 'C' | 'D')[], liveKey?: string) => {
+    load(keys)
+    useReportStore.getState().generate()
+    const snap = useReportStore.getState().snapshot!
+    return reportForAssistant(snap, liveKey ?? snap.selection.key, false)!
+  }
+
+  it('routes questions about the report content to the report, and how-to questions to the guide', () => {
+    expect(isReportQuestion('Summarize my report.')).toBe(true)
+    expect(isReportQuestion('What does the report mean by UNKNOWN?')).toBe(true)
+    expect(isReportQuestion('Which section of the report shows the longest blackout?')).toBe(true)
+    expect(isReportQuestion('How do I generate a mission report?')).toBe(false)
+    expect(isReportQuestion('How do I download the PDF?')).toBe(false)
+    expect(isReportQuestion('Summarize my current comparison.')).toBe(false)
+    expect(basicAnswer('Summarize my report.', ctxWith(null))).toBe(NO_REPORT)
+  })
+
+  it('summarizes the report from the snapshot: decision, plans, differences, uncertainty', () => {
+    const r = report(['A', 'B', 'C'])
+    const t = basicAnswer('Summarize my report.', ctxWith(r))
+    for (const h of ['### Decision', '### Plans evaluated', '### Decisive differences', '### Main uncertainty']) expect(t).toContain(h)
+    expect(t).toMatch(/\*\*Scenario A\*\* \(Peak Near Shackleton\): FAIL/)
+    expect(t).toMatch(/\*\*Scenario B\*\* \(Malapert Massif\): PASS/)
+    expect(t).toContain('It matches the comparison on screen.')
+    expect(t).not.toContain('Out of date')
+    expect(t.trimEnd().endsWith('[[go:report]]')).toBe(true)
+  })
+
+  it('says first when the report is out of date', () => {
+    const t = basicReportAnswer('Summarize my report.', report(['A', 'B', 'C'], 'changed'))
+    expect(t.startsWith('**Out of date:**')).toBe(true)
+  })
+
+  it('explains the final assessment without naming a winner the report does not name', () => {
+    const t = basicReportAnswer('Explain the final assessment in my report.', report(['A', 'B', 'C']))
+    expect(t).toContain('### Final assessment')
+    expect(t).toMatch(/Scenario B/)
+    const none = basicReportAnswer('Explain the final assessment in my report.', report(['A']))
+    expect(none).not.toMatch(/: Scenario [A-Z]\b(?! \()/) // no recommended scenario named for a lone failing plan
+  })
+
+  it('lists strengths and weaknesses from the report only, never calling UNKNOWN a failure', () => {
+    const r = report(['A', 'B', 'C'])
+    const a = basicReportAnswer('What are the weaknesses of Scenario A in the report?', r)
+    expect(a).toContain('### Scenario A: FAIL')
+    expect(a).toMatch(/\*\*Mean visible solar disk\*\*: fails the requirement \(36\.8%/)
+    const b = basicReportAnswer('What are the strengths of Scenario B in the report?', r)
+    expect(b).toMatch(/\*\*Earth in line of sight\*\*: meets the requirement/)
+    expect(b).toMatch(/Scenario B has /)
+    expect(b).not.toMatch(/at least as good/) // comparison partner not named in that sentence
+    expect(b).toMatch(/Compared with it, Scenario C has more sunlight right after landing/)
+    expect(basicReportAnswer('Strengths of Scenario Z in the report?', r)).toMatch(/does not include Scenario Z/)
+  })
+
+  it('explains UNKNOWN and the communication section, and points to the right report section', () => {
+    const withUnknown = report(['B', 'D'])
+    const u = basicReportAnswer('What does the report mean by UNKNOWN?', withUnknown)
+    expect(u).toMatch(/\*\*not\*\* a failure/)
+    expect(u).toMatch(/Scenario D/)
+    const r = report(['A', 'B', 'C'])
+    const comm = basicReportAnswer('Explain the communication section of my report.', r)
+    expect(comm).toContain('### Communication in the report')
+    expect(comm).toMatch(/Longest communication blackout/)
+    expect(comm).toMatch(/not a confirmed radio link/)
+    expect(basicReportAnswer('Which section of the report shows the longest blackout?', r)).toMatch(/See the \*\*Decisive differences\*\* section/)
+    expect(basicReportAnswer('Which section of the report shows the data sources?', r)).toMatch(/\*\*Sources and data coverage\*\*/)
+  })
+})
+
+describe('out-of-date report notice in the chat', () => {
+  it('adds a fixed notice before the answer to a report question, and only then', async () => {
+    const { useAssistant, OUT_OF_DATE_NOTICE } = await import('./useAssistant')
+    load(['A', 'B', 'C'])
+    useReportStore.getState().generate()
+    const snap = useReportStore.getState().snapshot!
+    const stale = ctxWith(reportForAssistant(snap, 'changed', false))
+    const fresh = ctxWith(reportForAssistant(snap, snap.selection.key, false))
+    const original = globalThis.fetch
+    globalThis.fetch = (async () => new Response(JSON.stringify({ reply: 'ok', model: 'm', source: 'ai' }), { status: 200, headers: { 'Content-Type': 'application/json' } })) as typeof fetch
+    try {
+      const reset = () => useAssistant.setState({ messages: [], pending: false, error: null, lastSignature: null })
+      reset(); await useAssistant.getState().ask('Summarize my report.', stale)
+      expect(useAssistant.getState().messages.map((m) => m.role)).toEqual(['user', 'notice', 'assistant'])
+      expect(useAssistant.getState().messages[1].content).toBe(OUT_OF_DATE_NOTICE)
+      reset(); await useAssistant.getState().ask('Summarize my report.', fresh)
+      expect(useAssistant.getState().messages.map((m) => m.role)).toEqual(['user', 'assistant'])
+      reset(); await useAssistant.getState().ask('Summarize my current comparison.', stale)
+      expect(useAssistant.getState().messages.map((m) => m.role)).toEqual(['user', 'assistant'])
+    } finally {
+      globalThis.fetch = original
+    }
   })
 })
