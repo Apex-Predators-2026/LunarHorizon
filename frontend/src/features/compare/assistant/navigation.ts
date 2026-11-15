@@ -3,13 +3,17 @@
 // AI is unavailable, and defines the "Go to" links an answer may contain.
 import { COMPARE_SECTIONS } from '../sections'
 
-/** Places an answer may link to: the page's sections, plus starting the guided tour. */
-export type NavTarget = (typeof COMPARE_SECTIONS)[number][0] | 'tour'
+/** Places an answer may link to: the page's sections, starting the guided tour, and opening the Mission Report. */
+export type NavTarget = (typeof COMPARE_SECTIONS)[number][0] | 'tour' | 'report'
 
 export const NAV_TARGETS: Record<NavTarget, string> = {
   ...(Object.fromEntries(COMPARE_SECTIONS.map(([id, label]) => [id, label])) as Record<(typeof COMPARE_SECTIONS)[number][0], string>),
   tour: 'Start the guided tour',
+  report: 'Open the Mission Report',
 }
+
+/** Links that do something (shown with their own label) rather than go to a section ("Go to …"). */
+export const ACTION_TARGETS: ReadonlySet<NavTarget> = new Set<NavTarget>(['tour', 'report'])
 
 /** `[[go:cmp-metrics]]` in an answer becomes a button that scrolls to that section (unknown targets are dropped). */
 export const NAV_TOKEN = /\[\[go:([a-z-]+)\]\]/g
@@ -154,6 +158,25 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     keywords: /\b(export|download|csv|json|save)\b/i,
     steps: ['In **At a glance**, under the decision summary, click **Export JSON** or **Export CSV** (available once every selected scenario is assessed and ranked).'],
     go: ['cmp-overview'],
+  },
+  {
+    id: 'report', title: 'Generate and preview the Mission Report',
+    keywords: /\b(generate|create|make|open|see|view|preview|reopen|get)\b.*\breport\b|\b(mission|summary) report\b|\breport card\b/i,
+    steps: [
+      'Click **Generate Mission Report** at the top of the page (the same button is under the decision in **At a glance**). It is available once every selected scenario has been assessed and ranked.',
+      'The report opens as a preview over the page: **Close** returns to the comparison, and **Reopen last report** brings it back.',
+      'It is a frozen snapshot of the comparison: if you change the scenarios afterwards it is marked out of date, and you can generate a new one.',
+    ],
+    go: ['report'],
+  },
+  {
+    id: 'pdf', title: 'Save the report as a PDF',
+    keywords: /\b(download|save|export|get|print)\b.*\bpdf\b|\bpdf\b|\bprint\b/i,
+    steps: [
+      'Generate the Mission Report (or click **Reopen last report**).',
+      'In the preview, click **Print / Save as PDF**, then choose **Save as PDF** as the printer.',
+    ],
+    go: ['report'],
   },
   {
     id: 'view3d', title: 'See the terrain in 3D',
