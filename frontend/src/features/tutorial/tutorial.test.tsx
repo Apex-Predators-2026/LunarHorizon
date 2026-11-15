@@ -2,7 +2,7 @@ import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { StageModel } from '../guide/mission'
-import { TOUR_ACTS, TUTORIAL_STEPS, actStart } from './steps'
+import { TOUR_ACTS, TOUR_PATHS, TUTORIAL_STEPS, actStart, pathSteps } from './steps'
 import { TutorialOfferChip } from './TutorialOfferChip'
 import { TutorialSpotlight, TutorialSpotlightView } from './TutorialSpotlight'
 import { computeCoachmarkPosition, handleTutorialKeyDown } from './utils'
@@ -36,9 +36,20 @@ describe('Guided Mission Briefing Tutorial', () => {
     vi.useRealTimers()
   })
 
-  it('defines 17 steps in 3 acts covering all four views', () => {
-    expect(TUTORIAL_STEPS).toHaveLength(17)
-    expect(TUTORIAL_STEPS.map((s) => s.act)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3])
+  const idAt = () => TUTORIAL_STEPS[useTutorialStore.getState().stepIndex].id
+  const indexOf = (id: string) => TUTORIAL_STEPS.findIndex((s) => s.id === id)
+
+  it('defines 19 steps in 3 acts covering all four views, and two paths', () => {
+    expect(TUTORIAL_STEPS).toHaveLength(19)
+    expect(TUTORIAL_STEPS.map((s) => s.act)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3])
+    expect(TUTORIAL_STEPS.map((s) => s.id)).toEqual([
+      'mission', 'terrain', 'timeline', 'countdown', 'sky', 'jpl', 'original', 'delay', 'evidence', 'rescue',
+      'compare', 'headroom', 'sync', 'tradeoffs', 'science', 'report',
+      'atlas', 'method', 'your-turn',
+    ])
+    expect(TOUR_PATHS.quick).toEqual(['mission', 'delay', 'evidence', 'rescue', 'compare', 'science', 'your-turn'])
+    expect(TOUR_PATHS.full).toEqual(TUTORIAL_STEPS.map((s) => s.id))
+    expect(pathSteps('quick').map((i) => TUTORIAL_STEPS[i].id)).toEqual(TOUR_PATHS.quick)
     expect(new Set(TUTORIAL_STEPS.map((s) => s.view))).toEqual(new Set(['planner', 'compare', 'atlas', 'method']))
     expect(TUTORIAL_STEPS.filter((s) => s.story).map((s) => s.story)).toEqual([
       'mission',
@@ -63,10 +74,69 @@ describe('Guided Mission Briefing Tutorial', () => {
   it('goToAct jumps to the first step of each act', () => {
     useTutorialStore.getState().startTour(0)
     useTutorialStore.getState().goToAct(2)
-    expect(TUTORIAL_STEPS[useTutorialStore.getState().stepIndex].id).toBe('compare')
+    expect(idAt()).toBe('compare')
     useTutorialStore.getState().goToAct(3)
-    expect(TUTORIAL_STEPS[useTutorialStore.getState().stepIndex].id).toBe('atlas')
+    expect(idAt()).toBe('atlas')
     expect(actStart(1)).toBe(0)
+  })
+
+  it('the quick tour moves only through its steps and finishes after Your turn', () => {
+    useTutorialStore.getState().startTour(undefined, 'quick')
+    expect(useTutorialStore.getState()).toMatchObject({ open: true, path: 'quick' })
+    expect(idAt()).toBe('mission')
+    useTutorialStore.getState().nextStep()
+    expect(idAt()).toBe('delay')
+    useTutorialStore.getState().prevStep()
+    expect(idAt()).toBe('mission')
+    useTutorialStore.getState().goToAct(2)
+    expect(idAt()).toBe('compare')
+    useTutorialStore.getState().nextStep()
+    expect(idAt()).toBe('science')
+    useTutorialStore.getState().goToAct(3)
+    expect(idAt()).toBe('your-turn')
+    useTutorialStore.getState().nextStep()
+    expect(useTutorialStore.getState()).toMatchObject({ open: false, completed: true })
+  })
+
+  it('the full tour still visits every step, and the Comparison entry opens it at Act 2', () => {
+    useTutorialStore.getState().startTour(0)
+    expect(useTutorialStore.getState().path).toBe('full')
+    useTutorialStore.getState().nextStep()
+    expect(idAt()).toBe('terrain')
+    useTutorialStore.getState().startTour(actStart(2), 'full')
+    expect(idAt()).toBe('compare')
+    useTutorialStore.getState().nextStep()
+    expect(idAt()).toBe('headroom')
+  })
+
+  it('Your turn never auto-advances after a try action', () => {
+    useTutorialStore.getState().startTour(undefined, 'quick')
+    useTutorialStore.getState().goToAct(3)
+    useTutorialStore.getState().recordInteraction('site-select')
+    vi.advanceTimersByTime(2000)
+    expect(useTutorialStore.getState()).toMatchObject({ open: true, actionDone: true })
+    expect(idAt()).toBe('your-turn')
+  })
+
+  it('?tour=quick starts the quick path and ?tour=1 the full path', () => {
+    expect(initTutorialFromSearch('?tour=quick')).toBe(true)
+    expect(useTutorialStore.getState().path).toBe('quick')
+    useTutorialStore.getState().skipTour()
+    expect(initTutorialFromSearch('?tour=1')).toBe(true)
+    expect(useTutorialStore.getState().path).toBe('full')
+  })
+
+  it('step copy claims only what the engine computes', () => {
+    for (const s of TUTORIAL_STEPS) {
+      const text = `${s.title} ${s.whyItMatters} ${s.tryPrompt}`
+      expect(text).not.toMatch(/Gracy|direct link|nearby|WAC_POLE/i)
+    }
+    const method = TUTORIAL_STEPS[indexOf('method')].whyItMatters
+    expect(method).toContain('DE421')
+    expect(method).toContain('LROC')
+    expect(TUTORIAL_STEPS[indexOf('countdown')].targetSelectors).toContain('[data-tour="hud-readout"]')
+    expect(TUTORIAL_STEPS[indexOf('science')].reveal).toBe('cmp-science')
+    expect(TUTORIAL_STEPS[indexOf('your-turn')]).toMatchObject({ view: 'planner', promptKind: 'try', nextLabel: 'Explore on my own' })
   })
 
   it('ArrowRight is ignored while next is blocked', () => {
@@ -92,8 +162,8 @@ describe('Guided Mission Briefing Tutorial', () => {
     store.nextStep()
     expect(useTutorialStore.getState().stepIndex).toBe(1)
 
-    store.goToStep(16)
-    expect(useTutorialStore.getState().stepIndex).toBe(16)
+    store.goToStep(18)
+    expect(useTutorialStore.getState().stepIndex).toBe(18)
 
     store.nextStep()
     expect(useTutorialStore.getState().open).toBe(false)
@@ -194,7 +264,8 @@ describe('Guided Mission Briefing Tutorial', () => {
 
     expect(renderToString(<TutorialOfferChip uiHidden={true} compareActive={false} />)).toBe('')
     // Off the planner the offer sits in the corner with its Start button and no pointer to the toolbar.
-    expect(chipHtml).toContain('Start tour')
+    expect(chipHtml).toContain('Quick tour · 90 s')
+    expect(chipHtml).toContain('Full tour')
     expect(chipHtml).not.toContain('More (⋮)')
     // In the planner it waits for the toolbar's More (⋮) button to point at, instead of flashing in a corner first.
     expect(renderToString(<TutorialOfferChip uiHidden={false} compareActive={false} anchorToMenu />)).toBe('')
@@ -214,7 +285,7 @@ describe('Guided Mission Briefing Tutorial', () => {
         onGoToAct={() => {}}
       />,
     )
-    expect(spotHtml).toContain('1 / 17')
+    expect(spotHtml).toContain('1 / 19')
     expect(spotHtml).toContain('Your mission: Peak Near Shackleton')
     expect(spotHtml).toContain(TUTORIAL_STEPS[0].whyItMatters)
     expect(spotHtml).toContain('lp-light')
@@ -275,13 +346,37 @@ describe('Guided Mission Briefing Tutorial', () => {
       expect(nextButton(html)?.[0]).not.toContain('aria-disabled="true"') // never trapped
     })
 
-    it('uses "Look for" on observation steps, keeps the 3D view clear on the evidence step, and ends with Finish', () => {
+    it('on the quick path shows progress within the path, a Quick tour label and only its steps', () => {
+      const html = renderToString(<TutorialSpotlightView {...base} path="quick" stepIndex={0} step={TUTORIAL_STEPS[0]} story={null} />)
+      expect(html).toContain('1 / 7')
+      expect(html).toContain('Quick tour')
+      expect((html.match(/aria-label="Jump to step /g) ?? []).length).toBe(4) // mission, delay, evidence, rescue
+    })
+
+    it('Your turn shows the live recap, offers the full tour on the quick path, and leaves with Explore on my own', () => {
+      const i = TUTORIAL_STEPS.findIndex((s) => s.id === 'your-turn')
+      const recap = [
+        { label: 'Original plan', value: 'Peak Near Shackleton · PASS', tone: 'pass' as const },
+        { label: 'After the delay', value: 'Peak Near Shackleton · FAIL', tone: 'fail' as const },
+        { label: 'Recovery', value: 'Malapert Massif · PASS', tone: 'pass' as const },
+      ]
+      const quick = renderToString(<TutorialSpotlightView {...base} path="quick" stepIndex={i} step={TUTORIAL_STEPS[i]} recap={recap} onStartFull={() => {}} />)
+      expect(quick).toContain('Malapert Massif · PASS')
+      expect(quick).toContain('Take the full tour')
+      expect(quick).toContain('7 / 7')
+      expect(nextButton(quick)?.[1]).toBe('Explore on my own')
+      const full = renderToString(<TutorialSpotlightView {...base} stepIndex={i} step={TUTORIAL_STEPS[i]} recap={recap} onStartFull={() => {}} />)
+      expect(full).not.toContain('Take the full tour')
+      expect(full).toContain('19 / 19')
+    })
+
+    it('uses "Look for" on observation steps, keeps the 3D view clear on the evidence step, and ends with Explore on my own', () => {
       const atlas = TUTORIAL_STEPS.findIndex((s) => s.id === 'atlas')
       expect(renderToString(<TutorialSpotlightView {...base} stepIndex={atlas} step={TUTORIAL_STEPS[atlas]} />)).toContain('Look for: ')
       const ev = TUTORIAL_STEPS.findIndex((s) => s.id === 'evidence')
       expect(renderToString(<TutorialSpotlightView {...base} stepIndex={ev} step={TUTORIAL_STEPS[ev]} />)).not.toContain('<mask')
       const last = TUTORIAL_STEPS.length - 1
-      expect(nextButton(renderToString(<TutorialSpotlightView {...base} stepIndex={last} step={TUTORIAL_STEPS[last]} />))?.[1]).toBe('Finish')
+      expect(nextButton(renderToString(<TutorialSpotlightView {...base} stepIndex={last} step={TUTORIAL_STEPS[last]} />))?.[1]).toBe('Explore on my own')
     })
   })
 })

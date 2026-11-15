@@ -52,6 +52,12 @@ describe('subpage content', () => {
       expect(html).toContain(source)
   })
 
+  it('names Gracy & Lee as the site coordinates source, not a validation of this model', () => {
+    expect(html).toContain('Site coordinates source')
+    expect(html).not.toContain('Published benchmark')
+    expect(html).toMatch(/not a validation of this model/)
+  })
+
   it('lists every metric the comparison table shows, from the same definitions', () => {
     const solar = METRICS.filter((m) => m.group === 'solar')
     for (const m of solar) expect(html).toContain(m.label)

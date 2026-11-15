@@ -101,10 +101,10 @@ export const BEATS: Beat[] = [
   },
   {
     id: 'delay', short: 'Delay', source: 'Mission Rescue',
-    title: 'The launch slips ten days',
-    body: 'Ten days later the same site loses sight of Earth for days, and the communication blackout runs far past its limit. The plan that passed now fails.',
+    title: 'The launch slips four days',
+    body: 'Four days later the same site loses sight of Earth for days, and the communication blackout runs far past its limit. The plan that passed now fails.',
     facts: [
-      { label: 'Change', value: '+10 days' },
+      { label: 'Change', value: '+4 days' },
       { label: 'Breaks', value: 'Earth contact' },
       { label: 'Verdict', value: 'Fails' },
     ],

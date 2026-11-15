@@ -1,6 +1,16 @@
 import { create } from 'zustand'
 
-import { TUTORIAL_STEPS, actStart, type TourAct, type TutorialActionKey } from './steps'
+import { TUTORIAL_STEPS, pathSteps, type TourAct, type TourPath, type TutorialActionKey } from './steps'
+
+/** The next / previous step of the path from `index` (which may sit outside the path after a dot jump). */
+function stepAfter(path: TourPath, index: number): number | null {
+  const steps = pathSteps(path)
+  return steps.find((i) => i > index) ?? null
+}
+function stepBefore(path: TourPath, index: number): number {
+  const steps = pathSteps(path)
+  return [...steps].reverse().find((i) => i < index) ?? steps[0]
+}
 
 export const TUTORIAL_STORAGE_KEY = 'lunar-tutorial-prefs'
 
@@ -68,11 +78,14 @@ export interface TutorialState {
   prepNonce: number
   /** True while the current step is still working (e.g. a story stage); blocks Next/ArrowRight. Reset on every step change. */
   nextBlocked: boolean
-  startTour: (startIndex?: number) => void
+  /** Which route through the steps: the ~90 s quick story or the whole site. */
+  path: TourPath
+  /** Open the tour on `path` (default 'full'), at `startIndex` or the path's first step. */
+  startTour: (startIndex?: number, path?: TourPath) => void
   nextStep: () => void
   prevStep: () => void
   goToStep: (index: number) => void
-  /** Jumps to the first step of the given act. */
+  /** Jumps to the first step of the given act on the current path. */
   goToAct: (act: TourAct) => void
   setNextBlocked: (blocked: boolean) => void
   skipTour: () => void
@@ -92,13 +105,16 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   completed: initialPrefs.completed,
   prepNonce: 0,
   nextBlocked: false,
+  path: 'full',
 
-  startTour: (startIndex = 0) => {
+  startTour: (startIndex, path = 'full') => {
     clearAdvanceTimer()
-    const clamped = Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, startIndex))
+    const steps = pathSteps(path)
+    const start = startIndex === undefined ? steps[0] : Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, startIndex))
     set((s) => ({
       open: true,
-      stepIndex: clamped,
+      path,
+      stepIndex: steps.includes(start) ? start : (stepAfter(path, start) ?? steps[0]),
       actionDone: false,
       nextBlocked: false,
       offerDismissed: true,
@@ -108,8 +124,9 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
 
   nextStep: () => {
     clearAdvanceTimer()
-    const { stepIndex, dontShowAgain } = get()
-    if (stepIndex >= TUTORIAL_STEPS.length - 1) {
+    const { stepIndex, dontShowAgain, path } = get()
+    const next = stepAfter(path, stepIndex)
+    if (next === null) {
       writePrefs(activeStorage, { dontShowAgain, completed: true })
       set({
         open: false,
@@ -122,7 +139,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
       return
     }
     set((s) => ({
-      stepIndex: s.stepIndex + 1,
+      stepIndex: next,
       actionDone: false,
       nextBlocked: false,
       prepNonce: s.prepNonce + 1,
@@ -132,7 +149,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   prevStep: () => {
     clearAdvanceTimer()
     set((s) => ({
-      stepIndex: Math.max(0, s.stepIndex - 1),
+      stepIndex: stepBefore(s.path, s.stepIndex),
       actionDone: false,
       nextBlocked: false,
       prepNonce: s.prepNonce + 1,
@@ -151,7 +168,8 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   },
 
   goToAct: (act: TourAct) => {
-    get().goToStep(actStart(act))
+    const first = pathSteps(get().path).find((i) => TUTORIAL_STEPS[i].act === act)
+    if (first !== undefined) get().goToStep(first)
   },
 
   setNextBlocked: (blocked: boolean) => {
@@ -188,8 +206,8 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
     set({ actionDone: true })
     clearAdvanceTimer()
     const stepAtTrigger = state.stepIndex
-    if (stepAtTrigger >= TUTORIAL_STEPS.length - 1) {
-      // Keep the final step open so the user can inspect Scenario Comparison / Plans and click Finish intentionally.
+    if (stepAfter(state.path, stepAtTrigger) === null) {
+      // The path's last step stays open: the user explores and leaves with "Explore on my own" when ready.
       return
     }
     advanceTimer = setTimeout(() => {
@@ -216,7 +234,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   },
 }))
 
-/** Launches the Guided Tour automatically when `?tour=1` (or `?tour=true`) is present in search or hash query. */
+/** Launches the Guided Tour when `?tour=1` / `?tour=true` (full path) or `?tour=quick` is in the search or hash query. */
 export function initTutorialFromSearch(search?: string, hash?: string): boolean {
   const query = search ?? (typeof window !== 'undefined' ? window.location.search : '')
   const rawHash = hash ?? (typeof window !== 'undefined' ? window.location.hash : '')
@@ -227,7 +245,11 @@ export function initTutorialFromSearch(search?: string, hash?: string): boolean 
     const params = new URLSearchParams(q)
     const raw = params.get('tour')
     if (raw === '1' || raw === 'true') {
-      useTutorialStore.getState().startTour(0)
+      useTutorialStore.getState().startTour(undefined, 'full')
+      return true
+    }
+    if (raw === 'quick') {
+      useTutorialStore.getState().startTour(undefined, 'quick')
       return true
     }
   }
@@ -248,5 +270,6 @@ export function resetTutorialStoreForTests(storage?: StorageLike | null) {
     completed: prefs.completed,
     prepNonce: 0,
     nextBlocked: false,
+    path: 'full',
   })
 }

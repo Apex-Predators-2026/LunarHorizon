@@ -190,7 +190,7 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
   {
     id: 'tour', title: 'Restart the tutorial',
     keywords: /\b(tutorial|tour|walkthrough|guide|how does this page work|how to use)\b/i,
-    steps: ['Click **How to compare missions** at the top of the page: the guided tour opens at Act 2, the comparison (it loads the example mission\'s three plans and selects them). In the Mission Planner, **More (⋮) → Guided Tour** on the map toolbar starts it from the beginning.'],
+    steps: ['Click **How to compare missions** at the top of the page: the guided tour opens at Act 2, the comparison (it loads the example mission\'s three plans and selects them). In the Mission Planner, **More (⋮) → Quick tour** (about 90 seconds) or **Full guided tour** on the map toolbar starts it from the beginning.'],
     go: ['tour'],
   },
   {

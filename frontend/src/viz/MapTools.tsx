@@ -614,16 +614,30 @@ export function MapTools({
                 type="button"
                 role="menuitem"
                 data-tour="menu-tour"
-                data-tip="Guided Tour: one real mission across all four views"
+                data-tip="Quick tour: one real mission, from landing site to decision, in about 90 seconds"
                 onClick={() => {
                   close()
-                  useTutorialStore.getState().startTour(0)
+                  useTutorialStore.getState().startTour(undefined, 'quick')
                 }}
                 className="flex h-12 w-full items-center gap-3 px-4 text-left text-sm"
               >
                 <span className="flex h-6 w-6 items-center justify-center text-coral"><Icon d={ICON.tour} size={20} /></span>
-                Guided Tour
-                <span className="ml-auto text-xs text-slate-400">3 acts</span>
+                Quick tour
+                <span className="ml-auto text-xs text-slate-400">90 s</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                data-tip="Full guided tour: every view, from the 3D planner to the validation (19 steps)"
+                onClick={() => {
+                  close()
+                  useTutorialStore.getState().startTour(0, 'full')
+                }}
+                className="flex h-12 w-full items-center gap-3 px-4 text-left text-sm"
+              >
+                <span className="flex h-6 w-6 items-center justify-center text-coral"><Icon d={ICON.tour} size={20} /></span>
+                Full guided tour
+                <span className="ml-auto text-xs text-slate-400">19 steps</span>
               </button>
               <button
                 type="button"
