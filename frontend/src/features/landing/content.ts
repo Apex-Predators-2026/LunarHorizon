@@ -3,9 +3,12 @@
 
 export const REPO_URL = 'https://github.com/Apex-Predators-2026/Nasa-Space-Apps-Challenge'
 
+/** The hero headline, one entry per line: each line rises from behind its own mask on load. */
+const HEADLINE_LINES = ['Land in sunlight,', 'in sight of Earth']
+
 export const HERO = {
-  team: 'Team Apex Predators · NASA Space Apps 2026',
-  headline: 'Land in sunlight, in sight of Earth',
+  headlineLines: HEADLINE_LINES,
+  headline: HEADLINE_LINES.join(' '),
   lead:
     'Lunar Landing Site Navigator checks Artemis III south-pole sites hour by hour from 2026 to 2031, using JPL Horizons ' +
     'and NASA LOLA terrain, explains why each plan passes or fails, and re-plans when a launch slips.',
