@@ -11,6 +11,21 @@ export function azElToVector(azDeg: number, elDeg: number, r = 1): [number, numb
   return [r * Math.sin(az) * Math.cos(el), r * Math.sin(el), -r * Math.cos(az) * Math.cos(el)]
 }
 
+/**
+ * Illuminated fraction of Earth's disk as seen from the Moon (0 = new Earth, 1 = full), from the
+ * Sun-Earth angle in the lunar sky: the Moon is ~400x closer to Earth than to the Sun, so Earth's
+ * phase angle is 180 deg minus that elongation, and the fraction is (1 - cos elongation) / 2.
+ */
+export function earthIlluminatedFraction(
+  sun: { azimuth_deg: number; elevation_deg: number },
+  earth: { azimuth_deg: number; elevation_deg: number },
+): number {
+  const a = azElToVector(sun.azimuth_deg, sun.elevation_deg)
+  const b = azElToVector(earth.azimuth_deg, earth.elevation_deg)
+  const cosElong = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))
+  return (1 - cosElong) / 2
+}
+
 /** World positions of the Sun and Earth discs at `distance` from an eye `eyeHeight` above the site. */
 export function skyPositions(
   status: { sun: { azimuth_deg: number; elevation_deg: number }; earth: { azimuth_deg: number; elevation_deg: number } },
