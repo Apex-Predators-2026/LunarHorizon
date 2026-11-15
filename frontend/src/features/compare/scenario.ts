@@ -70,6 +70,12 @@ export const fmtDate = (iso: string) =>
 export const autoName = (site: Site, landingUtc: string, days: number) =>
   `${site.name} · ${fmtDate(landingUtc)} · ${days} d`
 
+export function scenarioDisplayName(s: Pick<ComparisonScenario, 'name' | 'site'>): string {
+  const name = s.name.trim()
+  if (!name) return s.site.name
+  return name.toLowerCase().includes(s.site.name.toLowerCase()) ? name : `${name} · ${s.site.name}`
+}
+
 export function makeScenario(
   init: Partial<ComparisonScenario> & { site: Site; landing_utc: string },
   existingLabels: string[],
@@ -96,15 +102,14 @@ export const shiftIso = (iso: string, days: number) => new Date(new Date(iso).ge
 /** Copy of a scenario with its landing moved by `days` (fractions allowed). */
 export function duplicateShifted(s: ComparisonScenario, days: number, existingLabels: string[]): ComparisonScenario {
   const landing = shiftIso(s.landing_utc, days)
-  const nameWasAuto = s.name === autoName(s.site, s.landing_utc, s.duration_days)
   return {
     ...structuredClone(s),
     id: newId(),
     label: nextLabel(existingLabels),
     landing_utc: landing,
-    name: nameWasAuto || days !== 0 ? autoName(s.site, landing, s.duration_days) : `${s.name} (copy)`,
+    name: days !== 0 ? autoName(s.site, landing, s.duration_days) : `${s.name} (copy)`,
     origin: 'duplicate',
-    notes: days ? `Copy of ${s.label}, landing ${days > 0 ? '+' : ''}${days} d` : `Copy of ${s.label}`,
+    notes: days ? `Copy of ${s.label}, landing ${days > 0 ? '+' : ''}${days} d` : s.notes,
   }
 }
 

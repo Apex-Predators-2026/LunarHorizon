@@ -11,7 +11,7 @@ import type { ReactNode } from 'react'
 import { fmtWhen } from './missionTime'
 import type { CardValue, MetricRow, ReportCard, Status } from './reportCard'
 import {
-  COLORS, ELIGIBILITY_SHORT, FIG, SECTIONS, barGeometry, outcomeGeometry, pdfText, reportFigures, sectionNumber,
+  COLORS, ELIGIBILITY_SHORT, FIG, SECTIONS, barGeometry, figurePlanKey, outcomeGeometry, pdfText, reportFigures, sectionNumber,
   type BarFigure, type OutcomeFigure, type SectionId,
 } from './reportLayout'
 
@@ -205,6 +205,7 @@ function OutcomeChartPdf({ f }: { f: OutcomeFigure }) {
 function Figures({ card }: { card: ReportCard }) {
   return (
     <View>
+      <Text style={s.figCaption}>{t(figurePlanKey(card))}</Text>
       {reportFigures(card).map((f) => (
         <View key={f.number} style={s.figure} wrap={false}>
           {f.kind === 'bars' ? <BarChartPdf f={f} /> : <OutcomeChartPdf f={f} />}

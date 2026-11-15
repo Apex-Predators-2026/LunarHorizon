@@ -53,7 +53,7 @@ function GroupBrief({ d, pairs, entries, roles, multi }: { d: GroupDecision; pai
 
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         <div>
-          <h4 className="text-[11px] font-medium uppercase tracking-wide text-ink-3">Which plans meet the requirements</h4>
+          <h4 className="text-[11px] font-medium text-ink-3">Which plans meet the requirements</h4>
           <ul className="mt-1 space-y-1 text-[13px] text-ink-2">
             {d.requirements.map(({ entry, text }) => {
               const el = eligibilityOf(entry)
@@ -72,7 +72,7 @@ function GroupBrief({ d, pairs, entries, roles, multi }: { d: GroupDecision; pai
           </ul>
         </div>
         <div>
-          <h4 className="text-[11px] font-medium uppercase tracking-wide text-ink-3">Why</h4>
+          <h4 className="text-[11px] font-medium text-ink-3">Why</h4>
           <ul className="mt-1 space-y-1 text-[13px] text-ink-2">
             {d.evidence.slice(0, 2).map((x) => <li key={x}>{withRoles(x, entries, roles)}</li>)}
             {!d.evidence.length && passing.length === 0 && <li>Only plans that pass every requirement can be recommended; none does here.</li>}

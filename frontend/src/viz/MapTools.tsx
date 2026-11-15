@@ -544,7 +544,7 @@ export function MapTools({
         <ToolMenu tourId="more-menu" openId={openMenu} setOpenId={setOpenMenu} id="more" label="More" tip="More: graphics quality, dark mode, guided tour, and hide the whole interface" icon={ICON.more}>
           {(close) => (
             <>
-              <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Graphics quality</p>
+              <p className="px-4 pb-1 pt-2 text-xs font-medium text-slate-400">Graphics quality</p>
               {(Object.keys(GRAPHICS) as GraphicsQuality[]).map((q) => (
                 <button
                   key={q}

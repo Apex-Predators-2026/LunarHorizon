@@ -310,13 +310,13 @@ export function MeasureCard({
           {analysis && (
             <div className="grid grid-cols-5 gap-1.5 rounded-xl border border-opal-300 bg-panel-fill/75 px-2.5 py-1.5 font-mono tabular-nums">
               <div data-tip="True 3D surface distance following LOLA terrain vs. great-circle geodesic distance">
-                <div className="font-sans text-[9px] uppercase tracking-wider text-slate-400">Surface</div>
+                <div className="font-sans text-[11px] text-slate-400">Surface</div>
                 <div className="text-xs font-semibold text-slate-100">{fmtDistance(analysis.surfaceDistanceM)}</div>
                 <div className="text-[9.5px] text-slate-400">{fmtDistance(analysis.geodesicDistanceM)} arc</div>
               </div>
 
               <div data-tip="Net elevation delta from start to end, plus cumulative climb (+m) and descent (−m)">
-                <div className="font-sans text-[9px] uppercase tracking-wider text-slate-400">Δ Elev</div>
+                <div className="font-sans text-[11px] text-slate-400">Δ elevation</div>
                 <div className="text-xs font-semibold text-slate-100">
                   {analysis.netElevationChangeM >= 0 ? '+' : '−'}
                   {Math.round(Math.abs(analysis.netElevationChangeM))} m
@@ -327,7 +327,7 @@ export function MeasureCard({
               </div>
 
               <div data-tip="Steepest grade along path. Artemis EVA limit ≤15°; VIPER/CLPS rover limit ≤20°.">
-                <div className="font-sans text-[9px] uppercase tracking-wider text-slate-400">Max Slope</div>
+                <div className="font-sans text-[11px] text-slate-400">Max slope</div>
                 <div
                   className={`text-xs font-semibold ${
                     analysis.slopeStatus === 'crit'
@@ -350,7 +350,7 @@ export function MeasureCard({
               </div>
 
               <div data-tip="2 m mast direct Line-of-Sight clearance (accounting for lunar curvature d²/2R and terrain ridges)">
-                <div className="font-sans text-[9px] uppercase tracking-wider text-slate-400">Relay LOS</div>
+                <div className="font-sans text-[11px] text-slate-400">Relay line of sight</div>
                 <div className={`text-xs font-semibold ${analysis.losClear ? 'text-emerald-300' : 'text-red-300'}`}>
                   {analysis.losClear ? '● ' : '▲ '}
                   {analysis.losMinClearanceM >= 0 ? '+' : '−'}
@@ -360,7 +360,7 @@ export function MeasureCard({
               </div>
 
               <div data-tip="Estimated traverse time, forward azimuth from true North, and nearest Moon Trek water-ice distance">
-                <div className="font-sans text-[9px] uppercase tracking-wider text-slate-400">Traverse</div>
+                <div className="font-sans text-[11px] text-slate-400">Traverse</div>
                 <div className="text-xs font-semibold text-slate-100">
                   {fmtTraverseTime(analysis.surfaceDistanceM, speedKmh)} · {Math.round(analysis.initialBearingDeg)}°{analysis.compassRose}
                 </div>
