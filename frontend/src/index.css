@@ -706,6 +706,15 @@
   font-weight: 600;
   letter-spacing: 0.1px;
 }
+.plan-card-actions { container-type: inline-size; }
+.md-btn.plan-card-run { padding-inline: 16px; }
+@container (width < 16rem) {
+  .md-btn.plan-card-run {
+    width: 40px;
+    padding: 0;
+  }
+  .plan-card-run-label { display: none; }
+}
 /* Compact controls (timeline): 40 dp tall; the surrounding 8 dp gap gives a 48 dp touch zone. */
 .md-compact {
   display: inline-flex;
