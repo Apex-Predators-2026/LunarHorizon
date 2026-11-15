@@ -15,13 +15,13 @@ export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entrie
   const cursor = useCompareStore((s) => s.cursor)
   const setActive = useCompareStore((s) => s.setActive)
   if (cursor === null) {
-    return <p className="text-xs text-slate-400">Click anywhere on the timeline or a chart to see the conditions at that moment in every scenario.</p>
+    return <p className="text-xs text-slate-400">Click anywhere on the timeline or a chart to see the conditions at that moment in every plan.</p>
   }
   return (
     <div>
       <p className="mb-2 text-xs text-slate-300">
         Selected: <b className="text-slate-100">{fmtAxis(cursor, align, originMs, 0)}</b>
-        {align === 'met' ? ' after each landing' : ''}: each scenario shows the data sample holding at that moment (a sample holds until the next one, as the viability engine reads it; nothing is interpolated).
+        {align === 'met' ? ' after each landing' : ''}: each plan shows the data sample holding at that moment (a sample holds until the next one, as the viability engine reads it; nothing is interpolated).
       </p>
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         {entries.map((e) => {

@@ -29,7 +29,7 @@ export function ExportButtons({ entries, groups, pairs, notes, ready }: {
       baselineLabel: base?.scenario.label ?? null,
     })
   }
-  const title = ready ? undefined : 'Available once every selected scenario has been assessed and ranked'
+  const title = ready ? undefined : 'Available once every selected plan has been assessed and ranked'
   return (
     <>
       <button type="button" className={btn} disabled={!ready || !entries.length} title={title}

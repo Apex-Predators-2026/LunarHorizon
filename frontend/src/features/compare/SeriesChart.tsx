@@ -70,7 +70,7 @@ function ChartInner({ entries, view, align, originMs, value, unit, yLabel, forma
             }
           />
           {withData.map((e) => (
-            <Line key={e.scenario.id} dataKey={e.scenario.id} name={`Scenario ${e.scenario.label}`} type="stepAfter"
+            <Line key={e.scenario.id} dataKey={e.scenario.id} name={`Plan ${e.scenario.label}`} type="stepAfter"
               stroke={seriesColor(e.scenario.colorSlot)} strokeDasharray={seriesDash(e.scenario.colorSlot)}
               strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: STATE.surface }}
               connectNulls={false} isAnimationActive={false} />

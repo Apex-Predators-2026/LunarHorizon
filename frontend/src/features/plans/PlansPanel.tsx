@@ -261,7 +261,7 @@ export function PlanCard({
       <button
         type="button"
         className="mt-1.5 text-[11px] font-medium text-sky-400 underline decoration-dotted underline-offset-2 hover:text-sky-300"
-        data-tip="Open Scenario Comparison with this plan: every requirement with its measured value, margin and evidence, plus the data and assumptions behind it"
+        data-tip="Open Plan Comparison with this plan: every requirement with its measured value, margin and evidence, plus the data and assumptions behind it"
         onClick={() => {
           sendToComparison([sc], { origin: 'user', names: [plan.name], replaceSelection: true, baselineIndex: 0 })
           window.location.hash = routeHash('compare', 'cmp-assessment')
@@ -357,7 +357,7 @@ export function PlansPanel({ onCompare }: { onCompare: () => void }) {
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100">Plans</h2>
         {picked.length >= 2 && (
-          <button type="button" onClick={compare} data-tip="Open Scenario Comparison with the ticked plans" className="md-btn h-8 border border-coral px-3 text-coral">
+          <button type="button" onClick={compare} data-tip="Open Plan Comparison with the ticked plans" className="md-btn h-8 border border-coral px-3 text-coral">
             <Icon d={ICON.compare} size={18} />
             <span className="ml-1">Compare ({picked.length})</span>
           </button>

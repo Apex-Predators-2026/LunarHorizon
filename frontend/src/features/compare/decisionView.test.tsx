@@ -68,8 +68,8 @@ describe('decision state of the selection', () => {
     const html = plain(renderToString(<DecisionOverview entries={e} groups={G1} pairs={res.pairwise} rankingCurrent notes={[]} />))
     Object.assign(useCompareStore.getInitialState(), { rescueContext: null })
     expect(html).toContain('data-kind="recommended"')
-    expect(html).toContain('Scenario B (recovery · Rescue #1)')
-    expect(html).toContain('Scenario A (after the change) fails')
+    expect(html).toContain('Plan B (recovery · Rescue #1)')
+    expect(html).toContain('Plan A (after the change) fails')
     expect(html).toContain('13.2 pp short of the limit') // the decisive requirement, with its margin
     expect(html).toContain('Open B in Planner') // the next action
   })

@@ -2,6 +2,7 @@
 // a press ripple on buttons, and the active-track fill of range sliders.
 // Only acts inside .lp-light / .md-host, so other pages are unaffected.
 import { playUiTap } from './sfx'
+import { isLiteUi } from './graphics'
 
 const SCOPE = '.lp-light, .md-host'
 
@@ -11,7 +12,7 @@ function ripple(e: PointerEvent) {
   const btn = target?.closest<HTMLButtonElement>('button')
   if (!btn || btn.disabled || !btn.closest(SCOPE)) return
   if (!btn.hasAttribute('data-no-sfx')) playUiTap()
-  if (btn.hasAttribute('data-no-ripple')) return
+  if (btn.hasAttribute('data-no-ripple') || isLiteUi()) return
   const rect = btn.getBoundingClientRect()
   const x = e.clientX - rect.left
   const y = e.clientY - rect.top

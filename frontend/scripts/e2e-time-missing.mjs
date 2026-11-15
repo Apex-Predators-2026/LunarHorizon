@@ -154,7 +154,7 @@ try {
     await note.first().waitFor({ timeout: 60_000 })
     const noteText = await note.first().innerText()
     check(`${tag} UI: the incomplete scenario says what is known`, new RegExp(`Sun known ${MISSION_H - GAP_H} h, Earth known ${MISSION_H - GAP_H} h of ${MISSION_H} h`).test(noteText), noteText.slice(0, 90))
-    const card = page.getByRole('article', { name: 'Scenario B overview' })
+    const card = page.getByRole('article', { name: 'Plan B overview' })
     // The card names what is withheld; the Key metrics table shows the engine's range instead of a number.
     check(`${tag} UI: the card lists what is withheld`, /Withheld: solar, power, earth/i.test(noteText) || /withheld/i.test(await card.innerText()))
     const sha = await card.locator('[data-testid=dataset-identity]').first().innerText().catch(() => '')
