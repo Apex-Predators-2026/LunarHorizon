@@ -141,6 +141,4 @@ Full detail, frames and caveats: [`docs/data-sources.md`](docs/data-sources.md).
   
 ## Team
 
-Apex Predators (Space Apps 2026). Responsibilities: [`IdeasWorkdistribution.md`](IdeasWorkdistribution.md).
-Submission material: [`docs/submission.md`](docs/submission.md) and
-[`docs/judging-and-submission.md`](docs/judging-and-submission.md).
+Apex Predators (Space Apps 2026). 
