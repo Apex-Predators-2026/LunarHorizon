@@ -149,6 +149,19 @@ class CanonicalMetric(BaseModel):
     reason: str | None = None
 
 
+class EvidenceWindow(BaseModel):
+    """A window the engine cites as evidence for a requirement verdict (e.g. the longest power-dark period)."""
+
+    kind: str  # power_dark, communication_blackout, earth_visible, ...
+    start_hour: float  # hours after mission start
+    end_hour: float
+    duration_hours: float
+    start_utc: str
+    end_utc: str
+    clipped_at_start: bool  # the condition was already in progress at landing
+    clipped_at_end: bool
+
+
 class ConstraintItem(BaseModel):
     """One mission requirement as the engine judged it."""
 
@@ -161,6 +174,7 @@ class ConstraintItem(BaseModel):
     message: str
     requirement_field: str | None
     unknown_reason: str | None = None
+    evidence_windows: list[EvidenceWindow] = []
 
 
 class RiskItem(BaseModel):
