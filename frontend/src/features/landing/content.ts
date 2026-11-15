@@ -9,9 +9,7 @@ const HEADLINE_LINES = ['Land in sunlight,', 'in sight of Earth']
 export const HERO = {
   headlineLines: HEADLINE_LINES,
   headline: HEADLINE_LINES.join(' '),
-  lead:
-    'Lunar Landing Site Navigator checks Artemis III south-pole sites hour by hour from 2026 to 2031, using JPL Horizons ' +
-    'and NASA LOLA terrain, explains why each plan passes or fails, and re-plans when a launch slips.',
+  lead: 'Find the perfect landing site for your next moon mission using a 3D model built from real NASA data.',
 }
 
 export interface Beat {
