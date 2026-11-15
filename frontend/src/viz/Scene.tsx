@@ -5,6 +5,7 @@ import { useAppStore } from '../store'
 import type { SiteInfo } from '../types'
 import { createCustomSite, fetchHorizon, fetchPsr, fetchSites, fetchStatus, fetchTimeline, useAsync } from './api'
 import { CameraRig, type ViewMode } from './CameraRig'
+import { captureCameraPose, type CameraPose } from './cameraPose'
 import { FollowCamera } from './FollowCamera'
 import { MOON_RADIUS_M, SiteFrame, vecToLatLon, vertexSpacingM } from './globe/cubeSphere'
 import { GlobeControls } from './GlobeControls'
@@ -39,7 +40,7 @@ import { CameraReadout } from './CameraReadout'
 import { ViewCentre } from './ViewCentre'
 import { fmtDeg, fmtPct, HOUR_MS, nearestIndex, parseUtc, toIsoMinute, windowFor } from './timeline'
 import { FloatingSidebar } from './FloatingSidebar'
-import { GRAPHICS, useGraphicsQuality, useStoredFlag } from './graphics'
+import { GRAPHICS, useGraphicsQuality, useStoredFlag, type GraphicsQuality } from './graphics'
 import { MiniMapPanel } from './MiniMapPanel'
 import { MiniMapTracker } from './MiniMapTracker'
 import { MissionPanel } from './MissionPlayback'
@@ -159,6 +160,22 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
 
   // Graphics preset (High = full quality, the default; Low for Chromebooks and old laptops).
   const [graphicsQuality, setGraphicsQuality] = useGraphicsQuality()
+  const canvasGetRef = useRef<(() => { camera: THREE.Camera; controls: unknown }) | null>(null)
+  const pendingCameraPoseRef = useRef<CameraPose | null>(null)
+  const handleGraphicsChange = useCallback(
+    (next: GraphicsQuality) => {
+      if (next === graphicsQuality) return
+      const state = canvasGetRef.current?.()
+      if (state) {
+        pendingCameraPoseRef.current = captureCameraPose(
+          state.camera,
+          state.controls as { target: THREE.Vector3 } | null,
+        )
+      }
+      setGraphicsQuality(next)
+    },
+    [graphicsQuality, setGraphicsQuality],
+  )
   const gfx = GRAPHICS[graphicsQuality]
   // Cascaded shadows across the whole view (off by default; needs a preset with shadows).
   const [farShadows, setFarShadows] = useStoredFlag('lunar-navigator.farShadows', false)
@@ -462,7 +479,17 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
         dpr={gfx.dpr}
         shadows={gfx.shadows}
         gl={{ logarithmicDepthBuffer: true, antialias: gfx.antialias }}
-        camera={{ position: [2600, 1400, 3400], fov: 50, near: 0.5, far: 1e9 }}
+        camera={{ position: pendingCameraPoseRef.current?.position ?? [2600, 1400, 3400], fov: 50, near: 0.5, far: 1e9 }}
+        onCreated={({ camera, get }) => {
+          canvasGetRef.current = get
+          const pose = pendingCameraPoseRef.current
+          if (pose) {
+            camera.position.set(...pose.position)
+            camera.quaternion.set(...pose.quaternion)
+            camera.up.set(...pose.up)
+            camera.updateMatrixWorld()
+          }
+        }}
       >
         <color attach="background" args={['#000000']} />
         <ViewCentre shiftLeftPx={viewShiftPx} />
@@ -527,6 +554,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           maxTerrainHeight={maxTerrainHeight}
           moonCentre={frame?.moonCentre ?? null}
           resetKey={cameraReset}
+          restorePoseRef={pendingCameraPoseRef}
         />
         <ScreenLabels
           moonCentre={frame?.moonCentre ?? null}
@@ -778,7 +806,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
               onView={setView}
               onGoToView={() => setCameraReset((n) => n + 1)}
               graphics={graphicsQuality}
-              onGraphics={setGraphicsQuality}
+              onGraphics={handleGraphicsChange}
               farShadows={farShadows && gfx.shadows}
               farShadowsAvailable={gfx.shadows}
               onFarShadows={setFarShadows}
