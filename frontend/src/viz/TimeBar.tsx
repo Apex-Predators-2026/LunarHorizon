@@ -41,7 +41,15 @@ function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] 
   return [ref, w]
 }
 
-/** Advances the shared time while playing (one store update per data hour, not per frame). */
+/** Store updates while playing at most this often: each one re-renders the whole 3D view. */
+const PLAYBACK_UPDATE_MS = 80
+
+/**
+ * Advances the shared time while playing: one store update per data hour, and at fast speeds (more
+ * than ~12 data hours a second) no more than every PLAYBACK_UPDATE_MS, not on every frame. Hours in
+ * between are skipped, as frames already skipped them; mission playback checks failures by time
+ * (f.t <= now), so it still stops at each one.
+ */
 function usePlayback(hoursPerSec: number, dataStop: number) {
   const playing = useAppStore((s) => s.playing)
   useEffect(() => {
@@ -50,6 +58,7 @@ function usePlayback(hoursPerSec: number, dataStop: number) {
     let acc = parseUtc(useAppStore.getState().timeUtc)
     let lastSet = useAppStore.getState().timeUtc
     let prev = performance.now()
+    let lastSetAt = -Infinity
     let raf = 0
     const tick = (now: number) => {
       const cur = useAppStore.getState().timeUtc
@@ -62,8 +71,9 @@ function usePlayback(hoursPerSec: number, dataStop: number) {
         return
       }
       const next = toIsoMinute(Math.floor(acc / HOUR_MS) * HOUR_MS)
-      if (next !== lastSet) {
+      if (next !== lastSet && now - lastSetAt >= PLAYBACK_UPDATE_MS) {
         lastSet = next
+        lastSetAt = now
         setTime(next)
       }
       raf = requestAnimationFrame(tick)

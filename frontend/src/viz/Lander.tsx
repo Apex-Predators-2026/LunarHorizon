@@ -27,15 +27,21 @@ export function Lander({
   observerHeight,
   showBeacon,
   detailed = true,
+  hideWithinM = 0,
 }: {
   status: TimelineStep | null
   observerHeight: number
   showBeacon: boolean
   detailed?: boolean
+  hideWithinM?: number // hidden while the camera is this close (the eye views look out from inside it)
 }) {
   const simple = <SimpleLander status={status} observerHeight={observerHeight} />
+  const root = useRef<THREE.Group>(null)
+  useFrame(({ camera }) => {
+    if (root.current) root.current.visible = camera.position.length() >= hideWithinM
+  })
   return (
-    <group>
+    <group ref={root}>
       {detailed ? (
         <ModelErrorBoundary fallback={simple}>
           <Suspense fallback={simple}>
