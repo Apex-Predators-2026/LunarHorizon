@@ -111,3 +111,64 @@ logic against current main, because the committed `compare-response.json` predat
   was not ported.
 - Rescue `useRescueStore` is read, not edited; the panel's tabs depend on `original`, `selected`, `rescue.changed.scenario`
   and `change`.
+
+---
+
+## Stage 2: reconciliation with latest main (final)
+
+**Starting SHA** `8d37144` (four recovery commits `742b21c`, `3f5a4bc`, `f5a4c42`, `8d37144`; branched from `444f3ca`).
+**Main at integration** `6ad075b` (35 commits ahead of the branch point). **Merge commit** `f32dfa3` (no force-push, no rewrite).
+The final remote SHA is stated in the completion report (a doc cannot contain the SHA of the commit that contains it).
+
+### What main already had (superseded: main's version kept)
+| Source commit | On main as | Decision |
+|---|---|---|
+| `742b21c` fair real/synthetic ranking, bestPool | `0c100d8`, `8b38d74` | main's `bestPool`/`comparableEntries` kept; my `bestPool.test.tsx` kept as `bestPoolRecovery.test.tsx` and passes against it |
+| `3f5a4bc` one evaluated snapshot, requested vs evaluated separate | `f6586e4`, `3b651ad`, frozen report `2b34dd2` | main's `missionTime`/report/export kept; my `missionTime.test.tsx` kept as `missionTimeRecovery.test.tsx` and passes |
+| `f5a4c42` unknown lanes / withheld stats | `b5a869e` (lanes.ts, SyncTimeline, TimeBar hatch) | main's markup and wording kept; tests adapted to it |
+| `8d37144` Mission assessment panel | `6a56580` `AssessmentPanel`/`AssessmentDialog` + `lib/assessment.ts` | both surfaces kept (dialog from a plan card, panel for the running plan); one fetch layer (below) |
+
+### Completed on top of main
+- **One assessment request/cache layer.** `lib/assessment.ts` (`fetchAssessment`, `useAssessment`, `clearAssessmentCache`) now
+  delegates to `features/assessment/useAssessmentStore`. A mission is requested once (in-flight dedupe, key = site + landing
+  instant + duration + every requirement), errors are retryable and never a verdict, and an edited mission can never read an old
+  response. `lib/planVerdict.ts` uses the same store.
+- **Sample-and-hold** (`analysis.ts`: `sampleIndex`, `conditionsAt` with `held`/`selectedMet`, `mergeSeries` hold + unknown
+  intervals survive thinning; `lanes.ts: sunPath`; `TimeBar` spans cover [t, t+1 h) like `backend/app/timegrid.py`); a visible
+  sliver that rounds to 0 is drawn as light, not darkness.
+- **Bounded/withheld rows**: `METRICS` rows show the engine's range ("a – b (bounds: data incomplete)") or "Unknown (data
+  incomplete)", never a number; `get()` stays null so no best is claimed.
+- **Cards**: dataset file + SHA-256 (`data-testid="dataset-identity"`) and the incomplete-data/withheld note with known hours.
+- **TimeBar evidence overlay** (`StripEvidence`, `EVIDENCE_COLOR`/`MISSING_COLOR`, legend entry, mission `label`) next to the mission band.
+- **Types**: `TimelineColumns` (`source_step_hours`, `stride`, `mission_*_utc`, `sun_visible`), `EvidenceWindow.duration_s`,
+  `AssessmentInfo.windows`, which the backend already sends.
+
+### Files changed in the merge resolution
+`frontend/src/lib/assessment.ts`, `features/compare/{analysis,lanes,types,OverviewCards}.ts(x)`, `viz/TimeBar.tsx`, tests
+`compare/{missingData,missionTimeRecovery,bestPoolRecovery}.test.tsx`; conflicted files otherwise resolved to main
+(`AtAGlance, ComparisonDashboard, MetricsTable, SyncTimeline, export, fallback, docs/comparison.md`), `planVerdict.ts` to the store adapter.
+
+### Scientific contract decisions
+Hourly grid and sample-and-hold are authoritative (`timegrid.py`); PASS/FAIL/UNKNOWN/NOT_EVALUATED are the engine's only;
+missing stays missing, bounded stays a range; real and demonstration data never compete for "best"; requested and evaluated
+mission timing are separate fields; report/export code is main's, unchanged (frozen snapshot, dataset file + SHA-256, CSV/JSON).
+
+### Tests (frontend/)
+`npx tsc -b` clean; `npx vitest run`: **53 files, 582 tests passed**; `npx oxlint`: 0 errors (warnings only, in files not touched
+here: RoverFlag, RoverMascot, TileTree); `npx vite build` succeeds.
+Backend tests were **not run**: Python is not installed in this environment; no backend file was edited by this stage.
+
+### Browser evidence
+**None.** No browser tool was available in this session, so the live 1366×768 / 1920×1080 inspection and the full
+click-through (select plan → assess → Show why → 3D → return) were **not performed**; that flow is covered by
+`assessment/sharedState.test.tsx`, `viz/evidence.test.tsx`, `lib/assessment.test.tsx` and SSR tests only.
+
+### Known limitations
+- "Show in 3D" from main's per-plan `AssessmentDialog` calls `showEvidence` without an `origin`; the banner's return then goes to
+  the Mission assessment panel, not back to the dialog (and the panel may be for a different plan than the dialog's).
+- The lane/strip unknown bands use main's hatch rendering (labelled in tooltips/legend), not my `unknown-band` test ids.
+- Two assessment surfaces exist (dialog + panel); they share data but not layout.
+
+### For the guided-workflow developer
+Use the API block above unchanged; additionally `fetchAssessment(scenario)`/`useAssessment(scenario)` from `lib/assessment.ts`
+are now thin views of `useAssessmentStore`. Pass `origin: { kind: 'guide', ... }` to `openEvidence` so return works from the guide.
