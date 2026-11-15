@@ -9,6 +9,8 @@ import { formatMarginMetric } from '../../../lib/headroom'
 import { METRICS, bestIds, fmtMetric, requirementMatrix, type Entry } from '../analysis'
 import { buildExport, type ExportedScenario } from '../export'
 import { HEADLINES, headlineRows } from '../glance'
+import { changedChanged, rescueSteps, type RescueContext } from '../rescueFlow'
+import { guideForAI } from './navigation'
 import { COMPARE_SECTIONS } from '../sections'
 import type { PairEvidence, RankingGroup } from '../types'
 
@@ -39,6 +41,8 @@ export interface AssistantScenario {
   undecided_requirements: string[]
   /** For a PASS: how comfortably it passes (e.g. "PASS, narrow margin on ..."), from the headroom panel. */
   headroom: { verdict: string; limited_by: string[] } | null
+  /** Its part in a Mission Rescue import (null when not imported from Rescue). */
+  rescue_role: string | null
   ranking_explanation: string | null
   message: string | null
 }
@@ -57,8 +61,69 @@ export interface AssistantContext {
   at_a_glance: { metric: string; better: 'higher' | 'lower'; values: ByScenario; requirement: ByScenario<string | null>; best: string[] }[]
   key_metrics: { metric: string; group: string; better: 'higher' | 'lower' | 'no preferred direction'; basis: string; values: ByScenario; best: string[] }[]
   requirements: { requirement: string; by_scenario: ByScenario<{ status: string; measured: string; threshold: string | null; margin: string; margin_class: string } | 'not assessed'> }[]
+  /** Present when the compared plans came from Mission Rescue (and are still the imported set). */
+  rescue: AssistantRescue | null
   notes: string[]
   sections: { id: string; label: string }[]
+  /** How to use the page: the only description of controls the assistant may give. */
+  interface_guide: ReturnType<typeof guideForAI>
+}
+
+export interface AssistantRescue {
+  status: string
+  summary: string // Mission Rescue's own summary
+  change: string[] // what the user changed before running Rescue
+  original: string | null // scenario letter
+  changed: string | null
+  changed_problems: { failed: string[]; undecided: string[] } | null
+  alternatives: {
+    label: string
+    rescue_rank: number | null
+    kind: string | null
+    outcome_here: string // the re-assessment on this page (confirmed, passes_separately, undecided, still_fails, not_assessed)
+    outcome_text: string
+    fixes: string[] // requirements the changed plan fails that this alternative passes
+    remaining: string[] // requirements it still fails or cannot decide
+    rescue_verdict: string | null // what Mission Rescue itself reported
+    disagrees_with_rescue: boolean
+  }[]
+}
+
+/** Each imported plan's part in the Mission Rescue story, in words (by scenario id). */
+function rescueRoles(ctx: RescueContext | null | undefined, entries: Entry[]): Map<string, string> {
+  const out = new Map<string, string>()
+  if (!ctx || changedChanged(ctx, entries)) return out
+  for (const [id, r] of Object.entries(ctx.roles)) {
+    out.set(id, r.role === 'original' ? 'original plan (before the change)'
+      : r.role === 'changed' ? 'changed plan (the plan after the change; the one Mission Rescue tried to fix)'
+        : `Mission Rescue alternative #${r.rank ?? '?'}`)
+  }
+  return out
+}
+
+/** The Mission Rescue story, as the "Mission Rescue: from problem to decision" panel shows it. */
+export function rescueForAssistant(ctx: RescueContext | null | undefined, entries: Entry[]): AssistantRescue | null {
+  if (!ctx || changedChanged(ctx, entries)) return null
+  const st = rescueSteps(ctx, entries)
+  return {
+    status: ctx.status,
+    summary: ctx.summary,
+    change: ctx.change,
+    original: st.original?.scenario.label ?? null,
+    changed: st.changed?.scenario.label ?? null,
+    changed_problems: st.changedProblems,
+    alternatives: st.alternatives.map((a) => ({
+      label: a.entry.scenario.label,
+      rescue_rank: a.info.rank ?? null,
+      kind: a.info.kind ?? null,
+      outcome_here: a.outcome,
+      outcome_text: a.outcomeText,
+      fixes: a.fixes,
+      remaining: a.remaining,
+      rescue_verdict: a.info.rescueVerdict ?? null,
+      disagrees_with_rescue: a.disagreesWithRescue,
+    })),
+  }
 }
 
 export function contextState(entries: Entry[], ready: boolean): ContextState {
@@ -76,12 +141,14 @@ function hash(s: string): string {
 
 const shown = (t: string | null | undefined) => (!t || t === '—' ? 'unavailable' : t)
 
-export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], pairs: PairEvidence[], notes: string[], ready: boolean): AssistantContext {
+export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], pairs: PairEvidence[], notes: string[], ready: boolean,
+  rescue: RescueContext | null = null): AssistantContext {
   const state = contextState(entries, ready)
   const x = buildExport(entries, ready ? groups : [], ready ? pairs : [], notes)
   const labelOf = new Map(entries.map((e) => [e.scenario.id, e.scenario.label]))
   const L = (id: string) => labelOf.get(id) ?? id
 
+  const roleOf = rescueRoles(rescue, entries)
   const scenarios = x.scenarios.map((s, i): AssistantScenario => {
     const st = entries[i]?.state
     return {
@@ -102,6 +169,7 @@ export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], 
       overall_risk: s.overall_risk,
       failed_requirements: s.failed_requirements,
       undecided_requirements: s.undecided_requirements,
+      rescue_role: roleOf.get(entries[i]?.scenario.id ?? '') ?? null,
       headroom: s.eligibility === 'pass' && s.headroom
         ? { verdict: s.headroom.qualified_verdict, limited_by: s.headroom.limited_constraints }
         : null,
@@ -144,7 +212,7 @@ export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], 
 
   const revision = hash(JSON.stringify([state, entries.map((e) => [e.scenario.label, e.scenario.site.id, e.scenario.landing_utc,
     e.scenario.duration_days, e.scenario.requirements, e.scenario.spacecraft, e.state?.state, e.result?.key ?? null]),
-  scenarios.map((s) => [s.eligibility, s.canonical_rank, s.recommended])]))
+  scenarios.map((s) => [s.eligibility, s.canonical_rank, s.recommended]), rescue?.importedAt ?? null]))
 
   return {
     format: ASSISTANT_CONTEXT_VERSION,
@@ -159,8 +227,10 @@ export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], 
     at_a_glance,
     key_metrics,
     requirements,
+    rescue: rescueForAssistant(rescue, entries),
     notes: [...new Set(x.notes)].slice(0, 16),
     sections: COMPARE_SECTIONS.map(([id, label]) => ({ id, label })),
+    interface_guide: guideForAI(),
   }
 }
 

@@ -1,29 +1,29 @@
-// Suggested questions shown when the Mission Assistant opens. With no comparison loaded, the navigation questions
-// come first (the spec: "if no comparison is loaded, prioritize navigation questions").
-import type { ContextState } from './context'
-
-const COMPARISON = [
-  'Summarize my current comparison.',
-  'Which mission is more suitable?',
-  'Explain the biggest trade-off.',
-  'Which requirements are being violated?',
-]
-
-const NAVIGATION = [
-  'Where can I see the longest blackout?',
-  'How do I compare another landing date?',
-  'What does UNKNOWN mean?',
-  'What does canonical rank mean?',
-]
+// Suggested questions, chosen from the comparison on screen: they name the scenario that failed, the one that is
+// UNKNOWN, the recommended one, and the Mission Rescue import when there is one. With nothing selected, the
+// getting-started and navigation questions come first.
+import type { AssistantContext } from './context'
 
 const GETTING_STARTED = [
   'How do I select scenarios to compare?',
   'How do I add another scenario?',
   'How do I compare different landing dates?',
+  'How do I compare a rescued mission with the original?',
+  'What does UNKNOWN mean?',
   'How do I restart the tutorial?',
 ]
 
-export function suggestedQuestions(state: ContextState): string[] {
-  if (state === 'empty') return [...GETTING_STARTED, NAVIGATION[2]]
-  return [...COMPARISON, ...NAVIGATION.slice(0, 2)]
+export function suggestedQuestions(c: AssistantContext, max = 6): string[] {
+  if (c.state === 'empty') return GETTING_STARTED.slice(0, max)
+  const out: string[] = ['Summarize my current comparison.']
+  if (c.rescue) out.push('How does the rescued mission differ from my original plan?')
+  const rec = c.scenarios.find((s) => s.recommended)
+  const failed = c.scenarios.find((s) => s.eligibility === 'fail')
+  const unknown = c.scenarios.find((s) => s.eligibility === 'unknown')
+  if (c.state === 'ready' && rec) out.push(`Why is Scenario ${rec.label} recommended?`)
+  else if (c.state === 'ready') out.push('Which mission is more suitable?')
+  if (failed) out.push(`Why did Scenario ${failed.label} fail?`)
+  if (unknown) out.push(`Why is Scenario ${unknown.label} UNKNOWN?`)
+  if (c.ranking_groups.length > 1) out.push('Why are some scenarios ranked separately?')
+  out.push('Explain the biggest trade-off.', 'Where can I see the longest blackout?', 'How do I compare another landing date?')
+  return [...new Set(out)].slice(0, max)
 }
