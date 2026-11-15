@@ -19,19 +19,6 @@ import {
   type OperationalHeadroom,
 } from '../../types'
 import type { CanonicalMetric, ComparisonScenario, CompareResult, ConstraintItem, RankingGroup, RankingInfo, ResultState, TimelineColumns } from './types'
-import {
-  MEANINGFUL,
-  comparisonPool,
-  contenderOf,
-  exact,
-  isMeaningfulDiff,
-  pickBest,
-  type BestOutcome,
-  type Contender,
-  type MetricUnit,
-} from './pool'
-
-export { MEANINGFUL }
 
 export interface Entry {
   scenario: ComparisonScenario
@@ -193,23 +180,14 @@ export interface MetricDef {
   id: string
   group: 'solar' | 'power' | 'earth' | 'mission'
   label: string
-  unit: MetricUnit
+  unit: 'h' | '%' | 'deg' | 'W' | 'x' | 'count' | 'pts' | 'score' | 'factor'
   better: Better
   provenance: Provenance
   get: (r: CompareResult, s: ComparisonScenario) => number | null
   /** Optional text override (e.g. a bounded score), shown instead of fmtMetric(get(...)). */
   text?: (r: CompareResult, s: ComparisonScenario) => string | null
-  /**
-   * How this metric competes for "best" (pool.ts): an exact value, a proven range, or none. Default: get()'s exact
-   * value, else none. Metrics with engine bounds say so here, so a bound can block a lead it might hide.
-   */
-  contender?: (r: CompareResult, s: ComparisonScenario) => Contender
   hint?: string
 }
-
-/** A margin (marginOf) as a contender: exact, its proven range, or none. */
-const marginContender = (x: ReturnType<typeof marginOf>): Contender =>
-  x.status === 'known' ? exact(x.value) : x.status === 'bounded' && x.lower !== null && x.upper !== null ? { kind: 'range', lower: x.lower, upper: x.upper } : { kind: 'none' }
 
 const pct = (v: number | null | undefined) => (v === null || v === undefined ? null : v * 100)
 
@@ -279,7 +257,6 @@ export const METRICS: MetricDef[] = [
     get: (r) => r.solar?.windows_count ?? null },
   { id: 'initial_sun_hours', group: 'solar', label: 'Initial illumination (from landing)', unit: 'h', better: 'higher', provenance: 'derived',
     get: (r) => knownValue(initialWindowMetric(r, 'sunlight')),
-    contender: (r) => contenderOf(initialWindowMetric(r, 'sunlight')),
     text: (r) => {
       const m = initialWindowMetric(r, 'sunlight')
       return m ? inexactText(m, 'h') : null
@@ -287,7 +264,6 @@ export const METRICS: MetricDef[] = [
     hint: 'Continuous power-lit duration right after landing.' },
   { id: 'time_to_first_sunset_h', group: 'solar', label: 'Time to first sunset', unit: 'h', better: 'higher', provenance: 'derived',
     get: (r) => knownValue(firstEndMetric(r, 'sunlight')),
-    contender: (r) => contenderOf(firstEndMetric(r, 'sunlight')),
     text: (r) => firstEndText(r, 'sunlight'),
     hint: 'Hours after landing until the first lit-to-dark transition (first sunset).' },
   // ---- idealised power
@@ -319,7 +295,6 @@ export const METRICS: MetricDef[] = [
     hint: 'Smallest clearance between Earth and the terrain while in view. Near 0° = marginal line of sight.' },
   { id: 'initial_comms_hours', group: 'earth', label: 'Initial Earth contact (from landing)', unit: 'h', better: 'higher', provenance: 'derived',
     get: (r) => knownValue(initialWindowMetric(r, 'earth')),
-    contender: (r) => contenderOf(initialWindowMetric(r, 'earth')),
     text: (r) => {
       const m = initialWindowMetric(r, 'earth')
       return m ? inexactText(m, 'h') : null
@@ -327,7 +302,6 @@ export const METRICS: MetricDef[] = [
     hint: 'Continuous Earth line-of-sight duration right after landing.' },
   { id: 'time_to_first_earthset_h', group: 'earth', label: 'Time to first Earthset', unit: 'h', better: 'higher', provenance: 'derived',
     get: (r) => knownValue(firstEndMetric(r, 'earth')),
-    contender: (r) => contenderOf(firstEndMetric(r, 'earth')),
     text: (r) => firstEndText(r, 'earth'),
     hint: 'Hours after landing until the first Earth line-of-sight loss (first Earthset).' },
   // ---- mission performance (team viability evaluator)
@@ -345,22 +319,18 @@ export const METRICS: MetricDef[] = [
   // bound; those numbers are never shown here as measurements.)
   { id: 'solar_margin', group: 'mission', label: 'Solar margin', unit: 'pts', better: 'higher', provenance: 'viability',
     get: (r, s) => marginOf(cm(r, 'mean_solar_disk_fraction'), s.requirements.min_sunlight_fraction, 1, 100).value,
-    contender: (r, s) => marginContender(marginOf(cm(r, 'mean_solar_disk_fraction'), s.requirements.min_sunlight_fraction, 1, 100)),
     text: (r, s) => inexactText(marginOf(cm(r, 'mean_solar_disk_fraction'), s.requirements.min_sunlight_fraction, 1, 100), 'pts'),
     hint: 'Mean visible solar disk minus the required minimum.' },
   { id: 'battery_margin', group: 'mission', label: 'Battery margin', unit: 'h', better: 'higher', provenance: 'viability',
     get: (r, s) => marginOf(cm(r, 'longest_power_darkness_h'), s.requirements.battery_hours, -1).value,
-    contender: (r, s) => marginContender(marginOf(cm(r, 'longest_power_darkness_h'), s.requirements.battery_hours, -1)),
     text: (r, s) => inexactText(marginOf(cm(r, 'longest_power_darkness_h'), s.requirements.battery_hours, -1), 'h'),
     hint: 'Max acceptable darkness minus the longest power gap (Sun below the panel threshold).' },
   { id: 'comms_margin', group: 'mission', label: 'Communication margin', unit: 'h', better: 'higher', provenance: 'viability',
     get: (r, s) => marginOf(cm(r, 'longest_blackout_h'), s.requirements.max_comms_gap_hours, -1).value,
-    contender: (r, s) => marginContender(marginOf(cm(r, 'longest_blackout_h'), s.requirements.max_comms_gap_hours, -1)),
     text: (r, s) => inexactText(marginOf(cm(r, 'longest_blackout_h'), s.requirements.max_comms_gap_hours, -1), 'h'),
     hint: 'Max acceptable blackout minus the longest blackout.' },
   { id: 'earth_margin', group: 'mission', label: 'Earth-visibility margin', unit: 'pts', better: 'higher', provenance: 'viability',
     get: (r, s) => marginOf(cm(r, 'earth_visible_percent'), s.requirements.min_earth_visibility_fraction * 100, 1).value,
-    contender: (r, s) => marginContender(marginOf(cm(r, 'earth_visible_percent'), s.requirements.min_earth_visibility_fraction * 100, 1)),
     text: (r, s) => inexactText(marginOf(cm(r, 'earth_visible_percent'), s.requirements.min_earth_visibility_fraction * 100, 1), 'pts') },
   { id: 'coverage', group: 'mission', label: 'Data coverage (Sun / Earth)', unit: '%', better: null, provenance: 'viability',
     get: (r) => (r.assessment ? Math.min(r.assessment.sun_coverage_percent, r.assessment.earth_coverage_percent) : null),
@@ -424,27 +394,104 @@ export function fmtDeltaValue(d: number, unit: MetricDef['unit']): string {
 
 export const okEntries = (entries: Entry[]) => entries.filter((e) => e.result)
 
+/** Real results are never ranked against demonstration ones (team rule from docs/interfaces.md). */
+export function comparableEntries(entries: Entry[]): Entry[] {
+  const ok = okEntries(entries)
+  const real = ok.filter((e) => e.result!.data_kind === 'real')
+  return real.length ? real : ok
+}
+
+/** Ids of the best scenario(s) for a metric among comparable results (ties within `tol` share). */
 /**
- * The scenarios that may be compared with each other: real results only when any exist, otherwise demonstration
- * results only (never mixed; team rule from docs/interfaces.md). Same pool as every "best" mark (pool.ts).
+ * Smallest difference worth calling a difference, per unit. Below it two values are "similar": no "best" mark
+ * and no better/worse colour. These are display thresholds for readability, not scientific tolerances.
  */
-export const comparableEntries = (entries: Entry[]): Entry[] => comparisonPool(entries).members
+export const MEANINGFUL: Record<MetricDef['unit'], (ref: number) => number> = {
+  '%': () => 1, pts: () => 1, h: (ref) => Math.max(2, 0.1 * Math.abs(ref)), deg: () => 0.1, W: () => 10,
+  x: () => 0.05, factor: () => 0.02, score: () => 1, count: () => 1,
+}
 
-export const isMeaningful = (m: MetricDef, a: number, b: number) => isMeaningfulDiff(m.unit, a, b)
-
-/** How one scenario competes on a metric (MetricDef.contender, else get()'s exact value). */
-export const metricContender = (m: MetricDef, e: Entry): Contender =>
-  !e.result ? { kind: 'none' } : m.contender ? m.contender(e.result, e.scenario) : exact(m.get(e.result, e.scenario))
-
-/** The fair "best" outcome for a metric (pool.ts rules), with the reason when there is none. */
-export const bestOutcome = (entries: Entry[], m: MetricDef): BestOutcome =>
-  pickBest(comparisonPool(entries), (e) => metricContender(m, e), m.better, m.unit)
+export const isMeaningful = (m: MetricDef, a: number, b: number) =>
+  Math.abs(a - b) >= MEANINGFUL[m.unit](Math.max(Math.abs(a), Math.abs(b))) - 1e-9
 
 /**
- * Scenario(s) fairly best on a metric (pool.ts): real and demonstration results never compete; every pool member
- * counts (an unavailable value means no winner); a bound blocks a lead it could hide; the lead must be meaningful.
+ * Which scenarios may compete for a "best" mark, shared by every highlight (metrics table, At a glance, summary).
+ *   real          two or more real-data results with the same duration and requirements;
+ *   illustrative  only demonstration results (two or more, same duration and requirements): a "best" is labelled
+ *                 illustrative, never a statement about the Moon;
+ *   none          no fair pool: a single real result (demonstration results never compete with it), a selected
+ *                 scenario without a result (it could be the best), or different durations / requirements.
+ * A "best" is a descriptive lead on one measured quantity; it is never a feasibility recommendation.
  */
-export const bestIds = (entries: Entry[], m: MetricDef): Set<string> => bestOutcome(entries, m).ids
+export interface BestPool {
+  entries: Entry[]
+  basis: 'real' | 'illustrative' | 'none'
+  note: string | null
+}
+
+export function bestPool(entries: Entry[]): BestPool {
+  const none = (note: string | null): BestPool => ({ entries: [], basis: 'none', note })
+  // Not assessed yet, or the request failed: its value could be anything, so nobody is "best" meanwhile.
+  const pendingOrFailed = entries.filter((e) => !e.result && e.state?.state !== 'done')
+  // Assessed, but no data exists for that site and time: excluded, and the note says so.
+  const noData = entries.filter((e) => !e.result && e.state?.state === 'done')
+  const ok = okEntries(entries)
+  const real = ok.filter((e) => e.result!.data_kind === 'real')
+  const demo = ok.filter((e) => e.result!.data_kind !== 'real')
+  const names = (es: Entry[]) => es.map((e) => `Scenario ${e.scenario.label}`).join(', ')
+  if (pendingOrFailed.length && ok.length)
+    return none(`No “best” is marked while ${names(pendingOrFailed)} ${pendingOrFailed.length > 1 ? 'have' : 'has'} no result yet: a missing value could be the best.`)
+  const excluded = noData.length ? ` ${names(noData)} ${noData.length > 1 ? 'have' : 'has'} no data for the chosen site and time and ${noData.length > 1 ? 'are' : 'is'} not compared.` : ''
+  let pool: Entry[]
+  let basis: BestPool['basis']
+  if (real.length >= 2) [pool, basis] = [real, 'real']
+  else if (real.length === 1) return none(demo.length ? 'Only one scenario uses real data, so no “best” is marked: demonstration scenarios never compete with real ones.' : null)
+  else if (demo.length >= 2) [pool, basis] = [demo, 'illustrative']
+  else return none(null)
+  const dur = new Set(pool.map((e) => e.scenario.duration_days)).size > 1
+  const req = new Set(pool.map((e) => JSON.stringify(e.scenario.requirements))).size > 1
+  if (dur || req)
+    return none(`The compared plans have ${[dur && 'different mission durations', req && 'different requirements'].filter(Boolean).join(' and ')}: their values are descriptive and no “best” is marked.`)
+  const note = (basis === 'illustrative' ? 'Demonstration data only: a “best” here is illustrative, not a statement about the real Moon.'
+    : demo.length ? 'Demonstration scenarios are shown for illustration and do not compete with real-data ones.' : '') + excluded
+  return { entries: pool, basis, note: note.trim() || null }
+}
+
+/** A candidate's value as an interval: exact values have lo = hi; null = no value. */
+export type Candidate = { id: string; lo: number; hi: number } | { id: string; lo: null; hi: null }
+
+/**
+ * The winner(s) of a pool: proven ahead of every other candidate by a meaningful margin. A bounded candidate wins
+ * only if its worst case beats every other candidate's best case; a missing value, or a single candidate, gives
+ * no winner. Equal exact values share the mark only when they are together meaningfully ahead of the rest.
+ */
+export function bestOf(cands: Candidate[], better: 'higher' | 'lower', meaningful: (a: number, b: number) => boolean): Set<string> {
+  if (cands.length < 2 || cands.some((c) => c.lo === null || !Number.isFinite(c.lo) || !Number.isFinite(c.hi))) return new Set()
+  const cs = cands as { id: string; lo: number; hi: number }[]
+  const worst = (c: { lo: number; hi: number }) => (better === 'higher' ? c.lo : c.hi) // least favourable end
+  const bestCase = (c: { lo: number; hi: number }) => (better === 'higher' ? c.hi : c.lo)
+  const ahead = (a: number, b: number) => (better === 'higher' ? a > b : a < b)
+  const top = [...cs].sort((a, b) => (better === 'higher' ? worst(b) - worst(a) : worst(a) - worst(b)))[0]
+  const tie = (c: { lo: number; hi: number }) => c.lo === c.hi && top.lo === top.hi && Math.abs(c.lo - top.lo) <= 1e-9
+  const winners = cs.filter(tie).length ? cs.filter(tie) : [top]
+  const rest = cs.filter((c) => !winners.includes(c))
+  if (!rest.length) return new Set() // all equal: no winner
+  const w = worst(top)
+  return rest.every((c) => ahead(w, bestCase(c)) && meaningful(w, bestCase(c))) ? new Set(winners.map((c) => c.id)) : new Set()
+}
+
+/**
+ * Scenario(s) with the best value for a metric among comparable results (bestPool). The table's values are exact
+ * or null (bounded and unavailable values are written out instead), so any null in the pool gives no winner.
+ */
+export function bestIds(entries: Entry[], m: MetricDef): Set<string> {
+  if (!m.better) return new Set()
+  const cands: Candidate[] = bestPool(entries).entries.map((e) => {
+    const v = m.get(e.result!, e.scenario)
+    return v === null || !Number.isFinite(v) ? { id: e.scenario.id, lo: null, hi: null } : { id: e.scenario.id, lo: v, hi: v }
+  })
+  return bestOf(cands, m.better, (a, b) => isMeaningful(m, a, b))
+}
 
 export interface Delta {
   value: number
@@ -977,77 +1024,84 @@ const h = (v: number) => (v >= 72 ? `${Math.round(v)} h (${(v / 24).toFixed(1)} 
 const p = (v: number) => `${(v * 100).toFixed(1)}%`
 
 export function buildSummary(entries: Entry[]): Summary {
-  // The shared comparison pool (pool.ts): one data kind; every member counts when choosing a "best".
-  const pool = comparisonPool(entries)
-  // Narrative numbers come from scenarios whose both bodies' statistics exist and whose longest gaps are known.
-  const list = pool.members.filter((e) => e.result!.solar && e.result!.earth &&
+  // Scenarios of one data kind (real, else demonstration); never mixed.
+  const comparable = comparableEntries(entries)
+  // Narrative numbers need both bodies' statistics and the engine's longest-gap values.
+  const list = comparable.filter((e) => e.result!.solar && e.result!.earth &&
     e.result!.solar.longest_dark_hours != null && e.result!.earth.longest_blackout_hours != null)
+  const pool = bestPool(entries)
   const caveats: string[] = []
   // Non-null: `list` below keeps only scenarios whose longest-gap values are known.
   const darkOf = (r: CompareResult): number => r.solar!.longest_dark_hours as number
   const blackOf = (r: CompareResult): number => r.earth!.longest_blackout_hours as number
-  const unavailable = pool.outside.filter((x) => x.reason === 'no_data').map((x) => x.entry)
+  const unavailable = entries.filter((e) => e.state?.state === 'done' && !e.result)
   if (unavailable.length) caveats.push(`${unavailable.map(lbl).join(', ')} ${unavailable.length > 1 ? 'have' : 'has'} no scientific data for the chosen site/dates and ${unavailable.length > 1 ? 'are' : 'is'} not included.`)
-  const demoOut = pool.outside.filter((x) => x.reason === 'other_data_kind').map((x) => x.entry)
+  // Only the other data kind is "demonstration": a real scenario with withheld statistics is not.
+  const demoOut = okEntries(entries).filter((e) => !comparable.includes(e))
   if (demoOut.length) caveats.push(`${demoOut.map(lbl).join(', ')} use demonstration data and are not compared with real-data scenarios.`)
-  // Real scenarios still in the pool but without complete statistics: they block "best" / "worst" claims (rule 2).
-  const incomplete = pool.members.filter((e) => !list.includes(e))
+  // Comparable scenarios without complete statistics (withheld or unavailable): they are not dropped to make a winner.
+  const incomplete = comparable.filter((e) => !list.includes(e))
   if (incomplete.length) caveats.push(`${incomplete.map(lbl).join(', ')} ${incomplete.length > 1 ? 'have' : 'has'} withheld or unavailable Sun/Earth statistics (incomplete data), so no scenario is called best or worst on those measures.`)
-  if (pool.dataKind === 'demonstration') caveats.push('All compared scenarios use demonstration data: the statements below illustrate the tool, not the real Moon.')
+  if (comparable.length && comparable[0].result!.data_kind === 'demonstration') caveats.push('All compared scenarios use demonstration data: the statements below illustrate the tool, not the real Moon.')
   caveats.push('Earth visibility is geometric line of sight; it does not guarantee a working radio link.')
   caveats.push(SCREENING_NOTE)
 
   const empty: Summary = { bests: [], highlights: [], overall: [], caveats }
-  if (pool.members.length < 2) {
-    if (pool.members.length === 1) empty.overall.push('Add at least one more scenario with data to generate a comparison.')
+  if (comparable.length < 2) {
+    if (comparable.length === 1) empty.overall.push('Add at least one more scenario with data to generate a comparison.')
+    if (pool.note) caveats.unshift(pool.note)
     return empty
   }
+  // "Best" statements compare only the fair pool (bestPool), and only when every member of it has the statistics:
+  // a member with withheld statistics could be the best (or the worst), so then none are made.
+  const poolIncomplete = pool.entries.some((e) => !list.includes(e))
+  const cmp = poolIncomplete ? [] : pool.entries
+  if (pool.note && (pool.basis === 'none' || cmp.length < 2)) caveats.unshift(pool.note)
+  if (cmp.length < 2) {
+    // No fair pool: no comparative claims, but each scenario's own violations and the ranking-group caveat stay.
+    const noPool = comparable.map((e) => {
+      const weaknesses: string[] = [], uncertain: string[] = []
+      for (const v of e.result!.viability?.violations ?? []) (v.is_unknown ? uncertain : weaknesses).push(v.message)
+      return { entry: e, strengths: [], cautions: [], weaknesses, uncertain }
+    })
+    const groups = new Set(comparable.map((e) => e.ranking?.group).filter(Boolean))
+    if (groups.size > 1) caveats.push(`These scenarios fall into ${groups.size} separate ranking groups (different data basis, requirements or mission duration). Canonical ranks only compare scenarios inside the same group.`)
+    return { bests: [], highlights: noPool, overall: [], caveats }
+  }
 
-  // Extremes over the scenarios with complete statistics; only used when `complete` (then that is the whole pool).
-  const solar = pick(list, (e) => e.result!.solar!.mean_visible_fraction, 'higher')
-  const comms = pick(list, (e) => e.result!.earth!.visible_fraction, 'higher')
-  const dark = pick(list, (e) => darkOf(e.result!), 'lower')
-  const black = pick(list, (e) => blackOf(e.result!), 'lower')
+  const solar = pick(cmp, (e) => e.result!.solar!.mean_visible_fraction, 'higher')!
+  const comms = pick(cmp, (e) => e.result!.earth!.visible_fraction, 'higher')!
+  const dark = pick(cmp, (e) => darkOf(e.result!), 'lower')!
+  const black = pick(cmp, (e) => blackOf(e.result!), 'lower')!
 
-  // "Best" per measure under the shared rules: over the whole pool (a member without the statistic means no
-  // winner), with the same meaningful-lead thresholds as the table and the headlines.
-  const pctOf = (v: number | null | undefined) => (v === null || v === undefined ? null : v * 100)
-  const solarO = pickBest(pool, (e) => exact(pctOf(e.result!.solar?.mean_visible_fraction)), 'higher', '%')
-  const commsO = pickBest(pool, (e) => exact(pctOf(e.result!.earth?.visible_fraction)), 'higher', '%')
-  const darkO = pickBest(pool, (e) => exact(e.result!.solar?.longest_dark_hours), 'lower', 'h')
-  const blackO = pickBest(pool, (e) => exact(e.result!.earth?.longest_blackout_hours), 'lower', 'h')
-  // Comparative words (best, worst, leads, similar) only when every pool member has every statistic.
-  const complete = !pool.pending && incomplete.length === 0 && !!solar && !!comms && !!dark && !!black
-  const winnersOf = (o: BestOutcome) => pool.members.filter((e) => o.ids.has(e.scenario.id))
-  // For the narrative: the fair winner(s), else the group that is similar to the leader.
-  const topOf = (o: BestOutcome) => (o.reason === 'winner' ? winnersOf(o) : o.similar)
-  const bestSolar = topOf(solarO), bestComms = topOf(commsO)
+  const tied = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol
+  const winners = (x: NonNullable<ReturnType<typeof pick>>, tol: number) => x.all.filter((y) => tied(y.v, x.best.v, tol)).map((y) => y.e)
+  const bestSolar = winners(solar, 0.005), bestComms = winners(comms, 0.005)
+  const bestDark = winners(dark, 0.5), bestBlack = winners(black, 0.5)
 
   const bests: Summary['bests'] = []
-  // Detail from the winner's own value (a winner always has an exact one).
-  const add = (label: string, o: BestOutcome, detail: (r: CompareResult) => string) => {
-    if (o.reason === 'winner') bests.push({ label, ids: [...o.ids], detail: detail(winnersOf(o)[0].result!) })
+  const add = (label: string, es: Entry[], detail: string, all: number) => {
+    if (es.length < all) bests.push({ label, ids: es.map((e) => e.scenario.id), detail })
   }
-  add('Best solar performance', solarO, (r) => `${p(r.solar!.mean_visible_fraction)} mean visible solar disk`)
-  add('Best Earth communication', commsO, (r) => `Earth in view ${p(r.earth!.visible_fraction)} of the mission`)
-  add('Shortest darkness', darkO, (r) => `longest darkness ${h(r.solar!.longest_dark_hours as number)}`)
-  add('Shortest blackout', blackO, (r) => `longest blackout ${h(r.earth!.longest_blackout_hours as number)}`)
+  add('Best solar performance', bestSolar, `${p(solar.best.v)} mean visible solar disk`, cmp.length)
+  add('Best Earth communication', bestComms, `Earth in view ${p(comms.best.v)} of the mission`, cmp.length)
+  add('Shortest darkness', bestDark, `longest darkness ${h(dark.best.v)}`, cmp.length)
+  add('Shortest blackout', bestBlack, `longest blackout ${h(black.best.v)}`, cmp.length)
   // Top canonical rank: only rank 1 of the primary group, and only when it was ranked against other PASS scenarios.
-  const top = pool.members.find((e) => e.ranking?.rank === 1 && e.ranking.group === 'G1' && e.ranking.ranked_in_group > 1)
+  const top = list.find((e) => e.ranking?.rank === 1 && e.ranking.group === 'G1' && e.ranking.ranked_in_group > 1)
   if (top) {
     bests.push({ label: 'Top canonical rank', ids: [top.scenario.id],
       detail: `#1 of ${top.ranking!.ranked_in_group} passing; score ${scoreText(top.ranking)}` })
   }
 
-  const highlights: ScenarioHighlights[] = pool.members.map((e) => {
+  const highlights: ScenarioHighlights[] = list.map((e) => {
     const r = e.result!
     const hr = headroomOfEntry(e)
     const strengths: string[] = [], cautions: string[] = [], weaknesses: string[] = []
-    const id = e.scenario.id
-    if (solarO.ids.has(id)) strengths.push('Greatest solar availability')
-    if (commsO.ids.has(id)) strengths.push('Longest Earth visibility')
-    if (darkO.ids.has(id)) strengths.push('Shortest continuous darkness')
-    if (blackO.ids.has(id)) strengths.push('Shortest communication blackout')
+    if (bestSolar.includes(e) && bestSolar.length < cmp.length) strengths.push('Greatest solar availability')
+    if (bestComms.includes(e) && bestComms.length < cmp.length) strengths.push('Longest Earth visibility')
+    if (bestDark.includes(e) && bestDark.length < cmp.length) strengths.push('Shortest continuous darkness')
+    if (bestBlack.includes(e) && bestBlack.length < cmp.length) strengths.push('Shortest communication blackout')
     if (eligibilityOf(e) === 'pass') {
       if (isLimitedHeadroom(hr) && hr) {
         cautions.push(hr.qualified_verdict)
@@ -1056,14 +1110,11 @@ export function buildSummary(entries: Entry[]): Summary {
         strengths.push('Meets every mission requirement')
       }
     }
-    // Only call something a weakness when the gap to the best is meaningful, and only when every pool member has the
-    // statistic (an unknown one might be worse still).
-    if (complete && solar && comms && dark && black) {
-      if (solar.worst.e === e && solar.best.v - solar.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least solar availability (${p(r.solar!.mean_visible_fraction)})`)
-      if (comms.worst.e === e && comms.best.v - comms.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least Earth visibility (${p(r.earth!.visible_fraction)})`)
-      if (dark.worst.e === e && significantHours(dark.best.v, dark.worst.v)) weaknesses.push(`Longest darkness (${h(darkOf(r))})`)
-      if (black.worst.e === e && significantHours(black.best.v, black.worst.v)) weaknesses.push(`Longest blackout (${h(blackOf(r))})`)
-    }
+    // Only call something a weakness when the gap to the best is meaningful.
+    if (solar.worst.e === e && solar.best.v - solar.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least solar availability (${p(r.solar!.mean_visible_fraction)})`)
+    if (comms.worst.e === e && comms.best.v - comms.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least Earth visibility (${p(r.earth!.visible_fraction)})`)
+    if (dark.worst.e === e && significantHours(dark.best.v, dark.worst.v)) weaknesses.push(`Longest darkness (${h(darkOf(r))})`)
+    if (black.worst.e === e && significantHours(black.best.v, black.worst.v)) weaknesses.push(`Longest blackout (${h(blackOf(r))})`)
     const uncertain: string[] = []
     for (const v of r.viability?.violations ?? []) (v.is_unknown ? uncertain : weaknesses).push(v.message)
     return { entry: e, strengths, cautions, weaknesses, uncertain }
@@ -1071,47 +1122,43 @@ export function buildSummary(entries: Entry[]): Summary {
 
   // ---- overall narrative, only from numbers above
   const overall: string[] = []
-  // No "leads / greatest / similar" claims over a pool with missing statistics (see the caveat).
-  if (complete && solar && comms) {
-    const S = solar.best.e, C = comms.best.e
-    const sameSolarComms = bestSolar.length === 1 && bestComms.length === 1 && S === C
-    if (sameSolarComms) {
-      overall.push(`${lbl(S)} leads on both power and communication: ${p(solar.best.v)} mean visible solar disk (next best ${p(solar.second.v)}) and Earth in view ${p(comms.best.v)} of the mission (next best ${p(comms.second.v)}).`)
+  const S = solar.best.e, C = comms.best.e
+  const sameSolarComms = bestSolar.length === 1 && bestComms.length === 1 && S === C
+  if (sameSolarComms) {
+    overall.push(`${lbl(S)} leads on both power and communication: ${p(solar.best.v)} mean visible solar disk (next best ${p(solar.second.v)}) and Earth in view ${p(comms.best.v)} of the mission (next best ${p(comms.second.v)}).`)
+  } else {
+    if (bestSolar.length === 1) {
+      const darkS = darkOf(S.result!)
+      const other = bestComms.length === 1 ? C : solar.second.e
+      const darkO = darkOf(other.result!)
+      const darkCmp = darkS < darkO - 0.5 ? `, with a shorter continuous darkness (${h(darkS)} vs ${h(darkO)} for ${lbl(other)})`
+        : darkS > darkO + 0.5 ? `, although its longest darkness is longer (${h(darkS)} vs ${h(darkO)} for ${lbl(other)})` : ''
+      overall.push(`${lbl(S)} provides the greatest solar availability (${p(solar.best.v)} mean visible solar disk vs ${p(solar.second.v)} for the next best)${darkCmp}.`)
     } else {
-      if (bestSolar.length === 1) {
-        const darkS = darkOf(S.result!)
-        const other = bestComms.length === 1 ? C : solar.second.e
-        const darkO = darkOf(other.result!)
-        const darkCmp = darkS < darkO - 0.5 ? `, with a shorter continuous darkness (${h(darkS)} vs ${h(darkO)} for ${lbl(other)})`
-          : darkS > darkO + 0.5 ? `, although its longest darkness is longer (${h(darkS)} vs ${h(darkO)} for ${lbl(other)})` : ''
-        overall.push(`${lbl(S)} provides the greatest solar availability (${p(solar.best.v)} mean visible solar disk vs ${p(solar.second.v)} for the next best)${darkCmp}.`)
-      } else {
-        overall.push(`Solar availability is similar across ${bestSolar.map(lbl).join(' and ')} (${p(solar.best.v)}).`)
-      }
-      if (bestComms.length === 1 && C !== S) {
-        overall.push(`However, ${lbl(C)} has longer geometric Earth visibility (${p(comms.best.v)} vs ${p(S.result!.earth!.visible_fraction)} for ${lbl(S)}; longest blackout ${h(blackOf(C.result!))} vs ${h(blackOf(S.result!))}).`)
-        if (bestSolar.length === 1) overall.push(`${lbl(S)} may therefore suit power-constrained operations, while ${lbl(C)} offers a communication advantage.`)
-      } else if (bestComms.length > 1) {
-        overall.push(`Earth visibility is similar for ${bestComms.map(lbl).join(' and ')} (${p(comms.best.v)}).`)
-      }
+      overall.push(`Solar availability is similar across ${bestSolar.map(lbl).join(' and ')} (${p(solar.best.v)}).`)
+    }
+    if (bestComms.length === 1 && C !== S) {
+      overall.push(`However, ${lbl(C)} has longer geometric Earth visibility (${p(comms.best.v)} vs ${p(S.result!.earth!.visible_fraction)} for ${lbl(S)}; longest blackout ${h(blackOf(C.result!))} vs ${h(blackOf(S.result!))}).`)
+      if (bestSolar.length === 1) overall.push(`${lbl(S)} may therefore suit power-constrained operations, while ${lbl(C)} offers a communication advantage.`)
+    } else if (bestComms.length > 1) {
+      overall.push(`Earth visibility is similar for ${bestComms.map(lbl).join(' and ')} (${p(comms.best.v)}).`)
     }
   }
 
   // ---- why: only mechanisms the data shows directly
-  const sameSite = new Set(list.map((e) => e.scenario.site.id)).size === 1
-  const sameStart = new Set(list.map((e) => e.scenario.landing_utc)).size === 1
-  if (complete && sameSite && !sameStart) {
-    const el = pick(list, (e) => e.result!.solar!.mean_elevation_deg, 'higher')!
+  const sameSite = cmp.length > 1 && new Set(cmp.map((e) => e.scenario.site.id)).size === 1
+  const sameStart = cmp.length > 1 && new Set(cmp.map((e) => e.scenario.landing_utc)).size === 1
+  if (sameSite && !sameStart) {
+    const el = pick(cmp, (e) => e.result!.solar!.mean_elevation_deg, 'higher')!
     overall.push(`All scenarios use the same site, so the differences come from where the Sun and Earth are on those dates, not from the terrain: mean solar elevation ranges from ${el.worst.v.toFixed(2)}° (${lbl(el.worst.e)}) to ${el.best.v.toFixed(2)}° (${lbl(el.best.e)}).`)
   } else if (sameStart && !sameSite) {
     overall.push('All scenarios share the same landing time, so the Sun and Earth sit in almost the same part of the sky for each; the differences come mainly from each site’s local terrain horizon.')
   }
-  const clear = pick(list, (e) => e.result!.solar!.mean_clearance_lit_deg, 'higher')
+  const clear = pick(cmp, (e) => e.result!.solar!.mean_clearance_lit_deg, 'higher')
   if (clear && clear.best.v - clear.worst.v > 0.5) {
     overall.push(`While lit, the Sun stays on average ${clear.best.v.toFixed(2)}° above the local terrain at ${lbl(clear.best.e)} but only ${clear.worst.v.toFixed(2)}° at ${lbl(clear.worst.e)}, so at ${lbl(clear.worst.e)} small changes in the Sun’s height are enough for the terrain to block it.`)
   }
-  // Verdict statements cover every pool member, statistics or not.
-  const assessed = pool.members.filter((e) => eligibilityOf(e) !== null)
+  const assessed = list.filter((e) => eligibilityOf(e) !== null)
   const passing = assessed.filter((e) => eligibilityOf(e) === 'pass')
   const unknown = assessed.filter((e) => eligibilityOf(e) === 'unknown')
   if (assessed.length) {
@@ -1133,7 +1180,7 @@ export function buildSummary(entries: Entry[]): Summary {
     }
     if (unknown.length) overall.push(`${unknown.map(lbl).join(', ')} cannot be decided from the available data (UNKNOWN): neither passing nor failing, and not ranked.`)
   }
-  const groupIds = new Set(pool.members.map((e) => e.ranking?.group).filter(Boolean))
+  const groupIds = new Set(list.map((e) => e.ranking?.group).filter(Boolean))
   if (groupIds.size > 1) caveats.push(`These scenarios fall into ${groupIds.size} separate ranking groups (different data basis, requirements or mission duration). Canonical ranks only compare scenarios inside the same group.`)
   return { bests, highlights, overall, caveats }
 }

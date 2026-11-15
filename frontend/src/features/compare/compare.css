@@ -161,3 +161,43 @@
 /* Native checkboxes and sliders take the accent (the planner styles its own the same way). */
 .cmp-page input[type='checkbox'] { accent-color: #d9472f; }
 .cmp-page :focus-visible { outline: 2px solid var(--color-coral); outline-offset: 2px; }
+
+.cmp-assistant-panel {
+  visibility: hidden;
+  transform: translateX(calc(100% + 24px));
+  transition:
+    transform var(--md-dur-short4) var(--md-ease-emph-accel),
+    visibility 0s var(--md-dur-short4);
+}
+
+.cmp-assistant-panel[data-open='true'] {
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(0);
+  transition: transform var(--md-dur-medium2) var(--md-ease-emph-decel);
+}
+
+@starting-style {
+  .cmp-assistant-panel[data-open='true'] { transform: translateX(calc(100% + 24px)); }
+}
+
+@media (min-width: 1100px) {
+  .cmp-dashboard-content {
+    margin-right: max(0px, calc((100% - 1500px) / 2));
+    transition: margin-right var(--md-dur-short4) var(--md-ease-emph-accel);
+  }
+
+  .cmp-dashboard-content[data-assistant-open='true'] {
+    margin-right: 416px;
+    transition: margin-right var(--md-dur-medium2) var(--md-ease-emph-decel);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cmp-assistant-panel,
+  .cmp-assistant-panel[data-open='true'],
+  .cmp-dashboard-content,
+  .cmp-dashboard-content[data-assistant-open='true'] {
+    transition: none;
+  }
+}
