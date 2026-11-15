@@ -89,7 +89,9 @@ export function AtAGlance({ entries, groups, pairs, ready, onJump }: {
           {HEADLINES.map((h) => <Bars key={h.key} h={h} entries={entries} />)}
           <p className="text-[11px] text-ink-3 md:col-span-2">
             Bars are drawn only for exact values; a range or a missing value is written out instead. The icon is the verdict of the
-            requirement each figure is checked against. “best” needs a meaningful lead (≥ 1 percentage point, or ≥ 2 h / 10%).
+            requirement each figure is checked against. “best” needs a meaningful lead (≥ 1 percentage point, or ≥ 2 h / 10%)
+            over every compared scenario of the same data kind (real and demonstration results never compete), and is not
+            given while any of them has no exact value or a range that could be ahead.
           </p>
         </div>
       )}
