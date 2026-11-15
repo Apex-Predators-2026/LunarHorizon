@@ -4,6 +4,7 @@
 import { fmtEvaluatedLength, fmtRequestedLength, fmtWhen } from '../missionTime'
 import type { AssistantContext, AssistantMissionTime, AssistantScenario } from './context'
 import { guideAnswer, guideFor } from './navigation'
+import { basicReportAnswer, isReportQuestion } from './reportFallback'
 
 /** The evaluated window (what the results describe); the request only when nothing was evaluated, named as such. */
 const windowText = (t: AssistantMissionTime) =>
@@ -127,6 +128,8 @@ export function basicRescue(c: AssistantContext): string | null {
 
 /** A basic answer to the user's question, or the summary when the question is not one it can answer exactly. */
 export function basicAnswer(question: string, c: AssistantContext): string {
+  // Questions about the report's content are answered from the report snapshot, never from the live comparison.
+  if (isReportQuestion(question)) return basicReportAnswer(question, c.report ?? null)
   // Questions about using the page are answered from the interface guide, with or without a comparison.
   const guide = isNavigationQuestion(question) ? guideFor(question) : null
   if (guide) return guideAnswer(guide)

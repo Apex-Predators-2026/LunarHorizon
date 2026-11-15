@@ -19,6 +19,8 @@ from typing import Any, TypeVar
 
 import numpy as np
 import pytest
+
+from app.timegrid import snap_duration_days
 from pydantic import BaseModel
 
 from app.models import MissionRequirements as RescueRequirements
@@ -29,7 +31,6 @@ from app.rescue.loosen import fixable_by_relaxing, requirement_changes
 from app.rescue.timeline import SyntheticTimelineProvider, Timeline
 from app.rescue.viability import CHECKS
 from app.rescue.viability.placeholder import evaluate_timeline as placeholder_evaluate
-from app.timegrid import snap_duration_days
 from app.viability.adapters.site_file import normalize_longitude_deg
 from app.viability.compat.rescue import (
     CONSTRAINT_TO_RESCUE,
@@ -462,11 +463,13 @@ def test_missions_shorter_than_two_samples_evaluate(hours: float) -> None:
     result, assessment = evaluate_timeline_detailed(sc, tl)
     assert assessment.data_quality.uncovered_duration_s == pytest.approx(max(0.0, hours - 1.0) * H)
     assert assessment.evaluated_duration_s == pytest.approx(hours * H)
-    # The Evaluator runs on the hourly data grid (app.timegrid): lengths are whole hours, so 0.48 h and 1.44 h are
-    # evaluated as 1 h. Compare it with the direct path on that same snapped mission.
+    # The Evaluator applies the hourly grid (app.timegrid, main 3cc2355): the length is snapped to whole hours
+    # (here 1 h) before the engine runs, so it must equal the compat layer's answer for the snapped mission.
     snapped = sc.model_copy(update={"duration_days": snap_duration_days(sc.duration_days)})
+    assert snapped.duration_days * 24 == pytest.approx(1.0)
     expected, _ = evaluate_timeline_detailed(snapped, rescue_slice(provider, snapped))
-    assert expected == Evaluator(provider=provider, evaluate=make_evaluate_fn(), simulation=True).evaluate(sc)
+    got = Evaluator(provider=provider, evaluate=make_evaluate_fn(), simulation=True).evaluate(sc)
+    assert got == expected
 
 
 def test_single_sample_without_a_bin_is_still_rejected() -> None:
