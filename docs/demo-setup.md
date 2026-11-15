@@ -70,6 +70,18 @@ It fails (exit 1) on a failed step, any uncaught page error or any API 5xx, with
 step and `smoke-output/report.json`. A step the app doesn't offer at all (none at the moment) is
 listed as MISSING; `--strict` fails on that too. `--online` adds the live JPL Horizons check.
 
+### Release gate (before a release; then freeze features)
+```
+node scripts/release-gate.mjs --full          # full suites, then every gate check (from the repository root)
+node scripts/release-gate.mjs --only atlas    # after a fix: re-run just the affected checks
+```
+Each check is tied to the tests or browser steps that prove it: real passing mission, real failed mission,
+UNKNOWN mission, Comparison, Atlas, Report, Navigation, Production demo (production build, fresh browser) and
+Offline fallback (the same journey against a `LUNAR_OFFLINE=1` backend, with its stated limitations). It starts its
+own backends (ports 8011, 8012) and writes `release-gate/LATEST.md` plus a JSON record with the commit: commit
+those with the release. A run with uncommitted changes, skipped or only some checks is not a release pass.
+GitHub Actions (`.github/workflows/ci.yml`) runs the plain build and tests on every push.
+
 ## 3. Run
 Two terminals:
 ```
