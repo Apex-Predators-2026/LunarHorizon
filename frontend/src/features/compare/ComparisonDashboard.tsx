@@ -35,7 +35,7 @@ import { TourButton } from './tour/TourButton'
 import { ReportHeaderAction } from './ReportHeaderAction'
 import { COMPARE_METHODOLOGY } from '../../appRoute'
 import { ComparisonMethodology } from './methodology/ComparisonMethodology'
-import { MethodologyIntro } from './methodology/MethodologyIntro'
+import { MethodologyButton } from './methodology/MethodologyIntro'
 
 const originOf = (e: Entry) => axisPlacement(missionTime(e)).landingMs
 
@@ -298,18 +298,12 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                 </Disclosure>
               </div>
             </TabPanel>
-
-            {notes.length > 0 && (
-              <footer className="px-1 text-xs leading-relaxed text-ink-4">
-                <h2 className="mb-2 text-sm font-medium text-ink-3">Data sources and assumptions</h2>
-                <ul className="list-disc space-y-1 pl-4">{notes.map((n) => <li key={n}>{n}</li>)}</ul>
-              </footer>
-            )}
           </div>
         )}
 
-        {/* Last on the page, after every result: a compact way into the methodology subpage. */}
-        <MethodologyIntro />
+        {/* Last on the page, after every result: only the way into the methodology subpage (the data notes for
+            these plans are shown there). */}
+        <MethodologyButton />
       </div>
       <MissionAssistant entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
         notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} onJump={jumpTo} />
