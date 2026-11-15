@@ -3,8 +3,9 @@
   "python.testing.pytestEnabled": true,
   "python.testing.unittestEnabled": false,
   "python.testing.cwd": "${workspaceFolder}/backend",
-  "python.testing.pytestArgs": ["tests"],
-  "terminal.integrated.enableBell": true,
+  "python.testing.pytestArgs": [
+    "tests"
+  ],
   "terminal.integrated.enableVisualBell": true,
   "accessibility.signals.terminalBell": {
     "sound": "on"
