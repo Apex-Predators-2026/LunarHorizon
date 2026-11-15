@@ -9,6 +9,10 @@ export const HOUR_MS = 3_600_000
 export const sunUp = (s: { visible?: boolean | null; visible_fraction: number | null }) =>
   s.visible ?? (s.visible_fraction !== null && s.visible_fraction > 0)
 
+/** Is the Sun's state known at all (terrain data present in its direction)? */
+export const sunKnown = (s: { visible?: boolean | null; visible_fraction: number | null }) =>
+  (s.visible !== null && s.visible !== undefined) || s.visible_fraction !== null
+
 /** "73%", "<1%" for a visible sliver, or "unknown". */
 export function fmtPct(fraction: number | null, visible?: boolean | null): string {
   if (fraction === null) return 'unknown'
