@@ -22,4 +22,7 @@ export const STATE = {
   ink: '#3c4044',
   muted: '#6b7076',
   surface: '#ffffff',
+  // Unknown (no data): a grey hatch, distinct from the night colour and from the red blackout hatch.
+  unknown: '#8a9099',
+  unknownBg: '#4a4f55',
 } as const
