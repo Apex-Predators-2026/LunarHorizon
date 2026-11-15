@@ -5,8 +5,8 @@ import { playUiTap } from '../../viz/sfx'
 import { useReveal } from '../compare/disclosure'
 import { tabOfSection, useCompareView } from '../compare/sections'
 import { useGuide, type StageModel } from '../guide/mission'
-import { TOUR_ACTS, TUTORIAL_STEPS, type TourAct } from './steps'
-import { runStoryAction, useStoryModel, type StoryAction } from './storyBridge'
+import { TOUR_ACTS, TUTORIAL_STEPS, pathSteps, type TourAct, type TourPath } from './steps'
+import { runStoryAction, useRecap, useStoryModel, type RecapFact, type StoryAction } from './storyBridge'
 import { useTutorialStore } from './useTutorialStore'
 import { computeCoachmarkPosition, handleTutorialKeyDown, PAGE_TOP_CLEARANCE, scrollParent, type RectBox } from './utils'
 
@@ -58,11 +58,14 @@ export function TutorialSpotlight({ uiHidden }: { uiHidden: boolean }) {
   const goToStep = useTutorialStore((s) => s.goToStep)
   const goToAct = useTutorialStore((s) => s.goToAct)
   const skipTour = useTutorialStore((s) => s.skipTour)
+  const path = useTutorialStore((s) => s.path)
+  const startTour = useTutorialStore((s) => s.startTour)
   const setNextBlocked = useTutorialStore((s) => s.setNextBlocked)
 
   const step = TUTORIAL_STEPS[stepIndex] ?? TUTORIAL_STEPS[0]
   const total = TUTORIAL_STEPS.length
   const live = useStoryModel(open ? step.story : undefined)
+  const recap = useRecap(open && step.id === 'your-turn')
   const working = !!live && (live.catchingUp || live.model.status === 'working')
 
   // "Taking long" only offers Retry; it never advances the tour.
@@ -249,6 +252,9 @@ export function TutorialSpotlight({ uiHidden }: { uiHidden: boolean }) {
       headRef={headRef}
       maskId={maskId}
       story={story}
+      path={path}
+      recap={recap}
+      onStartFull={() => startTour(0, 'full')}
       onPrev={prevStep}
       onNext={nextStep}
       onSkip={skipTour}
@@ -367,6 +373,9 @@ export function TutorialSpotlightView({
   onGoToStep,
   onGoToAct,
   onStoryAction = () => {},
+  path = 'full',
+  recap = null,
+  onStartFull,
 }: {
   step: (typeof TUTORIAL_STEPS)[number]
   stepIndex: number
@@ -384,11 +393,26 @@ export function TutorialSpotlightView({
   onGoToStep: (idx: number) => void
   onGoToAct: (act: TourAct) => void
   onStoryAction?: (a: StoryAction) => void
+  /** The route being followed: progress, act tabs and dots count only its steps. */
+  path?: TourPath
+  /** The story's outcome, shown on the last step. */
+  recap?: RecapFact[] | null
+  /** Quick path, last step: switch to the full tour. */
+  onStartFull?: () => void
 }) {
-  const progressPct = Math.round(((stepIndex + 1) / total) * 100)
-  const isLast = stepIndex === total - 1
+  const steps = pathSteps(path)
+  const inPath = steps.indexOf(stepIndex)
+  const pos = inPath >= 0 ? inPath + 1 : stepIndex + 1
+  const count = inPath >= 0 ? steps.length : total
+  const progressPct = Math.round((pos / count) * 100)
+  const isLast = inPath >= 0 ? inPath === steps.length - 1 : stepIndex === total - 1
+  // A step's own Next label names where the full tour goes next ("Generate the report"); a path that skips ahead
+  // (the quick tour after Science vs engineering) falls back to plain Next. The last step always keeps its label.
+  const pathNext = inPath >= 0 ? steps[inPath + 1] : stepIndex + 1
+  const nextLabel = step.nextLabel && (isLast || pathNext === stepIndex + 1) ? step.nextLabel : isLast ? 'Finish' : 'Next'
   const blocked = !!story && (story.catchingUp || story.model.status === 'working')
-  const actSteps = TUTORIAL_STEPS.map((s, idx) => ({ s, idx })).filter(({ s }) => s.act === step.act)
+  const actSteps = steps.map((idx) => ({ s: TUTORIAL_STEPS[idx], idx })).filter(({ s }) => s.act === step.act)
+  const acts = TOUR_ACTS.filter((a) => steps.some((idx) => TUTORIAL_STEPS[idx].act === a.act))
   const actTitle = TOUR_ACTS.find((a) => a.act === step.act)?.title ?? ''
   const showPrompt = !story || (!blocked && story.model.status === 'ready')
   const scrim = step.scrim !== false
@@ -425,7 +449,7 @@ export function TutorialSpotlightView({
           ref={cardRef}
           role="dialog"
           aria-modal="false"
-          aria-label={`Guided tour, step ${stepIndex + 1} of ${total}: ${step.title}`}
+          aria-label={`Guided tour, step ${pos} of ${count}: ${step.title}`}
           data-testid="tutorial-coachmark"
           data-step={step.id}
           className="lp-light md-dialog-in flex max-h-[calc(100vh-32px)] w-[min(388px,calc(100vw-32px))] flex-col overflow-hidden rounded-[24px] border border-opal-300 bg-opal-50 text-slate-100 shadow-2xl shadow-black/45"
@@ -442,7 +466,7 @@ export function TutorialSpotlightView({
             {/* Acts: where you are, and a one-click jump to any act */}
             <div className="flex items-start justify-between gap-2">
               <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Tour acts">
-                {TOUR_ACTS.map((a) => {
+                {acts.map((a) => {
                   const current = a.act === step.act
                   return (
                     <button
@@ -479,7 +503,8 @@ export function TutorialSpotlightView({
 
             <div key={step.id} className="md-tour-content-in">
               <div className="flex flex-wrap items-center gap-2 text-[11px]">
-                <span className="font-semibold tabular-nums text-sky-200">{`${stepIndex + 1} / ${total}`}</span>
+                <span className="font-semibold tabular-nums text-sky-200">{`${pos} / ${count}`}</span>
+                {path === 'quick' && <span className="font-semibold text-slate-300">Quick tour</span>}
                 <span className="text-slate-400">{actTitle}</span>
                 <span className="inline-flex h-5 items-center rounded-full border border-opal-300 bg-opal-100 px-2 font-medium text-slate-300">
                   {step.badge}
@@ -490,10 +515,24 @@ export function TutorialSpotlightView({
             </div>
 
             <p className="sr-only" aria-live="polite">
-              {`Step ${stepIndex + 1} of ${total}: ${step.title}.${story && !blocked && story.model.status === 'ready' ? ' Live result ready.' : ''}`}
+              {`Step ${pos} of ${count}: ${step.title}.${story && !blocked && story.model.status === 'ready' ? ' Live result ready.' : ''}`}
             </p>
 
             {story && <StoryBlock story={story} onStoryAction={onStoryAction} />}
+
+            {/* The story's outcome on the last step: live verdicts of the three compared plans. */}
+            {step.id === 'your-turn' && recap && recap.length > 0 && (
+              <div aria-label="Live result" role="group" className="rounded-2xl border border-opal-300 bg-opal-100 px-3 py-2 text-xs">
+                <dl className="space-y-1">
+                  {recap.map((f) => (
+                    <div key={f.label} className="grid grid-cols-[minmax(0,8.5rem)_1fr] gap-2">
+                      <dt className="break-words text-slate-400">{f.label}</dt>
+                      <dd className={`break-words tabular-nums ${FACT_TONE[f.tone] ?? FACT_TONE.neutral}`}>{f.value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
 
             {/* Try-it / look-for pill */}
             {showPrompt && (
@@ -521,6 +560,17 @@ export function TutorialSpotlightView({
                   {!actionDone && <span>{step.tryPrompt}</span>}
                 </div>
               </div>
+            )}
+
+            {/* The quick path ends with a way into the whole site. */}
+            {path === 'quick' && isLast && onStartFull && (
+              <button
+                type="button"
+                onClick={onStartFull}
+                className="md-compact w-full justify-center border border-opal-300 bg-opal-100 text-slate-200"
+              >
+                Take the full tour
+              </button>
             )}
 
             {/* Steps of this act + Back / Next */}
@@ -563,7 +613,7 @@ export function TutorialSpotlightView({
                   data-testid="tutorial-next"
                   className="md-compact bg-coral font-semibold text-slate-950 shadow-sm aria-disabled:cursor-wait aria-disabled:opacity-60"
                 >
-                  {blocked ? 'Working…' : step.nextLabel ?? (isLast ? 'Finish' : 'Next')}
+                  {blocked ? 'Working…' : nextLabel}
                 </button>
               </div>
             </div>

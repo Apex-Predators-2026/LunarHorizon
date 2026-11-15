@@ -59,8 +59,8 @@ const SOURCES = [
   { name: 'LROC QuickMap illumination', role: 'Independent check',
     text: 'The empirical south-pole illumination layer (WAC_POLE_ILL_TWI_SOUTH) is used to cross-check computed sunlight. It is a validation reference only, never an input.',
     href: 'https://quickmap.lroc.asu.edu/' },
-  { name: 'Gracy & Lee, LPSC 2024', role: 'Published benchmark',
-    text: 'Published illumination results for Connecting Ridge and Peak Near Shackleton (LPSC 55, abstract 1695). The curated site coordinates come from this work.',
+  { name: 'Gracy & Lee, LPSC 2024', role: 'Site coordinates source',
+    text: 'Locates the curated sites, including Connecting Ridge and Peak Near Shackleton (LPSC 55, abstract 1695). The site coordinates come from this work; it is not a validation of this model.',
     href: 'https://www.hou.usra.edu/meetings/lpsc2024/pdf/1695.pdf' },
 ]
 
@@ -132,7 +132,7 @@ function MetricCatalogue() {
             {rows.map((m) => (
               <tr key={m.id}>
                 <th scope="row">{m.label}</th>
-                <td>{m.hint ?? '—'}</td>
+                <td>{m.hint ?? '-'}</td>
                 <td className="whitespace-nowrap">{m.better ? BETTER_LABEL[m.better] : 'Context only'}</td>
                 <td><ProvenanceTag p={m.provenance} /></td>
               </tr>

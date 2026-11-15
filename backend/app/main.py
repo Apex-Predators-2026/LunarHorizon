@@ -5,12 +5,14 @@ Interactive docs:   http://localhost:8000/docs
 """
 
 import json
+import os
 
 import numpy as np
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import store
+from .assistant.config import load_env_file
 from .engine.ephem_local import LocalEphemerisUnavailable
 from .engine.net import OfflineError
 from .engine.sites import ALL_SITES
@@ -35,9 +37,21 @@ from .terrain_router import router as terrain_router
 from .viability.api import router as viability_router
 
 app = FastAPI(title="Lunar Landing Site Navigator API")
+
+
+def cors_origins() -> list[str]:
+    """Return exact browser origins allowed to call the API."""
+    configured = os.environ.get("CORS_ALLOW_ORIGINS")
+    if configured is None:
+        configured = load_env_file().get("CORS_ALLOW_ORIGINS", "")
+    if configured.strip():
+        return [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
+    return ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=cors_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )

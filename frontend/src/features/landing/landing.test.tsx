@@ -2,7 +2,8 @@
 import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
-import { DATA_SOURCES, HERO, PICTURES } from './content'
+import { MISSION } from '../guide/missionDefinition'
+import { BEATS, DATA_SOURCES, HERO, PICTURES } from './content'
 import Landing from './Landing'
 import { currentHourIso, describeEarth, describeSun, untilText } from './liveFormat'
 
@@ -24,6 +25,17 @@ describe('landing page', () => {
     const withTour = renderToString(<Landing onOpen={() => {}} onTour={() => {}} />)
     expect(withTour.match(/Take the guided tour/g)).toHaveLength(2)
     expect(renderToString(<Landing onOpen={() => {}} />)).not.toContain('Take the guided tour')
+  })
+})
+
+describe('story copy', () => {
+  it('the delay card states the same launch slip as the guided tour', () => {
+    const delay = BEATS.find((b) => b.id === 'delay')!
+    expect(MISSION.disruption.launch_delay_days).toBe(4)
+    expect(delay.title).toBe('The launch slips four days')
+    expect(delay.body).toMatch(/^Four days later/)
+    expect(delay.facts).toContainEqual({ label: 'Change', value: '+4 days' })
+    expect(JSON.stringify(delay)).not.toMatch(/ten days|10 days/i)
   })
 })
 

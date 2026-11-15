@@ -9,9 +9,11 @@ import {
   stageIndex,
   stageModel,
   useGuide,
+  type Snapshot,
   type StageId,
   type StageModel,
 } from '../guide/mission'
+import { eligibilityOf } from '../compare/analysis'
 import { useAssessmentStore } from '../assessment/useAssessmentStore'
 import { useReportStore } from '../compare/report'
 import { useCompareStore } from '../compare/useCompareStore'
@@ -151,6 +153,41 @@ export function useStoryModel(stage: StageId | undefined): StoryView | null {
   useEvidence((e) => e.problem)
   if (!stage) return null
   return { model: stageModel(snapshot()), catchingUp: !active || current !== stageIndex(stage) }
+}
+
+export interface RecapFact {
+  label: string
+  value: string
+  tone: 'pass' | 'fail' | 'unknown' | 'neutral'
+}
+
+const RECAP_ROLES = ['Original plan', 'After the delay', 'Recovery']
+const VERDICT_WORD = { pass: 'PASS', fail: 'FAIL', unknown: 'UNKNOWN' } as const
+
+/**
+ * The story's outcome for the last step: the three plans the comparison re-assessed (original, delayed, recovery)
+ * with their live verdicts. Null until the story has imported them and every verdict is in: never a guess.
+ */
+export function recapFacts(snap: Snapshot = snapshot()): RecapFact[] | null {
+  const ids = snap.guide.compareIds
+  if (ids.length !== RECAP_ROLES.length) return null
+  const facts: RecapFact[] = []
+  for (const [i, id] of ids.entries()) {
+    const entry = snap.comparison.entries.find((e) => e.scenario.id === id)
+    const verdict = entry ? eligibilityOf(entry) : null
+    if (!entry || !verdict) return null
+    facts.push({ label: RECAP_ROLES[i], value: `${entry.scenario.site.name} · ${VERDICT_WORD[verdict]}`, tone: verdict })
+  }
+  return facts
+}
+
+/** recapFacts(), kept live while `on` (the comparison may still be settling when the last step opens). */
+export function useRecap(on: boolean): RecapFact[] | null {
+  useGuide((g) => g.compareIds)
+  useCompareStore((s) => s.results)
+  useCompareStore((s) => s.scenarios)
+  useCompareStore((s) => s.rankingSetKey)
+  return on ? recapFacts() : null
 }
 
 export type StoryAction = StageModel['primary']['action'] | StageModel['secondary'][number]['action']

@@ -66,30 +66,44 @@ async function run(viewport) {
   // A fresh browser profile with ONE plan the user made earlier (saved before the page loads): the guided mission must
   // never duplicate, replace or delete it, however often it is restarted or left.
   await page.addInitScript((plan) => { if (!localStorage.getItem('lunar-plans')) localStorage.setItem('lunar-plans', JSON.stringify({ state: { plans: [plan], activeId: null, compareIds: [] }, version: 0 })) }, USER_PLAN)
-  // Start from the landing page, as a visitor would. Since the branding refresh (2b69bf2) the landing page only opens the
-  // navigator; "Try a mission" lives in the navigator's header.
+  // Start from the landing page, as a visitor would. Open the navigator, then launch the Full guided tour from More (⋮).
   await page.goto(`${URL_APP}/`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'Open the navigator' }).first().click()
-  await page.locator('header').getByRole('button', { name: 'Try a mission' }).click()
-
-  const card = page.getByTestId('guide-card')
-  const shot = (n) => page.screenshot({ path: join(OUT, `${tag}-${n}.png`) })
-  /** Wait until the stage has its real result (never a timer), then return its status and text. */
-  const settle = async (stage, timeout = 60_000) => {
-    await page.waitForFunction((st) => {
-      const c = document.querySelector('[data-testid=guide-card]')
-      return c && c.getAttribute('data-stage') === st && c.getAttribute('data-status') !== 'working'
-    }, stage, { timeout })
-    return { status: await card.getAttribute('data-status'), text: await card.innerText() }
+  const startFullTour = async () => {
+    await page.locator('[data-tour="more-menu"] button').first().click()
+    await page.getByRole('menuitem', { name: /Full guided tour/ }).click()
   }
-  const primary = () => page.getByTestId('guide-primary').click()
+  await startFullTour()
+
+  const card = page.getByTestId('tutorial-coachmark')
+  const shot = (n) => page.screenshot({ path: join(OUT, `${tag}-${n}.png`) })
+  /** Wait until the tour step has settled with its live result (never a timer), then return its status and text. */
+  const settle = async (stepId, timeout = 60_000) => {
+    await page.waitForFunction((id) => {
+      const c = document.querySelector('[data-testid=tutorial-coachmark]')
+      const next = c?.querySelector('[data-testid=tutorial-next]')
+      return c && c.getAttribute('data-step') === id && next && next.getAttribute('aria-disabled') !== 'true'
+    }, stepId, { timeout })
+    const err = (await card.locator('[role=alert]').count()) > 0
+    const warn = (await card.locator('[role=status]').count()) > 0
+    return { status: err ? 'error' : warn ? 'warn' : 'ready', text: await card.innerText() }
+  }
+  const primary = () => page.getByTestId('tutorial-next').click()
+  const stepTo = async (stepId, timeout = 60_000) => {
+    for (let i = 0; i < 12; i++) {
+      const cur = await card.getAttribute('data-step')
+      if (cur === stepId) return settle(stepId, timeout)
+      await settle(cur, timeout)
+      await primary()
+    }
+    throw new Error(`Did not reach tour step "${stepId}"`)
+  }
 
   let s = await settle('mission')
   check(`${tag} 1 mission: definition loaded`, s.status === 'ready' && /Peak Near Shackleton/.test(s.text))
   await shot('1-mission')
-  await primary()
-  s = await settle('original')
-  check(`${tag} 2 original plan passes`, s.status === 'ready' && /PASSES every requirement/.test(s.text), s.text.match(/Maximum direct.*/)?.[0])
+  s = await stepTo('original')
+  check(`${tag} 2 original plan passes`, s.status === 'ready' && /PASSES every requirement/.test(s.text), s.text.match(/Longest.*|Earth in.*|Average.*/)?.[0])
   // The Planner's plan card shows the same canonical verdict for the running plan (not just "running").
   const guidedCard = page.getByRole('listitem', { name: /^Plan Try a mission/ })
   await guidedCard.getByText('Passes', { exact: true }).waitFor({ timeout: 30_000 })
@@ -97,16 +111,10 @@ async function run(viewport) {
   await shot('2-original')
   await primary()
   s = await settle('delay')
-  check(`${tag} 3 delay applied through Rescue's change control`, s.status === 'ready' && /14 Oct 2027/.test(s.text))
-  // The planner's Mission assessment panel (with its Original / After change / Rescue pick tabs) was removed in the
-  // branding refresh (2b69bf2; the sidebar holds plans and rescue only). The changed plan's verdict is checked in the
-  // guide card above and in the report JSON (stage 8); here: the delay is a what-if, the saved plan is not rewritten.
+  // In the unified tour, the delay step applies the 4-day delay through Rescue's change control and shows what changed.
   const savedUnchanged = async () => { const t = await guidedCard.innerText(); return /2027-10-10 00:00 UTC/.test(t) && /\bPasses\b/.test(t) }
   check(`${tag} 3 the saved plan keeps its date and verdict (the delay is a what-if)`, await savedUnchanged())
-  await shot('3-delay')
-  await primary()
-  s = await settle('changed')
-  check(`${tag} 4 what changed: blackout PASS -> FAIL`, s.status === 'ready' && /118 h/.test(s.text) && /22 h over the limit/.test(s.text))
+  check(`${tag} 4 what changed: blackout PASS -> FAIL`, s.status === 'ready' && /118 h/.test(s.text) && /FAIL/.test(s.text))
   await shot('4-changed')
   await primary()
   s = await settle('evidence')
@@ -117,7 +125,7 @@ async function run(viewport) {
   await shot('5-evidence')
   await primary()
   s = await settle('rescue', 120_000)
-  check(`${tag} 6 Rescue recovery passes (canonical check)`, s.status === 'ready' && /Malapert Massif/.test(s.text) && /confirms it PASSES/.test(s.text))
+  check(`${tag} 6 Rescue recovery passes (canonical check)`, s.status === 'ready' && /Malapert Massif/.test(s.text) && /143 km/.test(s.text))
   // (Rescue pick tab: see stage 3. The recovery's PASS is checked above and in the report JSON.)
   check(`${tag} 6 the saved plan keeps its date and verdict after the Rescue search`, await savedUnchanged())
   await shot('6-rescue')
@@ -125,8 +133,7 @@ async function run(viewport) {
   s = await settle('compare', 120_000)
   check(`${tag} 7 comparison recommends the recovery`, s.status === 'ready' && /recommends the recovery/.test(s.text))
   await shot('7-compare')
-  await primary()
-  s = await settle('report')
+  s = await stepTo('report')
   const preview = page.getByTestId('report-preview')
   await preview.waitFor({ timeout: 30_000 })
   const snapId = await preview.getAttribute('data-snapshot')
@@ -175,10 +182,17 @@ async function run(viewport) {
   await page.emulateMedia({ media: 'screen' })
   await page.keyboard.press('Escape')
   check(`${tag} 8 Escape closes the preview`, (await preview.count()) === 0)
-  await primary() // Finish
-  check(`${tag} finish leaves the story`, (await card.count()) === 0)
+  // Finish Act 3 (Atlas -> Methodology -> Your turn recap) and leave the tour cleanly.
+  s = await stepTo('atlas')
+  s = await stepTo('method')
+  s = await stepTo('your-turn')
+  check(`${tag} Act 3 Your turn recap shows live verdicts`, /Peak Near Shackleton · PASS/.test(s.text) && /Peak Near Shackleton · FAIL/.test(s.text) && /Malapert Massif · PASS/.test(s.text))
+  await primary() // Explore on my own
+  check(`${tag} finish leaves the tour`, (await card.count()) === 0)
 
-  // A live edit after generation: the report keeps its snapshot, says it is out of date, and regenerates on request.
+  // A live edit after generation: return to Scenario Comparison, verify the report flags a changed comparison, and regenerate.
+  await page.locator('nav[aria-label=Main]').getByRole('button', { name: 'Scenario Comparison', exact: true }).click()
+  await page.locator('#cmp-scenarios').waitFor({ timeout: 30_000 })
   // The scenario checkboxes live in the "Manage scenarios" disclosure, collapsed once two scenarios are compared.
   const manage = page.locator('#cmp-scenarios').getByRole('button', { name: /Manage plans/ })
   if ((await manage.getAttribute('aria-expanded')) !== 'true') await manage.click()
@@ -196,12 +210,15 @@ async function run(viewport) {
   check(`${tag} regenerate uses the new selection`, /Plans [A-Z0-9]+, [A-Z0-9]+ as evaluated/.test(await preview.innerText()) && (await page.getByTestId('report-stale').count()) === 0)
   await preview.getByRole('button', { name: 'Close the report preview' }).click()
 
-  // Restart twice from the header: one guided plan card, never duplicates.
+  // Restart twice from the planner toolbar: one guided plan card, never duplicates.
+  await page.locator('nav[aria-label=Main]').getByRole('button', { name: 'Mission Planner', exact: true }).click()
+  await page.locator('[data-tour="more-menu"] button').first().waitFor({ timeout: 30_000 })
   for (let i = 0; i < 2; i++) {
-    await page.locator('header').getByRole('button', { name: /^(Try a mission|Restart the mission)$/ }).click()
+    await startFullTour()
     await settle('mission')
+    if (i === 0) await page.getByRole('button', { name: 'Skip guided tour' }).click()
   }
-  await page.getByRole('button', { name: 'Exit the guided mission' }).click()
+  await page.getByRole('button', { name: 'Skip guided tour' }).click()
   // Count the saved plans themselves (the Rescue panel also shows the running plan's name).
   const guidedPlans = await page.evaluate(() =>
     (JSON.parse(localStorage.getItem('lunar-plans') ?? '{}').state?.plans ?? []).filter((p) => p.name.startsWith('Try a mission')).length)

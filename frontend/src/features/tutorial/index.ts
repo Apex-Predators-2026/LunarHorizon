@@ -1,5 +1,8 @@
 export {
   TOUR_ACTS,
+  TOUR_PATHS,
+  pathSteps,
+  type TourPath,
   TUTORIAL_STEPS,
   actStart,
   type TourAct,
