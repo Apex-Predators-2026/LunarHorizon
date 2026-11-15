@@ -42,7 +42,7 @@ function requirementLines(c: AssistantContext, s: AssistantScenario): string[] {
     const cell = r.by_scenario[s.label]
     if (!cell || cell === 'not assessed' || (cell.status !== 'fail' && cell.status !== 'unknown')) continue
     const req = cell.threshold ? `, required ${cell.threshold}` : ''
-    const margin = cell.margin && cell.margin !== '—' ? `, margin ${cell.margin}` : ''
+    const margin = cell.margin && cell.margin !== '-' && cell.margin !== '-' ? `, margin ${cell.margin}` : ''
     out.push(cell.status === 'fail'
       ? `  - Fails **${r.requirement}**: measured ${cell.measured}${req}${margin}`
       : `  - Cannot decide **${r.requirement}** (measured ${cell.measured}${req}): missing or uncertain data, not a failure`)
