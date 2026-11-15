@@ -160,6 +160,62 @@ traverse distance and a minimum science score, plus the engineering requirements
       rescue reads exactly the numbers in the engine's files (it matches the engine's own
       summary) and that real and synthetic data are never mixed.
 
+## Demo scenario
+
+The preset is `backend/app/rescue/demo_scenario.json`. It was picked by searching the 8 catalog
+sites on real data (6 start dates in 2027, delays of 3 to 20 days, default requirements) for plans
+that pass, then fail after the delay, then get rescued. Of the candidates that fit, this one has a
+single clear failure.
+
+- **Plan:** Connecting Ridge, 7 days, landing 2027-02-08 00:00 UTC, default requirements.
+- **Before the delay:** passes, score 100.
+- **After a 5-day launch delay** (landing 2027-02-13): fails, score 64.8. One requirement is
+  violated: the longest continuous power-darkness is 63 h and the declared limit is 50 h
+  (`battery_hours`).
+- **Rescue:** status `rescued`, 5 alternatives, all passing. The best is Malapert Massif, landing
+  2027-02-16 12:00 UTC, score 100.
+- `backend/tests/test_rescue_real_data.py` checks this transition, and checks that every
+  recommended alternative also passes when re-evaluated directly by the canonical engine with the
+  cache and fast path off, with the same verdict and score (the release gate).
+
+Timing for this scenario, measured in-process on the default search (488 candidates): about 5 s
+the first time (it includes loading the site files), 0.1 to 0.2 s repeated. With the cache and
+fast path off, the same request takes about 8 s every time. The cache and fast path give the same
+results as the slow path; the equivalence tests in the same file check that.
+
+Changing files under `data/sites/` needs a backend restart. The loaded timelines and the
+evaluation cache are kept in memory and are not refreshed when a file changes.
+
+## Questions judges may ask
+
+**How does rescue choose alternatives?** It searches a grid: every catalog site plus custom points
+2 km and 5 km around the original, at every 12 h for 30 days after the delayed date. Each
+candidate is checked against your requirements. Passing ones are ranked by score plus a clearance
+bonus, minus penalties for extra delay and distance moved and for fragility. A quick robustness
+check (small date and position changes) feeds the fragility penalty. It only finds options at the
+tested times and points.
+
+**What does the score measure?** A 0 to 100 model score for how comfortably a plan meets the
+requirements (sunlight, darkness, Earth contact). It is a screening result, not a mission
+approval. Pass or fail comes from the requirements, not from the score.
+
+**Are nearby landing positions evaluated with real terrain?** No. Only the 8 catalog sites have
+real data. Nearby points are skipped and reported as such (unless simulation mode is on).
+
+**How does missing data affect the result?** The result is unknown, never a fail and never a zero.
+Unknown results have no score and are not ranked as passes.
+
+**Is there a battery model?** No. There is a declared darkness-tolerance rule (`battery_hours`:
+the longest continuous power-dark period allowed), not a state-of-charge simulation.
+
+**Is radio-link reliability modelled?** No. Only Earth line of sight above the terrain is used.
+
+**What uses synthetic data?** Only simulation mode, which is off by default and is labelled in
+the results and the UI.
+
+**Why are landing times rounded to the hour?** The data is hourly. The result shows the time that
+was actually evaluated, which can differ from what you typed by up to half an hour.
+
 ## Regenerating the frontend test fixtures
 
 `frontend/src/features/rescue/__fixtures__/*.json` are real backend responses. After
