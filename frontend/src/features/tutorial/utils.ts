@@ -1,4 +1,5 @@
 import type { TutorialPlacement } from './steps'
+import { useReportStore } from '../compare/report'
 import { useTutorialStore } from './useTutorialStore'
 
 export interface RectBox {
@@ -81,15 +82,30 @@ export function computeCoachmarkPosition(
   }
 }
 
+/** The nearest scrolling ancestor (the scrolling pages scroll inside <main>, not the window). */
+export function scrollParent(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    if (p.scrollHeight > p.clientHeight && /auto|scroll/.test(getComputedStyle(p).overflowY)) return p
+  }
+  return null
+}
+
+/** Space kept above a target on the scrolling pages: the app header plus a sticky section bar. */
+export const PAGE_TOP_CLEARANCE = 200
+
 export function handleTutorialKeyDown(e: { key: string; preventDefault?: () => void }): boolean {
   const state = useTutorialStore.getState()
   if (!state.open) return false
+  // The Mission Report preview (tour step 14) handles its own Esc: close the report, keep the tour.
+  if (e.key === 'Escape' && useReportStore.getState().open) return false
   if (e.key === 'Escape') {
     e.preventDefault?.()
     state.skipTour()
     return true
   }
   if (e.key === 'ArrowRight') {
+    // A step that is still working must not be skipped past an unfinished result.
+    if (state.nextBlocked) return false
     e.preventDefault?.()
     state.nextStep()
     return true

@@ -258,7 +258,7 @@ export function AtlasView() {
 
         {/* Workspace: the map first; the selected mission's inspector beside it on wide screens, below it otherwise. */}
         <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <section aria-labelledby="atlas-map-h" className="cmp-section min-w-0 !p-4">
+          <section aria-labelledby="atlas-map-h" data-tour="atlas-grid" className="cmp-section min-w-0 !p-4">
             <h2 id="atlas-map-h" className="mb-3 text-base font-medium text-ink">
               {result ? `${result.site_name}: landing date × mission length` : 'Landing date × mission length'}
             </h2>

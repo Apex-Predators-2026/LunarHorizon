@@ -1,7 +1,8 @@
 # "Try a mission": the verified guided story
 
-The guided mission (landing page **Try a mission**, or the button in the navigator header) walks through one real
-decision with the live tools: load a plan, read its requirements, apply a launch delay, see what broke, inspect the
+The guided mission runs inside the one **Guided Tour** (landing page **Take the guided tour**, the Mission Planner
+toolbar's **More (⋮) → Guided Tour**, the one-time offer card that points at that menu, or `#app/planner?tour=1`). It walks through one real decision
+with the live tools: load a plan, read its requirements, apply a launch delay, see what broke, inspect the
 evidence in 3D, run Mission Rescue, compare the plans and export a report. Every verdict, number and alternative it
 shows comes from the current engine and Rescue responses; nothing is scripted.
 
@@ -80,8 +81,20 @@ such a change detectable, they do not guarantee numerical reproduction.
 
 ## The journey in the app
 
-Eight stages on one card (progress, Back, Restart, Exit, Minimise). A stage advances only when its real result is
-available; slow requests offer Retry / Exit, failures offer Retry.
+The story's eight stages are the backbone of the Guided Tour (`frontend/src/features/tutorial/`): 17 short steps in
+three acts on one coachmark card, with act tabs to jump, step dots, Back / Next and Skip (Esc) at any time.
+
+- **Act 1 – Plan a south-pole landing** (`#app/planner`): the mission (stage 1), then spotlight stops on the LOLA
+  terrain, the time bar, the sky plot and Verify with JPL, then stages 2, 4 (the delay is applied on the way), 5 and 6.
+- **Act 2 – Make the decision** (`#app/compare`): stage 7, then the verdict and headroom, the synchronized timeline
+  and the trade-offs, then stage 8 (the report) and the Mission Assistant.
+- **Act 3 – Trust the science**: the Feasibility Atlas (`#app/atlas`) and Validation & Methodology (`#app/method`).
+
+On a story step the card shows up to three live facts from the stage below; Next waits ("Working…") until the real
+result is available; slow requests offer Retry, failures offer Retry, edited inputs offer Restart the example.
+Jumping ahead (an act tab or a dot) runs the earlier stages in order first ("Preparing the mission…"). The
+Comparison page's **How to compare missions** button opens the tour at Act 2. `features/tutorial/storyBridge.ts`
+connects the tour to the story engine (`features/guide/mission.ts`).
 
 1. **Your mission** – the definition's site, objective, duration and requirements; loaded as the running plan.
 2. **The original plan** – the canonical assessment: PASS and the margins a delay could eat into.
@@ -98,8 +111,8 @@ available; slow requests offer Retry / Exit, failures offer Retry.
 
 State: the story owns only its stage, a request token and the ids of what it created. Results stay in the
 assessment, Rescue, comparison and evidence stores. Editing the plan, the delay or the imported comparison plans
-pauses the story ("inputs changed"); restart removes only what it created (no duplicate saved plans); exit leaves
-everything as it is; the feature tutorial and the story never run at once.
+pauses the story ("inputs changed"); restart removes only what it created (no duplicate saved plans); skipping or
+finishing the tour stops the story and leaves everything as it is.
 
 ## The summary report
 

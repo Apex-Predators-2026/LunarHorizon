@@ -289,7 +289,7 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
         </header>
 
         {/* The credibility overview: what was checked, how fresh the reports are, and what remains uncertain. */}
-        <section aria-labelledby="meth-overview-h" className="cmp-section !p-4">
+        <section aria-labelledby="meth-overview-h" data-tour="method-overview" className="cmp-section !p-4">
           <h2 id="meth-overview-h" className="mb-3 text-base font-medium text-ink">What was checked</h2>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Fact title="Scientific validation">

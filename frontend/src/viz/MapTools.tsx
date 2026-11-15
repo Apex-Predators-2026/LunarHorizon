@@ -609,7 +609,8 @@ export function MapTools({
               <button
                 type="button"
                 role="menuitem"
-                data-tip="Guided Tour: interactive 8-stop mission briefing across all planner controls"
+                data-tour="menu-tour"
+                data-tip="Guided Tour: one real mission across all four views"
                 onClick={() => {
                   close()
                   useTutorialStore.getState().startTour(0)
@@ -618,7 +619,7 @@ export function MapTools({
               >
                 <span className="flex h-6 w-6 items-center justify-center text-coral"><Icon d={ICON.tour} size={20} /></span>
                 Guided Tour
-                <span className="ml-auto text-xs text-slate-400">8 stops</span>
+                <span className="ml-auto text-xs text-slate-400">3 acts</span>
               </button>
               <button
                 type="button"
