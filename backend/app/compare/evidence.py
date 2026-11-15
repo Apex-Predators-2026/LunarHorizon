@@ -4,7 +4,7 @@ no unknown is filled, no bound is collapsed to a number.
 """
 from __future__ import annotations
 
-from datetime import timezone
+from datetime import UTC, datetime
 
 from ..viability.enums import MetricStatus, Unit
 from ..viability.outputs import Metric, ViabilityAssessment, VisibilityWindow
@@ -51,19 +51,23 @@ def canonical_metric(m: Metric) -> CanonicalMetric:
     )
 
 
-def _iso(t) -> str:
-    return t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
+def iso_z(t: datetime) -> str:
+    """UTC ISO 8601 with a Z suffix (seconds, plus microseconds only when present)."""
+    return t.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
-def evidence_window(w: VisibilityWindow, start) -> EvidenceWindow:
+def evidence_window(w: VisibilityWindow, start: datetime) -> EvidenceWindow:
     return EvidenceWindow(
-        kind=w.kind.value,
+        kind=w.kind.value, start_utc=iso_z(w.start_utc), end_utc=iso_z(w.end_utc), duration_s=w.duration_s,
         start_hour=(w.start_utc - start).total_seconds() / _HOUR,
         end_hour=(w.end_utc - start).total_seconds() / _HOUR,
         duration_hours=w.duration_s / _HOUR,
-        start_utc=_iso(w.start_utc), end_utc=_iso(w.end_utc),
         clipped_at_start=w.clipped_at_start, clipped_at_end=w.clipped_at_end,
     )
+
+
+# Older name kept for callers written against the evidence/time branch.
+CanonicalWindow = EvidenceWindow
 
 
 def assessment_info(a: ViabilityAssessment) -> AssessmentInfo:
@@ -100,6 +104,9 @@ def assessment_info(a: ViabilityAssessment) -> AssessmentInfo:
         constraints=constraints,
         explanations=[e.message for e in a.explanations],
         limitations=list(a.limitations),
+        evaluated_start_utc=iso_z(a.evaluated_start_utc),
+        evaluated_end_utc=iso_z(a.evaluated_end_utc),
+        windows=[evidence_window(w, a.evaluated_start_utc) for w in a.windows],
     )
 
 
