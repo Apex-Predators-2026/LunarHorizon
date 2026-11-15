@@ -55,7 +55,6 @@ const MAX_SCALE = 6
 const FLAG_OFFSET: [number, number, number] = [2.4, 0, 0.6] // beside the rover, not inside it
 
 const CSS = `
-@font-face { font-family: 'Baby Doll'; src: url('${import.meta.env.BASE_URL}fonts/BabyDoll.ttf') format('truetype'); font-display: swap; }
 .rover-flag { position: absolute; left: 0; top: 0; z-index: 1; display: none; pointer-events: none; will-change: transform; }
 .rover-flag-sprite {
   position: absolute; left: -${FOOT_X}px; top: -${FOOT_Y}px; width: ${FRAME_W}px; height: ${FRAME_H}px;
@@ -76,7 +75,7 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) { .rover-flag-sprite { animation: none; } }
 .rover-flag-text {
   position: absolute; left: 0; top: 0; white-space: nowrap;
-  font-family: 'Baby Doll', 'Inter', sans-serif; font-size: 16px; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase;
+  font-family: 'Fredoka', 'Inter', sans-serif; font-size: 16px; line-height: 1; letter-spacing: 0.04em; text-transform: uppercase;
   color: #FEB08C; text-shadow: 0 1px 3px rgba(0,0,0,0.85);
 }
 .rover-flag-text-ghost { display: none; color: transparent; text-shadow: none; -webkit-text-stroke: 1px #ffffff; }

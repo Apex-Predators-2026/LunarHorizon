@@ -24,13 +24,14 @@ CONTEXT = {"format": "comparison-assistant-context-v1", "state": "ready",
 @pytest.fixture(autouse=True)
 def isolated_env(monkeypatch, tmp_path):
     """No backend/.env, no key, online, unless a test sets them."""
-    names = ("OPENROUTER_API_KEY", "OPENROUTER_MODEL", "OPENROUTER_BASE_URL", "ASSISTANT_TIMEOUT_S", "LUNAR_OFFLINE")
+    names = ("OPENROUTER_API_KEY", "OPENROUTER_MODEL", "OPENROUTER_BASE_URL", "OPENROUTER_HTTP_REFERER",
+             "ASSISTANT_TIMEOUT_S", "LUNAR_OFFLINE")
     saved = {n: os.environ.get(n) for n in names}
     monkeypatch.setattr(config, "ENV_FILE", tmp_path / "missing.env")
     for name in names:
         monkeypatch.delenv(name, raising=False)
     yield
-    for name, value in saved.items():  # the .env loader writes os.environ directly: restore it exactly
+    for name, value in saved.items():
         os.environ.pop(name, None)
         if value is not None:
             os.environ[name] = value
@@ -142,6 +143,15 @@ def test_model_and_endpoint_come_from_the_environment(monkeypatch):
     assert fake.requests[-1].full_url == "https://example.test/v1/chat/completions"
 
 
+def test_openrouter_attribution_uses_the_deployed_frontend_url(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", FAKE_KEY)
+    monkeypatch.setenv("OPENROUTER_HTTP_REFERER", "https://navigator.example.org")
+    fake = FakeAI()
+    monkeypatch.setattr(urllib.request, "urlopen", fake)
+    ask()
+    assert fake.requests[-1].get_header("Http-referer") == "https://navigator.example.org"
+
+
 @pytest.mark.parametrize("status,reason", [(401, "auth"), (402, "credits"), (429, "rate_limited"), (500, "provider_error")])
 def test_service_errors_become_a_clear_unavailable_state_without_leaking_the_key(monkeypatch, status, reason):
     monkeypatch.setenv("OPENROUTER_API_KEY", FAKE_KEY)
@@ -184,12 +194,15 @@ def test_only_recent_turns_are_forwarded():
     assert msgs[0]["content"].startswith(CORE_INSTRUCTION)
 
 
-def test_env_file_loader_reads_values_but_never_overrides_the_environment(monkeypatch, tmp_path):
+def test_env_file_settings_are_refreshed_and_environment_values_take_precedence(monkeypatch, tmp_path):
     env = tmp_path / ".env"
     env.write_text('# comment\nOPENROUTER_API_KEY="from-file"\nexport OPENROUTER_MODEL=file/model\nnot a line\n', encoding="utf-8")
     monkeypatch.setattr(config, "ENV_FILE", env)
     s = config.settings()
     assert s.api_key == "from-file" and s.model == "file/model"
+    env.write_text("OPENROUTER_API_KEY=updated-key\nOPENROUTER_MODEL=updated/model\n", encoding="utf-8")
+    s = config.settings()
+    assert s.api_key == "updated-key" and s.model == "updated/model"
     monkeypatch.setenv("OPENROUTER_MODEL", "env/model")
     assert config.settings().model == "env/model"
 
