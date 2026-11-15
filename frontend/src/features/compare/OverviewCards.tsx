@@ -123,6 +123,12 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
                   Score {scoreText(e.ranking, r.viability?.score)} · risk {a.overall_risk} · data coverage{' '}
                   {Math.min(a.sun_coverage_percent, a.earth_coverage_percent).toFixed(0)}%
                 </p>
+                {(!r.solar || !r.earth) && (
+                  <p className="mt-2 text-[11px] leading-snug text-amber-300" data-testid="coverage-note">
+                    Data incomplete: Sun known {r.sun_known_hours != null ? `${Math.round(r.sun_known_hours)} h` : 'unreported'}, Earth known {r.earth_known_hours != null ? `${Math.round(r.earth_known_hours)} h` : 'unreported'}{r.evaluated_hours != null && <> of {Math.round(r.evaluated_hours)} h</>}.
+                    {r.withheld && Object.keys(r.withheld).length > 0 && <> Withheld: {Object.keys(r.withheld).join(', ')}.</>} Ranges are what the data can prove; unknown time is neither dark nor blocked.
+                  </p>
+                )}
               </>
             ) : (
               <p className="mt-3 text-xs leading-snug text-slate-400">
@@ -146,6 +152,11 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
                 sunlight ≥ {Math.round(s.requirements.min_sunlight_fraction * 100)}% · Earth ≥ {Math.round(s.requirements.min_earth_visibility_fraction * 100)}%
               </dd>
             </dl>
+            {r?.dataset_file && (
+              <p className="mt-1 break-all text-[11px] text-slate-500" data-testid="dataset-identity" title={r.dataset_sha256 ? `SHA-256 ${r.dataset_sha256}` : undefined}>
+                Data file {r.dataset_file}{r.dataset_sha256 ? ` · SHA-256 ${r.dataset_sha256.slice(0, 12)}…` : ''}
+              </p>
+            )}
             {r?.site_context && (
               <p className="mt-1 text-[11px] text-slate-500">
                 Ground {r.site_context.ground_height_m != null ? `${Math.round(r.site_context.ground_height_m)} m` : 'n/a'}
