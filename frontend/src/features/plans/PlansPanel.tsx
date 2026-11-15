@@ -256,12 +256,12 @@ export function PlanCard({
           <span className="text-[10px] text-slate-500">· Screening only</span>
         </div>
       )}
-      <div className="mt-2 flex items-center justify-between gap-2">
+      <div className="plan-card-actions mt-2 flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-3 text-xs text-slate-400" data-tip="Tick two or more plans, then press Compare to see them side by side.">
           <input type="checkbox" checked={compare} onChange={() => toggle(plan.id)} />
           Compare
         </label>
-        <div className="flex">
+        <div className="ml-auto flex">
           <button type="button" aria-label={`Edit ${plan.name}`} data-tip="Edit this plan" className={iconBtn} onClick={onEdit}>
             <Icon d={ICON.edit} />
           </button>
@@ -277,9 +277,9 @@ export function PlanCard({
           >
             <Icon d={ICON.del} />
           </button>
-          <button type="button" data-tip="Run: show this plan on the map and use it for Mission rescue" className="md-btn ml-2 bg-sky-600 px-4 text-white hover:bg-sky-500" onClick={onRun}>
+          <button type="button" aria-label={`Run ${plan.name}`} data-tip="Run: show this plan on the map and use it for Mission rescue" className="md-btn plan-card-run ml-2 bg-sky-600 text-white hover:bg-sky-500" onClick={onRun}>
             <Icon d={ICON.play} size={18} />
-            <span className="ml-1">Run</span>
+            <span className="plan-card-run-label ml-1">Run</span>
           </button>
         </div>
       </div>
