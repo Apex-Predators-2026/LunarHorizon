@@ -351,7 +351,9 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
 }
 
 /* ---- Opening picture ---- */
-.lnd-hero-photo { position: relative; height: 100svh; min-height: 480px; background: #000; overflow: hidden; }
+/* At least one screen tall, and taller when the headline and lead need it (short windows), so the copy is never
+   centred up under the nav bar or clipped. */
+.lnd-hero-photo { position: relative; display: flex; min-height: max(100svh, 480px); background: #000; overflow: hidden; }
 .lnd-hero-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; display: block; opacity: 0; }
 /* Camera settle: the photograph fades up while easing from slightly close to its resting framing. */
 .lnd-hero-photo img.is-ready {
@@ -368,7 +370,7 @@ html.lp-dark .lnd .lnd-nav[data-tone='light'] .glass-on.lnd-glass-dark { backgro
   inset: 0;
   background: linear-gradient(to top, #000, transparent 32%);
 }
-.lnd-hero-photo-copy { position: absolute; z-index: 2; inset: calc(var(--lnd-nav-h) + 24px) var(--lnd-pad) 64px; display: flex; align-items: center; }
+.lnd-hero-photo-copy { position: relative; z-index: 2; flex: 1; min-width: 0; padding: calc(var(--lnd-nav-h) + 24px) var(--lnd-pad) 64px; display: flex; align-items: center; }
 .lnd-hero-photo-copy .lnd-hero-copy { max-width: 780px; }
 .lnd-hero-credits {
   position: absolute;

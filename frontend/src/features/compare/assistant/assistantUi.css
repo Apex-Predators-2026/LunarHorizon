@@ -16,19 +16,26 @@
   }
 }
 
-/* Rover beside the minimized dock: he stands next to it and bobs a little. */
-.cmp-ai-rover {
-  position: absolute;
-  z-index: 1;
-  cursor: pointer;
-  pointer-events: auto;
-  background: none;
-  border: 0;
-  padding: 0;
-  transform-origin: bottom center;
-  animation: cmp-ai-rover-in var(--md-dur-medium4) var(--md-ease-emph-decel) both;
+/* Rover stands on the page and pops in / out. */
+.rover-poof { position: absolute; z-index: 6; pointer-events: none; --poof-delay: 260ms; }
+.rover-poof-body { position: relative; pointer-events: auto; transform-origin: 50% 100%; }
+.rover-poof[data-phase='out'] .rover-poof-body { pointer-events: none; }
+.rover-poof:hover .cmp-ai-bubble { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .rover-poof[data-phase='in'] .rover-poof-body { animation: rover-poof-in 560ms cubic-bezier(0.2, 1.4, 0.4, 1) var(--poof-delay) both; }
+  .rover-poof[data-phase='out'] .rover-poof-body { animation: rover-poof-out 260ms cubic-bezier(0.5, 0, 0.9, 0.4) both; }
 }
-.cmp-ai-rover:hover .cmp-ai-bubble { opacity: 1; transform: none; }
+@keyframes rover-poof-in {
+  0% { opacity: 0; transform: scale(0.15, 0.1); }
+  35% { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes rover-poof-out {
+  0% { opacity: 1; transform: none; }
+  30% { transform: scale(1.1, 0.92); }
+  100% { opacity: 0; transform: scale(0.1, 0.05); }
+}
+.cmp-ai-bubble { opacity: 1; transform: none; }
 .cmp-ai-rover:focus-visible { outline: 2px solid var(--color-coral); outline-offset: 4px; border-radius: 16px; }
 @keyframes cmp-ai-rover-in {
   from { opacity: 0; transform: translateX(24px) scale(0.9); }
@@ -89,3 +96,25 @@
   0%, 100% { transform: scale(1.05, 0.94); }   /* squashed down */
   50%      { transform: scale(0.97, 1.06); }   /* stretched up */
 }
+
+/* "Ask Rover" launcher: Rover hides behind the square button and peeks over its top edge on hover / focus. */
+.ask-rover { position: relative; width: 128px; height: 128px; }
+.ask-rover-peek {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 12px);
+  width: 160px;
+  height: 78px;
+  margin-left: -80px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ask-rover-in { position: absolute; left: 0; top: 0; transform: translateY(86px); }
+@media (prefers-reduced-motion: no-preference) {
+  .ask-rover-in { transition: transform 360ms cubic-bezier(0.34, 1.56, 0.5, 1); }
+}
+.ask-rover:hover .ask-rover-in, .ask-rover:has(button:focus-visible) .ask-rover-in { transform: translateY(2px); }
+
+/* Rover's own voice: titles and the "Rover says..." label use the Baby Doll face. */
+@font-face { font-family: 'Baby Doll'; src: url('/fonts/BabyDoll.ttf') format('truetype'); font-display: swap; }
+.cmp-ai-babydoll { font-family: 'Baby Doll', var(--font-inter, sans-serif); font-weight: 400; letter-spacing: 0.01em; }
