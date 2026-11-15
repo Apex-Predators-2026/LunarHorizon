@@ -4,7 +4,8 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-import { deriveHeadroomFromTrack, headroomTone, resolveHeadroom } from '../../lib/headroom'
+import { headroomTone, resolveHeadroom } from '../../lib/headroom'
+import { usePlanVerdict } from '../../lib/planVerdict'
 import { useAppStore } from '../../store'
 import {
   DEFAULT_REQUIREMENTS,
@@ -13,19 +14,16 @@ import {
   type MissionRequirements,
   type OperationalHeadroom,
   type Scenario,
-  type TimelineStep,
   type ViabilityResult,
 } from '../../types'
 import { InteractiveGrainGradient } from '../../ui/InteractiveGrainGradient'
 import { DateField, SelectField, TextField } from '../../ui/MdFields'
 import { PassHeadroomBadge } from '../../ui/PassHeadroom'
-import { fetchTimeline } from '../../viz/api'
 import { DatePopup } from '../../viz/DatePopup'
-import { missionTrack, missionWindow, type MissionTrack } from '../../viz/mission'
 import { showSnackbar } from '../../viz/snackbarStore'
-import { toIsoMinute } from '../../viz/timeline'
 import { verdictFor } from '../../viz/useMissionPlayback'
 import { sendToComparison } from '../compare'
+import { EligibilityBadge } from '../compare/ui'
 import { fetchRescueCatalog } from '../rescue/api'
 import { fmtUtc, fromUtcInput, toUtcInput } from '../rescue/format'
 import { REQUIREMENT_FIELDS, REQUIREMENT_TIPS } from '../rescue/PlanForm'
@@ -34,7 +32,6 @@ import { useRescueStore } from '../rescue/useRescueStore'
 import { useTutorialStore } from '../tutorial'
 import { usePlanDialog, usePlansStore, type Plan } from './usePlansStore'
 
-const timelineCache = new Map<string, TimelineStep[]>()
 
 const SHORT_CONSTRAINT: Record<string, string> = {
   battery_hours: 'dark',
@@ -196,13 +193,11 @@ export function PlanCard({
   plan,
   onEdit,
   onRun,
-  track: propTrack,
   verdict: propVerdict,
 }: {
   plan: Plan
   onEdit: () => void
   onRun: () => void
-  track?: MissionTrack | null
   verdict?: ViabilityResult | null
 }) {
   const active = usePlansStore((s) => s.activeId === plan.id)
@@ -213,41 +208,14 @@ export function PlanCard({
   const compromise = useRescueStore((s) => s.compromise)
   const sc = plan.scenario
   const cachedVerdict = propVerdict ?? verdictFor(sc, rescue, compromise)
-  const [ws, we] = missionWindow(sc)
-  const cacheKey = `${sc.site.id}:${toIsoMinute(ws)}:${toIsoMinute(we)}`
-  const cachedSteps = timelineCache.get(cacheKey) ?? null
-  const [fetched, setFetched] = useState<{ key: string; steps: TimelineStep[] } | null>(null)
-
-  useEffect(() => {
-    if (cachedVerdict || propTrack || cachedSteps || typeof fetch !== 'function') return
-    let cancelled = false
-    fetchTimeline(sc.site.id, toIsoMinute(ws), toIsoMinute(we), 1)
-      .then((steps) => {
-        timelineCache.set(cacheKey, steps)
-        if (!cancelled) setFetched({ key: cacheKey, steps })
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [cachedVerdict, propTrack, cachedSteps, cacheKey, sc.site.id, ws, we])
-
-  const steps = cachedSteps ?? (fetched?.key === cacheKey ? fetched.steps : null)
-  const effectiveTrack = propTrack ?? (steps ? missionTrack(steps, sc) : null)
-  const hr: OperationalHeadroom | null = cachedVerdict
-    ? resolveHeadroom(cachedVerdict)
-    : effectiveTrack
-      ? deriveHeadroomFromTrack(effectiveTrack, sc.requirements)
-      : null
-  const elig: Eligibility | null = cachedVerdict
-    ? verdictOf(cachedVerdict)
-    : effectiveTrack && hr
-      ? effectiveTrack.unknownHours > 0
-        ? 'unknown'
-        : hr.status === 'failed' || effectiveTrack.failures.length > 0
-          ? 'fail'
-          : 'pass'
-      : null
+  // The plan's decision is the viability engine's, never derived from a timeline here: Rescue's canonical result for
+  // this exact plan when it has one, otherwise the canonical assessment (usePlanVerdict). While neither exists the
+  // card says "not assessed"; it never shows a PASS of its own.
+  const assessed = usePlanVerdict(sc, !cachedVerdict)
+  const canonical = assessed?.status === 'done' ? assessed : null
+  const elig: Eligibility | null = cachedVerdict ? verdictOf(cachedVerdict) : (canonical?.eligibility ?? null)
+  // Operational headroom comes with Rescue's canonical result only; it is never derived from the track.
+  const hr: OperationalHeadroom | null = cachedVerdict ? resolveHeadroom(cachedVerdict) : null
   const tightest = hr && elig ? formatTightestHeadroom(hr, elig) : null
   const tone = hr && elig ? headroomTone(hr, elig) : 'unknown'
   const toneText =
@@ -263,8 +231,24 @@ export function PlanCard({
             {sc.site.name} · {fmtUtc(sc.landing_utc)} · {sc.duration_days} d
           </p>
         </div>
-        {active && <span className="shrink-0 rounded-full bg-coral px-2 py-0.5 text-[11px] font-semibold text-white">Running</span>}
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          {elig && <EligibilityBadge eligibility={elig} />}
+          {active && (
+            <span className="rounded-full bg-coral px-2 py-0.5 text-[11px] font-semibold text-white"
+              title="The plan shown in the 3D view and used by Mission Rescue. This is not a feasibility verdict.">Active · in 3D view</span>
+          )}
+        </div>
       </div>
+      {!elig && (
+        <p className="mt-2 text-[11px] text-slate-400" data-testid="plan-not-assessed">
+          {assessed?.status === 'error' ? `Not assessed: ${assessed.message}` : assessed?.status === 'loading' ? 'Assessing this plan with the viability engine…' : 'Not assessed yet'}
+        </p>
+      )}
+      {canonical && !hr && (canonical.failed.length > 0 || canonical.undecided.length > 0) && (
+        <p className={`mt-1 text-[11px] ${canonical.failed.length ? 'text-red-300' : 'text-amber-200'}`}>
+          {(canonical.failed.length ? canonical.failed : canonical.undecided)[0]}
+        </p>
+      )}
       {hr && elig && (
         <div className="mt-2 flex flex-wrap items-center gap-1.5" data-testid="plan-headroom">
           <PassHeadroomBadge headroom={hr} eligibility={elig} surface="planner" />
