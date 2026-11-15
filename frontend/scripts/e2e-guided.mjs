@@ -180,7 +180,7 @@ async function run(viewport) {
 
   // A live edit after generation: the report keeps its snapshot, says it is out of date, and regenerates on request.
   // The scenario checkboxes live in the "Manage scenarios" disclosure, collapsed once two scenarios are compared.
-  const manage = page.locator('#cmp-scenarios').getByRole('button', { name: /Manage scenarios/ })
+  const manage = page.locator('#cmp-scenarios').getByRole('button', { name: /Manage plans/ })
   if ((await manage.getAttribute('aria-expanded')) !== 'true') await manage.click()
   await page.locator('#cmp-scenarios').getByRole('checkbox', { checked: true }).first().uncheck()
   await page.getByTestId('reopen-report').first().click() // the page header and the decision area both offer it
@@ -193,7 +193,7 @@ async function run(viewport) {
   }, null, { timeout: 60_000 })
   await regen.click()
   await page.waitForFunction((id) => document.querySelector('[data-testid=report-preview]')?.getAttribute('data-snapshot') !== id, snapId, { timeout: 10_000 })
-  check(`${tag} regenerate uses the new selection`, /Scenarios [A-Z0-9]+, [A-Z0-9]+ as evaluated/.test(await preview.innerText()) && (await page.getByTestId('report-stale').count()) === 0)
+  check(`${tag} regenerate uses the new selection`, /Plans [A-Z0-9]+, [A-Z0-9]+ as evaluated/.test(await preview.innerText()) && (await page.getByTestId('report-stale').count()) === 0)
   await preview.getByRole('button', { name: 'Close the report preview' }).click()
 
   // Restart twice from the header: one guided plan card, never duplicates.

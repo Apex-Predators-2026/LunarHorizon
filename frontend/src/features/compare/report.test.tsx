@@ -90,10 +90,10 @@ describe('summary report snapshot', () => {
 
   it('refuses to generate from nothing, from loading results or from a stale ranking', () => {
     useCompareStore.setState({ scenarios: [], selectedIds: [] })
-    expect(cannotGenerate()).toMatch(/Select at least one scenario/)
+    expect(cannotGenerate()).toMatch(/Select at least one plan/)
     const sc = load(['B'])
     useCompareStore.setState({ results: { [resultKey(sc[0], false)]: { state: 'loading' } } })
-    expect(cannotGenerate()).toMatch(/Wait until every selected scenario has been assessed/)
+    expect(cannotGenerate()).toMatch(/Wait until every selected plan has been assessed/)
     load(['B', 'C'])
     useCompareStore.setState({ rankingSetKey: 'other' })
     expect(cannotGenerate()).toMatch(/ranking is being updated/)
@@ -181,7 +181,7 @@ describe('summary report snapshot', () => {
     const html = plain(renderToString(<ReportDocument s={s} />))
     expect(html).toContain('Mission decision summary')
     expect(s.decisions[0]).toMatchObject({ kind: 'recommended', recommended: 'B' })
-    expect(html).toContain('Recommended · Scenario B')
+    expect(html).toContain('Recommended · Plan B')
     expect(html).toContain('2027-01-15 00:00 UTC')
     expect(html).toContain('NASA JPL Horizons')
     expect(html).toContain('not a probability of success')

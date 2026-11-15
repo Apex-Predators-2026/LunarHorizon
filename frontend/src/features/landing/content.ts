@@ -163,10 +163,10 @@ export const PICTURES: Picture[] = [
   },
   {
     id: 'compare',
-    title: 'Scenario Comparison',
+    title: 'Plan Comparison',
     caption: 'Compare up to four plans side by side and see which meet your mission limits.',
     src: '/landing/compare.jpg',
-    alt: 'Mission scenarios and their viability metrics shown side by side',
+    alt: 'Mission plans and their viability metrics shown side by side',
   },
   {
     id: 'rescue',

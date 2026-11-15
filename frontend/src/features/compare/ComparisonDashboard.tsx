@@ -180,7 +180,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
       <div className="cmp-dashboard-content mx-auto max-w-[1500px] px-6 pb-16 pt-6 lg:px-8" data-assistant-open={assistantOpen}>
         <header className="mb-4 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <div className="max-w-2xl">
-            <h1 className="text-2xl font-medium leading-tight text-ink">Scenario comparison</h1>
+            <h1 className="text-2xl font-medium leading-tight text-ink">Plan comparison</h1>
             <p className="mt-1 text-sm text-ink-3">Sunlight, Earth contact and outages for each landing plan, side by side, from the same JPL Horizons and LOLA data</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -198,7 +198,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
             <Tabs base="cmp" label="Comparison views" tabs={COMPARE_TABS} value={tab} onChange={chooseTab}
               trailing={
                 <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap pl-4 text-xs" aria-live="polite">
-                  {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-300" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
+                  {loading ? 'Evaluating plans…' : backendDown ? <><Icon name="warning" size={14} className="text-red-300" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
                 </span>
               } />
           </GlassSurface>
@@ -206,17 +206,17 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
 
         {hasDemo && (
           <div role="alert" className="mb-4 flex gap-3 rounded-xl bg-amber-950 p-4 text-sm text-amber-200">
-            <Icon name="warning" className="mt-0.5" /><p><span className="font-medium">Demonstration data in use.</span> Scenarios tagged “Demonstration data” use a synthetic placeholder (approximate Sun/Earth motion, invented terrain). They are ranked separately and must not be used for planning.</p>
+            <Icon name="warning" className="mt-0.5" /><p><span className="font-medium">Demonstration data in use.</span> Plans tagged “Demonstration data” use a synthetic placeholder (approximate Sun/Earth motion, invented terrain). They are ranked separately and must not be used for planning.</p>
           </div>
         )}
         {backendDown && (
           <div role="alert" className="mb-4 rounded-xl bg-red-950 p-4 text-sm text-red-200">
-            The backend is not reachable, so no scientific data can be shown. Start it with <code>uvicorn app.main:app --port 8000</code> in <code>backend/</code>. Scenarios are kept for this session.
+            The backend is not reachable, so no scientific data can be shown. Start it with <code>uvicorn app.main:app --port 8000</code> in <code>backend/</code>. Plans are kept for this session.
           </div>
         )}
 
         {selected.length === 0 ? (
-          <Empty>Select at least two scenarios above to start comparing.</Empty>
+          <Empty>Select at least two plans above to start comparing.</Empty>
         ) : (
           <div className="space-y-6">
             <TabPanel base="cmp" id="overview" value={tab}>
@@ -243,11 +243,11 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
             <TabPanel base="cmp" id="evidence" value={tab}>
               <div className="space-y-6">
                 <Section id="cmp-metrics" title="Key metrics and requirements">
-                  {anyData ? <MetricsTable entries={entries} /> : <Empty>No scientific data for the selected scenarios yet.</Empty>}
+                  {anyData ? <MetricsTable entries={entries} /> : <Empty>No scientific data for the selected plans yet.</Empty>}
                 </Section>
 
                 <Section id="cmp-assessment" title="Mission assessment">
-                  {anyData ? <MissionAssessmentBlock entries={entries} /> : <Empty>The assessment appears once scenarios have data.</Empty>}
+                  {anyData ? <MissionAssessmentBlock entries={entries} /> : <Empty>The assessment appears once plans have data.</Empty>}
                 </Section>
 
                 <Section id="cmp-timeline" title="Solar availability and Earth communication timeline">
@@ -262,7 +262,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                         <p>From the Moon, Earth stays in nearly the same spot in the sky, but near the south pole that spot is only a few degrees above the horizon. Libration makes Earth wobble by several degrees over a month, so at some sites it periodically dips behind nearby terrain, causing a direct-to-Earth blackout that lasts until it rises again.</p>
                       </Explain>
                     </>
-                  ) : <Empty>Timelines appear once scenarios have data.</Empty>}
+                  ) : <Empty>Timelines appear once plans have data.</Empty>}
                 </Section>
 
                 <Section id="cmp-performance" title="Ranking, availability and outages">
@@ -277,7 +277,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
             <TabPanel base="cmp" id="detail" value={tab}>
               <div className="space-y-4">
                 <Disclosure id="cmp-charts" card lazy level={2} defaultOpen title="Solar and Earth elevation over time"
-                  summary="Sun and Earth elevation for each scenario, on the shared timeline">
+                  summary="Sun and Earth elevation for each plan, on the shared timeline">
                   {anyData ? <ElevationCharts entries={entries} view={view} align={align} originMs={originMs} /> : <Empty>No data to chart.</Empty>}
                 </Disclosure>
                 <Disclosure id="cmp-terrain" card lazy level={2} title="Terrain horizon and Sun/Earth position"
@@ -285,7 +285,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                   <HorizonCompare entries={entries} />
                 </Disclosure>
                 <Disclosure id="cmp-tradeoff" card lazy level={2} title="Trade-off analysis"
-                  summary="Scenarios compared across several measures at once">
+                  summary="Plans compared across several measures at once">
                   <TradeoffPanel entries={entries} />
                 </Disclosure>
                 <Disclosure id="cmp-science" card lazy level={2} title="Science vs engineering"

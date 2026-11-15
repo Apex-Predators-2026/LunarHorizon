@@ -58,10 +58,10 @@ NOTES = [
     "the terrain horizon. This is geometric line of sight only; it does not guarantee a working radio link "
     "(antenna pointing, ground-station schedules and link budget are not modelled).",
     "Viability (PASS / FAIL / UNKNOWN, score, violations) and the ranking come from the team's canonical viability "
-    "engine. Only PASS scenarios are ranked, and only against scenarios with the same data basis, requirements and "
+    "engine. Only PASS plans are ranked, and only against plans with the same data basis, requirements and "
     "mission duration. A missing score is never treated as 0.",
 ]
-DEMO_NOTE = ("DEMONSTRATION DATA: scenarios marked 'demonstration' use the synthetic placeholder timeline (approximate "
+DEMO_NOTE = ("DEMONSTRATION DATA: plans marked 'demonstration' use the synthetic placeholder timeline (approximate "
              "Sun/Earth motion, invented terrain horizon). They are for illustrating the tool only and must not be "
              "used for planning or compared as if they were real.")
 
@@ -437,7 +437,7 @@ def _viability(sc: Scenario, tl: Timeline):
         result, assessment = evaluate_timeline_detailed(sc, tl)
         return result, assessment, None
     except RescueCompatError as exc:  # input the adapter cannot convert faithfully: report, never guess
-        return None, None, f"The viability engine could not assess this scenario: {exc}"
+        return None, None, f"The viability engine could not assess this plan: {exc}"
 
 
 def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> tuple[CompareResult, Assessed | None]:
@@ -532,7 +532,7 @@ def compare(req: CompareRequest) -> CompareResponse:
     if any(r.data_kind == "demonstration" for r in results):
         notes.insert(0, DEMO_NOTE)
     if len(groups) > 1:
-        notes.append(f"The scenarios form {len(groups)} separate ranking groups (different data basis, requirements "
+        notes.append(f"The plans form {len(groups)} separate ranking groups (different data basis, requirements "
                      "or mission duration). Ranks are only meaningful inside a group.")
     return CompareResponse(results=results, viability_source=", ".join(sources) or "n/a", notes=notes,
                            ranking_groups=groups, ranking_method=method, pairwise=evidence, time_policy=TIME_POLICY)

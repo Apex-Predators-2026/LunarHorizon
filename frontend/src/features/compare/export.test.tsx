@@ -83,7 +83,7 @@ describe('export', () => {
     const bad = { ...a, ranking: { ...a.ranking!, rank: 1 } } // inconsistent input: FAIL with a rank
     const x = buildExport([bad, entry('B')], res.ranking_groups, res.pairwise, [])
     expect(byLabel(x).A.canonical_rank).toBeNull()
-    expect(x.warnings[0]).toMatch(/rank was reported for a fail scenario and was not exported/)
+    expect(x.warnings[0]).toMatch(/rank was reported for a fail plan and was not exported/)
   })
 
   it('a PASS in a separate group is exported with its group, never as the main recommendation', () => {

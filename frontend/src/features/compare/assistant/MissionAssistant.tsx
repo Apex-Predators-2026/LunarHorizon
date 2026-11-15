@@ -478,7 +478,7 @@ function Panel({ open, context, onNav, onClose }: {
                 </div>
               )}
               {context.state === 'empty' && (
-                <p className="text-center">No scenarios are selected yet. I can show you how to set up a comparison, or explain what the page shows.</p>
+                <p className="text-center">No plans are selected yet. I can show you how to set up a comparison, or explain what the page shows.</p>
               )}
               <Suggestions items={suggestions} disabled={pending} onPick={submit} cards={suggestions.length > 0} />
             </div>

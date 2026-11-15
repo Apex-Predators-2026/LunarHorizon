@@ -198,7 +198,7 @@ def test_instruction_covers_uncertainty_eligibility_glossary_and_answer_layout()
     system = build_messages([{"role": "user", "content": "q"}], {})[0]["content"]
     for rule in (
         "Never treat UNKNOWN as FAIL.",
-        "Only eligible PASS scenarios can receive canonical ranks.",
+        "Only eligible PASS plans can receive canonical ranks.",
         "INELIGIBLE means",  # ineligible is not the same as failed
         "never use 0 or guess",  # missing figures
         "\"between X and Y\" is a range",  # bounded values

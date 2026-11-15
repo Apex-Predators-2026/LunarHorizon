@@ -268,7 +268,7 @@ describe('Comparison -> failed requirement -> Show why -> 3D view', () => {
     if (!ev.ok) throw new Error(ev.reason)
     // The selected window is one of the engine's own windows, never a reconstruction.
     expect(A.assessment!.windows).toContainEqual(ev.evidence.window)
-    expect(ev.request).toMatchObject({ siteId: 'peak-near-shackleton', body: 'sun', origin: { kind: 'comparison', label: 'Scenario A', section: 'cmp-performance' } })
+    expect(ev.request).toMatchObject({ siteId: 'peak-near-shackleton', body: 'sun', origin: { kind: 'comparison', label: 'Plan A', section: 'cmp-performance' } })
     expect(ev.request.requirement).toMatch(/^≥ /)
     expect(ev.request.measured).toBeTruthy()
 

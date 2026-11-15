@@ -31,30 +31,30 @@ export interface GuideEntry {
 
 export const INTERFACE_GUIDE: GuideEntry[] = [
   {
-    id: 'select', title: 'Select scenarios to compare',
-    keywords: /\b(select|choose|tick|pick)\b.*\bscenario|\bstart (a )?comparison|\bcompare (two|2|more)/i,
+    id: 'select', title: 'Select plans to compare',
+    keywords: /\b(select|choose|tick|pick)\b.*\b(?:plan|scenario)s?\b|\bstart (a )?comparison|\bcompare (two|2|more)/i,
     steps: [
-      'In **Scenarios** (Scenario workspace), tick the checkbox next to each saved scenario: two to four can be compared at once.',
+      'In **Plans** (Plan workspace), tick the checkbox next to each saved plan: two to four can be compared at once.',
       'The counter on the right shows how many are compared; **clear** unticks them all.',
     ],
     go: ['cmp-scenarios'],
   },
   {
-    id: 'add', title: 'Add another scenario',
+    id: 'add', title: 'Add another plan',
     keywords: /\b(add|new|create)\b.*\b(scenario|plan|mission)|\banother (scenario|plan|mission)/i,
     steps: [
-      'In **Scenarios**, click **+ Add scenario**. It opens in the editor, where you set the name, landing site, landing date (UTC), mission duration, requirements and solar panel configuration.',
-      'Or click **Duplicate** on an existing scenario to copy it and change one thing.',
-      'Tick its checkbox to include it in the comparison.',
+      'In **Plans**, click **+ Add plan** to open **Mission Planner**. Use the **+** button on the map to create and save your plan.',
+      'In Mission Planner, tick the saved plans you want and click **Compare** to open them here.',
+      'To try a variation of a plan already in Plan Comparison, click **Duplicate** on its row.',
     ],
     go: ['cmp-scenarios'],
   },
   {
-    id: 'remove', title: 'Remove or edit a scenario',
+    id: 'remove', title: 'Remove or edit a plan',
     keywords: /\b(remove|delete|edit|change|modify)\b.*\b(scenario|plan|date|site|requirement)/i,
     steps: [
-      'In **Scenarios**, each scenario row has **Edit** (opens the editor: site, landing date, duration, requirements, solar panel), **Duplicate**, **Duplicate & shift date ▾**, **Set baseline** and **Remove**.',
-      'Untick the checkbox to leave a scenario out of the comparison without deleting it.',
+      'In **Plans**, each plan row has **Edit** (opens the editor: site, landing date, duration, requirements, solar panel), **Duplicate**, **Duplicate & shift date ▾**, **Set baseline** and **Remove**.',
+      'Untick the checkbox to leave a plan out of the comparison without deleting it.',
     ],
     go: ['cmp-scenarios'],
   },
@@ -62,7 +62,7 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     id: 'dates', title: 'Compare different landing dates',
     keywords: /\b(date|dates|delay|later|earlier|shift|launch slip)\b/i,
     steps: [
-      'On a scenario row in **Scenarios**, open **Duplicate & shift date ▾** and pick a shift, or enter a custom date and click **Add**: it creates a copy at the new date.',
+      'On a plan row in **Plans**, open **Duplicate & shift date ▾** and pick a shift, or enter a custom date and click **Add**: it creates a copy at the new date.',
       'Or click **Same site, 3 dates (14 d apart)** under **Quick comparisons** for a ready-made date comparison at Malapert Massif.',
       'Use **Align timelines by → Mission elapsed time** (top of the page) to line the missions up from their landing.',
     ],
@@ -72,8 +72,8 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     id: 'sites', title: 'Compare different landing sites',
     keywords: /\b(site|sites|location|locations|place)\b/i,
     steps: [
-      'Click **Same date, 3 sites** under **Quick comparisons** in **Scenarios** (Peak Near Shackleton, Malapert Massif and Connecting Ridge on the same date).',
-      'Or add a scenario and choose another **Landing site** in its editor.',
+      'Click **Same date, 3 sites** under **Quick comparisons** in **Plans** (Peak Near Shackleton, Malapert Massif and Connecting Ridge on the same date).',
+      'Or add a plan and choose another **Landing site** in its editor.',
     ],
     go: ['cmp-scenarios'],
   },
@@ -81,7 +81,7 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     id: 'blackout', title: 'Find the longest communication blackout',
     keywords: /\b(blackout|communication|comms|earth (visibility|in line of sight)|line of sight)\b/i,
     steps: [
-      '**At a glance** shows each scenario\'s longest communication blackout next to its limit.',
+      '**At a glance** shows each plan\'s longest communication blackout next to its limit.',
       '**Key metrics** has the full Earth communication group (visibility, longest blackout, Earth elevation and margin).',
       'In **Timeline**, click **Go to longest blackout** to zoom the shared timeline to it.',
     ],
@@ -91,7 +91,7 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     id: 'darkness', title: 'Find the longest darkness',
     keywords: /\b(dark|darkness|night|sunlight|sun|illuminat|solar|power)\b/i,
     steps: [
-      '**At a glance** shows sunlight and the longest continuous darkness for each scenario.',
+      '**At a glance** shows sunlight and the longest continuous darkness for each plan.',
       '**Key metrics** lists all solar and power figures.',
       'In **Timeline**, click **Go to longest darkness** to zoom to it; **Whole mission** zooms back out.',
     ],
@@ -101,8 +101,8 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     id: 'requirements', title: 'See the mission requirements',
     keywords: /\b(requirement|requirements|constraint|constraints|threshold|limit|limits|violat)\b/i,
     steps: [
-      '**Key metrics** starts with the requirements: each one with every scenario\'s status, measured value and limit.',
-      'Each scenario card under **At a glance** lists its limits; change them with **Edit** on the scenario in **Scenarios**.',
+      '**Key metrics** starts with the requirements: each one with every plan\'s status, measured value and limit.',
+      'Each plan card under **At a glance** lists its limits; change them with **Edit** on the plan in **Plans**.',
     ],
     go: ['cmp-metrics'],
   },
@@ -120,8 +120,8 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     id: 'rank', title: 'What canonical rank means',
     keywords: /\b(canonical|rank|ranking|ranked)\b/i,
     steps: [
-      'Only scenarios that PASS every requirement are ranked, and only against scenarios with the same requirements, mission length and data basis (a ranking group).',
-      'The rank is the assessment engine\'s official order from its evidence, not any single metric. FAIL and UNKNOWN scenarios get no rank.',
+      'Only plans that PASS every requirement are ranked, and only against plans with the same requirements, mission length and data basis (a ranking group).',
+      'The rank is the assessment engine\'s official order from its evidence, not any single metric. FAIL and UNKNOWN plans get no rank.',
       'See it in **Ranking** and **Decision**.',
     ],
     go: ['cmp-performance', 'cmp-summary'],
@@ -131,7 +131,7 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     keywords: /\bunknown\b|\bundecided\b|cannot be decided/i,
     steps: [
       'UNKNOWN means the data cannot decide at least one requirement (for example the mission runs past the end of the stored NASA data) and none is violated.',
-      'It is **not** a failure, but an UNKNOWN scenario is not ranked or recommended until it can be decided.',
+      'It is **not** a failure, but an UNKNOWN plan is not ranked or recommended until it can be decided.',
     ],
     go: ['cmp-metrics'],
   },
@@ -140,32 +140,32 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
     keywords: /\b(rescue|rescued|alternative|alternatives|original plan|original)\b/i,
     steps: [
       'Run **Mission rescue** in the Mission Planner first.',
-      'Back here, **Scenarios** shows "Mission Rescue has N alternatives…": click **Compare …** to bring in the original plan, the changed plan and the top alternatives (the changed plan becomes the baseline).',
+      'Back here, **Plans** shows "Mission Rescue has N alternatives…": click **Compare …** to bring in the original plan, the changed plan and the top alternatives (the changed plan becomes the baseline).',
       'Every plan is re-assessed here; **At a glance** then shows **Mission Rescue: from problem to decision**.',
     ],
     go: ['cmp-scenarios', 'cmp-overview'],
   },
   {
-    id: 'baseline', title: 'Compare everything against one scenario',
+    id: 'baseline', title: 'Compare everything against one plan',
     keywords: /\bbaseline\b|\bbetter or worse than\b/i,
     steps: [
-      'Click **Set baseline** on a ticked scenario in **Scenarios**: **Key metrics** then shows how much every other scenario improves or worsens on it.',
+      'Click **Set baseline** on a ticked plan in **Plans**: **Key metrics** then shows how much every other plan improves or worsens on it.',
     ],
     go: ['cmp-scenarios', 'cmp-metrics'],
   },
   {
     id: 'export', title: 'Export the comparison',
     keywords: /\b(export|download|csv|json|save)\b/i,
-    steps: ['In **At a glance**, under the decision summary, click **Export JSON** or **Export CSV** (available once every selected scenario is assessed and ranked).'],
+    steps: ['In **At a glance**, under the decision summary, click **Export JSON** or **Export CSV** (available once every selected plan is assessed and ranked).'],
     go: ['cmp-overview'],
   },
   {
     id: 'report', title: 'Generate and preview the Mission Report',
     keywords: /\b(generate|create|make|open|see|view|preview|reopen|get)\b.*\breport\b|\b(mission|summary) report\b|\breport card\b/i,
     steps: [
-      'Click **Generate Mission Report** at the top of the page (the same button is under the decision in **At a glance**). It is available once every selected scenario has been assessed and ranked.',
+      'Click **Generate Mission Report** at the top of the page (the same button is under the decision in **At a glance**). It is available once every selected plan has been assessed and ranked.',
       'The report opens as a document preview over the page: the bar at the top jumps between its sections and shows the page. **Close** returns to the comparison, and **Reopen last report** brings it back.',
-      'It is a frozen snapshot of the comparison: if you change the scenarios afterwards it is marked out of date, and you can generate a new one.',
+      'It is a frozen snapshot of the comparison: if you change the plans afterwards it is marked out of date, and you can generate a new one.',
     ],
     go: ['report'],
   },
@@ -190,7 +190,7 @@ export const INTERFACE_GUIDE: GuideEntry[] = [
   {
     id: 'tour', title: 'Restart the tutorial',
     keywords: /\b(tutorial|tour|walkthrough|guide|how does this page work|how to use)\b/i,
-    steps: ['Click **How to compare missions** at the top of the page: the guided tour opens at Act 2, the comparison (it loads the example mission\'s three plans and selects them). In the Mission Planner, **More (⋮) → Guided Tour** on the map toolbar starts it from the beginning.'],
+    steps: ['Click **How to compare plans** at the top of the page: the guided tour opens at Act 2, the comparison (it loads the example mission\'s three plans and selects them). In the Mission Planner, **More (⋮) → Guided Tour** on the map toolbar starts it from the beginning.'],
     go: ['tour'],
   },
   {

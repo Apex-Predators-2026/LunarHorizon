@@ -78,7 +78,7 @@ export const PIPELINE: PipelineStep[] = [
   { id: 'plan', title: 'Landing plans', short: 'Site, date, length, requirements',
     input: 'Up to four plans, each a curated south-pole site (or a custom point from 80°S to 90°S), a landing time in UTC, a mission length and its spacecraft limits.',
     output: 'A validated request per plan. Plans with an input error are shown with the error and never evaluated.',
-    where: 'Scenario editor → POST /api/compare' },
+    where: 'Plan editor → POST /api/compare' },
   { id: 'grid', title: 'Hourly grid', short: 'Snap to whole UTC hours',
     input: 'The landing time and mission length.',
     output: 'The evaluated window: the landing rounded to the nearest whole UTC hour and the length to whole hours, matching the precomputed hourly data (2026–2031).',

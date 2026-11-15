@@ -54,9 +54,9 @@ describe('decision explanations', () => {
     const d = buildDecision(e, res.ranking_groups.filter((g) => g.id === 'G1'), res.pairwise).groups[0]
     expect(d.kind).toBe('recommended')
     expect(d.recommended!.scenario.label).toBe('B')
-    expect(d.headline).toMatch(/Scenario B is preferred under the selected requirements/)
-    expect(d.evidence.join(' ')).toMatch(/higher than Scenario C.s everywhere within the recorded bounds \(by \d+\.\d points\)/)
-    expect(d.engineText).toContain('Scenario B') // engine ids replaced by letters
+    expect(d.headline).toMatch(/Plan B is preferred under the selected requirements/)
+    expect(d.evidence.join(' ')).toMatch(/higher than Plan C.s everywhere within the recorded bounds \(by \d+\.\d points\)/)
+    expect(d.engineText).toContain('Plan B') // engine ids replaced by letters
     expect(d.engineText).not.toContain('rescue_')
     // Trade-off numbers are the engine's own metrics.
     const bc = d.tradeoffs.find((t) => t.b.scenario.label === 'C')!
@@ -69,14 +69,14 @@ describe('decision explanations', () => {
     const d = buildDecision([entry('A'), entry('B')], [group(['B', 'A'], ['B'])], res.pairwise).groups[0]
     expect(d.kind).toBe('single_pass')
     expect(d.recommended!.scenario.label).toBe('B')
-    expect(d.evidence.join(' ')).toMatch(/passes every requirement and Scenario A does not; the score plays no part/)
+    expect(d.evidence.join(' ')).toMatch(/passes every requirement and Plan A does not; the score plays no part/)
   })
 
   it('PASS vs UNKNOWN: preferred only on the existing evidence; UNKNOWN is not called a failure', () => {
     const b = entry('B'), u = as(entry('C'), 'unknown', 'U')
     const d = buildDecision([b, u], [group(['B', 'U'], ['B'])], []).groups[0]
     expect(d.kind).toBe('single_pass')
-    expect(d.uncertainty[0]).toMatch(/Scenario U cannot be decided from the available data/)
+    expect(d.uncertainty[0]).toMatch(/Plan U cannot be decided from the available data/)
     const line = d.requirements.find((r) => r.entry === u)!.text
     expect(line).toMatch(/cannot decide/)
     expect(line).not.toMatch(/fails/)
@@ -108,7 +108,7 @@ describe('decision explanations', () => {
     const rep = buildDecision(['B', 'C', 'E'].map((k) => entry(k)), res.ranking_groups, res.pairwise)
     const g2 = rep.groups.find((g) => g.group.id === 'G2')!
     expect(g2.kind).toBe('lone')
-    expect(g2.headline).toMatch(/no other scenario can be ranked against it/)
+    expect(g2.headline).toMatch(/no other plan can be ranked against it/)
     expect(rep.notes.join(' ')).toMatch(/Group G2 is not comparable with G1/)
   })
 
@@ -116,7 +116,7 @@ describe('decision explanations', () => {
     const b = as(entry('B'), 'pass', 'P', 1), c = as(entry('C'), 'pass', 'Q', 2)
     const p = pair('P', 'Q', { score_difference: { status: 'not_established', lower: -0.4, upper: 0.9, both_exact: false, statement: '' } })
     const d = buildDecision([b, c], [group(['P', 'Q'], ['P', 'Q'])], [p]).groups[0]
-    expect(d.evidence.join(' ')).toMatch(/score ranges overlap .* does not prove that Scenario P is more desirable/)
+    expect(d.evidence.join(' ')).toMatch(/score ranges overlap .* does not prove that Plan P is more desirable/)
   })
 
   it('a tie-break order is not presented as a measured difference', () => {
@@ -137,7 +137,7 @@ describe('decision explanations', () => {
   it('unassessed scenarios take no part in the decision', () => {
     const rep = buildDecision(['B', 'C', 'D'].map((k) => entry(k)), res.ranking_groups.filter((g) => g.id === 'G1'), res.pairwise)
     expect(rep.unassessed.map((e) => e.scenario.label)).toEqual(['D'])
-    expect(rep.notes.join(' ')).toMatch(/Scenario D has no canonical assessment/)
+    expect(rep.notes.join(' ')).toMatch(/Plan D has no canonical assessment/)
   })
 
   it('trade-offs only report meaningful differences and say when there are none', () => {
@@ -150,7 +150,7 @@ describe('decision explanations', () => {
   it('withLabels replaces the longest ids first', () => {
     const e = [as(entry('B'), 'pass', 'P', 1), as(entry('B'), 'pass', 'Q', 2)]
     const p = pair('P', 'Q', { selected_id: 'rescue_x', competitor_id: 'rescue_x-2' })
-    expect(withLabels('rescue_x-2 and rescue_x', e, [p])).toBe('Scenario Q and Scenario P')
+    expect(withLabels('rescue_x-2 and rescue_x', e, [p])).toBe('Plan Q and Plan P')
     expect(findPair([p], e[1], e[0])).toBe(p)
   })
 

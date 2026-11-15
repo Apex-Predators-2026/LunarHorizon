@@ -154,7 +154,7 @@ export function barGeometry(f: BarFigure): BarGeometry {
     plot: { x0, x1, y0, y1 },
     ticks: f.ticks.map((t) => ({ x: sx(t), text: fmtTick(t, f.unit) })),
     rows: f.bars.map((b, i) => ({
-      label: `Scenario ${b.label}`,
+      label: `Plan ${b.label}`,
       y: y0 + i * FIG.row + (FIG.row - FIG.bar) / 2,
       x: x0,
       w: b.v === null ? null : Math.max(sx(b.v) - x0, b.v > 0 ? 1 : 0),
@@ -191,7 +191,7 @@ export function outcomeGeometry(f: OutcomeFigure): OutcomeGeometry {
       })
       const total = r.pass + r.fail + r.unknown
       return {
-        label: `Scenario ${r.label}`, y: y0 + i * FIG.row + (FIG.row - FIG.bar) / 2, segments,
+        label: `Plan ${r.label}`, y: y0 + i * FIG.row + (FIG.row - FIG.bar) / 2, segments,
         note: r.assessed ? `${r.pass} of ${total} met` : 'Not assessed',
       }
     }),

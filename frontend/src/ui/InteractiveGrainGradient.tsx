@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { createMangoGL, MANGO_FALLBACK_CSS } from './mangoShader'
+import { useLiteUi } from '../viz/graphics'
 
 export interface InteractiveGrainGradientProps {
   className?: string
@@ -30,11 +31,12 @@ export function InteractiveGrainGradient({ className, style, interactive = true,
   const wrap = useRef<HTMLSpanElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [fallback, setFallback] = useState(false)
+  const lite = useLiteUi() // Extra low: no WebGL shader at all, just the flat CSS gradient
 
   useEffect(() => {
     const cv = canvas.current
     const box = wrap.current
-    if (!cv || !box) return
+    if (!cv || !box || lite) return
     const g = createMangoGL(cv)
     if (!g) {
       setFallback(true)
@@ -151,11 +153,11 @@ export function InteractiveGrainGradient({ className, style, interactive = true,
       ro.disconnect()
       g.dispose()
     }
-  }, [interactive, grain, speed, maxDpr, strength, patternScale])
+  }, [interactive, grain, speed, maxDpr, strength, patternScale, lite])
 
   return (
     <span ref={wrap} className={className} style={{ display: 'block', position: fill ? 'absolute' : 'relative', ...(fill ? { inset: 0 } : null), overflow: 'hidden', background: MANGO_FALLBACK_CSS, ...style }} aria-hidden>
-      {!fallback && <canvas ref={canvas} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />}
+      {!fallback && !lite && <canvas ref={canvas} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />}
     </span>
   )
 }

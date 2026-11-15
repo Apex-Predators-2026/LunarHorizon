@@ -31,7 +31,7 @@ function thresholdText(c: ConstraintItem): string | undefined {
 export function compareEvidence(r: CompareResult, siteId: string, c: ConstraintItem, label: string, section?: string): CompareEvidence {
   if (r.data_kind !== 'real')
     return { ok: false, reason: 'Demonstration (synthetic) data: the 3D view shows real data only, so this cannot be shown there.' }
-  if (!r.assessment) return { ok: false, reason: 'The viability engine did not assess this scenario, so there is no evidence window.' }
+  if (!r.assessment) return { ok: false, reason: 'The viability engine did not assess this plan, so there is no evidence window.' }
   if (c.status === 'not_applicable') return { ok: false, reason: 'Not applicable under this configuration.' }
   const ev = evidenceForConstraint(
     { site: { id: siteId }, windows: r.assessment.windows ?? [] },
@@ -48,7 +48,7 @@ export function compareEvidence(r: CompareResult, siteId: string, c: ConstraintI
     ...ev.request,
     requirement: thresholdText(c),
     measured: canonicalText(c.measured),
-    origin: { kind: 'comparison', label: `Scenario ${label}`, section },
+    origin: { kind: 'comparison', label: `Plan ${label}`, section },
   }
   return { ok: true, evidence: ev, request }
 }
