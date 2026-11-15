@@ -2,7 +2,7 @@
 // Wheel = zoom, drag = pan, click = select a moment (every panel follows), arrow keys = step.
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
-import { fmtAxis, violationWindows, type Align, type Entry } from './analysis'
+import { fmtAxis, missionExtent, violationWindows, type Align, type Entry } from './analysis'
 import { STATE } from './palette'
 import type { TimelineColumns, Window } from './types'
 import { ScenarioChip, btn } from './ui'
@@ -54,7 +54,8 @@ const Lanes = memo(function Lanes({ e, top, x, view, w, gutter: GUTTER }: { e: E
   const o = e.offsetHours
   const clipX = (v: number) => Math.min(GUTTER + w, Math.max(GUTTER, x(v)))
   const rect = (win: Window) => ({ x: clipX(o + win.start_hour), w: Math.max(0.5, clipX(o + win.end_hour) - clipX(o + win.start_hour)) })
-  const missionA = clipX(o), missionB = clipX(o + e.scenario.duration_days * 24)
+  const [extA, extB] = missionExtent(e) // the evaluated window, not the requested length
+  const missionA = clipX(extA), missionB = clipX(extB)
   const longDark = longest(r.dark_windows)
   const longBlack = longest(r.blackout_windows)
   const earthTop = top + LANE + LANE_GAP

@@ -1,7 +1,6 @@
 // Section 2: one card per compared scenario, status first: data source, eligibility and canonical rank, then the
 // headline figures (from the viability engine's own metrics) and which requirements pass, fail or cannot be decided.
 import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
-import { fmtUtc } from '../rescue/format'
 import {
   cm,
   eligibilityOf,
@@ -15,6 +14,7 @@ import {
   type Entry,
   type ReqStatus,
 } from './analysis'
+import { missionTime, missionTimeLines, type MissionTimeSnapshot } from './missionTime'
 import { seriesColor } from './palette'
 import { PANEL_MODE_LABEL } from './scenario'
 import type { CompareResult } from './types'
@@ -39,6 +39,22 @@ function Figure({ label, r, metric, constraint }: { label: string; r: CompareRes
   )
 }
 
+/**
+ * The mission window: what the backend evaluated first, then what was entered and why it differs. Until the result
+ * arrives only the request is shown, and it is called the request.
+ */
+function MissionWindow({ t }: { t: MissionTimeSnapshot }) {
+  const l = missionTimeLines(t)
+  return (
+    <p className="mt-0.5 text-[11px] leading-snug" aria-label="Mission window">
+      <span className={t.available ? 'text-slate-300' : 'text-slate-500'}>{l.evaluated}</span>
+      {(!t.available || t.adjusted) && <><br /><span className="text-slate-400">{l.requested}</span></>}
+      {/* The backend's own wording of the adjustment is the tooltip. */}
+      {l.reason && <><br /><span className="text-slate-500" title={t.time_note ?? undefined}>{l.reason}</span></>}
+    </p>
+  )
+}
+
 export function OverviewCards({ entries }: { entries: Entry[] }) {
   const groupCount = groupCountOf(entries)
   const setActive = useCompareStore((s) => s.setActive)
@@ -54,6 +70,7 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
         const hr = headroomOfEntry(e)
         const rank = rankText(e.ranking, groupCount)
         const req = requirementSummary(e)
+        const mt = missionTime(e)
         return (
           <article key={s.id} aria-label={`Scenario ${s.label} overview`}
             className={`relative flex flex-col overflow-hidden rounded-xl border bg-surface p-3 ${activeId === s.id ? 'border-cyan-600' : 'border-line'}`}>
@@ -64,8 +81,8 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
                 <h3 className="truncate text-sm font-medium text-slate-100" title={s.name}>{s.name}</h3>
                 <p className="text-[11px] leading-snug text-slate-400">
                   {s.site.name} · {Math.abs(s.site.lat).toFixed(3)}°{s.site.lat < 0 ? 'S' : 'N'}, {(((s.site.lon % 360) + 360) % 360).toFixed(3)}°E
-                  <br />Lands {fmtUtc(s.landing_utc)} · {s.duration_days} d
                 </p>
+                <MissionWindow t={mt} />
               </div>
             </header>
 
@@ -113,9 +130,6 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
                   : e.state?.state === 'done' ? e.state.result.message
                     : e.state?.state === 'loading' ? 'Requesting timelines and viability from the backend…' : 'Waiting…'}
               </p>
-            )}
-            {e.state?.state === 'done' && e.state.result.time_note && (
-              <p className="mt-2 text-[11px] leading-snug text-slate-400">{e.state.result.time_note}</p>
             )}
             {/* What was evaluated: the spacecraft settings and the requirement limits of this plan. */}
             <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] gap-x-2 gap-y-0.5 border-t border-line pt-2 text-[11px]">

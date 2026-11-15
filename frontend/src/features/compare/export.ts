@@ -10,6 +10,7 @@ import type { ClosestRequirementInfo, Eligibility, HeadroomStatus, MarginMetricV
 import { eligibilityOf, headroomOfEntry, requirementSummary, type Entry } from './analysis'
 import { buildDecision, withLabels } from './decision'
 import { METRIC_FIELDS_ORDER } from './exportFields'
+import { missionTime, type EvaluationStatus } from './missionTime'
 import type { CanonicalMetric, PairEvidence, RankingGroup, SpacecraftConfig } from './types'
 
 export const EXPORT_VERSION = 'comparison-export-v1'
@@ -36,8 +37,11 @@ export interface ExportedScenario {
   name: string
   origin: string
   site: { id: string; name: string; lat: number; lon: number }
+  /** The REQUESTED landing and length (v1 field names kept for compatibility); the evaluated window is in mission_time. */
   landing_utc: string
   duration_days: number
+  /** Additive in v1: what the backend evaluated (null when nothing was) next to what was requested. */
+  mission_time: ExportedMissionTime
   requirements: MissionRequirements
   spacecraft: SpacecraftConfig
   data: {
@@ -65,6 +69,21 @@ export interface ExportedScenario {
   metrics: Record<string, ExportedMetric>
   ranking_explanation: string | null
   message: string | null
+}
+
+/** The mission window: what the backend evaluated (null when nothing was) and what the user requested. */
+export interface ExportedMissionTime {
+  evaluation_status: EvaluationStatus
+  evaluated_landing_utc: string | null
+  evaluated_duration_days: number | null
+  evaluated_duration_hours: number | null
+  evaluated_end_utc: string | null
+  requested_landing_utc: string
+  requested_duration_days: number
+  requested_duration_hours: number
+  requested_end_utc: string
+  time_adjusted: boolean | null // null = nothing evaluated
+  time_note: string | null // the backend's explanation when it adjusted the request
 }
 
 export interface ExportedMargin {
@@ -113,6 +132,23 @@ const exportMarginValue = (m: MarginMetricValue): ExportedMetric => ({
   upper: m.status === 'bounded' ? (m.upper ?? null) : null,
 })
 
+export function exportMissionTime(e: Pick<Entry, 'scenario' | 'state'>): ExportedMissionTime {
+  const t = missionTime(e)
+  return {
+    evaluation_status: t.status,
+    evaluated_landing_utc: t.evaluated?.landing_utc ?? null,
+    evaluated_duration_days: t.evaluated?.duration_days ?? null,
+    evaluated_duration_hours: t.evaluated?.duration_hours ?? null,
+    evaluated_end_utc: t.evaluated?.end_utc ?? null,
+    requested_landing_utc: t.requested.landing_utc,
+    requested_duration_days: t.requested.duration_days,
+    requested_duration_hours: t.requested.duration_hours,
+    requested_end_utc: t.requested.end_utc,
+    time_adjusted: t.adjusted,
+    time_note: t.time_note,
+  }
+}
+
 export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: PairEvidence[], notes: string[], now = new Date()): ComparisonExport {
   const decision = buildDecision(entries, groups, pairs)
   const recommended = new Set(decision.groups.filter((d) => d.kind === 'recommended' || d.kind === 'single_pass')
@@ -155,6 +191,7 @@ export function buildExport(entries: Entry[], groups: RankingGroup[], pairs: Pai
       site: { ...e.scenario.site },
       landing_utc: e.scenario.landing_utc,
       duration_days: e.scenario.duration_days,
+      mission_time: exportMissionTime(e),
       requirements: { ...e.scenario.requirements },
       spacecraft: { ...e.scenario.spacecraft },
       data: {
