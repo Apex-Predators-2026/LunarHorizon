@@ -19,13 +19,17 @@ npm install
 cd backend
 .venv\Scripts\python.exe scripts\prefetch_tiles.py
 ```
-- Terrain for the whole globe (coarse), the south-polar region, a wider ring to 70°S at medium detail (what the
-  view shows near the limb from high up), and the surroundings of all 24 sites down to 5 m; the PSR / ice
+- Terrain for the whole globe (coarse), the south-polar region, a wider ring to 67°S at medium detail (what the
+  view shows near the limb from high up; `--limb-lat`, `--limb-zoom`), the whole south face to level 6
+  (`--face-zoom`), and the surroundings of all 24 sites down to 5 m; the PSR / ice
   overlay; the LRO photo mosaic the 3D view fades to when zoomed out (`--no-imagery` skips it); the JPL/NAIF
   kernels custom pins need.
 - Safe to re-run: it reuses what's cached, lists tiles that failed (Moon Trek is sometimes busy), and a second
   run fills them in.
-- To skip this on another machine, copy the whole `data/cache/` folder across (about 8 GB: 4.5 GB terrain, 3.7 GB imagery).
+- To skip this on another machine, copy the whole `data/cache/` folder across (about 8 GB: 4.5 GB terrain, 3.5 GB
+  imagery; imagery blocks fetched from now on are stored as bytes, ~4x smaller, and older ones still load).
+- `scripts\prefetch_tiles.py --check` downloads nothing: it goes through the same tiles offline and lists any that
+  aren't cached at full resolution.
 - The whole-Moon first view doesn't need the cache: its coarsest terrain and LRO imagery (levels 0-2, 126 tiles
   each) ship with the frontend as `frontend/public/terrain/base.bin` (1.1 MB) and
   `frontend/public/imagery/base.bin` (1.7 MB). Rebuild them only if the terrain or imagery sources or the tiling
@@ -49,7 +53,10 @@ cd frontend
 node scripts/demo-tour.mjs --verify           # fails, listing them, if any request needed a download
 ```
 With `LUNAR_OFFLINE=1` the backend serves only cached data (Moon Trek, JPL Horizons and NAIF downloads fail at
-once), so a clean `--verify` means the demo runs with no network. Options: `--sites a,b` (default: the 8 Artemis
+once), so a clean `--verify` means the demo runs with no network. One exception: offline, a 3D terrain tile
+whose fine data isn't cached is drawn from the next coarser cached product (logged as a warning by the backend)
+rather than failing, so `--verify` doesn't flag those; `prefetch_tiles.py --check` does. A custom pin whose
+terrain isn't cached answers 503 with an explanation. Options: `--sites a,b` (default: the 8 Artemis
 region sites, the Shackleton control, IM-1, IM-2), `--check-horizon` (also compares the 3D terrain's skyline with
 the engine's horizon), `--out dir` (screenshots of every stop and report.json; default `tour-output/`).
 The tour also fails on any uncaught error in the page.
