@@ -99,7 +99,7 @@ function fmtSignNum(val: number, unit: string, signed: boolean): string {
 }
 
 export function formatMarginMetric(m: MarginMetricValue | null | undefined, signed = true): string {
-  if (!m) return '—'
+  if (!m) return '-'
   if (m.status === 'known' && m.value !== null && m.value !== undefined) {
     return fmtSignNum(m.value, m.unit, signed)
   }
@@ -299,7 +299,7 @@ function assembleHeadroom(
       : 'Fails declared mission requirements'
   } else if (elig === 'unknown') {
     status = 'uncertain'
-    qualifiedVerdict = 'Unknown eligibility — data coverage gaps leave headroom unresolved'
+    qualifiedVerdict = 'Unknown eligibility: data coverage gaps leave headroom unresolved'
   } else if (items.some((i) => i.margin_class === 'at_threshold')) {
     status = 'at_threshold'
     const lead = narrowItems[0]
