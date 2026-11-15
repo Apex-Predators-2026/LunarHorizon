@@ -233,13 +233,24 @@ change or rank anything. Parts of the comparison, tour and assistant code were w
 
 ## Summary report (frozen snapshot)
 
-"Generate Summary Report" (Decision area of the Comparison) freezes the evaluated selection into a detached, deep-frozen
+"Generate Mission Report" (page header, and the Decision area of the Comparison) freezes the evaluated selection into a detached, deep-frozen
 snapshot (`frontend/src/features/compare/report.ts`, `ReportPreview.tsx`, print CSS in `report.css`). The preview renders
 only the snapshot: later edits to scenarios, landing date, duration, requirements, rankings or background requests never
 change an open report. The preview flags itself out of date and offers **Regenerate**; regeneration is refused while any
 result is loading or the ranking is stale. **Close** returns to the Comparison workspace exactly as it was (the dashboard
-stays mounted under the preview). **Print / Save as PDF** uses the browser print dialog; the print stylesheet prints only
-the report.
+stays mounted under the preview).
+
+**Mission Report Card.** The preview shows the snapshot as the "Lunar Mission Comparison Report": six A4-style pages and
+nine numbered sections (executive summary, mission overview, mission performance with charts, comparison analysis,
+requirements assessment, strengths and weaknesses, final assessment, data sources and methodology, disclaimer). The content
+is `reportCard.ts` (a pure function of the snapshot, with the same integrity rules), laid out by `ReportCardDocument.tsx`
+(preview) and `ReportCardPdf.tsx` (PDF) from one page/section list in `reportLayout.ts`. A bar at the top jumps between
+sections and shows the page; the summary report's detailed record follows as a technical appendix (preview and JSON only).
+**Download PDF** builds a real PDF in the browser with `@react-pdf/renderer` (loaded only on that click, in its own chunk):
+running header, footer with "Page n of N", tables that wrap and repeat their header on continuation pages, built-in
+Helvetica (characters it cannot draw are written out: "≤ 100 h" prints as "max 100 h"). **Print** remains for the
+browser print dialog. Renderer notes for maintainers: no `lineHeight` on the PDF page or on a View (it hides the pinned
+page number, or doubles the spacing); a pinned `Text` needs a child to be drawn.
 
 - Same data everywhere: the report embeds the structured export built from the same entries (`snapshot.export`), and
   **Download JSON** saves that snapshot. Report rows and export agree on identity, requested vs evaluated window

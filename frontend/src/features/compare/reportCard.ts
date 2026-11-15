@@ -22,6 +22,8 @@ export type Eligibility = 'Eligible (ranked)' | 'Eligible (not ranked)' | 'Ineli
 export interface CardValue {
   text: string // as displayed: "95.6%", "between 12 h and 30 h", "Unavailable", "Not assessed"
   kind: 'known' | 'bounded' | 'unavailable' | 'not_applicable' | 'not_assessed'
+  /** The exact value in display units (%, h, °), for charts. Only when kind is 'known'. */
+  num?: number
 }
 
 export interface PlanSummary {
@@ -124,7 +126,7 @@ export function valueOf(m: ExportedMetric | null | undefined, assessed = true): 
   const pct = m.unit === 'fraction'
   const unit = pct || m.unit === '%' ? '%' : m.unit === 'h' ? 'h' : 'deg'
   const k = pct ? 100 : 1
-  if (m.status === 'known' && m.value !== null) return { text: fmtMetric(m.value * k, unit), kind: 'known' }
+  if (m.status === 'known' && m.value !== null) return { text: fmtMetric(m.value * k, unit), kind: 'known', num: m.value * k }
   if (m.status === 'bounded' && m.lower !== null && m.upper !== null) {
     return { text: `between ${fmtMetric(m.lower * k, unit)} and ${fmtMetric(m.upper * k, unit)}`, kind: 'bounded' }
   }
@@ -219,7 +221,7 @@ function metricRows(defs: MetricDef[], scenarios: ExportedScenario[]): MetricRow
         const v = exact(share)
         if (v !== null && hours !== null) {
           const h = (v / 100) * hours
-          values[s.label] = { text: fmtMetric(h, 'h'), kind: 'known' }
+          values[s.label] = { text: fmtMetric(h, 'h'), kind: 'known', num: h }
           nums[s.label] = h
         } else if (share && share.status === 'bounded' && share.lower !== null && share.upper !== null && hours !== null) {
           values[s.label] = { text: `between ${fmtMetric((share.lower / 100) * hours, 'h')} and ${fmtMetric((share.upper / 100) * hours, 'h')}`, kind: 'bounded' }
