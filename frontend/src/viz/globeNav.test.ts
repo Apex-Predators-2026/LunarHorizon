@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   grabPoint,
   grabRotation,
+  levelHorizon,
   limitNadirAngle,
   lookAt,
   lookOffset,
@@ -284,5 +285,70 @@ describe('right-drag tilt from far away (no fighting with the zoomed-out view li
 
   it('leaves near-ground tilting free', () => {
     expect(maxTiltForNadir(maxNadirAngleAt(5_000), R, 5_000)).toBeCloseTo((85 * Math.PI) / 180, 9)
+  })
+})
+
+describe('right-drag tilt keeps the horizon level (no sideways tilt)', () => {
+  const pivot = new THREE.Vector3(0, 0, 0)
+  const rightOf = (c: THREE.Camera) => new THREE.Vector3(1, 0, 0).applyQuaternion(c.quaternion)
+  /** Straight down from 3 km with north at the top of the screen, a little off to the east of the pivot. */
+  function topDownOffSideways() {
+    const c = new THREE.PerspectiveCamera(50, 16 / 9, 0.5, 1e9)
+    c.position.set(60, 3000, 0) // 0.02 rad east of straight above (as after zooming in towards the cursor): sideways on the screen
+    c.up.set(0, 0, -1) // north up
+    lookAt(c, pivot)
+    return c
+  }
+
+  it('tilts towards the bottom of the screen whatever way the camera sits off the vertical', () => {
+    const c = topDownOffSideways()
+    orbitAbout(c, pivot, centre, 0, 0.6, 0.02)
+    // Before: tilting swung the camera further east (sideways on the screen), so the horizon came out diagonal.
+    expect(Math.abs(rightOf(c).y)).toBeLessThan(1e-6) // horizon level
+    expect(c.position.z).toBeGreaterThan(1500) // came down on the south side (screen-down), looking north
+    expect(tiltAt(c, pivot, centre)).toBeCloseTo(0.6, 2)
+    expect(distanceToRay(rayAt(c, 0, 0), pivot)).toBeLessThan(0.01) // same point in the middle
+  })
+
+  it('tilts along the screen with a rolled top-down view too (after spinning the Moon around)', () => {
+    const c = new THREE.PerspectiveCamera(50, 16 / 9, 0.5, 1e9)
+    c.position.set(0, 3000, 0)
+    c.up.set(Math.sin(1), 0, -Math.cos(1)) // screen-up ~57 deg east of north
+    lookAt(c, pivot)
+    const screenDown = new THREE.Vector3(0, -1, 0).applyQuaternion(c.quaternion)
+    orbitAbout(c, pivot, centre, 0, 0.8, 0.02)
+    expect(Math.abs(rightOf(c).y)).toBeLessThan(1e-6)
+    const moved = c.position.clone().setY(0).normalize()
+    expect(moved.dot(screenDown.setY(0).normalize())).toBeGreaterThan(0.999) // straight down the screen
+  })
+
+  it('does not flip over the top when dragging the other way from straight down', () => {
+    const c = topDownOffSideways()
+    tiltTo(c, pivot, centre, TOP_DOWN_TILT)
+    const before = c.position.clone()
+    orbitAbout(c, pivot, centre, 0, -0.5, Math.min(0.02, tiltAt(c, pivot, centre)))
+    expect(c.position.distanceTo(before)).toBeLessThan(1) // already as straight down as it goes
+  })
+
+  it('levelHorizon takes the roll out of a tilted view, about the middle of the view', () => {
+    const c = new THREE.PerspectiveCamera(50, 16 / 9, 0.5, 1e9)
+    c.position.set(0, 1500, 3000)
+    c.up.set(0.5, 1, 0).normalize() // rolled ~27 deg
+    lookAt(c, pivot)
+    expect(Math.abs(rightOf(c).y)).toBeGreaterThan(0.2)
+    levelHorizon(c, centre)
+    expect(Math.abs(rightOf(c).y)).toBeLessThan(1e-6)
+    expect(new THREE.Vector3(0, 1, 0).applyQuaternion(c.quaternion).y).toBeGreaterThan(0) // upright, not upside down
+    expect(distanceToRay(rayAt(c, 0, 0), pivot)).toBeLessThan(0.01)
+  })
+
+  it('levelHorizon leaves a straight-down view alone (roll means nothing there)', () => {
+    const c = topDownOffSideways()
+    c.position.set(0, 3000, 0)
+    c.up.set(1, 0, 0)
+    lookAt(c, pivot)
+    const q = c.quaternion.clone()
+    levelHorizon(c, centre)
+    expect(c.quaternion.angleTo(q)).toBeLessThan(1e-9)
   })
 })

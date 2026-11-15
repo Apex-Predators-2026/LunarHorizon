@@ -76,10 +76,33 @@ function rotateCameraAbout(camera: CameraLike, about: THREE.Vector3, q: THREE.Qu
 }
 
 /**
+ * The plane the camera tilts in about `pivot`: `axis` is the camera's own left-right direction made
+ * horizontal at the pivot (tilting about it moves the view straight up/down the screen, so the horizon
+ * stays level), `back` the horizontal direction behind the view (where tilting away from straight down
+ * takes the camera). Falls back to the camera's offset from above the pivot when the camera is rolled
+ * on its side.
+ */
+function tiltFrame(camera: CameraLike, pivot: THREE.Vector3, centre: THREE.Vector3) {
+  const up = pivot.clone().sub(centre).normalize()
+  const axis = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion)
+  axis.addScaledVector(up, -axis.dot(up))
+  if (axis.lengthSq() < 1e-6) {
+    axis.crossVectors(up, camera.position.clone().sub(pivot))
+    axis.addScaledVector(up, -axis.dot(up))
+  }
+  if (axis.lengthSq() < 1e-12) return null
+  axis.normalize()
+  const back = new THREE.Vector3().crossVectors(axis, up)
+  return { up, axis, back }
+}
+
+/**
  * Turn (heading, about the local vertical at `pivot`) and tilt (towards / away from straight down)
  * the camera around the surface point it is looking at, keeping its distance. The camera's own
  * orientation turns with it (never re-aimed from scratch), so the view can't suddenly roll, even
- * when looking straight down; a level horizon stays level.
+ * when looking straight down; a level horizon stays level. The tilt is always along the screen
+ * (about the camera's left-right direction), whichever way the camera sits off the vertical, so
+ * tilting from straight down never comes out sideways (a diagonal horizon).
  * Tilt stays between `minTilt` (looking almost straight down) and `maxTilt` (almost level), radians
  * from the vertical.
  */
@@ -95,19 +118,46 @@ export function orbitAbout(
   const up = pivot.clone().sub(centre).normalize()
   if (camera.position.distanceTo(pivot) === 0) return
   // Heading: everything turns about the vertical through the pivot.
-  rotateCameraAbout(camera, pivot, new THREE.Quaternion().setFromAxisAngle(up, dHeading))
-  // Tilt: about the horizontal axis across the view, clamped.
-  const offset = camera.position.clone().sub(pivot)
-  const tilt = Math.acos(THREE.MathUtils.clamp(offset.clone().normalize().dot(up), -1, 1))
-  const next = THREE.MathUtils.clamp(tilt + dTilt, minTilt, maxTilt)
-  const side = new THREE.Vector3().crossVectors(up, offset)
-  if (side.lengthSq() < 1e-6 * offset.lengthSq()) {
-    // Straight above: tilt about the camera's own right-hand direction, made horizontal.
-    side.set(1, 0, 0).applyQuaternion(camera.quaternion)
-    side.addScaledVector(up, -side.dot(up))
-  }
-  if (side.lengthSq() === 0 || next === tilt) return
-  rotateCameraAbout(camera, pivot, new THREE.Quaternion().setFromAxisAngle(side.normalize(), next - tilt))
+  if (dHeading) rotateCameraAbout(camera, pivot, new THREE.Quaternion().setFromAxisAngle(up, dHeading))
+  // Tilt: about the horizontal axis across the view, clamped. Limits never move the view by
+  // themselves: a tilt already outside them is kept, just not pushed further out.
+  const frame = tiltFrame(camera, pivot, centre)
+  if (!frame || !dTilt) return
+  const tilt = tiltIn(frame, camera.position.clone().sub(pivot))
+  const next = THREE.MathUtils.clamp(tilt + dTilt, Math.min(minTilt, tilt), Math.max(maxTilt, tilt))
+  if (next === tilt) return
+  rotateCameraAbout(camera, pivot, new THREE.Quaternion().setFromAxisAngle(frame.axis, next - tilt))
+  levelHorizon(camera, centre) // e.g. a view that sat a little sideways of straight above
+}
+
+/** The tilt within the tilt plane: 0 straight above, positive behind the view, negative in front. */
+function tiltIn(frame: { up: THREE.Vector3; back: THREE.Vector3 }, offset: THREE.Vector3): number {
+  return Math.atan2(offset.dot(frame.back), offset.dot(frame.up))
+}
+
+/**
+ * Roll the camera about its forward axis (the middle of the view stays put) so the horizon is level:
+ * its left-right direction horizontal. `amount` (0-1) applies part of it. Nothing happens looking
+ * (nearly) straight down or up, where roll means nothing; the correction fades in from 3 to 10 degrees
+ * off vertical, so it never spins a near-top-down view round. Returns the roll removed (radians).
+ */
+export function levelHorizon(camera: CameraLike, centre: THREE.Vector3, amount = 1): number {
+  const up = camera.position.clone().sub(centre).normalize()
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+  const offVertical = Math.acos(THREE.MathUtils.clamp(Math.abs(forward.dot(up)), 0, 1))
+  const weight = amount * THREE.MathUtils.smoothstep(offVertical, (3 * Math.PI) / 180, (10 * Math.PI) / 180)
+  if (weight <= 0) return 0
+  const level = new THREE.Vector3().crossVectors(forward, up)
+  if (level.lengthSq() < 1e-12) return 0
+  level.normalize()
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion)
+  const roll = Math.atan2(new THREE.Vector3().crossVectors(right, level).dot(forward), right.dot(level))
+  if (Math.abs(roll) < 1e-12) return 0
+  const q = new THREE.Quaternion().setFromAxisAngle(forward, roll * weight)
+  camera.quaternion.premultiply(q)
+  camera.up.applyQuaternion(q)
+  camera.updateMatrixWorld()
+  return roll * weight
 }
 
 /**
@@ -116,11 +166,16 @@ export function orbitAbout(
  */
 export const TOP_DOWN_TILT = 0.003
 
-/** How far the camera is tilted away from straight above `pivot` (0 = looking straight down at it). */
+/**
+ * How far the camera is tilted away from straight above `pivot` (0 = looking straight down at it),
+ * measured along the screen as orbitAbout tilts (a small sideways offset doesn't count).
+ */
 export function tiltAt(camera: CameraLike, pivot: THREE.Vector3, centre: THREE.Vector3): number {
+  const offset = camera.position.clone().sub(pivot)
+  const frame = tiltFrame(camera, pivot, centre)
+  if (frame) return tiltIn(frame, offset) // along the screen, as orbitAbout tilts
   const up = pivot.clone().sub(centre).normalize()
-  const offset = camera.position.clone().sub(pivot).normalize()
-  return Math.acos(THREE.MathUtils.clamp(offset.dot(up), -1, 1))
+  return Math.acos(THREE.MathUtils.clamp(offset.normalize().dot(up), -1, 1))
 }
 
 /** Swing the camera about `pivot` to the given tilt (same distance and heading, horizon level). */
