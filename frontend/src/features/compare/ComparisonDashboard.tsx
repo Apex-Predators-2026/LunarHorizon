@@ -34,6 +34,7 @@ import { useAssistantLayout } from './assistant/layout'
 import { useAssistant } from './assistant/useAssistant'
 import { CompareTour } from './tour/CompareTour'
 import { TourButton, TourOffer } from './tour/TourButton'
+import { ReportHeaderAction } from './ReportHeaderAction'
 
 // Reading order: choose plans -> the answer -> the evidence -> when it happens -> ranking -> deeper analysis.
 const NAV = COMPARE_SECTIONS
@@ -169,6 +170,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <TourButton />
+            <ReportHeaderAction />
             <SelectField label="Align timelines by" value={align} fieldClassName="w-60"
               tip="Line the scenarios up by time since landing, or by calendar date"
               onChange={(e) => setAlign(e.target.value as 'met' | 'utc')}>
