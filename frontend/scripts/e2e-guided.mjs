@@ -1,5 +1,5 @@
 // End-to-end check of the judge-facing journey in a real browser against the running app (dev server or preview +
-// backend): landing "Try a mission" -> original plan PASS -> 4-day delay -> blackout FAIL -> evidence in 3D ->
+// backend): landing -> navigator header "Try a mission" -> original plan PASS -> 4-day delay -> blackout FAIL -> evidence in 3D ->
 // Mission Rescue recovery PASS -> Comparison recommends it -> export stage; then an Atlas cell opened in the planner.
 // Runs at 1366x768 and 1920x1080 through real UI controls only (no store manipulation).
 //
@@ -66,12 +66,13 @@ async function run(viewport) {
   // A fresh browser profile with ONE plan the user made earlier (saved before the page loads): the guided mission must
   // never duplicate, replace or delete it, however often it is restarted or left.
   await page.addInitScript((plan) => { if (!localStorage.getItem('lunar-plans')) localStorage.setItem('lunar-plans', JSON.stringify({ state: { plans: [plan], activeId: null, compareIds: [] }, version: 0 })) }, USER_PLAN)
-  // Start from the landing page, as a visitor would.
+  // Start from the landing page, as a visitor would. Since the branding refresh (2b69bf2) the landing page only opens the
+  // navigator; "Try a mission" lives in the navigator's header.
   await page.goto(`${URL_APP}/`, { waitUntil: 'domcontentloaded' })
-  await page.getByTestId('landing-try-mission').click()
+  await page.getByRole('button', { name: 'Open the navigator' }).first().click()
+  await page.locator('header').getByRole('button', { name: 'Try a mission' }).click()
 
   const card = page.getByTestId('guide-card')
-  const assessment = page.locator('#mission-assessment')
   const shot = (n) => page.screenshot({ path: join(OUT, `${tag}-${n}.png`) })
   /** Wait until the stage has its real result (never a timer), then return its status and text. */
   const settle = async (stage, timeout = 60_000) => {
@@ -89,7 +90,6 @@ async function run(viewport) {
   await primary()
   s = await settle('original')
   check(`${tag} 2 original plan passes`, s.status === 'ready' && /PASSES every requirement/.test(s.text), s.text.match(/Maximum direct.*/)?.[0])
-  await assessment.getByText('Passes').first().waitFor({ timeout: 30_000 })
   // The Planner's plan card shows the same canonical verdict for the running plan (not just "running").
   const guidedCard = page.getByRole('listitem', { name: /^Plan Try a mission/ })
   await guidedCard.getByText('Passes', { exact: true }).waitFor({ timeout: 30_000 })
@@ -98,8 +98,11 @@ async function run(viewport) {
   await primary()
   s = await settle('delay')
   check(`${tag} 3 delay applied through Rescue's change control`, s.status === 'ready' && /14 Oct 2027/.test(s.text))
-  const afterTab = assessment.getByRole('tab', { name: 'After change' })
-  check(`${tag} 3 assessment shows the plan after the change`, (await afterTab.getAttribute('aria-selected')) === 'true')
+  // The planner's Mission assessment panel (with its Original / After change / Rescue pick tabs) was removed in the
+  // branding refresh (2b69bf2; the sidebar holds plans and rescue only). The changed plan's verdict is checked in the
+  // guide card above and in the report JSON (stage 8); here: the delay is a what-if, the saved plan is not rewritten.
+  const savedUnchanged = async () => { const t = await guidedCard.innerText(); return /2027-10-10 00:00 UTC/.test(t) && /\bPasses\b/.test(t) }
+  check(`${tag} 3 the saved plan keeps its date and verdict (the delay is a what-if)`, await savedUnchanged())
   await shot('3-delay')
   await primary()
   s = await settle('changed')
@@ -115,8 +118,8 @@ async function run(viewport) {
   await primary()
   s = await settle('rescue', 120_000)
   check(`${tag} 6 Rescue recovery passes (canonical check)`, s.status === 'ready' && /Malapert Massif/.test(s.text) && /confirms it PASSES/.test(s.text))
-  const pickTab = assessment.getByRole('tab', { name: 'Rescue pick' })
-  check(`${tag} 6 assessment shows the Rescue pick`, (await pickTab.getAttribute('aria-selected')) === 'true')
+  // (Rescue pick tab: see stage 3. The recovery's PASS is checked above and in the report JSON.)
+  check(`${tag} 6 the saved plan keeps its date and verdict after the Rescue search`, await savedUnchanged())
   await shot('6-rescue')
   await primary()
   s = await settle('compare', 120_000)
@@ -129,12 +132,13 @@ async function run(viewport) {
   const snapId = await preview.getAttribute('data-snapshot')
   check(`${tag} 8 summary report opens for the evaluated selection`, s.status === 'ready' && /^rpt-/.test(snapId ?? ''), snapId)
   const docText = await preview.innerText()
-  // The Mission Report: a six-page card (executive summary, overview, performance, analysis, requirements, strengths,
-  // recommendation, sources, disclaimer) from the frozen snapshot, with the technical record as an appendix.
+  // The Mission Report from the frozen snapshot: a title page with contents (added in the formal-document redesign,
+  // 11500ad) then six section pages (executive summary, overview, performance, analysis, requirements, strengths,
+  // recommendation, sources, disclaimer), with the technical record as an appendix. 7 = PAGE_COUNT in reportLayout.ts.
   const reportPages = await preview.locator('.rc-page').count()
   const sectionNames = ['Executive summary', 'Mission overview', 'Mission performance', 'Comparison analysis', 'Mission requirements assessment', 'Strengths and weaknesses', 'Final assessment and recommendation', 'Data sources and methodology']
   check(`${tag} 8 report first page: decision, plans, requirements, uncertainty, attribution`,
-    reportPages === 6 && ['Lunar Mission Comparison Report', 'Peak Near Shackleton', 'Malapert Massif', 'PASS', 'FAIL', 'NASA JPL Horizons', ...sectionNames].every((t) => docText.includes(t)), `${reportPages} pages`)
+    reportPages === 7 && ['Lunar Mission Comparison Report', 'Peak Near Shackleton', 'Malapert Massif', 'PASS', 'FAIL', 'NASA JPL Horizons', ...sectionNames].every((t) => docText.includes(t)), `${reportPages} pages`)
   await shot('8-report')
   // The JSON download is the same snapshot.
   const dl = page.waitForEvent('download')
@@ -151,7 +155,8 @@ async function run(viewport) {
     snap.export.reproduction.datasets.every((d) => /^[0-9a-f]{64}$/.test(d.sha256 ?? '')) && snap.export.scenarios.every((x) => x.revision)
     && snap.mission.mission_id === 'pns-oct-2027-launch-delay')
   // One-click PDF (the report, laid out in the browser): a real PDF file. Its pages flow with the content (the guided
-  // mission gives 7 against the preview's 6 sections-pages), so the check is a valid PDF of at least the six report pages.
+  // mission gives 10: a title page, then one A4 body that wraps with unsplittable figures and tables, ReportCardPdf.tsx),
+  // so the check is a valid PDF of at least the preview's seven pages and not a runaway layout.
   const pdfDownload = page.waitForEvent('download', { timeout: 120_000 })
   await preview.getByTestId('download-report-pdf').click()
   const pdfDl = await pdfDownload
@@ -159,7 +164,7 @@ async function run(viewport) {
   await pdfDl.saveAs(pdfFile)
   const pdfBytes = readFileSync(pdfFile)
   const pdfPages = (pdfBytes.toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g) ?? []).length
-  check(`${tag} 8 Download PDF produces the report PDF`, /\.pdf$/i.test(pdfDl.suggestedFilename()) && pdfBytes.subarray(0, 5).toString('latin1') === '%PDF-' && pdfBytes.length > 20_000 && pdfBytes.subarray(-1024).toString('latin1').includes('%%EOF') && pdfPages >= 6 && pdfPages <= 9, `${pdfDl.suggestedFilename()}, ${pdfBytes.length} bytes, ${pdfPages} pages`)
+  check(`${tag} 8 Download PDF produces the report PDF`, /\.pdf$/i.test(pdfDl.suggestedFilename()) && pdfBytes.subarray(0, 5).toString('latin1') === '%PDF-' && pdfBytes.length > 20_000 && pdfBytes.subarray(-1024).toString('latin1').includes('%%EOF') && pdfPages >= 7 && pdfPages <= 12,`${pdfDl.suggestedFilename()}, ${pdfBytes.length} bytes, ${pdfPages} pages`)
   // Browser-native print output (the same print stylesheet as Print / Save as PDF): the report and its technical appendix.
   await page.emulateMedia({ media: 'print' })
   for (const format of ['A4', 'Letter']) {
