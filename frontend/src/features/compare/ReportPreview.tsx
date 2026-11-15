@@ -7,6 +7,7 @@ import { createPortal } from 'react-dom'
 import { downloadText, type ExportedMetric, type ExportedMissionTime, type ExportedRequirement, type ExportedScenario } from './export'
 import { cannotGenerate, selectionKeyOf, useReportStore, type ReportSnapshot } from './report'
 import { useCompareStore } from './useCompareStore'
+import { useTutorialStore } from '../tutorial/useTutorialStore'
 import { MissionReportBody, SnapshotPdfButton } from './MissionReportBody'
 import './report.css'
 
@@ -308,6 +309,8 @@ export function ReportPreview() {
   const { snapshot, open, close, generate } = useReportStore()
   const live = useCompareStore((s) => selectionKeyOf(s))
   const blocker = useCompareStore((s) => cannotGenerate(s))
+  // While the Guided Tour shows this report (step 14) its card must stay reachable to assistive technology.
+  const tourOpen = useTutorialStore((s) => s.open)
   const headRef = useRef<HTMLHeadingElement>(null)
   const opener = useRef<Element | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -330,7 +333,7 @@ export function ReportPreview() {
   const stale = live !== snapshot.selection.key
   const download = () => downloadText(`lunar-decision-${snapshot.snapshot_id}.json`, JSON.stringify(snapshot, null, 2) + '\n', 'application/json')
   return createPortal(
-    <div className="report-portal" role="dialog" aria-modal="true" aria-labelledby="rpt-dialog-title" data-testid="report-preview" data-snapshot={snapshot.snapshot_id}>
+    <div className="report-portal" role="dialog" aria-modal={tourOpen ? 'false' : 'true'} aria-labelledby="rpt-dialog-title" data-testid="report-preview" data-snapshot={snapshot.snapshot_id}>
       <div className="report-toolbar">
         <div className="report-toolbar-text">
           <h2 id="rpt-dialog-title" ref={headRef} tabIndex={-1}>Mission Report preview</h2>
