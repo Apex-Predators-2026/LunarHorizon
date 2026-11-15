@@ -3,8 +3,8 @@
 The guided mission runs inside the one **Guided Tour**, which has two paths through the same steps: a **quick tour**
 (7 steps, about 90 seconds) and the **full tour** (19 steps). Entry points: the landing page's **Take the guided tour**
 (quick), the Mission Planner toolbar's **More (⋮) → Quick tour / Full guided tour**, the one-time offer card that points
-at that menu (both), `#app/planner?tour=quick` or `?tour=1` (full), and the Comparison page's **How to compare
-missions** (full, Act 2). It walks through one real decision
+at that menu (both), `#app/planner?tour=quick` or `?tour=1` (full), and the Plan Comparison page's **How to compare
+plans** (full, Act 2). It walks through one real decision
 with the live tools: load a plan, read its requirements, apply a launch delay, see what broke, inspect the
 evidence in 3D, run Mission Rescue, compare the plans and export a report. Every verdict, number and alternative it
 shows comes from the current engine and Rescue responses; nothing is scripted.
@@ -102,7 +102,7 @@ durations in days too.
 On a story step the card shows up to three live facts from the stage below; Next waits ("Working…") until the real
 result is available; slow requests offer Retry, failures offer Retry, edited inputs offer Restart the example.
 Jumping ahead (an act tab or a dot) runs the earlier stages in order first ("Preparing the mission…"). The
-Comparison page's **How to compare missions** button opens the tour at Act 2. `features/tutorial/storyBridge.ts`
+Comparison page's **How to compare plans** button opens the tour at Act 2. `features/tutorial/storyBridge.ts`
 connects the tour to the story engine (`features/guide/mission.ts`).
 
 1. **Your mission** – the definition's site, objective, duration and requirements; loaded as the running plan.
@@ -114,7 +114,7 @@ connects the tour to the story engine (`features/guide/mission.ts`).
    shows it).
 6. **Find a recovery** – real Mission Rescue with the declared scope; the first alternative that keeps the duration
    and requirements is selected and re-checked by the canonical engine.
-7. **Make the decision** – original, delayed and recovery plans go to Scenario Comparison with their roles and
+7. **Make the decision** – original, delayed and recovery plans go to Plan Comparison with their roles and
    provenance; the comparison's own re-assessment and recommendation are read back.
 8. **Export the decision** – the summary report for exactly that evaluated selection (print / save as PDF, JSON).
 
