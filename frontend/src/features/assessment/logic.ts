@@ -28,7 +28,7 @@ export function fmtMetric(m: Metric): string {
 }
 
 export function thresholdText(c: ConstraintEvaluation): string {
-  if (c.threshold === null) return '—'
+  if (c.threshold === null) return '-'
   const op = c.comparison === 'at_most' ? '≤' : c.comparison === 'at_least' ? '≥' : ''
   return `${op} ${fmtValue(c.threshold, c.unit)}`.trim()
 }

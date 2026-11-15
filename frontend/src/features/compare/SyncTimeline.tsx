@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
 import { fmtAxis, missionExtent, violationWindows, type Align, type Entry } from './analysis'
 import { knownSpans, knownSunRuns, laneCoverage, timelineEarthRuns, unknownWindows, withheldNotes, type HourSpan, type LaneCoverage } from './lanes'
+import { useDragGuard } from '../../viz/dragGuard'
 import { STATE } from './palette'
 import type { TimelineColumns, Window } from './types'
 import { ScenarioChip, btn } from './ui'
@@ -77,7 +78,7 @@ const Lanes = memo(function Lanes({ e, top, x, view, w, gutter: GUTTER }: { e: E
   const earthIn = engineEarth || !r.timeline ? r.earth_windows : timelineEarthRuns(r.timeline, true)
   const earthOut = engineEarth || !r.timeline ? r.blackout_windows : timelineEarthRuns(r.timeline, false)
   const unknownTitle = (lane: 'Sun' | 'Earth', w: Window) =>
-    `${lane} unknown ${fmtDur(w.duration_hours)}: ${w.start_utc} → ${w.end_utc}. No terrain or ephemeris data — ` +
+    `${lane} unknown ${fmtDur(w.duration_hours)}: ${w.start_utc} → ${w.end_utc}. No terrain or ephemeris data: ` +
     `not ${lane === 'Sun' ? 'darkness' : 'a blackout'}, and not counted as one.`
   return (
     <g>
@@ -208,6 +209,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
     return () => el.removeEventListener('wheel', onWheel)
   }, [full, w, GUTTER])
 
+  const guard = useDragGuard()
   const localX = (ev: React.PointerEvent) => ev.clientX - svgRef.current!.getBoundingClientRect().left
 
   const onKey = (ev: React.KeyboardEvent) => {
@@ -270,6 +272,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
           className="touch-none rounded-md outline-none focus-visible:ring-1 focus-visible:ring-cyan-600"
           onPointerDown={(ev) => {
             if (localX(ev) < GUTTER) return
+            guard.begin() // panning must not start a browser text selection or an image-style drag
             ;(ev.target as Element).setPointerCapture?.(ev.pointerId)
             drag.current = { x0: ev.clientX, view, moved: false }
           }}
@@ -285,9 +288,15 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
               setView(clampView([d.view[0] + dh, d.view[1] + dh], full))
             }
           }}
+          onDragStart={guard.onDragStart}
+          onPointerCancel={() => {
+            drag.current = null
+            guard.end()
+          }}
           onPointerUp={(ev) => {
             const d = drag.current
             drag.current = null
+            guard.end()
             if (d && !d.moved) setCursor(Math.min(full[1], Math.max(full[0], inv(localX(ev)))))
           }}
           onPointerLeave={() => setHover(null)}

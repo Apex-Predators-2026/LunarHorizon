@@ -87,7 +87,7 @@ export const fmtDays = (d: number) => `${Number.isInteger(d) ? d : d.toFixed(1)}
 
 /** A value in the requirement's display unit. Fractions are shown as percentages. */
 export function fmtValue(v: number | null | undefined, unit: string): string {
-  if (v === null || v === undefined) return '—'
+  if (v === null || v === undefined) return '-'
   // One decimal for percentages: near a limit, 49.6% must not read as the 50% it fails to reach.
   if (unit === 'fraction') return `${(v * 100).toFixed(1)}%`
   if (unit === '%') return `${v.toFixed(1)}%`

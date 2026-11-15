@@ -476,7 +476,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     }
     setMeasureArmed(true)
     setPin((p) => (p.phase === 'armed' ? { phase: 'idle' } : p))
-    showSnackbar('Waypoint A anchored at Lander — click terrain to measure outward')
+    showSnackbar('Waypoint A anchored at Lander - click terrain to measure outward')
   }, [site, waypoints])
 
   const finestResM = terrainStats ? Math.max(5, Math.round(vertexSpacingM(terrainStats.deepest))) : null
@@ -536,7 +536,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           }
         }
       }}
-      className={`absolute inset-0 overflow-hidden ${pin.phase === 'armed' ? 'pin-cursor' : measureArmed ? 'measure-cursor' : ''}`}
+      className={`absolute inset-0 select-none overflow-hidden [&_input]:select-text [&_textarea]:select-text ${pin.phase === 'armed' ? 'pin-cursor' : measureArmed ? 'measure-cursor' : ''}`}
     >
       {/* Renders only when something changes (camera, time, tiles arriving): an idle view costs
           nothing. Components that animate on their own must call invalidate(). */}
