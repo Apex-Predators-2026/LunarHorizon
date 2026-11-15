@@ -109,7 +109,7 @@ const CHECKS = [
   {
     id: 'evidence', name: 'Show why: evidence in the 3D view', outcome: 'The canonical window, at the right site and time, with the way back',
     vitest: ['src/viz/evidence.test.tsx', 'src/features/assessment/sharedState.test.tsx', 'src/features/assessment/evidenceReturn.test.tsx'],
-    browser: [...g('5 evidence opens the blackout window in 3D'), ...sm('Plan assessment dialog: Show in 3D, then Back returns to the same dialog')],
+    browser: [...g('5 evidence opens the blackout window in 3D'), ...sm('Plan assessment in the Comparison: Show in 3D, then Back returns to the same assessment')],
     wholeRun: ['evidence'],
   },
   {

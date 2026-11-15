@@ -176,22 +176,29 @@ await step('Run a plan: it becomes the active mission and its card shows the can
     .catch(async (e) => { throw new Error(`no canonical verdict on the plan card: ${(await card.innerText()).replace(/\s+/g, ' ').slice(0, 240)} (${String(e).split('\n')[0]})`) })
 })
 
-await step('Plan assessment dialog: Show in 3D, then Back returns to the same dialog', async () => {
+// The plan card's "Full assessment in Comparison" (the per-plan dialog it replaced moved to the Comparison's Mission
+// assessment section in the branding refresh, 2b69bf2): the same plan's assessment, its evidence in 3D and the way back.
+await step('Plan assessment in the Comparison: Show in 3D, then Back returns to the same assessment', async () => {
   const card = page.getByRole('listitem', { name: 'Plan Smoke Ridge' })
   await card.getByRole('button', { name: /Full assessment/ }).click()
-  const dialogs = () => page.getByRole('dialog', { name: 'Mission assessment: Smoke Ridge' })
-  await dialogs().waitFor({ timeout: 60_000 })
-  const show = dialogs().getByRole('button', { name: 'Show in 3D' }).first() // the failing requirement's evidence window
-  await show.waitFor({ timeout: 60_000 })
-  await show.click()
-  await dialogs().waitFor({ state: 'detached', timeout: 10_000 }) // the dialog gives way to the 3D view
-  const banner = page.getByRole('status').filter({ hasText: 'Back to Smoke Ridge assessment' })
-  await banner.waitFor({ timeout: 30_000 })
-  await banner.getByRole('button', { name: 'Back to Smoke Ridge assessment' }).click()
-  await dialogs().waitFor({ timeout: 10_000 }) // the same plan's dialog, not the running plan's panel
-  await banner.waitFor({ state: 'detached', timeout: 10_000 })
-  await dialogs().getByRole('button', { name: 'Close' }).click()
-  await dialogs().waitFor({ state: 'detached', timeout: 10_000 })
+  try {
+    await page.waitForFunction(() => location.hash.startsWith('#app/compare'), null, { timeout: 10_000 })
+    const panel = page.locator('#cmp-assessment')
+    await panel.getByText('Smoke Ridge').first().waitFor({ timeout: 60_000 }) // this plan, not the running one
+    const show = panel.getByRole('button', { name: 'Show in 3D' }).first() // the failing requirement's evidence window
+    await show.waitFor({ timeout: 60_000 })
+    await show.click()
+    const banner = page.locator('[data-testid=evidence-banner]')
+    await banner.waitFor({ timeout: 30_000 })
+    if (!(await page.evaluate(() => location.hash)).startsWith('#app/planner')) throw new Error('Show in 3D did not open the 3D view')
+    await banner.getByRole('button', { name: /^Back to / }).click()
+    await panel.getByText('Smoke Ridge').first().waitFor({ timeout: 30_000 }) // the same plan's assessment again
+    await banner.waitFor({ state: 'detached', timeout: 10_000 })
+  } finally {
+    // The next steps work in the 3D view: return there even if this step failed, so one failure is reported once.
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Mission Planner' }).click().catch(() => {})
+    await page.getByRole('button', { name: 'Camera position' }).waitFor({ timeout: 60_000 }).catch(() => {})
+  }
 })
 
 await step("Investigate: the lander's-eye Sun view, the sky plot and the map layers", async () => {
@@ -221,13 +228,22 @@ await step('Rescue: a 10-day launch slip, find alternatives', async () => {
   await rescue.waitFor({ timeout: 10_000 })
   await rescue.getByLabel('Launch delay (days)').fill('10')
   await rescue.getByRole('button', { name: 'Find alternatives' }).click()
-  // A result brings its controls ("Show on map"); a failure shows an alert.
-  await rescue.getByRole('switch', { name: 'Show on map' }).or(rescue.getByRole('alert')).first().waitFor({ timeout: 180_000 })
-  const alert = await rescue.getByRole('alert').first().textContent({ timeout: 500 }).catch(() => null)
-  if (alert) throw new Error(`rescue reported: ${alert}`)
-  await rescue.getByRole('switch', { name: 'Explain' }).click() // the plain-language walkthrough
-  await rescue.getByText('What rescue did').waitFor({ timeout: 5_000 })
-  await page.screenshot({ path: join(OUT, '3-rescue.png') })
+  // Results are not shown in the sidebar (UI spec 4.1): the search imports the original, the changed plan and the
+  // alternatives into Scenario Comparison and opens its Mission Rescue story. A failure stays in the sidebar as an alert.
+  try {
+    const story = page.locator('#cmp-rescue')
+    await story.or(rescue.getByRole('alert')).first().waitFor({ timeout: 180_000 })
+    const alert = await rescue.getByRole('alert').first().textContent({ timeout: 500 }).catch(() => null)
+    if (alert) throw new Error(`rescue reported: ${alert}`)
+    if ((await page.evaluate(() => location.hash)) !== '#app/compare/cmp-rescue') throw new Error('Find alternatives did not open the rescue story')
+    for (const title of ['Original plan', 'What changed', 'Alternatives from Mission Rescue, re-assessed here']) await story.getByText(title).first().waitFor({ timeout: 60_000 })
+    if (/found no alternative/.test(await story.innerText())) throw new Error('Mission Rescue found no alternative')
+    await page.screenshot({ path: join(OUT, '3-rescue.png') })
+  } finally {
+    // The next step ticks plans in the sidebar.
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: 'Mission Planner' }).click().catch(() => {})
+    await page.getByRole('button', { name: 'Camera position' }).waitFor({ timeout: 60_000 }).catch(() => {})
+  }
 })
 
 await step('Compare the two plans side by side', async () => {
