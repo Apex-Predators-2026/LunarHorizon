@@ -103,7 +103,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     badge: 'NASA LOLA',
     whyItMatters:
       'The surface is NASA LOLA laser-altimeter elevation. Near the pole the Sun skims the horizon, so crater rims cast shadows kilometres long.',
-    tryPrompt: 'Drag the Moon to orbit, or choose Sun view under Camera Position.',
+    tryPrompt: 'Drag the Moon to orbit, or choose Sun under Camera position.',
     promptKind: 'try',
     targetSelectors: ['[data-tour="camera-menu"]', '[data-tour="top-down"]'],
     preferredPlacement: 'top',
@@ -245,8 +245,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Three plans, side by side',
     badge: 'Live result',
     whyItMatters:
-      'The original, delayed and recovered plans are re-assessed together under the same requirements.',
-    tryPrompt: "Each plan's verdict and its role in the story.",
+      'The original, delayed and recovered plans are re-assessed together here. Saved plans stay synced with Mission Planner, and Manage plans adds quick presets.',
+    tryPrompt: "Each plan's verdict and role below; use Manage plans to add or load presets.",
     promptKind: 'look',
     targetSelectors: ['[data-tour="compare-select"]', '#cmp-scenarios'],
     preferredPlacement: 'bottom',
@@ -365,8 +365,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Your turn',
     badge: 'Explore',
     whyItMatters:
-      'A passing plan broke on a short delay, and the engine found a fix elsewhere. Now pick another site, or drop a pin anywhere from 80° S to the pole.',
-    tryPrompt: 'Open the site picker or press Drop pin, then press Play.',
+      'A passing plan broke on a short delay, and the engine found a fix elsewhere. Now pick another site, or drop and remove custom pins from 80° S to the pole.',
+    tryPrompt: 'Open Select site or press Drop pin, then press Play plan.',
     promptKind: 'try',
     targetSelectors: ['[data-tour="site-select"]', '[data-tour="drop-pin"]'],
     preferredPlacement: 'top',
