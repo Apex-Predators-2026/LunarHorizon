@@ -17,12 +17,21 @@ const rank = (s: AssistantScenario) => (s.canonical_rank !== null ? `, rank ${s.
 
 const NOTHING_SELECTED = 'No scenarios are selected yet. In the **Scenario workspace** at the top of the page, tick two to four scenarios (or use **+ Add scenario**, or a quick comparison such as **Same date, 3 sites**). The comparison and my answers then use their results.'
 
-function figureLines(c: AssistantContext, metrics: string[]): string[] {
-  return c.at_a_glance.filter((r) => metrics.includes(r.metric)).map((r) => {
+function figureLines(c: AssistantContext, metrics: string[], block: 'Solar' | 'Earth'): string[] {
+  const rows = c.at_a_glance.filter((r) => metrics.includes(r.metric)).map((r) => {
     const vals = c.selected.map((l) => `${l} ${r.values[l] ?? 'unavailable'}`).join(', ')
-    const best = r.best.length ? ` (meaningfully best: ${r.best.join(', ')}; ${r.better} is better)` : ' (no meaningful difference)'
+    const known = c.selected.filter((l) => /\d/.test(r.values[l] ?? '')).length
+    const best = r.best.length ? ` (meaningfully best: ${r.best.join(', ')}; ${r.better} is better)`
+      : known >= 2 ? ' (no meaningful difference)' : ''
     return `- **${r.metric}:** ${vals}${best}`
   })
+  return [...rows, ...withheldLines(c, block)]
+}
+
+/** Why figures read "unavailable": the backend's own reason, one line per scenario and reason. */
+function withheldLines(c: AssistantContext, block: 'Solar' | 'Earth'): string[] {
+  return c.scenarios.flatMap((s) => s.figures_withheld.filter((w) => w.blocks.includes(block))
+    .map((w) => `- Scenario ${s.label}: ${w.blocks.toLowerCase()} withheld, not zero. ${w.reason}`))
 }
 
 /** Each scenario's failed and undecided requirements, with measured value, threshold and margin from the page. */
@@ -63,8 +72,8 @@ export function basicSummary(c: AssistantContext): string {
   out.push(`Comparing ${c.scenarios.map((s) => `Scenario ${s.label} (${s.site.name}, ${windowText(s.mission_time)})`).join(', ')}.`)
   for (const d of c.decisions) out.push(d.headline)
 
-  out.push('', '### Solar conditions', ...figureLines(c, [c.at_a_glance[0]?.metric, c.at_a_glance[1]?.metric]))
-  out.push('', '### Communication', ...figureLines(c, [c.at_a_glance[2]?.metric, c.at_a_glance[3]?.metric]))
+  out.push('', '### Solar conditions', ...figureLines(c, [c.at_a_glance[0]?.metric, c.at_a_glance[1]?.metric], 'Solar'))
+  out.push('', '### Communication', ...figureLines(c, [c.at_a_glance[2]?.metric, c.at_a_glance[3]?.metric], 'Earth'))
   out.push('', '### Mission requirements', ...c.scenarios.flatMap((s) => scenarioVerdict(c, s)))
 
   const tradeoffs = c.decisions.flatMap((d) => d.tradeoffs).filter(Boolean).slice(0, 3)

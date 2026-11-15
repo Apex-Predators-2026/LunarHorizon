@@ -13,6 +13,7 @@ import { formatMarginMetric } from '../../../lib/headroom'
 import { METRICS, bestIds, fmtMetric, requirementMatrix, type Entry } from '../analysis'
 import { buildExport, type ExportedScenario } from '../export'
 import { HEADLINES, headlineRows } from '../glance'
+import { withheldNotes } from '../lanes'
 import { changedChanged, rescueSteps, type RescueContext } from '../rescueFlow'
 import { guideForAI } from './navigation'
 import type { EvaluationStatus } from '../missionTime'
@@ -45,6 +46,11 @@ export interface AssistantScenario {
   undecided_requirements: string[]
   /** For a PASS: how comfortably it passes (e.g. "PASS, narrow margin on ..."), from the headroom panel. */
   headroom: { verdict: string; limited_by: string[] } | null
+  /**
+   * Why whole-mission figures are not shown for this scenario (e.g. the stored data ends before the mission does).
+   * The figures then read "unavailable": they are withheld, never 0, and the verdict comes from the hours that exist.
+   */
+  figures_withheld: { blocks: string; reason: string }[]
   /** Its part in a Mission Rescue import (null when not imported from Rescue). */
   rescue_role: string | null
   ranking_explanation: string | null
@@ -194,6 +200,7 @@ export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], 
       failed_requirements: s.failed_requirements,
       undecided_requirements: s.undecided_requirements,
       rescue_role: roleOf.get(entries[i]?.scenario.id ?? '') ?? null,
+      figures_withheld: entries[i]?.result ? withheldNotes(entries[i].result!) : [],
       headroom: s.eligibility === 'pass' && s.headroom
         ? { verdict: s.headroom.qualified_verdict, limited_by: s.headroom.limited_constraints }
         : null,
