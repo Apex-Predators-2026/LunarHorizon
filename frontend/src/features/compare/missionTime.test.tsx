@@ -251,7 +251,7 @@ describe('shared time axis follows the evaluated windows', () => {
     expect(missionExtent(lc)).toEqual([3, 27])
     // Rendered: the extent rectangle of B ends exactly at the evaluated end (x(24) on a 0..48 h axis).
     const html = renderToString(<SyncTimeline entries={[lb]} full={[0, 48]} view={[0, 48]} align="met" originMs={axisOrigin([lb])} />)
-    const ext = /<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="20" fill="#[0-9a-f]+"/i.exec(html)!
+    const ext = /<rect x="([\d.]+)" y="[\d.]+" width="([\d.]+)" height="20" fill="none" stroke/i.exec(html)!
     const [x0, wd] = [Number(ext[1]), Number(ext[2])]
     const plotW = 800 - 168 - 8 // SSR width (useWidth default) minus the wide gutter and the right padding
     expect(x0).toBeCloseTo(168, 6)
