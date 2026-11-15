@@ -129,8 +129,12 @@ async function run(viewport) {
   const snapId = await preview.getAttribute('data-snapshot')
   check(`${tag} 8 summary report opens for the evaluated selection`, s.status === 'ready' && /^rpt-/.test(snapId ?? ''), snapId)
   const docText = await preview.innerText()
+  // The Mission Report: a six-page card (executive summary, overview, performance, analysis, requirements, strengths,
+  // recommendation, sources, disclaimer) from the frozen snapshot, with the technical record as an appendix.
+  const reportPages = await preview.locator('.rc-page').count()
+  const sectionNames = ['Executive summary', 'Mission overview', 'Mission performance', 'Comparison analysis', 'Mission requirements assessment', 'Strengths and weaknesses', 'Final assessment and recommendation', 'Data sources and methodology']
   check(`${tag} 8 report first page: decision, plans, requirements, uncertainty, attribution`,
-    ['Mission decision summary', 'Recommended', 'Plans evaluated', 'Declared requirements', 'Main uncertainty', 'NASA JPL Horizons'].every((t) => docText.includes(t)))
+    reportPages === 6 && ['Lunar Mission Comparison Report', 'Peak Near Shackleton', 'Malapert Massif', 'PASS', 'FAIL', 'NASA JPL Horizons', ...sectionNames].every((t) => docText.includes(t)), `${reportPages} pages`)
   await shot('8-report')
   // The JSON download is the same snapshot.
   const dl = page.waitForEvent('download')
@@ -146,12 +150,22 @@ async function run(viewport) {
   check(`${tag} 8 JSON records dataset hashes, revisions and the mission definition`,
     snap.export.reproduction.datasets.every((d) => /^[0-9a-f]{64}$/.test(d.sha256 ?? '')) && snap.export.scenarios.every((x) => x.revision)
     && snap.mission.mission_id === 'pns-oct-2027-launch-delay')
-  // Browser-native print output (the same print stylesheet as Print / Save as PDF).
+  // One-click PDF (the report, laid out in the browser): a real PDF file. Its pages flow with the content (the guided
+  // mission gives 7 against the preview's 6 sections-pages), so the check is a valid PDF of at least the six report pages.
+  const pdfDownload = page.waitForEvent('download', { timeout: 120_000 })
+  await preview.getByTestId('download-report-pdf').click()
+  const pdfDl = await pdfDownload
+  const pdfFile = join(OUT, `${tag}-report-download.pdf`)
+  await pdfDl.saveAs(pdfFile)
+  const pdfBytes = readFileSync(pdfFile)
+  const pdfPages = (pdfBytes.toString('latin1').match(/\/Type\s*\/Page(?![s\w])/g) ?? []).length
+  check(`${tag} 8 Download PDF produces the report PDF`, /\.pdf$/i.test(pdfDl.suggestedFilename()) && pdfBytes.subarray(0, 5).toString('latin1') === '%PDF-' && pdfBytes.length > 20_000 && pdfBytes.subarray(-1024).toString('latin1').includes('%%EOF') && pdfPages >= 6 && pdfPages <= 9, `${pdfDl.suggestedFilename()}, ${pdfBytes.length} bytes, ${pdfPages} pages`)
+  // Browser-native print output (the same print stylesheet as Print / Save as PDF): the report and its technical appendix.
   await page.emulateMedia({ media: 'print' })
   for (const format of ['A4', 'Letter']) {
     const pdf = await page.pdf({ path: join(OUT, `${tag}-report-${format}.pdf`), format, printBackground: true })
     const pages = (pdf.toString('latin1').match(/\/Type \/Page[^s]/g) ?? []).length
-    check(`${tag} 8 ${format} PDF renders only the report`, pages >= 4 && pages <= 10, `${pages} pages`)
+    check(`${tag} 8 ${format} PDF renders only the report`, pages >= 10 && pages <= 16, `${pages} pages (6 report pages + the technical appendix)`)
   }
   await page.emulateMedia({ media: 'screen' })
   await page.keyboard.press('Escape')
