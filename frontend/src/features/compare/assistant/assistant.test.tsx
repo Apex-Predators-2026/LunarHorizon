@@ -57,7 +57,7 @@ describe('comparison context', () => {
     expect(dark.better).toBe('lower')
     for (const row of [...c.at_a_glance, ...c.key_metrics]) {
       expect(row.values.D).toMatch(/not assessed|unavailable/)
-      for (const v of Object.values(row.values)) expect(v).not.toBe('—')
+      for (const v of Object.values(row.values)) expect(v).not.toBe('-')
     }
     // Requirements: status, measured value, threshold and margin per scenario, D not assessed.
     expect(c.requirements.length).toBeGreaterThan(0)

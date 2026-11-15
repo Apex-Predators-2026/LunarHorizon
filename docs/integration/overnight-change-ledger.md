@@ -1,3 +1,5 @@
+> **HISTORICAL: the state at the overnight stop.** Entries such as "LOCAL ONLY" and "NOT integrated" were reconciled against the final code in [final-recovery-ledger.md](final-recovery-ledger.md), which is authoritative.
+
 # Overnight change ledger (45 source commits)
 
 Every source commit is authored by XxHuanghoidSlayerxX (git metadata). Integration SHAs are local commits on `integration/overnight-recovery-20261115-012252`; all integration work is LOCAL ONLY. See `TEAM_HANDOFF.md` and `overnight-progress.md` for validation. Integration-only work with no source commit: grid snap in `/assess-scenario` (2a90183) and the rebase of the Comparison backend onto main's hourly grid (3037d8b).

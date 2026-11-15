@@ -46,12 +46,15 @@ def test_report_is_sent_as_its_own_message_with_its_state_first():
     plain = build_messages(q, {"state": "ready"})
     assert len(plain) == 3 and "MISSION REPORT" not in plain[1]["content"]  # older pages: unchanged
     none = build_messages(q, {"state": "ready", "report": None})
-    assert none[2]["content"].startswith("MISSION REPORT: none.")
+    # No report: the note applies only to report questions; comparison summaries still use the comparison.
+    assert none[1]["content"].startswith("Mission Report status: no Mission Report has been generated yet.")
+    assert "including summaries of the comparison, is answered from the comparison context" in none[1]["content"]
+    assert none[2]["content"].startswith("Current Scenario Comparison context")  # the comparison comes last
     fresh = build_messages(q, {"state": "ready", "report": {"snapshot_id": "rpt-1", "out_of_date": False, "plans": []}})
-    assert '"report"' not in fresh[1]["content"]  # not duplicated in the comparison context
-    assert fresh[2]["content"].startswith("MISSION REPORT: the user HAS generated") and "Status: CURRENT" in fresh[2]["content"]
+    assert '"report"' not in fresh[2]["content"]  # not duplicated in the comparison context
+    assert fresh[1]["content"].startswith("MISSION REPORT: the user HAS generated") and "Status: CURRENT" in fresh[1]["content"]
     stale = build_messages(q, {"report": {"snapshot_id": "rpt-1", "out_of_date": True}})
-    assert "Status: OUT OF DATE" in stale[2]["content"]
+    assert "Status: OUT OF DATE" in stale[1]["content"]
     assert stale[-1] == q[-1]
 
 

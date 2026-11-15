@@ -69,7 +69,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     badge: 'Perspective',
     whyItMatters:
       'Inspect terrain from orbit or drop to lander height (2 m) looking straight toward the Sun or Earth to see the exact crater ridge blocking sunlight or telemetry.',
-    tryPrompt: 'Hover Camera Position to try Globe, Region, Site, Sun, or Earth view — or toggle Top-Down.',
+    tryPrompt: 'Hover Camera Position to try Globe, Region, Site, Sun, or Earth view - or toggle Top-Down.',
     targetSelectors: ['[data-tour="camera-menu"]', '[data-tour="top-down"]'],
     preferredPlacement: 'top',
     triggers: ['camera-view', 'top-down'],
@@ -92,7 +92,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Sky Plot & Terrain Obstructions',
     badge: 'Horizon Mask',
     whyItMatters:
-      'The polar sky dome overlays the 360° terrain horizon curve against Sun and Earth trajectories — wherever a path dips behind the rim, power or direct-to-Earth comms drop out.',
+      'The polar sky dome overlays the 360° terrain horizon curve against Sun and Earth trajectories: wherever a path dips behind the rim, power or direct-to-Earth comms drop out.',
     tryPrompt: 'Explore the polar Sky plot or toggle Sun/Earth terrain blocker lines under Map Layers.',
     targetSelectors: ['[data-tour="minimap-panel"]', '[data-tour="map-layers"]'],
     preferredPlacement: 'left',

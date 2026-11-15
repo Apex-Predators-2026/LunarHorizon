@@ -29,7 +29,7 @@ OPERATING_RULES = """HOW TO READ THE COMPARISON CONTEXT (the JSON message that f
 - "basis": measured / derived come from NASA JPL Horizons ephemerides and LOLA terrain; "idealized" is an upper-bound engineering estimate (real output is lower); "config" comes from the user's spacecraft settings; "viability" is the team's assessment engine.
 - "requirements": per scenario, the requirement's status, the measured value, the threshold and the margin (how far inside or outside the threshold; "uncertain" when it cannot be computed). Use these to explain why something passes or fails.
 - "headroom" (PASS only): how comfortably it passes; "limited_by" names requirements met with little margin.
-- "figures_withheld": why a scenario's whole-mission figures read "unavailable" (for example the stored NASA data ends before the mission does, or the Sun's or Earth's state is unknown for some hours). Those figures are withheld, not zero; the verdict is judged on the hours that do have data, so it can show FAIL but never PASS. When figures are unavailable, give this reason instead of comparing them.
+- "figures_withheld": why a scenario's whole-mission figures read "unavailable" (for example the stored NASA data ends before the mission does, or the Sun's or Earth's state is unknown for some hours). Those figures are withheld, not zero; the verdict is judged on the hours that do have data, with the missing hours bounded: it is FAIL or PASS only where that evidence proves it (usually FAIL) and UNKNOWN otherwise, so do not say withheld figures make a verdict impossible or certain. When figures are unavailable, give this reason instead of comparing them.
 - "rescue" (present only when the plans came from Mission Rescue): "original" and "changed" are scenario letters; "changed_problems" are what the changed plan fails or cannot decide; each alternative has Mission Rescue's own rank and verdict, the re-assessment on this page ("outcome_here", "outcome_text"), the requirements it fixes and those still open. The re-assessment on this page is authoritative: an alternative is a confirmed fix only when outcome_here is "confirmed". Say so when "disagrees_with_rescue" is true. Each scenario's "rescue_role" says what it is: use exactly those roles. If "original" is null, the original plan is not in this comparison: never call another scenario the original.
 - "interface_guide": the only description of the page's controls. Describe only controls and sections named there or in "sections"; never invent a button.
 - "report" (null until the user generates one): the Mission Report, a frozen snapshot of the comparison taken at "generated_at". Questions about "my report" are answered from "report" only, quoting its plans, decisions, decisive differences, main uncertainty and limitations; never from the live comparison. If "out_of_date" is true, the scenarios or results changed after it was generated: say first that the report describes the earlier comparison, and do not present its findings as current (suggest generating a new report). Name report sections only from "report.sections". If "report" is null, say no report has been generated yet and how to generate one (interface_guide).
@@ -91,8 +91,11 @@ def context_message(context: dict[str, Any]) -> str:
 def report_message(report: Any) -> str:
     """The Mission Report on its own, with its state stated first, so it is never overlooked inside the context."""
     if not isinstance(report, dict):
-        return ("MISSION REPORT: none. The user has not generated a Mission Report yet. For questions about \"my report\", "
-                "say so and explain how to generate one.")
+        # Worded so it only applies to questions that are about a report: "summarize my comparison" must still be
+        # answered from the comparison (an emphatic "none" here was being applied to every question).
+        return ("Mission Report status: no Mission Report has been generated yet. This matters only if the user asks about "
+                "a report (\"my report\", \"the report\", the PDF): then say none exists yet and how to generate one. "
+                "Every other question, including summaries of the comparison, is answered from the comparison context.")
     if report.get("out_of_date"):
         state = ("OUT OF DATE: the scenarios or their results changed after it was generated, so it describes the earlier "
                  "comparison, not the one on screen now. Whenever you use it, begin the answer with exactly \"Note: this report "
@@ -110,9 +113,10 @@ def build_messages(history: list[dict[str, str]], context: dict[str, Any]) -> li
     """System instruction + current context (+ the Mission Report, when the page sends one) + recent turns."""
     messages = [{"role": "system", "content": CORE_INSTRUCTION + "\n\n" + OPERATING_RULES}]
     if "report" in context:
+        # The comparison context goes last, where it carries the most weight for comparison questions.
         rest = {k: v for k, v in context.items() if k != "report"}
-        messages += [{"role": "system", "content": context_message(rest)},
-                     {"role": "system", "content": report_message(context["report"])}]
+        messages += [{"role": "system", "content": report_message(context["report"])},
+                     {"role": "system", "content": context_message(rest)}]
     else:
         messages.append({"role": "system", "content": context_message(context)})
     return [*messages, *history[-MAX_HISTORY:]]

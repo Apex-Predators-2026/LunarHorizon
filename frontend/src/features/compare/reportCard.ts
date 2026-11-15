@@ -22,6 +22,8 @@ export type Eligibility = 'Eligible (ranked)' | 'Eligible (not ranked)' | 'Ineli
 export interface CardValue {
   text: string // as displayed: "95.6%", "between 12 h and 30 h", "Unavailable", "Not assessed"
   kind: 'known' | 'bounded' | 'unavailable' | 'not_applicable' | 'not_assessed'
+  /** The exact value in display units (%, h, °), for charts. Only when kind is 'known'. */
+  num?: number
 }
 
 export interface PlanSummary {
@@ -61,6 +63,8 @@ export interface RequirementRow {
   id: string
   requirement: string
   limit: string | null // shared limit, or null when the plans differ (then each cell has its own)
+  /** The shared limit as a number in display units (%, h, °), for charts; null when the plans differ. */
+  limit_value: number | null
   cells: Record<string, RequirementCell>
 }
 
@@ -124,7 +128,7 @@ export function valueOf(m: ExportedMetric | null | undefined, assessed = true): 
   const pct = m.unit === 'fraction'
   const unit = pct || m.unit === '%' ? '%' : m.unit === 'h' ? 'h' : 'deg'
   const k = pct ? 100 : 1
-  if (m.status === 'known' && m.value !== null) return { text: fmtMetric(m.value * k, unit), kind: 'known' }
+  if (m.status === 'known' && m.value !== null) return { text: fmtMetric(m.value * k, unit), kind: 'known', num: m.value * k }
   if (m.status === 'bounded' && m.lower !== null && m.upper !== null) {
     return { text: `between ${fmtMetric(m.lower * k, unit)} and ${fmtMetric(m.upper * k, unit)}`, kind: 'bounded' }
   }
@@ -219,7 +223,7 @@ function metricRows(defs: MetricDef[], scenarios: ExportedScenario[]): MetricRow
         const v = exact(share)
         if (v !== null && hours !== null) {
           const h = (v / 100) * hours
-          values[s.label] = { text: fmtMetric(h, 'h'), kind: 'known' }
+          values[s.label] = { text: fmtMetric(h, 'h'), kind: 'known', num: h }
           nums[s.label] = h
         } else if (share && share.status === 'bounded' && share.lower !== null && share.upper !== null && hours !== null) {
           values[s.label] = { text: `between ${fmtMetric((share.lower / 100) * hours, 'h')} and ${fmtMetric((share.upper / 100) * hours, 'h')}`, kind: 'bounded' }
@@ -259,8 +263,8 @@ function viabilityRows(scenarios: ExportedScenario[], plans: PlanSummary[]): Met
     { id: 'rank', metric: 'Canonical rank', better: null, note: 'Only eligible PASS plans, within their comparable group', values: by((_, p) => p.rank), best: [] },
     { id: 'failed', metric: 'Failed requirements', better: null, note: null, values: by((s) => (!s.assessed ? 'Not assessed' : s.failed_requirements.length ? s.failed_requirements.join('; ') : 'None')), best: [] },
     { id: 'undecided', metric: 'Undecided requirements (not failures)', better: null, note: null, values: by((s) => (!s.assessed ? 'Not assessed' : s.undecided_requirements.length ? s.undecided_requirements.join('; ') : 'None')), best: [] },
-    { id: 'headroom', metric: 'Operating headroom', better: null, note: 'How comfortably a passing plan clears its limits', values: by((s) => (s.eligibility === 'pass' && s.headroom ? s.headroom.qualified_verdict : '—')), best: [] },
-    { id: 'risk', metric: 'Screening risk', better: null, note: null, values: by((s) => s.overall_risk ?? '—'), best: [] },
+    { id: 'headroom', metric: 'Operating headroom', better: null, note: 'How comfortably a passing plan clears its limits', values: by((s) => (s.eligibility === 'pass' && s.headroom ? s.headroom.qualified_verdict : '-')), best: [] },
+    { id: 'risk', metric: 'Screening risk', better: null, note: null, values: by((s) => s.overall_risk ?? '-'), best: [] },
     {
       id: 'score', metric: 'Desirability score', better: null, note: 'Relative index under the engine weights; not a probability of success',
       values: by((s) => (s.score.status === 'known' && s.score.exact !== null ? s.score.exact.toFixed(1)
@@ -282,12 +286,14 @@ function requirementRows(scenarios: ExportedScenario[]): { rows: RequirementRow[
   const rows = ids.map(({ id, name }) => {
     const cells: Record<string, RequirementCell> = {}
     const limits = new Set<string>()
+    const limitValues = new Set<number>()
     for (const s of scenarios) {
       const r = s.requirement_verdicts.find((x) => x.id === id)
       if (!s.assessed) { cells[s.label] = { status: 'NOT ASSESSED', limit: null, measured: 'Not assessed', margin: null, note: null }; continue }
-      if (!r || r.status === 'not_applicable') { cells[s.label] = { status: 'NOT CONFIGURED', limit: null, measured: '—', margin: null, note: 'Not a requirement of this plan' }; continue }
+      if (!r || r.status === 'not_applicable') { cells[s.label] = { status: 'NOT CONFIGURED', limit: null, measured: '-', margin: null, note: 'Not a requirement of this plan' }; continue }
       const limit = limitText(r)
       if (limit) limits.add(limit)
+      if (r.threshold !== null && r.comparison) limitValues.add(r.threshold * (r.measured.unit === 'fraction' ? 100 : 1))
       const st = statusOf(r.status)
       let note: string | null = null
       if (st === 'UNKNOWN') {
@@ -297,7 +303,8 @@ function requirementRows(scenarios: ExportedScenario[]): { rows: RequirementRow[
       } else if (st === 'FAIL') note = r.message
       cells[s.label] = { status: st, limit, measured: valueOf(r.measured).text, margin: marginText(s, r), note }
     }
-    return { id, requirement: name, limit: limits.size === 1 ? [...limits][0] : null, cells }
+    const shared = limits.size === 1 && limitValues.size === 1
+    return { id, requirement: name, limit: limits.size === 1 ? [...limits][0] : null, limit_value: shared ? [...limitValues][0] : null, cells }
   })
   return { rows, unknown_notes }
 }
@@ -363,7 +370,7 @@ function strengthsOf(s: ExportedScenario, card: Pick<ReportCard, 'performance' |
   }
   if (s.data.kind === 'demonstration') weaknesses.push('Uses synthetic demonstration data: illustrative only, not for planning')
   const cov = [s.data.sun_coverage_percent, s.data.earth_coverage_percent].filter((x): x is number => x !== null)
-  if (cov.length && Math.min(...cov) < 100) weaknesses.push(`Data covers only part of the mission (Sun ${s.data.sun_coverage_percent?.toFixed(1) ?? '—'}%, Earth ${s.data.earth_coverage_percent?.toFixed(1) ?? '—'}%)`)
+  if (cov.length && Math.min(...cov) < 100) weaknesses.push(`Data covers only part of the mission (Sun ${s.data.sun_coverage_percent?.toFixed(1) ?? '-'}%, Earth ${s.data.earth_coverage_percent?.toFixed(1) ?? '-'}%)`)
   return { label: s.label, strengths, weaknesses }
 }
 
@@ -436,8 +443,8 @@ function executiveSummary(card: Omit<ReportCard, 'executive_summary' | 'key_find
 export const NASA_SOURCES = [
   'NASA JPL Horizons System: apparent Sun and Earth azimuth and elevation from each site (CENTER=coord@301), precomputed hourly.',
   'NASA Moon Trek / LRO LOLA digital elevation models: terrain horizons in 720 directions with lunar curvature (5 m to 200 m resolution, out to 300 km).',
-  'NASA LROC Quickmap WAC_POLE_ILL_TWI_SOUTH: empirical illumination used to validate the sunlight model.',
-  'Validation reference: Gracy & Lee, LPSC 2024 (south-polar illumination of Connecting Ridge and Peak Near Shackleton).',
+  'NASA LROC Quickmap WAC_POLE_ILL_TWI_SOUTH: orbital illumination map the sunlight model is compared with, site by site (see Validation & methodology).',
+  'Gracy & Lee, LPSC 2024: source of the Connecting Ridge and Peak Near Shackleton coordinates. It locates those two sites; it is not a validation of this model.',
 ]
 
 export const DISCLAIMER = 'This report summarizes the Lunar Landing Site Navigator\'s modelled results for the selected scenarios and mission requirements, as computed at the time shown. It is a planning aid: it is not an official NASA mission approval, certification or guarantee of operational safety. Geometric sunlight and Earth line of sight are not power or radio-link budgets.'
@@ -480,7 +487,7 @@ export function buildReportCard(s: ReportSnapshot): ReportCard {
     datasets: s.export.reproduction.datasets.map((d) => `${d.file ? `data/sites/${d.file}` : d.dataset_id ?? 'dataset'}${d.sha256 ? ` · SHA-256 ${d.sha256}` : ''}`),
     coverage: x.map((e) => ({
       label: e.label,
-      text: !e.assessed ? 'Not assessed (no data)' : `${e.data.kind ?? 'unknown'} data · Sun state known ${e.data.sun_coverage_percent?.toFixed(1) ?? '—'}% / Earth ${e.data.earth_coverage_percent?.toFixed(1) ?? '—'}% of the evaluated mission`,
+      text: !e.assessed ? 'Not assessed (no data)' : `${e.data.kind ?? 'unknown'} data · Sun state known ${e.data.sun_coverage_percent?.toFixed(1) ?? '-'}% / Earth ${e.data.earth_coverage_percent?.toFixed(1) ?? '-'}% of the evaluated mission`,
     })),
     methodology: [
       'Each plan is evaluated hour by hour over its evaluated mission window: the Sun is treated as a 0.53° disk (partial sunlight counts partially) and Earth as visible when its centre is above the terrain horizon.',
@@ -489,8 +496,8 @@ export function buildReportCard(s: ReportSnapshot): ReportCard {
       ...(s.export.reproduction.time_policy ? [`Time policy: ${s.export.reproduction.time_policy}`] : []),
     ],
     versions: [
-      `Engine ${s.export.reproduction.versions.engine.join(', ') || '—'}`,
-      `Scoring ${s.export.reproduction.versions.scoring_method.join(', ') || '—'}`,
+      `Engine ${s.export.reproduction.versions.engine.join(', ') || '-'}`,
+      `Scoring ${s.export.reproduction.versions.scoring_method.join(', ') || '-'}`,
       `Export ${s.export.reproduction.versions.export_format}`,
       `Report snapshot ${s.snapshot_id} · ${REPORT_CARD_VERSION}`,
     ],

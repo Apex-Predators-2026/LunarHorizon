@@ -164,7 +164,7 @@ function hash(s: string): string {
   return (h >>> 0).toString(36)
 }
 
-const shown = (t: string | null | undefined) => (!t || t === '—' ? 'unavailable' : t)
+const shown = (t: string | null | undefined) => (!t || t === '-' || t === '-' ? 'unavailable' : t)
 
 export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], pairs: PairEvidence[], notes: string[], ready: boolean,
   rescue: RescueContext | null = null, report: AssistantReport | null = null): AssistantContext {

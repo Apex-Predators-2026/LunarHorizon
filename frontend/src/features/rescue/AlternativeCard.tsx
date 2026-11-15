@@ -157,7 +157,7 @@ export function AlternativeCard({ alt, selected, onSelect, onCheckSensitivity }:
             </span>
           </span>
           <span className="shrink-0 text-right">
-            <span className="block text-lg font-semibold leading-tight tabular-nums text-slate-100">{viability.score?.toFixed(0) ?? '—'}</span>
+            <span className="block text-lg font-semibold leading-tight tabular-nums text-slate-100">{viability.score?.toFixed(0) ?? '-'}</span>
             <span className="block text-xs text-slate-400">score</span>
           </span>
           <ChevronDownIcon size={20} className="shrink-0 text-slate-400 transition-transform group-open/alternative:rotate-180" />
