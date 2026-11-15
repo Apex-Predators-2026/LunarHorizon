@@ -1,7 +1,7 @@
 import { resolveHeadroom } from '../../lib/headroom'
 import { verdictOf } from '../../types'
 import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
-import { KIND_LABEL, fmtDelta, fmtShift, fmtUtc, fmtValue } from './format'
+import { KIND_LABEL, REASON_LABEL, fmtDelta, fmtShift, fmtUtc, fmtValue } from './format'
 import type { Alternative, DateSlipCheck, Robustness } from './types'
 
 const VERDICT_STYLE = {
@@ -52,6 +52,7 @@ function slipTitle(c: DateSlipCheck, limited: boolean, margin: string | null): s
     const base = c.closest_label && margin ? `${c.closest_label}: ${margin}` : margin ?? 'passes tested offset'
     return limited ? `${base} (limited margin)` : base
   }
+  if (c.reason && c.status === 'unknown') return REASON_LABEL[c.reason]
   return c.status === 'not_evaluated' ? 'not evaluated' : c.status
 }
 

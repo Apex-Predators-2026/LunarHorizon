@@ -36,12 +36,17 @@ const SITE_GROUPS: [string, string, (s: SiteInfo) => boolean][] = [
 export function useViewerSetup(sites: SiteInfo[] | null) {
   const { siteId, timeUtc, setSite, setTime } = useAppStore()
   const site = sites?.find((s) => s.id === siteId) ?? null
+  // Both checks read the store as it is now, not as it was at render: an earlier effect of the same commit (e.g.
+  // "Show why" applying its site and time) must not be overwritten by the default.
   useEffect(() => {
-    if (sites?.length && !site) setSite((sites.find((s) => s.id === 'connecting-ridge') ?? sites[0]).id)
+    const cur = useAppStore.getState().siteId
+    if (sites?.length && !sites.some((s) => s.id === cur)) setSite((sites.find((s) => s.id === 'connecting-ridge') ?? sites[0]).id)
   }, [sites, site, setSite])
   useEffect(() => {
-    if (site && (timeUtc < site.data_start_utc || timeUtc > site.data_stop_utc)) setTime(site.data_start_utc)
-  }, [site, timeUtc, setTime])
+    const { siteId: sid, timeUtc: t } = useAppStore.getState()
+    const s = sites?.find((x) => x.id === sid)
+    if (s && (t < s.data_start_utc || t > s.data_stop_utc)) setTime(s.data_start_utc)
+  }, [sites, site, timeUtc, setTime])
 }
 
 /** Site picker (lives in the sidebar), plus backend error / loading status. */
