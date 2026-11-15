@@ -1,10 +1,11 @@
 // Software verification of the viability engine, from its stored validation report
 // (GET /api/viability/validation-summary, written by `python -m app.viability.validation`).
 //
-// This is not the independent scientific validation in section 2 (ephemeris, horizon geometry, LROC sunlight):
+// This is not the independent scientific validation (the Scientific validation tab: ephemeris, horizon geometry, LROC sunlight):
 // it checks that the engine applies its own rules correctly on the committed site files (PASS / FAIL / UNKNOWN,
 // bounds, ranking, invariants). Every figure shown is the report's; a missing, stale, failed or unreachable report
 // is said to be exactly that, never shown as a success.
+import { Disclosure } from '../compare/disclosure'
 import type { ViabilityValidationState, ViabilityValidationSummary } from './api'
 import { reportVerdict, siteName } from './api'
 
@@ -80,8 +81,10 @@ export function ViabilityChecks({ state }: { state: ViabilityValidationState }) 
   const starts = [...new Set(s.datasets.map((d) => day(d.coverage_start_utc)))]
   const ends = [...new Set(s.datasets.map((d) => day(d.coverage_end_utc)))]
   const t = s.timing
+  // Failures are never tucked away: the case list and invariants open themselves when the report records any.
+  const failing = reportVerdict(s) === 'failed'
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <Banner s={s} />
 
       <div>
@@ -91,7 +94,10 @@ export function ViabilityChecks({ state }: { state: ViabilityValidationState }) 
           {syntheticCases.length ? `; ${syntheticCases.length} uses a labelled synthetic fixture only to show synthetic data is kept apart` : ''}.
           Plus {int(s.totals.smoke_checks)} smoke checks across every site file.
         </p>
-        <table className="mt-2 w-full max-w-[900px] text-left text-xs">
+      </div>
+
+      <Disclosure level={4} defaultOpen={failing} title="Cases" summary={`${s.cases.length} cases, ${int(s.totals.checks)} checks`}>
+        <table className="w-full max-w-[900px] text-left text-xs">
           <caption className="sr-only">Viability validation cases</caption>
           <thead className="text-ink-3">
             <tr>
@@ -112,11 +118,10 @@ export function ViabilityChecks({ state }: { state: ViabilityValidationState }) 
             ))}
           </tbody>
         </table>
-      </div>
+      </Disclosure>
 
-      <div>
-        <h3 className="text-sm font-medium text-ink">Invariants</h3>
-        <ul className="mt-1 space-y-1 text-xs text-ink-2">
+      <Disclosure level={4} defaultOpen={failing} title="Invariants" summary={`${s.invariants.filter((i) => i.passed).length} of ${s.invariants.length} held`}>
+        <ul className="space-y-1 text-xs text-ink-2">
           {s.invariants.map((i) => (
             <li key={i.name}>
               <span className={i.passed ? 'text-emerald-700' : 'text-red-700'}>{i.passed ? 'Held' : 'Violated'}:</span> {i.name}
@@ -124,8 +129,9 @@ export function ViabilityChecks({ state }: { state: ViabilityValidationState }) 
             </li>
           ))}
         </ul>
-      </div>
+      </Disclosure>
 
+      <Disclosure level={4} title="Data currency and versions" summary={`${s.datasets.length} site files, ${changed.length} changed since`}>
       <div className="grid gap-4 lg:grid-cols-2">
         <div>
           <h3 className="text-sm font-medium text-ink">Data currency</h3>
@@ -143,6 +149,7 @@ export function ViabilityChecks({ state }: { state: ViabilityValidationState }) 
           </p>
         </div>
       </div>
+      </Disclosure>
 
       <p className="text-xs text-ink-3">
         Standard lander used by the cases: {Object.entries(s.standard_lander).map(([k, v]) => `${k.replace(/_/g, ' ')} ${v}`).join(', ')}.
@@ -153,12 +160,11 @@ export function ViabilityChecks({ state }: { state: ViabilityValidationState }) 
         )}
       </p>
 
-      <div>
-        <h3 className="text-sm font-medium text-ink">Limitations stated by the report</h3>
-        <ul className="mt-1 list-disc space-y-1 pl-5 text-xs text-ink-2">
+      <Disclosure level={4} title="Limitations stated by the report" summary={`${s.limitations.length} stated`}>
+        <ul className="list-disc space-y-1 pl-5 text-xs text-ink-2">
           {s.limitations.map((l) => <li key={l}>{l}</li>)}
         </ul>
-      </div>
+      </Disclosure>
     </div>
   )
 }
