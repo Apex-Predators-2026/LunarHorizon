@@ -239,7 +239,7 @@ function Footer() {
 }
 
 /** The opening picture: the Moon with Earth rising behind it, with the project's headline over it. */
-function Hero({ onOpen }: { onOpen: () => void }) {
+function Hero({ onOpen, onTry }: { onOpen: () => void; onTry?: () => void }) {
   // The Moon settles into place once its pixels exist, so the move never plays over an empty frame.
   const moon = useRef<HTMLImageElement>(null)
   const [moonReady, setMoonReady] = useState(false)
@@ -269,6 +269,12 @@ function Hero({ onOpen }: { onOpen: () => void }) {
           <p className="lnd-hero-lead">{HERO.lead}</p>
           <div className="lnd-hero-actions">
             <OpenNavigatorButton onOpen={onOpen} />
+            {onTry && (
+              <button type="button" className="lnd-btn lnd-btn-glass" data-testid="landing-try-mission" onClick={onTry}
+                title="A guided, real-data mission: a plan, a launch delay, the evidence, a recovery, the comparison and a report">
+                Try a mission
+              </button>
+            )}
             <a className="lnd-btn lnd-btn-glass" href="#preview" onClick={toBeat('preview')}>
               See the app
             </a>
@@ -288,14 +294,15 @@ function Hero({ onOpen }: { onOpen: () => void }) {
   )
 }
 
-export default function Landing({ onOpen }: { onOpen: () => void }) {
+/** `onTryMission` starts the guided real-data mission ("Try a mission") in the navigator. */
+export default function Landing({ onOpen, onTryMission }: { onOpen: () => void; onTryMission?: () => void }) {
   const root = useRef<HTMLDivElement>(null)
   return (
     <div ref={root} id="top" className="lnd md-host">
       <GlassDefs />
       <Nav onOpen={onOpen} />
       <main>
-        <Hero onOpen={onOpen} />
+        <Hero onOpen={onOpen} onTry={onTryMission} />
         <FeatureCarousel />
         <MeetRover />
         <Data />

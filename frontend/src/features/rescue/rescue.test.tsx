@@ -10,6 +10,7 @@ import compromiseRes from './__fixtures__/compromise-response.json'
 import noneRes from './__fixtures__/rescue-none-response.json'
 import outsideRes from './__fixtures__/rescue-outside-data-response.json'
 import sensUnknownRes from './__fixtures__/sensitivity-unknown-response.json'
+import sensNeighboursRes from './__fixtures__/sensitivity-unknown-neighbours-response.json'
 import rescueRes from './__fixtures__/rescue-response.json'
 import sensitivityRes from './__fixtures__/sensitivity-response.json'
 import { ApiError, errorMessage, runRescue } from './api'
@@ -18,7 +19,7 @@ import { CompromiseResults } from './CompromisePanel'
 import { evaluatedTimeNote, fmtDelta, fmtShift, fmtUtc, fmtValue, fromUtcInput, headroom, headroomSummary, planInfo, toUtcInput } from './format'
 import { DEFAULT_REQUIREMENTS } from '../../types'
 import { usePlansStore } from '../plans/usePlansStore'
-import { RescueResults, RescuingLine } from './RescuePanel'
+import { RescueResults, RescuingLine, WhatChanged, whatChanged } from './RescuePanel'
 import { buildWalkthrough, GLOSSARY } from './walkthrough'
 import { RescueMapOverlay } from './RescueMapOverlay'
 import { overlayMarkers, rescueMapMarkers, summaryText } from './rescueMapMarkers'
@@ -31,6 +32,7 @@ const none = noneRes as unknown as RescueResponse
 const sensitivity = sensitivityRes as unknown as SensitivityResponse
 const outside = outsideRes as unknown as RescueResponse
 const sensUnknown = sensUnknownRes as unknown as SensitivityResponse
+const sensNeighbours = sensNeighboursRes as unknown as SensitivityResponse
 const compromise = compromiseRes as unknown as CompromiseResponse
 
 const jsonResponse = (body: unknown, status = 200) =>
@@ -236,7 +238,10 @@ describe('components render real backend responses', () => {
     expect(html).toContain('could not be checked (missing data)')
     expect(html).not.toContain('SYNTHETIC DATA')
     expect(html).toContain('unknown')
-    expect(sensUnknown.points.every((p) => p.status === 'not_evaluated')).toBe(true) // listed, none evaluated
+    // Every point is listed and none is decided: the slips are outside the data, the position checks unsupported.
+    expect(sensUnknown.points.every((p) => p.status === 'unknown' || p.status === 'not_evaluated')).toBe(true)
+    expect(sensUnknown.points.filter((p) => p.distance_km === 0).every((p) => p.reason === 'outside_coverage')).toBe(true)
+    expect(sensUnknown.points.filter((p) => p.distance_km > 0).every((p) => p.reason === 'position_unsupported')).toBe(true)
   })
 
   it('RescuingLine names the plan, site, landing date and length', () => {
@@ -865,3 +870,84 @@ describe('operational headroom in rescue UI', () => {
     expect(html).toContain('not a guarantee of spacecraft survival')
   })
 })
+
+
+describe('sensitivity of an UNKNOWN plan (real backend response)', () => {
+  it('keeps each neighbouring date as its own mission, with the reason for every undecided point', () => {
+    expect(verdictOfBase(sensNeighbours)).toBe('unknown')
+    const by = Object.fromEntries(sensNeighbours.points.filter((p) => p.distance_km === 0).map((p) => [p.date_offset_hours, p]))
+    expect(by[48].status).toBe('pass')
+    expect(by[72].status).toBe('fail')
+    expect(by[-24].status).toBe('unknown')
+    expect(by[-24].reason).toBe('outside_coverage')
+    const html = flat(renderToString(<SensitivityView data={sensNeighbours} />))
+    expect(html).toContain('data-testid="sensitivity-base-unknown"')
+    expect(html).toContain('Each slip below is a separate mission')
+    expect(html).toContain('-24 h · unknown · no data')
+    expect(html).toContain('data-reason="outside_coverage"')
+    expect(html).toContain('Without an answer: 1 outside the data range, 2 position check unsupported')
+    expect(html).toContain('says nothing about whether the planned date passes')
+    expect(html).not.toContain('>robust<')
+    expect(html).not.toContain('-24 h · fail')
+  })
+
+  it('labels missing-sample points differently from points outside the data, and older responses still render', () => {
+    const gap = {
+      ...sensNeighbours,
+      points: sensNeighbours.points.map((p) =>
+        p.date_offset_hours === -24 ? { ...p, reason: 'incomplete_data' as const, undecided_constraints: ['battery_hours'] } : p),
+      counts: { ...sensNeighbours.counts!, by_reason: { incomplete_data: 1, position_unsupported: 2 } },
+    }
+    const html = flat(renderToString(<SensitivityView data={gap} />))
+    expect(html).toContain('-24 h · unknown · gap')
+    expect(html).toContain('unknown: real data has missing samples here (can&#x27;t decide: battery_hours)')
+    expect(html).toContain('1 missing samples')
+    const legacy = {
+      ...sensNeighbours,
+      points: sensNeighbours.points.map(({ reason: _r, undecided_constraints: _u, ...p }) => p),
+      counts: { ...sensNeighbours.counts!, by_reason: undefined },
+    } as unknown as SensitivityResponse
+    const old = flat(renderToString(<SensitivityView data={legacy} />))
+    expect(old).toContain('-24 h · unknown')
+    expect(old).not.toContain('Without an answer')
+  })
+})
+
+describe('What changed', () => {
+  it('shows both canonical verdicts and the requirements the change broke', () => {
+    const d = whatChanged(rescue)
+    expect(d.from).toBe(verdictOfBase({ base: rescue.original } as unknown as SensitivityResponse))
+    const html = flat(renderToString(<WhatChanged res={rescue} />))
+    expect(html).toContain('data-testid="rescue-what-changed"')
+    expect(html).toContain('Original plan')
+    expect(html).toContain('After the change')
+    expect(d.newlyBroken.length).toBeGreaterThan(0)
+    for (const v of d.newlyBroken) expect(html).toContain(escapeHtml(v.message))
+    expect(d.newlyBroken.every((v) => !v.is_unknown)).toBe(true)
+  })
+
+  it('calls undecided requirements undecided, never broken', () => {
+    const d = whatChanged(outside)
+    expect(d.to).toBe('unknown')
+    expect(d.newlyBroken).toHaveLength(0)
+    expect(d.undecided.length).toBeGreaterThan(0)
+    const html = flat(renderToString(<WhatChanged res={outside} />))
+    expect(html).toContain('UNKNOWN')
+    expect(html).toContain('Undecided, not a failure')
+    expect(html).not.toContain('Newly broken')
+  })
+})
+
+function verdictOfBase(s: SensitivityResponse): 'pass' | 'fail' | 'unknown' {
+  const b = s.base
+  return b.eligibility ?? (b.passes ? 'pass' : 'fail')
+}
+
+/** Server-rendered HTML without React's text-node separators, so adjacent text reads as written. */
+function flat(html: string): string {
+  return html.replace(/<!-- -->/g, '')
+}
+
+function escapeHtml(t: string): string {
+  return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#x27;').replace(/"/g, '&quot;')
+}
