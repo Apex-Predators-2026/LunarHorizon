@@ -36,7 +36,8 @@ const GAP = 16 // distance from the window's edges
 const WORD_MS = 85 // one word about every 85 ms (roughly 12 words a second)
 const DOCK_W = 64
 const DOCK_H = 232
-const ROVER_DOCK = 168 // Rover's width beside the minimized dock
+const ROVER_SIZE = 230 // Rover's width everywhere he stands (beside the panel, the dock, or in the full-screen rail)
+const ROVER_H = Math.round((ROVER_SIZE * 148) / 160)
 
 /** Space taken by the app's floating header (the scrolling <main> is padded by exactly that much). */
 function useHeaderOffset(): number {
@@ -114,14 +115,50 @@ export function MissionAssistant({ entries, groups, pairs, notes, ready, onJump 
   )
 }
 
+const ASK_MASK = `url("data:image/svg+xml,${encodeURIComponent(
+  "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g font-family='Helvetica,Arial,sans-serif' font-weight='700' font-size='25' text-anchor='middle' fill='black'><text x='50' y='46'>Ask</text><text x='50' y='74'>Rover</text></g></svg>",
+)}")`
+
+/** The launcher's words as a mask image drawn in Inter Light (falls back to Helvetica until the font has loaded). */
+function useAskMask(): string {
+  const [mask, setMask] = useState(ASK_MASK)
+  useEffect(() => {
+    let live = true
+    void document.fonts?.load('300 100px Inter').then(() => {
+      if (!live) return
+      const c = document.createElement('canvas')
+      c.width = c.height = 400
+      const g = c.getContext('2d')
+      if (!g) return
+      g.fillStyle = '#000'
+      g.textAlign = 'center'
+      g.font = '300 112px Inter, sans-serif'
+      g.fillText('Ask', 200, 178)
+      g.fillText('Rover', 200, 296)
+      setMask(`url(${c.toDataURL('image/png')})`)
+    }).catch(() => {})
+    return () => { live = false }
+  }, [])
+  return mask
+}
+
 function Launcher({ buttonRef }: { buttonRef: Ref<HTMLButtonElement> }) {
   const { setOpen } = useAssistant.getState()
+  const mask = useAskMask()
   return (
-    <div className={`${SCOPE} fixed bottom-5 right-5 z-[70]`} style={SCOPE_STYLE}>
-      <button ref={buttonRef} type="button" data-tour="compare-assistant" onClick={() => { useAssistantLayout.getState().setLayout('side'); setOpen(true) }}
-        className="cmp-btn-primary shadow-lg" aria-label="Open the Mission Assistant" data-tip="Ask about this comparison">
-        <RoverMascot facing="left" size={28} animated={false} /> Mission Assistant
-      </button>
+    <div className={`${SCOPE} fixed bottom-5 right-12 z-[70]`} style={SCOPE_STYLE}>
+      <div className="ask-rover">
+        {/* Rover waits behind the button and peeks his head over the top when it is hovered. */}
+        <div className="ask-rover-peek" aria-hidden="true"><div className="ask-rover-in"><RoverMascot facing="left" size={160} /></div></div>
+        <button ref={buttonRef} type="button" data-tour="compare-assistant" onClick={() => { useAssistantLayout.getState().setLayout('side'); setOpen(true) }}
+          className="md-pop-fab relative z-[1] flex h-32 w-32 items-center justify-center rounded-[20%] bg-opal-50 shadow-lg shadow-black/40"
+          aria-label="Open the Mission Assistant" data-tip="Ask Rover about this comparison">
+          {/* The words are cut out of the mango mesh. */}
+          <span aria-hidden className="block h-full w-full" style={{ WebkitMaskImage: mask, maskImage: mask, WebkitMaskSize: '100% 100%', maskSize: '100% 100%' }}>
+            <InteractiveGrainGradient className="h-full w-full" />
+          </span>
+        </button>
+      </div>
     </div>
   )
 }
@@ -142,6 +179,37 @@ function Bounce({ on, lift = 10, children }: { on: boolean; lift?: number; child
     <span className="cmp-ai-bounce" data-on={on} style={{ ['--bounce' as string]: `${-lift}px` }}>
       {children}
     </span>
+  )
+}
+
+/** Rover standing on the page: he poofs in (he pops in and shrinks away) and poofs out when `show` ends. */
+function PoofRover({ show, pos, facing = 'right', talking = false, onClick, bubble }: {
+  show: boolean
+  pos: { left: number; top: number } | null
+  facing?: 'right' | 'left'
+  talking?: boolean
+  onClick?: () => void
+  bubble?: string
+}) {
+  const visible = show && pos !== null
+  const [mounted, setMounted] = useState(visible)
+  const last = useRef(pos)
+  if (visible) last.current = pos
+  useEffect(() => {
+    if (visible) { setMounted(true); return }
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const t = window.setTimeout(() => setMounted(false), reduce ? 0 : 700)
+    return () => window.clearTimeout(t)
+  }, [visible])
+  const at = visible ? pos : last.current
+  if (!at || (!visible && !mounted)) return null
+  return (
+    <div className="rover-poof" data-phase={visible ? 'in' : 'out'} style={{ left: at.left, top: at.top, width: ROVER_SIZE, height: ROVER_H }}>
+      <div className="rover-poof-body" onClick={onClick} style={{ cursor: onClick ? 'pointer' : undefined }}>
+        {bubble && <span className="cmp-ai-bubble">{bubble}</span>}
+        <Bounce on={talking} lift={30}><RoverMascot facing={facing} size={ROVER_SIZE} state={talking ? 'talking' : 'idle'} /></Bounce>
+      </div>
+    </div>
   )
 }
 
@@ -355,6 +423,12 @@ function Panel({ open, context, onNav, onClose }: {
 
   const full = layout === 'full'
   const min = layout === 'min'
+  // Rover's stand: left of the panel (side), left of the dock (minimized), or in the full-screen rail.
+  const standLeft = geo.left - ROVER_SIZE - 4
+  const standTop = geo.top + geo.height - ROVER_H
+  const sidePos = standLeft >= 8 ? { left: standLeft, top: standTop } : null
+  const fullPos = vp.w >= 768 ? { left: geo.left + 1 + 35, top: geo.top + 1 + 48 + 32 } : null
+  const sideRover = open && layout === 'side' && sidePos !== null
   const talking = typing
 
   const chat = (
@@ -382,7 +456,7 @@ function Panel({ open, context, onNav, onClose }: {
             <div className="space-y-4">
               {!full && (
                 <div className="flex flex-col items-center gap-2 pt-2 text-center">
-                  <Bounce on={talking} lift={16}><RoverMascot facing="left" size={92} state={talking ? 'talking' : 'idle'} /></Bounce>
+                  {!sideRover && <Bounce on={talking} lift={16}><RoverMascot facing="left" size={92} state={talking ? 'talking' : 'idle'} /></Bounce>}
                   <h3 className="text-lg font-medium text-ink">Hi, I'm Rover!</h3>
                   <p className="max-w-[28ch] text-sm text-ink-3">I'm here to help you understand your missions. Ask me anything about your mission data.</p>
                 </div>
@@ -490,10 +564,7 @@ function Panel({ open, context, onNav, onClose }: {
             onDoubleClick={() => setLayout(full ? 'side' : 'full')}>
             <InteractiveGrainGradient fill strength={1.6} patternScale={0.45} />
             <span className="relative flex min-w-0 flex-1 items-center gap-2">
-              {!full && <Bounce on={talking} lift={7}><RoverMascot facing="right" size={30} state={talking ? 'talking' : 'idle'} /></Bounce>}
-              <span className="truncate text-[15px] font-semibold leading-tight" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>
-                {full ? 'Rover · Mission Assistant' : 'Mission Assistant'}
-              </span>
+              <span className="cmp-ai-babydoll truncate text-[26px] leading-none" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}>Rover</span>
             </span>
             <span className="relative flex items-center gap-0.5">
               {messages.length > 0 && <BarButton label="New chat" onClick={clear}><BarIcon name="plus" /></BarButton>}
@@ -509,7 +580,7 @@ function Panel({ open, context, onNav, onClose }: {
           <div className={`flex min-h-0 flex-1 ${min ? 'hidden' : ''}`} aria-hidden={min}>
             {full && (
               <aside aria-label="About Rover" className="hidden w-[300px] shrink-0 flex-col items-center gap-4 overflow-y-auto border-r border-line bg-inset/50 px-6 py-8 text-center md:flex">
-                <Bounce on={talking} lift={30}><RoverMascot facing="right" size={230} state={talking ? 'talking' : 'idle'} /></Bounce>
+                {fullPos ? <div className="shrink-0" style={{ height: ROVER_H }} aria-hidden="true" /> : <RoverMascot facing="right" size={ROVER_SIZE} state={talking ? 'talking' : 'idle'} />}
                 <div>
                   <h2 className="text-xl font-medium text-ink">Hi, I'm Rover!</h2>
                   <p className="mt-1 text-sm leading-relaxed text-ink-3">Your mission assistant. I explain this comparison and show you around the page. Read-only: I can't change your plans.</p>
@@ -530,14 +601,10 @@ function Panel({ open, context, onNav, onClose }: {
         </aside>
       </div>
 
-      {/* Rover beside the minimized dock */}
-      {min && open && (
-        <button type="button" className="cmp-ai-rover" aria-label="Open the Mission Assistant" onClick={() => setLayout('side')}
-          style={{ left: geo.left - ROVER_DOCK - 6, top: geo.top + geo.height - Math.round((ROVER_DOCK * 148) / 160) }}>
-          <span className="cmp-ai-bubble">Need a hand? Ask me!</span>
-          <RoverMascot facing="right" size={ROVER_DOCK} />
-        </button>
-      )}
+      {/* Rover poofs in and out as the panel changes layout */}
+      <PoofRover show={open && layout === 'side'} pos={sidePos} talking={talking} />
+      <PoofRover show={open && layout === 'min'} pos={sidePos} onClick={() => setLayout('side')} bubble="Need a hand? Ask me!" />
+      <PoofRover show={open && layout === 'full'} pos={fullPos} talking={talking} />
     </>
   )
 }
@@ -594,9 +661,7 @@ function Message({ m, onNav, reveal }: { m: ChatMessage; onNav: (t: NavTarget) =
       <span className="mt-0.5 shrink-0"><Bounce on={Boolean(reveal?.talking)} lift={7}><RoverMascot facing="right" size={28} animated={Boolean(reveal)} state={reveal?.talking ? 'talking' : 'idle'} /></Bounce></span>
       <div className="min-w-0 flex-1">
         {basic && (
-          <p className="mb-1.5 inline-flex items-center gap-1 rounded-full border border-line px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-3">
-            Basic answer · not AI
-          </p>
+          <p className="cmp-ai-babydoll mb-1 text-[20px] leading-none text-coral">Rover says...</p>
         )}
         <RichText text={reveal ? firstWords(m.content, reveal.words) : m.content} onNav={onNav} />
         {!reveal && m.verdicts && m.verdicts.length > 0 && (
