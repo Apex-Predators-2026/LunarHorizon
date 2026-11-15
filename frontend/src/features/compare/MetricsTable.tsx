@@ -1,9 +1,19 @@
 // Section 3: side-by-side scientific metrics, best values marked, deltas against the baseline.
 import { Fragment, useState } from 'react'
 
-import { METRICS, bestIds, deltaVsBaseline, eligibilityOf, fmtDeltaValue, fmtMetric, groupCountOf, rankText, requirementMatrix, type Entry, type MetricDef } from './analysis'
+import { formatMarginMetric, marginStatusClassLabel } from '../../lib/headroom'
+import type { MarginStatus } from '../../types'
+import { PassHeadroomBadge } from '../../ui/PassHeadroom'
+import { METRICS, bestIds, deltaVsBaseline, eligibilityOf, fmtDeltaValue, fmtMetric, groupCountOf, headroomOfEntry, rankText, requirementMatrix, type Entry, type MetricDef } from './analysis'
 import { DataKindBadge, EligibilityBadge, Explain, ProvenanceTag, RankBadge, ReqIcon, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
+
+function marginBadgeClass(cls: MarginStatus): string {
+  if (cls === 'narrow' || cls === 'at_threshold') return 'border-warn/45 bg-inset text-warn'
+  if (cls === 'negative') return 'border-crit/40 bg-inset text-crit'
+  if (cls === 'comfortable') return 'border-ok/35 bg-inset text-ok'
+  return 'border-line-strong bg-inset text-unknown'
+}
 
 const DIRECTION: Record<'higher' | 'lower', { mark: string; text: string }> = {
   higher: { mark: '↑', text: 'higher is better' },
@@ -61,16 +71,42 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
             {open.requirements && (
               <tr>
                 <th scope="row" className="sticky left-0 bg-surface py-1 text-left text-xs font-normal text-slate-300">Eligibility · canonical rank</th>
-                {entries.map((e) => (
-                  <td key={e.scenario.id} className="py-1 pl-3 text-xs">
-                    {eligibilityOf(e) ? (
-                      <span className="inline-flex flex-wrap items-center gap-1">
-                        <EligibilityBadge eligibility={eligibilityOf(e)!} />
-                        {rankText(e.ranking, groupCount) && <RankBadge text={rankText(e.ranking, groupCount)!} />}
-                      </span>
-                    ) : <span className="text-slate-500" title="No canonical assessment">—</span>}
-                  </td>
-                ))}
+                {entries.map((e) => {
+                  const elig = eligibilityOf(e)
+                  const hr = headroomOfEntry(e)
+                  return (
+                    <td key={e.scenario.id} className="py-1 pl-3 text-xs">
+                      {elig ? (
+                        <span className="inline-flex flex-wrap items-center gap-1">
+                          <EligibilityBadge eligibility={elig} />
+                          <PassHeadroomBadge headroom={hr} eligibility={elig} surface="compare" />
+                          {rankText(e.ranking, groupCount) && <RankBadge text={rankText(e.ranking, groupCount)!} />}
+                        </span>
+                      ) : <span className="text-slate-500" title="No canonical assessment">—</span>}
+                    </td>
+                  )
+                })}
+              </tr>
+            )}
+            {open.requirements && (
+              <tr className="hover:bg-inset">
+                <th scope="row" className="sticky left-0 bg-surface py-1 pr-2 text-left text-xs font-normal text-slate-300">Closest requirement to limit</th>
+                {entries.map((e) => {
+                  const hr = headroomOfEntry(e)
+                  const closest = hr?.closest_constraint
+                  return (
+                    <td key={e.scenario.id} className="py-1 pl-3 align-top text-xs tabular-nums" title={closest?.summary_text}>
+                      {closest ? (
+                        <span className="inline-flex flex-col">
+                          <span className={closest.margin_class === 'narrow' || closest.margin_class === 'at_threshold' ? 'text-warn' : closest.margin_class === 'negative' ? 'text-crit' : 'text-slate-200'}>
+                            {closest.label} ({closest.headroom_text})
+                          </span>
+                          <span className="text-[11px] text-slate-500">{marginStatusClassLabel(closest.margin_class)}</span>
+                        </span>
+                      ) : <span className="text-slate-500">—</span>}
+                    </td>
+                  )
+                })}
               </tr>
             )}
             {open.requirements && requirements.map((row) => (
@@ -78,16 +114,31 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                 <th scope="row" className="sticky left-0 bg-surface py-1 pr-2 text-left text-xs font-normal text-slate-300">{row.name}</th>
                 {entries.map((e) => {
                   const c = row.cells[e.scenario.id]
+                  const marginText = c && c.margin.status !== 'unavailable' ? formatMarginMetric(c.margin, true) : null
+                  const isNarrow = c ? (c.marginClass === 'narrow' || c.marginClass === 'at_threshold') : false
                   return (
-                    <td key={e.scenario.id} className="py-1 pl-3 align-top text-xs tabular-nums" title={c?.message}>
+                    <td key={e.scenario.id} className="py-1 pl-3 align-top text-xs tabular-nums" title={c?.narrowReason ?? c?.message}>
                       {!c ? <span className="text-slate-500">—</span> : c.status === 'not_applicable' ? (
                         <span className="text-slate-500">not required</span>
                       ) : (
                         <span className="inline-flex items-start gap-1">
                           <ReqIcon status={c.status} />
                           <span>
-                            <span className={c.status === 'fail' ? 'text-red-300' : 'text-slate-200'}>{c.measured}</span>
+                            <span className={c.status === 'fail' ? 'text-red-300' : isNarrow ? 'text-warn' : 'text-slate-200'}>{c.measured}</span>
                             {c.threshold && <span className="text-slate-500"> (required {c.threshold})</span>}
+                            {marginText && marginText !== 'unavailable' && (
+                              <span className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]">
+                                <span className={c.marginClass === 'negative' ? 'text-red-300' : isNarrow ? 'text-warn' : c.marginClass === 'comfortable' ? 'text-emerald-300' : 'text-slate-400'}>
+                                  headroom {marginText}
+                                </span>
+                                <span className={`inline-flex items-center rounded border px-1 py-px text-[10px] font-medium leading-none ${marginBadgeClass(c.marginClass)}`}>
+                                  {marginStatusClassLabel(c.marginClass)}
+                                </span>
+                              </span>
+                            )}
+                            {c.narrowReason && (
+                              <span className="mt-0.5 block text-[11px] text-warn">{c.narrowReason}</span>
+                            )}
                           </span>
                         </span>
                       )}

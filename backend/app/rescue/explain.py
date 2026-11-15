@@ -98,10 +98,28 @@ def reasons_for(c: Candidate, changed: ViabilityResult, deltas: list[MetricDelta
     if losses and abs(losses[0].delta) / SCALE[losses[0].unit] >= 0.05:
         reasons.append("Trade-off — " + _sentence(losses[0]))
     m = c.result.metrics
-    if m.hours_to_first_sunset is not None:
-        reasons.append(f"First sunset {m.hours_to_first_sunset:.0f} h after landing.")
+    hr = getattr(c.result, "headroom", None)
+    if hr is not None:
+        if hr.darkness and hr.darkness.margin.status == "known" and hr.darkness.margin.value is not None:
+            reasons.append(f"Darkness headroom: {hr.darkness.margin.value:g} h of {hr.darkness.threshold:g} h battery limit.")
+        if (
+            hr.communication_blackout
+            and hr.communication_blackout.margin.status == "known"
+            and hr.communication_blackout.margin.value is not None
+        ):
+            reasons.append(
+                f"Comms blackout headroom: {hr.communication_blackout.margin.value:g} h of "
+                f"{hr.communication_blackout.threshold:g} h limit."
+            )
+        reasons.append(f"Initial illumination: {hr.initial_sunlight.summary_text}.")
+        reasons.append(f"Initial Earth contact: {hr.initial_earth.summary_text}.")
+        if hr.closest_constraint is not None:
+            reasons.append(f"Closest limit — {hr.closest_constraint.summary_text}.")
     else:
-        reasons.append("Sun stays up for the whole mission.")
+        if m.hours_to_first_sunset is not None:
+            reasons.append(f"First sunset {m.hours_to_first_sunset:.0f} h after landing.")
+        else:
+            reasons.append("Sun stays up for the whole mission.")
     return reasons
 
 
@@ -114,8 +132,13 @@ def headline_for(c: Candidate, changed: ViabilityResult) -> str:
         parts.append(f"{c.distance_km:.1f} km from the original site")
     if not parts:
         parts.append("no change from the delayed plan")
+    hr = getattr(c.result, "headroom", None)
+    if hr is not None and hr.qualified_verdict:
+        verdict = hr.qualified_verdict[0].lower() + hr.qualified_verdict[1:]
+    else:
+        verdict = "passes declared requirements (screening only)"
     return (f"Land at {where} on {fmt_time(c.scenario.landing_utc)} ({'; '.join(parts)}) — "
-            f"passes all requirements, score {fmt_score(c.result.score)} (delayed plan: {fmt_score(changed.score)}).")
+            f"{verdict}, score {fmt_score(c.result.score)} (delayed plan: {fmt_score(changed.score)}).")
 
 
 def why_fails(res: ViabilityResult) -> list[str]:

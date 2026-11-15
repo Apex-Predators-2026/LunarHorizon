@@ -1,10 +1,13 @@
 // Section 2: one card per compared scenario, status first: data source, eligibility and canonical rank, then the
 // headline figures (from the viability engine's own metrics) and which requirements pass, fail or cannot be decided.
+import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
 import { fmtUtc } from '../rescue/format'
 import {
   cm,
   eligibilityOf,
   groupCountOf,
+  headroomOfEntry,
+  isLimitedHeadroom,
   measuredText,
   rankText,
   requirementSummary,
@@ -47,6 +50,7 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
         const r = e.result
         const a = r?.assessment
         const elig = eligibilityOf(e)
+        const hr = headroomOfEntry(e)
         const rank = rankText(e.ranking, groupCount)
         const req = requirementSummary(e)
         return (
@@ -70,6 +74,7 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
               {e.state?.state === 'error' && <span className="text-[11px] text-red-300">Error</span>}
               {e.state?.state === 'done' && <DataKindBadge kind={e.state.result.data_kind} />}
               {elig && <EligibilityBadge eligibility={elig} />}
+              {elig && <PassHeadroomBadge headroom={hr} eligibility={elig} surface="compare" />}
               {rank ? <RankBadge text={rank} /> : elig && <span className="text-[11px] text-slate-500">not ranked</span>}
               {baselineId === s.id && <span className="rounded bg-cyan-900/70 px-1.5 py-0.5 text-[11px] text-cyan-200">baseline</span>}
             </div>
@@ -82,10 +87,12 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
                   <Figure label="Longest power darkness" r={r} metric="longest_power_darkness_h" constraint="max_continuous_darkness" />
                   <Figure label="Longest blackout" r={r} metric="longest_blackout_h" constraint="max_communication_blackout" />
                 </div>
+                {hr && <PassHeadroom headroom={hr} surface="compare" showScreeningNote className="mt-3" />}
                 {req && (
                   <div className="mt-3 border-t border-line pt-2 text-[11px]">
                     <div className="text-slate-300">
                       <span className="tabular-nums font-medium">{req.passed} of {req.applicable}</span> requirements met
+                      {elig === 'pass' && isLimitedHeadroom(hr) && <> · <span className="text-warn">limited margin</span></>}
                       {req.failed.length > 0 && <> · <span className="text-red-300">{req.failed.length} failed</span></>}
                       {req.undecided.length > 0 && <> · <span className="text-slate-200">{req.undecided.length} cannot be decided</span></>}
                     </div>

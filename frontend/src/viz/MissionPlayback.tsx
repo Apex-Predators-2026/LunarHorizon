@@ -1,6 +1,8 @@
 // Panel above the map toolbar while a mission plays (state: useMissionPlayback.ts).
+import { deriveHeadroomFromTrack, resolveHeadroom } from '../lib/headroom'
 import { useAppStore } from '../store'
 import { verdictOf } from '../types'
+import { PassHeadroom, PassHeadroomBadge } from '../ui/PassHeadroom'
 import { fmtHours, missionAt } from './mission'
 import { parseUtc } from './timeline'
 import type { MissionPlayback } from './useMissionPlayback'
@@ -54,6 +56,14 @@ export function MissionPanel({ mission }: { mission: MissionPlayback }) {
   const gapLevel = m.gapStreak / req.max_comms_gap_hours
   const tone = (x: number) => (x > 1 ? 'text-red-400' : x > 0.75 ? 'text-amber-300' : 'text-emerald-300')
   const verdict = mission.verdict
+  const headroom = verdict ? resolveHeadroom(verdict) : deriveHeadroomFromTrack(track, req)
+  const elig = verdict
+    ? verdictOf(verdict)
+    : track.failures.length > 0
+      ? 'fail'
+      : track.unknownHours > 0
+        ? 'unknown'
+        : 'pass'
 
   return (
     <div className={box} role="status" aria-live="polite">
@@ -108,10 +118,17 @@ export function MissionPanel({ mission }: { mission: MissionPlayback }) {
       )}
 
       {ended && (
-        <div className="mt-2 rounded-lg border border-opal-300 p-2">
-          <p className="font-medium text-calcite-ink">
-            {track.failures.length ? `Mission over: ${track.failures.length} requirement${track.failures.length > 1 ? 's' : ''} broken` : 'Mission over: every requirement held'}
-          </p>
+        <div className="mt-2 rounded-lg border border-opal-300 p-2" data-testid="mission-ended-summary">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-medium text-calcite-ink">
+              {track.failures.length
+                ? `Mission over: ${track.failures.length} requirement${track.failures.length > 1 ? 's' : ''} broken`
+                : track.unknownHours > 0
+                  ? 'Mission over: coverage gaps leave survival unresolved'
+                  : 'Mission over: passes declared model limits'}
+            </p>
+            <PassHeadroomBadge headroom={headroom} eligibility={elig} surface="planner" />
+          </div>
           <ul className="mt-0.5 list-disc pl-4">
             {track.failures.map((f) => (
               <li key={f.constraint} className="text-red-300">
@@ -124,6 +141,7 @@ export function MissionPanel({ mission }: { mission: MissionPlayback }) {
               {track.unknownHours ? `, ${track.unknownHours} h unknown (missing terrain data)` : ''}.
             </li>
           </ul>
+          {!verdict && <PassHeadroom headroom={headroom} surface="planner" compact className="mt-2" />}
           <button type="button" className={`${button} mt-1.5`} onClick={mission.start}>
             Play again
           </button>
@@ -131,10 +149,16 @@ export function MissionPanel({ mission }: { mission: MissionPlayback }) {
       )}
 
       {verdict && (
-        <p className="mt-1.5 text-[11px] text-slate-400">
-          Viability engine: <span className="font-medium uppercase">{verdictOf(verdict)}</span>
-          {verdict.violations.length ? ` · ${verdict.violations.map((v) => v.message).join(' · ')}` : ''}
-        </p>
+        <div className="mt-2 space-y-1.5" data-testid="mission-verdict-headroom">
+          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
+            <span>Viability engine:</span>
+            <PassHeadroomBadge headroom={headroom} eligibility={elig} surface="planner" />
+            {verdict.violations.length > 0 && (
+              <span>· {verdict.violations.map((v) => v.message).join(' · ')}</span>
+            )}
+          </div>
+          <PassHeadroom headroom={headroom} surface="planner" compact />
+        </div>
       )}
     </div>
   )

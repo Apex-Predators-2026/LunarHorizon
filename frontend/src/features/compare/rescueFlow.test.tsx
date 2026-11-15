@@ -1,11 +1,14 @@
 // Phase 6: requirement evidence on the timeline, and Mission Rescue -> comparison.
+import { renderToString } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 
+import { SCREENING_NOTE } from '../../lib/headroom'
 import rescueFixture from '../rescue/__fixtures__/rescue-response.json'
 import type { RescueResponse } from '../rescue/types'
 import fixture from './__fixtures__/compare-response.json'
 import { violationWindows, type Entry } from './analysis'
 import { describeChange, rescueImportPlan, rescueSteps, type RescueContext } from './rescueFlow'
+import { RescueStory } from './RescueStory'
 import { makeScenario } from './scenario'
 import type { CompareResponse, CompareResult, RankingInfo } from './types'
 
@@ -115,5 +118,60 @@ describe('rescue story', () => {
       [other.scenario.id]: { role: 'alternative', rank: 2 },
     }), [changed, fails, other])
     expect(s.alternatives.map((a) => a.outcome)).toEqual(['still_fails', 'passes_separately'])
+  })
+
+  it('qualifies a confirmed Rescue alternative that passes with limited darkness margin and renders screening note', () => {
+    const changed = entry('A')
+    const baseFix = entry('B')
+    const a = baseFix.result!.assessment!
+    const v = baseFix.result!.viability!
+    const req = { ...v.scenario.requirements, battery_hours: 50, min_initial_sun_hours: 0, min_initial_comms_hours: 0 }
+    const limitedResult: CompareResult = {
+      ...baseFix.result!,
+      viability: {
+        ...v,
+        headroom: undefined,
+        scenario: { ...v.scenario, requirements: req },
+        metrics: { ...v.metrics, longest_dark_gap_hours: 49 },
+      },
+      assessment: {
+        ...a,
+        headroom: undefined,
+        margins: undefined,
+        constraints: a.constraints.map((c) => (
+          c.id === 'max_continuous_darkness'
+            ? { ...c, threshold: 50, measured: { status: 'known', unit: 'h', value: 49, lower: null, upper: null, reason: null } }
+            : c
+        )),
+        metrics: {
+          ...a.metrics,
+          longest_power_darkness_h: { status: 'known', unit: 'h', value: 49, lower: null, upper: null, reason: null },
+        },
+      },
+    }
+    const limitedFix: Entry = {
+      ...baseFix,
+      scenario: { ...baseFix.scenario, requirements: req },
+      result: limitedResult,
+      state: { state: 'done', result: limitedResult },
+    }
+    const ctx = ctxFor({ [changed.scenario.id]: { role: 'changed', rescueVerdict: 'fail' }, [limitedFix.scenario.id]: { role: 'alternative', rank: 1, rescueVerdict: 'pass' } })
+    const s = rescueSteps(ctx, [changed, limitedFix])
+    expect(s.alternatives[0].outcome).toBe('confirmed')
+    expect(s.alternatives[0].headroom!.status).toBe('limited')
+    expect(s.alternatives[0].outcomeText).toContain('limited darkness margin')
+    expect(s.alternatives[0].outcomeText).toContain('Max continuous darkness: +1 h remaining of 50 h limit (2.0%)')
+
+    const html = renderToString(
+      <RescueStory
+        entries={[changed, limitedFix]}
+        groups={res.ranking_groups.filter((g) => g.id === 'G1')}
+        pairs={res.pairwise}
+        rescueContext={ctx}
+      />,
+    )
+    expect(html).toContain('Pass · limited darkness')
+    expect(html).toContain('limited operational headroom')
+    expect(html).toContain(SCREENING_NOTE)
   })
 })

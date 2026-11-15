@@ -81,6 +81,18 @@ class MetricDelta(BaseModel):
     better: bool | None = Field(description="True if the change is an improvement, None if unchanged/unknown")
 
 
+class DateSlipCheck(BaseModel):
+    date_offset_hours: float
+    status: Literal["pass", "fail", "unknown", "not_evaluated"]
+    passes: bool
+    darkness_headroom_h: float | None = None
+    comms_headroom_h: float | None = None
+    closest_label: str | None = None
+    closest_headroom_text: str | None = None
+    headroom_status: str | None = None
+    failing_constraints: list[str] = Field(default_factory=list)
+
+
 class Robustness(BaseModel):
     checked_points: int
     passing_points: int
@@ -88,6 +100,10 @@ class Robustness(BaseModel):
     worst_score: float | None = Field(description="Lowest score among the checks; None if none was scored")
     verdict: Literal["robust", "sensitive", "fragile", "unchecked"]
     note: str
+    date_checks: list[DateSlipCheck] = Field(default_factory=list)
+    date_passing: int = 0
+    date_checked: int = 0
+    date_note: str | None = None
 
 
 class Alternative(BaseModel):
@@ -149,6 +165,7 @@ class RescueResponse(BaseModel):
     summary: str
     original: ViabilityResult
     changed: ViabilityResult
+    changed_robustness: Robustness | None = None
     alternatives: list[Alternative]
     near_misses: list[NearMiss]
     loosening: list[LooseningSuggestion]
@@ -181,6 +198,11 @@ class SensitivityPoint(BaseModel):
         "not_evaluated",
         description="pass/fail = evaluated on real data (or simulation); unknown = evaluated but real data is "
                     "incomplete; not_evaluated = skipped (e.g. no terrain around the site)")
+    darkness_headroom_h: float | None = None
+    comms_headroom_h: float | None = None
+    closest_label: str | None = None
+    closest_headroom_text: str | None = None
+    headroom_status: str | None = None
 
 
 class SensitivityCounts(BaseModel):
@@ -208,6 +230,11 @@ class SensitivityResponse(BaseModel):
     skipped_points: int = Field(0, description="Legacy: points without a pass/fail answer (unknown + not_evaluated)")
     verdict: Literal["robust", "sensitive", "fragile", "fails", "unknown", "not_assessed"]
     explanation: str
+    date_limited_offsets_hours: list[float] = Field(default_factory=list)
+    tightest_passing_headroom: str | None = None
+    screening_note: str = Field(
+        default="Model screening across discrete tested offsets only; not a guarantee between tested points or of spacecraft survival."
+    )
 
 
 # ---------------------------------------------------------------- science vs engineering

@@ -25,6 +25,8 @@ METRIC_FIELDS: dict[str, str] = {
     "longest_simultaneous_h": "longest_simultaneous_window",
     "initial_sunlight_h": "initial_sunlight_duration",
     "initial_earth_h": "initial_earth_visibility_duration",
+    "time_to_first_sunset_h": "time_to_first_sunset",
+    "time_to_first_earthset_h": "time_to_first_earthset",
     "mean_sun_clearance_deg": "mean_sun_clearance",
     "mean_earth_clearance_deg": "mean_earth_clearance",
     "mean_solar_elevation_deg": "mean_solar_elevation",
@@ -78,7 +80,12 @@ def assessment_info(a: ViabilityAssessment) -> AssessmentInfo:
         )
         for c in a.constraints
     ]
+    from ..viability.compat.headroom import build_operational_headroom
+
+    headroom = build_operational_headroom(a)
     return AssessmentInfo(
+        margins=headroom.constraints,
+        headroom=headroom,
         engine_version=a.engine_version,
         scoring_method_version=a.score.method_version or "",
         dataset_id=q.dataset_id,
