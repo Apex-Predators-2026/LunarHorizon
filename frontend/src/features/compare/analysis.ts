@@ -963,8 +963,13 @@ const h = (v: number) => (v >= 72 ? `${Math.round(v)} h (${(v / 24).toFixed(1)} 
 const p = (v: number) => `${(v * 100).toFixed(1)}%`
 
 export function buildSummary(entries: Entry[]): Summary {
-  const list = comparableEntries(entries).filter((e) => e.result!.solar && e.result!.earth)
+  // A scenario is summarised only when both bodies' statistics exist and the engine's longest-gap values are known.
+  const list = comparableEntries(entries).filter((e) => e.result!.solar && e.result!.earth &&
+    e.result!.solar.longest_dark_hours != null && e.result!.earth.longest_blackout_hours != null)
   const caveats: string[] = []
+  // Non-null: `list` below keeps only scenarios whose longest-gap values are known.
+  const darkOf = (r: CompareResult): number => r.solar!.longest_dark_hours as number
+  const blackOf = (r: CompareResult): number => r.earth!.longest_blackout_hours as number
   const unavailable = entries.filter((e) => e.state?.state === 'done' && !e.result)
   if (unavailable.length) caveats.push(`${unavailable.map(lbl).join(', ')} ${unavailable.length > 1 ? 'have' : 'has'} no scientific data for the chosen site/dates and ${unavailable.length > 1 ? 'are' : 'is'} not included.`)
   const demoOut = okEntries(entries).filter((e) => !list.includes(e))
@@ -981,8 +986,8 @@ export function buildSummary(entries: Entry[]): Summary {
 
   const solar = pick(list, (e) => e.result!.solar!.mean_visible_fraction, 'higher')!
   const comms = pick(list, (e) => e.result!.earth!.visible_fraction, 'higher')!
-  const dark = pick(list, (e) => e.result!.solar!.longest_dark_hours, 'lower')!
-  const black = pick(list, (e) => e.result!.earth!.longest_blackout_hours, 'lower')!
+  const dark = pick(list, (e) => darkOf(e.result!), 'lower')!
+  const black = pick(list, (e) => blackOf(e.result!), 'lower')!
 
   const tied = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol
   const winners = (x: NonNullable<ReturnType<typeof pick>>, tol: number) => x.all.filter((y) => tied(y.v, x.best.v, tol)).map((y) => y.e)
@@ -1023,8 +1028,8 @@ export function buildSummary(entries: Entry[]): Summary {
     // Only call something a weakness when the gap to the best is meaningful.
     if (solar.worst.e === e && solar.best.v - solar.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least solar availability (${p(r.solar!.mean_visible_fraction)})`)
     if (comms.worst.e === e && comms.best.v - comms.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least Earth visibility (${p(r.earth!.visible_fraction)})`)
-    if (dark.worst.e === e && significantHours(dark.best.v, dark.worst.v)) weaknesses.push(`Longest darkness (${h(r.solar!.longest_dark_hours)})`)
-    if (black.worst.e === e && significantHours(black.best.v, black.worst.v)) weaknesses.push(`Longest blackout (${h(r.earth!.longest_blackout_hours)})`)
+    if (dark.worst.e === e && significantHours(dark.best.v, dark.worst.v)) weaknesses.push(`Longest darkness (${h(darkOf(r))})`)
+    if (black.worst.e === e && significantHours(black.best.v, black.worst.v)) weaknesses.push(`Longest blackout (${h(blackOf(r))})`)
     const uncertain: string[] = []
     for (const v of r.viability?.violations ?? []) (v.is_unknown ? uncertain : weaknesses).push(v.message)
     return { entry: e, strengths, cautions, weaknesses, uncertain }
@@ -1038,9 +1043,9 @@ export function buildSummary(entries: Entry[]): Summary {
     overall.push(`${lbl(S)} leads on both power and communication: ${p(solar.best.v)} mean visible solar disk (next best ${p(solar.second.v)}) and Earth in view ${p(comms.best.v)} of the mission (next best ${p(comms.second.v)}).`)
   } else {
     if (bestSolar.length === 1) {
-      const darkS = S.result!.solar!.longest_dark_hours
+      const darkS = darkOf(S.result!)
       const other = bestComms.length === 1 ? C : solar.second.e
-      const darkO = other.result!.solar!.longest_dark_hours
+      const darkO = darkOf(other.result!)
       const darkCmp = darkS < darkO - 0.5 ? `, with a shorter continuous darkness (${h(darkS)} vs ${h(darkO)} for ${lbl(other)})`
         : darkS > darkO + 0.5 ? `, although its longest darkness is longer (${h(darkS)} vs ${h(darkO)} for ${lbl(other)})` : ''
       overall.push(`${lbl(S)} provides the greatest solar availability (${p(solar.best.v)} mean visible solar disk vs ${p(solar.second.v)} for the next best)${darkCmp}.`)
@@ -1048,7 +1053,7 @@ export function buildSummary(entries: Entry[]): Summary {
       overall.push(`Solar availability is similar across ${bestSolar.map(lbl).join(' and ')} (${p(solar.best.v)}).`)
     }
     if (bestComms.length === 1 && C !== S) {
-      overall.push(`However, ${lbl(C)} has longer geometric Earth visibility (${p(comms.best.v)} vs ${p(S.result!.earth!.visible_fraction)} for ${lbl(S)}; longest blackout ${h(C.result!.earth!.longest_blackout_hours)} vs ${h(S.result!.earth!.longest_blackout_hours)}).`)
+      overall.push(`However, ${lbl(C)} has longer geometric Earth visibility (${p(comms.best.v)} vs ${p(S.result!.earth!.visible_fraction)} for ${lbl(S)}; longest blackout ${h(blackOf(C.result!))} vs ${h(blackOf(S.result!))}).`)
       if (bestSolar.length === 1) overall.push(`${lbl(S)} may therefore suit power-constrained operations, while ${lbl(C)} offers a communication advantage.`)
     } else if (bestComms.length > 1) {
       overall.push(`Earth visibility is similar for ${bestComms.map(lbl).join(' and ')} (${p(comms.best.v)}).`)
