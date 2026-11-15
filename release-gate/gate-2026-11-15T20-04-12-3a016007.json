@@ -1,0 +1,854 @@
+{
+  "run_id": "ccb31816-1257-4069-a98e-0a8aa9256578",
+  "source_before": {
+    "commit": "3a0160074601cf90a05d7ac5ae2858f051d914e9",
+    "branch": "main",
+    "dirty_files": [],
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "source_after": {
+    "commit": "3a0160074601cf90a05d7ac5ae2858f051d914e9",
+    "branch": "main",
+    "dirty_files": [],
+    "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "source_changed_during_run": false,
+  "started": "2026-11-15T20:04:12.484Z",
+  "finished": "2026-11-15T20:16:18.641Z",
+  "node": "v24.16.0",
+  "platform": "win32",
+  "options": [],
+  "gates": [
+    {
+      "id": "backend-tests",
+      "name": "Backend: full pytest suite",
+      "ok": true,
+      "command": "python -m pytest -q -p no:cacheprovider",
+      "cwd": "backend",
+      "env": {
+        "LUNAR_OFFLINE": "1"
+      },
+      "seconds": 379,
+      "tail": "2154 passed in 372.54s (0:06:12)",
+      "counts": {
+        "passed": 2154,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "xfailed": 0,
+        "xpassed": 0,
+        "deselected": 0,
+        "todo": 0,
+        "summary": "2154 passed in 372.54s (0:06:12)"
+      }
+    },
+    {
+      "id": "frontend-tests",
+      "name": "Frontend: full vitest suite",
+      "ok": true,
+      "command": "npx vitest run",
+      "cwd": "frontend",
+      "seconds": 4,
+      "tail": "Test Files 67 passed (67); Tests 698 passed (698)",
+      "counts": {
+        "passed": 698,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0,
+        "todo": 0,
+        "total": 698,
+        "files": {
+          "passed": 67,
+          "failed": 0,
+          "total": 67
+        },
+        "summary": "Test Files 67 passed (67); Tests 698 passed (698)"
+      }
+    },
+    {
+      "id": "typecheck",
+      "name": "Frontend: TypeScript (tsc -b)",
+      "ok": true,
+      "command": "npx tsc -b",
+      "cwd": "frontend",
+      "seconds": 1,
+      "tail": ""
+    },
+    {
+      "id": "lint",
+      "name": "Frontend: lint (oxlint; errors fail, warnings are recorded)",
+      "ok": true,
+      "command": "npx oxlint -f json",
+      "cwd": "frontend",
+      "seconds": 1,
+      "tail": "0 errors, 24 warnings",
+      "counts": {
+        "warnings": 24,
+        "errors": 0,
+        "files": 290
+      }
+    },
+    {
+      "id": "build",
+      "name": "Frontend: production build (npm run build = tsc -b + vite build)",
+      "ok": true,
+      "command": "npm run build",
+      "cwd": "frontend",
+      "seconds": 2,
+      "tail": "dist/assets/index-DVqq8g9k.js              2,497.53 kB │ gzip: 718.99 kB |  | \u001b[32m✓ built in 940ms\u001b[39m"
+    }
+  ],
+  "browser_runs": {
+    "production": {
+      "command": "node scripts/smoke-prod.mjs --no-build --strict --api http://127.0.0.1:8011 --out ../release-gate/smoke-production --run-id ccb31816-1257-4069-a98e-0a8aa9256578",
+      "cwd": "frontend",
+      "mode": "production build (vite preview of dist/) + online backend",
+      "exit_ok": false,
+      "seconds": 159
+    },
+    "guided": {
+      "command": "node scripts/e2e-guided.mjs --serve-dist --api http://127.0.0.1:8011 --out ../release-gate/guided-production --run-id ccb31816-1257-4069-a98e-0a8aa9256578",
+      "cwd": "frontend",
+      "mode": "production build (vite preview of dist/) + online backend",
+      "exit_ok": false,
+      "seconds": 32
+    },
+    "evidence": {
+      "command": "node scripts/e2e-evidence.mjs --serve-dist --api http://127.0.0.1:8011 --out ../release-gate/evidence-production --run-id ccb31816-1257-4069-a98e-0a8aa9256578",
+      "cwd": "frontend",
+      "mode": "production build (vite preview of dist/) + online backend",
+      "exit_ok": true,
+      "seconds": 15
+    },
+    "time-missing": {
+      "command": "node scripts/e2e-time-missing.mjs --serve-dist --api http://127.0.0.1:8011 --out ../release-gate/time-missing-production --run-id ccb31816-1257-4069-a98e-0a8aa9256578",
+      "cwd": "frontend",
+      "mode": "production build (vite preview of dist/) + online backend",
+      "exit_ok": true,
+      "seconds": 6
+    },
+    "offline": {
+      "command": "node scripts/e2e-guided.mjs --serve-dist --api http://127.0.0.1:8012 --out ../release-gate/guided-offline --run-id ccb31816-1257-4069-a98e-0a8aa9256578",
+      "cwd": "frontend",
+      "mode": "production build + backend with LUNAR_OFFLINE=1",
+      "exit_ok": false,
+      "seconds": 32
+    }
+  },
+  "checks": [
+    {
+      "id": "pass",
+      "name": "Real passing mission (engine)",
+      "outcome": "Correct verdict, metrics and explanation on real site data",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: pytest 4 target(s)",
+          "targets": [
+            "tests/viability/test_real_sites_phase6_explanations.py::test_malapert_lit_season_pass",
+            "tests/viability/test_real_sites_phase6_explanations.py::test_explanations_quote_independently_computed_values",
+            "tests/test_compare_evidence.py::test_assessment_carries_canonical_metric_states_and_versions",
+            "tests/test_compare_evidence.py::test_constraints_match_the_verdict"
+          ],
+          "ok": true,
+          "command": "python -m pytest -q -p no:cacheprovider tests/viability/test_real_sites_phase6_explanations.py::test_malapert_lit_season_pass tests/viability/test_real_sites_phase6_explanations.py::test_explanations_quote_independently_computed_values tests/test_compare_evidence.py::test_assessment_carries_canonical_metric_states_and_versions tests/test_compare_evidence.py::test_constraints_match_the_verdict",
+          "cwd": "backend",
+          "env": {
+            "LUNAR_OFFLINE": "1"
+          },
+          "seconds": 8,
+          "tail": "39 passed in 7.57s"
+        }
+      ]
+    },
+    {
+      "id": "fail",
+      "name": "Real failed mission (engine)",
+      "outcome": "Correct violated requirement and evidence window",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: pytest 4 target(s)",
+          "targets": [
+            "tests/viability/test_real_sites_phase6_explanations.py::test_peak_near_shackleton_night_landing",
+            "tests/viability/test_real_sites_phase6_explanations.py::test_shackleton_floor_control_fails_everything",
+            "tests/viability/test_real_sites_phase6_explanations.py::test_connecting_ridge_blackout_in_progress_at_landing",
+            "tests/test_compare_evidence.py::test_failed_requirements_carry_the_engine_evidence_windows"
+          ],
+          "ok": true,
+          "command": "python -m pytest -q -p no:cacheprovider tests/viability/test_real_sites_phase6_explanations.py::test_peak_near_shackleton_night_landing tests/viability/test_real_sites_phase6_explanations.py::test_shackleton_floor_control_fails_everything tests/viability/test_real_sites_phase6_explanations.py::test_connecting_ridge_blackout_in_progress_at_landing tests/test_compare_evidence.py::test_failed_requirements_carry_the_engine_evidence_windows",
+          "cwd": "backend",
+          "env": {
+            "LUNAR_OFFLINE": "1"
+          },
+          "seconds": 5,
+          "tail": "4 passed in 4.50s"
+        }
+      ]
+    },
+    {
+      "id": "unknown",
+      "name": "UNKNOWN mission (engine and UI logic)",
+      "outcome": "UNKNOWN stays UNKNOWN: no fabricated zero values or false failure",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: pytest 6 target(s)",
+          "targets": [
+            "tests/viability/test_real_sites_phase6_explanations.py::test_mission_past_dataset_end_is_unknown_not_failed",
+            "tests/viability/test_real_sites_phase6_explanations.py::test_connecting_ridge_without_any_data",
+            "tests/test_rescue_unknown.py",
+            "tests/test_compare_ranking.py::test_missing_score_is_never_zero_and_measured_zero_is_kept",
+            "tests/test_compare_ranking.py::test_unknown_stays_unknown_with_its_reason",
+            "tests/test_compare_evidence.py::test_unknown_samples_stay_unknown"
+          ],
+          "ok": true,
+          "command": "python -m pytest -q -p no:cacheprovider tests/viability/test_real_sites_phase6_explanations.py::test_mission_past_dataset_end_is_unknown_not_failed tests/viability/test_real_sites_phase6_explanations.py::test_connecting_ridge_without_any_data tests/test_rescue_unknown.py tests/test_compare_ranking.py::test_missing_score_is_never_zero_and_measured_zero_is_kept tests/test_compare_ranking.py::test_unknown_stays_unknown_with_its_reason tests/test_compare_evidence.py::test_unknown_samples_stay_unknown",
+          "cwd": "backend",
+          "env": {
+            "LUNAR_OFFLINE": "1"
+          },
+          "seconds": 5,
+          "tail": "12 passed in 4.53s"
+        },
+        {
+          "what": "tests: vitest 1 target(s)",
+          "targets": [
+            "src/features/compare/missingData.test.tsx"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/features/compare/missingData.test.tsx",
+          "cwd": "frontend",
+          "seconds": 1,
+          "tail": "Test Files 1 passed (1); Tests 18 passed (18)"
+        }
+      ]
+    },
+    {
+      "id": "time-missing",
+      "name": "Hourly-grid mission time and incomplete data across tools",
+      "outcome": "Comparison, assessment and Rescue evaluate the same hourly-grid interval (request kept distinct); a data gap gives bounds and unknown stretches, never fabricated values",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: pytest 2 target(s)",
+          "targets": [
+            "tests/test_timegrid.py",
+            "tests/test_compare_evidence.py::test_unknown_samples_stay_unknown"
+          ],
+          "ok": true,
+          "command": "python -m pytest -q -p no:cacheprovider tests/test_timegrid.py tests/test_compare_evidence.py::test_unknown_samples_stay_unknown",
+          "cwd": "backend",
+          "env": {
+            "LUNAR_OFFLINE": "1"
+          },
+          "seconds": 4,
+          "tail": "11 passed in 2.41s"
+        },
+        {
+          "what": "tests: vitest 3 target(s)",
+          "targets": [
+            "src/features/compare/missionTime.test.tsx",
+            "src/features/compare/missionTimeRecovery.test.tsx",
+            "src/features/compare/missingData.test.tsx"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/features/compare/missionTime.test.tsx src/features/compare/missionTimeRecovery.test.tsx src/features/compare/missingData.test.tsx",
+          "cwd": "frontend",
+          "seconds": 1,
+          "tail": "Test Files 3 passed (3); Tests 78 passed (78)"
+        },
+        {
+          "what": "whole run: hourly-grid and missing-data journey, production build (31 checks)",
+          "ok": true,
+          "tail": "31/31 passed"
+        }
+      ]
+    },
+    {
+      "id": "mission-story",
+      "name": "Guided mission journey (Try a mission)",
+      "outcome": "Real mission: PASS -> delay -> FAIL with evidence -> Rescue recovery PASS -> recommended; one saved plan however often it restarts",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: pytest 2 target(s)",
+          "targets": [
+            "tests/test_mission_story.py",
+            "tests/test_guided_mission.py"
+          ],
+          "ok": true,
+          "command": "python -m pytest -q -p no:cacheprovider tests/test_mission_story.py tests/test_guided_mission.py",
+          "cwd": "backend",
+          "env": {
+            "LUNAR_OFFLINE": "1"
+          },
+          "seconds": 8,
+          "tail": "4 passed in 5.62s"
+        },
+        {
+          "what": "tests: vitest 1 target(s)",
+          "targets": [
+            "src/features/guide/guide.test.tsx"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/features/guide/guide.test.tsx",
+          "cwd": "frontend",
+          "seconds": 2,
+          "tail": "Test Files 1 passed (1); Tests 10 passed (10)"
+        },
+        {
+          "what": "command: python scripts/verify_mission_story.py (replay of the committed mission definition)",
+          "ok": true,
+          "command": "python scripts/verify_mission_story.py (replay of the committed mission definition)",
+          "cwd": "backend",
+          "env": {
+            "LUNAR_OFFLINE": "1"
+          },
+          "seconds": 6,
+          "tail": "  PASS  (incidental) dataset hash data/sites/malapert-massif.json: unchanged\r |   PASS  (incidental) engine and method versions: {'api': 'viability-api/1.0.0', 'schema_version': '0.1.0-draft', 'engine': '0.6.0-phase6', 'scoring': 'desirability-v1', 'ranking': 'ranking-phase5b-v1', 'explanations': 'explanations-v1'}\r |   observed: {\"original\": {\"eligibility\": \"pass\", \"score\": 88.201064, \"margins\": [{\"constraint\": \"max_continuous_darkness\", \"status\": \"pass\", \"comparison\": \"at_most\", \"threshold\": 50.0, \"measured\": 3.0, \"unit\": \"h\"}, {\"constraint\": \"max_communication_blackout\", \"status\": \"pass\", \"comparison\": \"at_most\", \"threshold\": 96.0, \"measured\": 22.0, \"unit\": \"h\"}, {\"constraint\": \"min_earth_visibility_percent\", \"status\": \"pass\", \"comparison\": \"at_least\", \"threshold\": 40.0, \"measured\": 93.452381, \"unit\": \"percent\"}]}, \"disrupted\": {\"eligibility\": \"fail\", \"failing\": [\"max_communication_blackout\"], \"score\": 61.787374, \"margins\": [{\"constraint\": \"max_continuous_darkness\", \"status\": \"pass\", \"comparison\": \"at_most\", \"threshold\": 50.0, \"measured\": 3.0, \"unit\": \"h\"}, {\"constraint\": \"max_communication_blackout\", \"status\": \"fail\", \"comparison\": \"at_most\", \"threshold\": 96.0, \"measured\": 118.0, \"unit\": \"h\"}, {\"constraint\": \"min_earth_visibility_percent\", \"status\": \"pass\", \"comparison\": \"at_least\", \"threshold\": 40.0, \"measured\": 64.880952, \"unit\": \"percent\"}]}, \"status_changes\": [\"max_communication_blackout\"], \"evidence\": {\"kind\": \"communication_blackout\", \"start_utc\": \"2027-10-23T02:00:00Z\", \"end_utc\": \"2027-10-28T00:00:00Z\", \"duration_s\": 424800.0, \"clipped_at_start\": false, \"clipped_at_end\": true}, \"recovery\": {\"site_id\": \"malapert-massif\", \"landing_utc\": \"2027-10-14T00:00:00Z\", \"kind\": \"site_change\", \"rank\": 1, \"score\": 100.0}, \"comparison\": {\"verdicts\": {\"original\": \"pass\", \"disrupted\": \"fail\", \"recovery\": \"pass\"}, \"groups\": [[\"G1\", [\"recovery\", \"original\"]]]}}"
+        },
+        {
+          "what": "browser (guided), 1366x768: 1 mission: definition loaded",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 1 mission: definition loaded",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 2 original plan passes",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 2 original plan passes",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 3 delay applied",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 3 delay applied",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 4 what changed: blackout PASS -> FAIL",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 4 what changed: blackout PASS -> FAIL",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 6 Rescue recovery passes",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 6 Rescue recovery passes",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 7 comparison recommends the recovery",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 7 comparison recommends the recovery",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: repeated restarts do not duplicate",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: repeated restarts do not duplicate",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: the user's own plan survives",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: the user's own plan survives",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "name": "Show why: evidence in the 3D view",
+      "outcome": "The canonical window, at the right site and time, with the way back",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: vitest 3 target(s)",
+          "targets": [
+            "src/viz/evidence.test.tsx",
+            "src/features/assessment/sharedState.test.tsx",
+            "src/features/assessment/evidenceReturn.test.tsx"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/viz/evidence.test.tsx src/features/assessment/sharedState.test.tsx src/features/assessment/evidenceReturn.test.tsx",
+          "cwd": "frontend",
+          "seconds": 1,
+          "tail": "Test Files 3 passed (3); Tests 35 passed (35)"
+        },
+        {
+          "what": "browser (guided), 1366x768: 5 evidence opens the blackout window in 3D",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 5 evidence opens the blackout window in 3D",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (production): Plan assessment dialog: Show in 3D, then Back returns to the same dialog",
+          "ok": false,
+          "tail": "fail: locator.waitFor: Timeout 60000ms exceeded. | Call log: | \u001b[2m  - waiting for getByRole('dialog', { name: 'Mission assessment: Smoke Ridge' }) to be visible\u001b[22m"
+        },
+        {
+          "what": "whole run: Show-why journey from the Comparison, production build (30 checks)",
+          "ok": true,
+          "tail": "30/30 passed"
+        }
+      ]
+    },
+    {
+      "id": "planner",
+      "name": "Planner and Playback show the canonical assessment",
+      "outcome": "Verdict from the viability engine on the plan card, tied to the plan; Playback never invents a PASS",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: vitest 4 target(s)",
+          "targets": [
+            "src/viz/MissionPlayback.test.tsx",
+            "src/lib/assessment.test.tsx",
+            "src/features/assessment/assessment.test.tsx",
+            "src/viz/mission.test.ts"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/viz/MissionPlayback.test.tsx src/lib/assessment.test.tsx src/features/assessment/assessment.test.tsx src/viz/mission.test.ts",
+          "cwd": "frontend",
+          "seconds": 1,
+          "tail": "Test Files 4 passed (4); Tests 33 passed (33)"
+        },
+        {
+          "what": "browser (production): Run a plan: it becomes the active mission and its card shows the canonical assessment",
+          "ok": true,
+          "tail": "pass"
+        },
+        {
+          "what": "browser (guided), 1366x768: 2 plan card shows the active plan's canonical verdict",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 2 plan card shows the active plan's canonical verdict",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        }
+      ]
+    },
+    {
+      "id": "comparison",
+      "name": "Comparison",
+      "outcome": "Eligible ranks in comparable groups; no \"best\" across real and synthetic data",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: pytest 1 target(s)",
+          "targets": [
+            "tests/test_compare_ranking.py"
+          ],
+          "ok": true,
+          "command": "python -m pytest -q -p no:cacheprovider tests/test_compare_ranking.py",
+          "cwd": "backend",
+          "env": {
+            "LUNAR_OFFLINE": "1"
+          },
+          "seconds": 2,
+          "tail": "14 passed in 0.93s"
+        },
+        {
+          "what": "tests: vitest 4 target(s)",
+          "targets": [
+            "src/features/compare/compare.test.tsx",
+            "src/features/compare/bestPool.test.tsx",
+            "src/features/compare/bestPoolRecovery.test.tsx",
+            "src/features/compare/decision.test.tsx"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/features/compare/compare.test.tsx src/features/compare/bestPool.test.tsx src/features/compare/bestPoolRecovery.test.tsx src/features/compare/decision.test.tsx",
+          "cwd": "frontend",
+          "seconds": 1,
+          "tail": "Test Files 4 passed (4); Tests 85 passed (85)"
+        },
+        {
+          "what": "browser (production): Compare the two plans side by side",
+          "ok": false,
+          "tail": "fail: locator.check: Timeout 30000ms exceeded. | Call log: | \u001b[2m  - waiting for getByRole('listitem', { name: 'Plan Smoke Malapert' }).getByLabel('Compare')\u001b[22m"
+        },
+        {
+          "what": "browser (guided), 1366x768: 7 comparison recommends the recovery",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 7 comparison recommends the recovery",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        }
+      ]
+    },
+    {
+      "id": "atlas",
+      "name": "Feasibility Atlas",
+      "outcome": "A cell opens the mission that map evaluated (Enter and button), even after the form is edited",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: pytest 1 target(s)",
+          "targets": [
+            "tests/test_atlas.py"
+          ],
+          "ok": true,
+          "command": "python -m pytest -q -p no:cacheprovider tests/test_atlas.py",
+          "cwd": "backend",
+          "env": {
+            "LUNAR_OFFLINE": "1"
+          },
+          "seconds": 8,
+          "tail": "9 passed in 5.04s"
+        },
+        {
+          "what": "tests: vitest 2 target(s)",
+          "targets": [
+            "src/features/atlas/atlas.test.ts",
+            "src/features/atlas/session.test.ts"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/features/atlas/atlas.test.ts src/features/atlas/session.test.ts",
+          "cwd": "frontend",
+          "seconds": 1,
+          "tail": "Test Files 2 passed (2); Tests 26 passed (26)"
+        },
+        {
+          "what": "browser (production): Feasibility Atlas: map dates x lengths, explain a cell, check neighbours, open it in the Planner",
+          "ok": true,
+          "tail": "pass"
+        },
+        {
+          "what": "browser (guided), 1366x768: atlas enter transfer: the mapped site",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: atlas enter transfer: the mapped site",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: atlas button transfer: the mapped site",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: atlas button transfer: the mapped site",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: atlas enter transfer: the Planner's canonical verdict matches the cell",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: atlas enter transfer: the Planner's canonical verdict matches the cell",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        }
+      ]
+    },
+    {
+      "id": "export",
+      "name": "Comparison export (JSON / CSV files)",
+      "outcome": "Downloads keep missing values, UNKNOWN and valid ranks only",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: vitest 1 target(s)",
+          "targets": [
+            "src/features/compare/export.test.tsx"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/features/compare/export.test.tsx",
+          "cwd": "frontend",
+          "seconds": 1,
+          "tail": "Test Files 1 passed (1); Tests 9 passed (9)"
+        },
+        {
+          "what": "browser (production): Export the comparison (JSON and CSV files the user can keep)",
+          "ok": false,
+          "tail": "fail: the JSON export lacks the compared sites"
+        }
+      ]
+    },
+    {
+      "id": "decision-report",
+      "name": "Mission decision report (frozen snapshot)",
+      "outcome": "Preview of a frozen evaluated snapshot, matching JSON, A4 / Letter print, stale + regenerate",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: vitest 4 target(s)",
+          "targets": [
+            "src/features/compare/report.test.tsx",
+            "src/features/compare/reportCard.test.tsx",
+            "src/features/compare/reportHeader.test.tsx",
+            "src/features/compare/reportRecovery.test.tsx"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/features/compare/report.test.tsx src/features/compare/reportCard.test.tsx src/features/compare/reportHeader.test.tsx src/features/compare/reportRecovery.test.tsx",
+          "cwd": "frontend",
+          "seconds": 1,
+          "tail": "Test Files 4 passed (4); Tests 32 passed (32)"
+        },
+        {
+          "what": "browser (guided), 1366x768: 8 summary report opens for the evaluated selection",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 8 summary report opens for the evaluated selection",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 8 report first page",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 8 report first page",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 8 JSON = report snapshot",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 8 JSON = report snapshot",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 8 JSON records dataset hashes",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 8 JSON records dataset hashes",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 8 Download PDF produces the report PDF",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 8 Download PDF produces the report PDF",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 8 A4 PDF renders only the report",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 8 A4 PDF renders only the report",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: 8 Letter PDF renders only the report",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: 8 Letter PDF renders only the report",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: report flags a changed comparison",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: report flags a changed comparison",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1366x768: regenerate uses the new selection",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        },
+        {
+          "what": "browser (guided), 1920x1080: regenerate uses the new selection",
+          "ok": false,
+          "tail": "MISSING: the step did not run"
+        }
+      ]
+    },
+    {
+      "id": "scientific-validation",
+      "name": "Scientific validation (data-engine checks)",
+      "outcome": "Stored independent checks are reproducible and shown in the Methodology view",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: pytest 3 target(s)",
+          "targets": [
+            "tests/test_validation_report.py",
+            "tests/viability/test_part2_validation.py::test_demo_snapshot_is_reproducible",
+            "tests/test_timegrid.py"
+          ],
+          "ok": true,
+          "command": "python -m pytest -q -p no:cacheprovider tests/test_validation_report.py tests/viability/test_part2_validation.py::test_demo_snapshot_is_reproducible tests/test_timegrid.py",
+          "cwd": "backend",
+          "env": {
+            "LUNAR_OFFLINE": "1"
+          },
+          "seconds": 34,
+          "tail": "15 passed in 32.66s"
+        },
+        {
+          "what": "tests: vitest 1 target(s)",
+          "targets": [
+            "src/features/methodology/methodology.test.tsx"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/features/methodology/methodology.test.tsx",
+          "cwd": "frontend",
+          "seconds": 1,
+          "tail": "Test Files 1 passed (1); Tests 14 passed (14)"
+        }
+      ]
+    },
+    {
+      "id": "navigation",
+      "name": "Navigation",
+      "outcome": "No route collisions or lost scenarios; Back / Forward redraw the 3D view",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "tests: vitest 1 target(s)",
+          "targets": [
+            "src/appRoute.test.ts"
+          ],
+          "ok": true,
+          "command": "npx vitest run src/appRoute.test.ts",
+          "cwd": "frontend",
+          "seconds": 1,
+          "tail": "Test Files 1 passed (1); Tests 4 passed (4)"
+        },
+        {
+          "what": "browser (production): Browser Back / Forward between the views; the 3D view is drawn again",
+          "ok": true,
+          "tail": "pass"
+        },
+        {
+          "what": "browser (production): Compare the two plans side by side",
+          "ok": false,
+          "tail": "fail: locator.check: Timeout 30000ms exceeded. | Call log: | \u001b[2m  - waiting for getByRole('listitem', { name: 'Plan Smoke Malapert' }).getByLabel('Compare')\u001b[22m"
+        }
+      ]
+    },
+    {
+      "id": "production",
+      "name": "Production build, strict smoke journey",
+      "outcome": "Every journey step present and passing in a fresh browser; no page errors, no 5xx",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "whole run: production smoke journey, strict (11 steps)",
+          "ok": false,
+          "tail": "6/11 steps passed; strict=true; 0 page errors; 0 API failures; not passed: Plan assessment dialog: Show in 3D, then Back returns to the same dialog (fail); Investigate: the lander's-eye Sun view, the sky plot and the map layers (fail); Rescue: a 10-day launch slip, find alternatives (fail); Compare the two plans side by side (fail); Export the comparison (JSON and CSV files the user can keep) (fail)"
+        }
+      ]
+    },
+    {
+      "id": "guided",
+      "name": "Guided mission journey on the production build",
+      "outcome": "Every essential step passes at 1366x768 and 1920x1080: load, assess, delay, show why, rescue, compare, frozen report, JSON, PDF, Atlas transfer",
+      "ok": false,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "whole run: guided journey, production build (1 checks)",
+          "ok": false,
+          "tail": "0/1 passed; failed: journey completed; MISSING essential steps: 1366x768 1 mission: definition loaded; 1366x768 2 original plan passes; 1366x768 2 plan card shows the active plan's canonical verdict; 1366x768 3 delay applied through Rescue's change control; 1366x768 3 assessment shows the plan after the change; 1366x768 4 what changed: blackout PASS -> FAIL"
+        }
+      ]
+    },
+    {
+      "id": "offline",
+      "name": "Prepared offline verification (local backend, LUNAR_OFFLINE=1)",
+      "outcome": "The backend is provably offline and the guided journey works from committed data and cached terrain",
+      "ok": false,
+      "limitations": "A local backend with LUNAR_OFFLINE=1 serving the production build on this machine: only committed site files and cached terrain; the live JPL Horizons check and custom pins outside the cache are unavailable (the app says so); the UI font may fall back to a system font. The machine was not disconnected from the network and no public deployment was tested.",
+      "evidence": [
+        {
+          "what": "whole run: guided journey, offline backend (LUNAR_OFFLINE=1) (1 checks)",
+          "ok": false,
+          "tail": "0/1 passed; failed: journey completed; MISSING essential steps: 1366x768 1 mission: definition loaded; 1366x768 2 original plan passes; 1366x768 2 plan card shows the active plan's canonical verdict; 1366x768 3 delay applied through Rescue's change control; 1366x768 3 assessment shows the plan after the change; 1366x768 4 what changed: blackout PASS -> FAIL"
+        },
+        {
+          "what": "proof: the backend under test is in offline mode (live JPL check refused)",
+          "ok": true,
+          "tail": "HTTP 503: {\"detail\":\"This check asks JPL Horizons live, so it needs an internet connection (the backend is in offline mode). Every"
+        }
+      ]
+    }
+  ],
+  "verdict": "FAILED",
+  "passed": false
+}

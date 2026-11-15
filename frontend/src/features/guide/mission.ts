@@ -521,7 +521,7 @@ export function stageModel(s: Snapshot): StageModel {
       if (!chk.ok) return outdated(chk.reason)
       return base('ready', `As planned, the mission ${word(oa.eligibility)} every requirement. The margins below are what a delay could eat into.`, {
         facts: [{ label: 'Verdict', value: oa.eligibility.toUpperCase(), tone: 'pass' }, ...marginFacts(oa, MISSION.expected.original.margin_constraints)],
-        note: 'The Mission assessment panel lists every requirement with its limit, measured value and margin.',
+        note: 'Full assessment in Comparison (on the plan card) lists every requirement with its limit, measured value and margin.',
         primary: { label: `Apply the ${MISSION.disruption.launch_delay_days}-day launch delay`, action: 'next' },
       })
     }
