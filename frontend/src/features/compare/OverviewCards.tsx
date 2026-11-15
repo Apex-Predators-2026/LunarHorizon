@@ -166,7 +166,7 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
             )}
             <button type="button" onClick={() => setActive(activeId === s.id ? null : s.id)}
               className="mt-auto pt-2 text-left text-[11px] text-cyan-400 hover:underline" aria-pressed={activeId === s.id}>
-              {activeId === s.id ? 'Following in 3D view' : 'Follow in 3D view / edit'}
+              {activeId === s.id ? 'Following in 3D view' : 'Follow in 3D view'}
             </button>
           </article>
         )

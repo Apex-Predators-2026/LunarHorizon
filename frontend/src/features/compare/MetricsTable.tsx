@@ -1,4 +1,5 @@
 // Section 3: side-by-side scientific metrics, best values marked, deltas against the baseline.
+import { scenarioDisplayName } from './scenario'
 import { Fragment, useState } from 'react'
 
 import { formatMarginMetric, marginStatusClassLabel } from '../../lib/headroom'
@@ -56,7 +57,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
               {entries.map((e) => (
                 <th key={e.scenario.id} scope="col" className="pb-2 pl-3 text-left text-xs font-medium text-slate-300">
                   <span className="flex items-center gap-1.5"><ScenarioChip s={e.scenario} size="sm" />
-                    <span className="truncate">{e.scenario.site.name}</span></span>
+                    <span className="min-w-0 break-words">{scenarioDisplayName(e.scenario)}</span></span>
                   {e.result?.data_kind === 'demonstration' && <span className="mt-0.5 block"><DataKindBadge kind="demonstration" /></span>}
                   {e.state?.state === 'done' && !e.result && <span className="mt-0.5 block"><DataKindBadge kind="unavailable" /></span>}
                 </th>

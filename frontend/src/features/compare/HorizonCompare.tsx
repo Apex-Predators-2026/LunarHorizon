@@ -1,5 +1,6 @@
 // Location comparison: each site's terrain horizon (LOLA, from the data engine's /horizon endpoint)
 // with the Sun and Earth positions at the selected time. Shows directly why one site is lit and another dark.
+import { scenarioDisplayName } from './scenario'
 import { useEffect, useMemo, useState } from 'react'
 import { CartesianGrid, ComposedChart, Line, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
@@ -75,7 +76,7 @@ export function HorizonCompare({ entries }: { entries: Entry[] }) {
     <div>
       <div className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-400" aria-label="Legend">
         {lines.map((e) => (
-          <span key={e.scenario.id} className="flex items-center gap-1.5"><ScenarioChip s={e.scenario} size="sm" />{e.scenario.site.name} horizon</span>
+          <span key={e.scenario.id} className="flex items-center gap-1.5"><ScenarioChip s={e.scenario} size="sm" />{scenarioDisplayName(e.scenario)}</span>
         ))}
         <span>Sun (☀) and Earth (⊕) at the selected time: filled = visible, hollow = hidden</span>
       </div>
@@ -96,7 +97,7 @@ export function HorizonCompare({ entries }: { entries: Entry[] }) {
                   {lines.map((e) => {
                     const v = payload.find((p) => p.dataKey === e.scenario.id)?.value
                     return v === undefined ? null : (
-                      <div key={e.scenario.id} className="flex items-center gap-2"><ScenarioChip s={e.scenario} size="sm" /><span className="tabular-nums">terrain {Number(v).toFixed(2)}°</span></div>
+                      <div key={e.scenario.id} className="flex items-center gap-2"><ScenarioChip s={e.scenario} size="sm" /><span>{scenarioDisplayName(e.scenario)}</span><span className="tabular-nums">terrain {Number(v).toFixed(2)}°</span></div>
                     )
                   })}
                 </div>

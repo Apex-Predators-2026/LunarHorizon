@@ -237,14 +237,18 @@ function engineStatus(state: ViabilityValidationState): { tone: 'ok' | 'warn' | 
   return { tone: 'ok', text: `All ${int(s.totals.checks)} recorded checks passed (${date}) and the report is current.` }
 }
 
+// The card's status (report current, out of date, failed) is a small dot by the title, not a coloured stripe.
 const TONE: Record<'ok' | 'warn' | 'bad' | 'none', string> = {
-  ok: 'border-l-emerald-600', warn: 'border-l-amber-500', bad: 'border-l-red-600', none: 'border-l-slate-400',
+  ok: 'bg-emerald-600', warn: 'bg-amber-500', bad: 'bg-red-600', none: 'bg-slate-400',
 }
 
 function Fact({ title, tone = 'none', children }: { title: string; tone?: 'ok' | 'warn' | 'bad' | 'none'; children: React.ReactNode }) {
   return (
-    <div className={`min-w-0 rounded-xl border border-l-4 border-line bg-inset p-3 ${TONE[tone]}`}>
-      <h3 className="text-[11px] font-medium uppercase tracking-wide text-ink-3">{title}</h3>
+    <div className="min-w-0 rounded-xl border border-line bg-inset p-3">
+      <h3 className="flex items-center gap-2 text-xs font-medium text-ink-3">
+        <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${TONE[tone]}`} />
+        {title}
+      </h3>
       <div className="mt-1 text-sm text-ink-2">{children}</div>
     </div>
   )

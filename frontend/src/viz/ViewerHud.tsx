@@ -93,7 +93,7 @@ export function SiteMenuRows({ sites, error, loading, onPicked, pinIds, onDelete
         const group = sites?.filter(inGroup) ?? []
         return group.length ? (
           <div key={kind} role="group" aria-label={label}>
-            <p className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+            <p className="px-4 pb-1 pt-2 text-xs font-medium text-slate-400">{label}</p>
             {group.map((s) => {
               const on = s.id === siteId
               return (
