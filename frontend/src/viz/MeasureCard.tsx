@@ -300,7 +300,7 @@ export function MeasureCard({
               ) : (
                 <span className="font-mono tabular-nums">
                   <strong>{waypoints[0].label}{waypoints[0].name ? ` (${waypoints[0].name})` : ''}:</strong>{' '}
-                  {fmtCoord(waypoints[0].lat, waypoints[0].lon)} · <strong>{Math.round(waypoints[0].heightM)} m</strong> — click terrain for Point B.
+                  {fmtCoord(waypoints[0].lat, waypoints[0].lon)} · <strong>{Math.round(waypoints[0].heightM)} m</strong> - click terrain for Point B.
                 </span>
               )}
             </div>
