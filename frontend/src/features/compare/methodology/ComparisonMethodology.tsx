@@ -209,7 +209,7 @@ export function ComparisonMethodology() {
 
         <div className="mt-8 lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-10">
           <nav aria-label="On this page" className="cmp-method-toc">
-            <p className="mb-2 hidden text-xs font-medium uppercase tracking-wide text-ink-4 lg:block">On this page</p>
+            <p className="mb-2 hidden text-xs font-medium text-ink-4 lg:block">On this page</p>
             <ul>
               {TOC.map((t) => (
                 <li key={t.id}>
@@ -231,7 +231,7 @@ export function ComparisonMethodology() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {SOURCES.map((s, i) => (
                   <div key={s.name} className="cmp-method-card">
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-ink-4">{i < 2 ? 'Input' : 'Validation'} · {s.role}</p>
+                    <p className="text-[11px] font-medium text-ink-4">{i < 2 ? 'Input' : 'Validation'} · {s.role}</p>
                     <h3 className="mt-1 text-sm font-medium text-ink">{s.name}</h3>
                     <p className="mt-1.5 text-sm leading-relaxed text-ink-3">{s.text}</p>
                     <a href={s.href} target="_blank" rel="noreferrer" className="cmp-method-link mt-2 inline-block text-xs">Visit source ↗</a>
