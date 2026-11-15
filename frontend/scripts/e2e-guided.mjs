@@ -49,6 +49,12 @@ const check = (name, ok, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? `  (${detail})` : ''}`)
 }
 
+const USER_PLAN = {
+  id: 'user-plan-e2e', name: 'My own plan',
+  scenario: { site: { id: 'malapert-massif', name: 'Malapert Massif', lat: -85.9635, lon: 357.6326 }, landing_utc: '2027-02-01T00:00:00Z', duration_days: 5,
+    requirements: { min_sunlight_fraction: 0.5, battery_hours: 50, panel_threshold: 0.25, min_earth_visibility_fraction: 0.4, max_comms_gap_hours: 96, min_initial_sun_hours: 24, min_initial_comms_hours: 12 } },
+}
+
 async function run(viewport) {
   const browser = await chromium.launch({ executablePath: chrome, args: ['--use-angle=d3d11', '--ignore-gpu-blocklist'] })
   const page = await (await browser.newContext({ viewport, acceptDownloads: true })).newPage()
@@ -57,7 +63,10 @@ async function run(viewport) {
   const pageErrors = []
   page.on('response', (r) => r.url().includes('/api/') && r.status() >= 500 && apiFailures.push(`${r.status()} ${r.url()}`))
   page.on('pageerror', (e) => pageErrors.push(String(e)))
-  // A fresh browser profile: no saved plans. Start from the landing page, as a visitor would.
+  // A fresh browser profile with ONE plan the user made earlier (saved before the page loads): the guided mission must
+  // never duplicate, replace or delete it, however often it is restarted or left.
+  await page.addInitScript((plan) => { if (!localStorage.getItem('lunar-plans')) localStorage.setItem('lunar-plans', JSON.stringify({ state: { plans: [plan], activeId: null, compareIds: [] }, version: 0 })) }, USER_PLAN)
+  // Start from the landing page, as a visitor would.
   await page.goto(`${URL_APP}/`, { waitUntil: 'domcontentloaded' })
   await page.getByTestId('landing-try-mission').click()
 
@@ -178,6 +187,8 @@ async function run(viewport) {
   const guidedPlans = await page.evaluate(() =>
     (JSON.parse(localStorage.getItem('lunar-plans') ?? '{}').state?.plans ?? []).filter((p) => p.name.startsWith('Try a mission')).length)
   check(`${tag} repeated restarts do not duplicate the saved plan`, guidedPlans === 1, `${guidedPlans} plan card(s)`)
+  const kept = await page.evaluate(() => (JSON.parse(localStorage.getItem('lunar-plans') ?? '{}').state?.plans ?? []).filter((p) => p.id === 'user-plan-e2e'))
+  check(`${tag} the user's own plan survives the restarts and leaving the guide unchanged`, kept.length === 1 && kept[0].name === 'My own plan' && kept[0].scenario.duration_days === 5 && kept[0].scenario.landing_utc === '2027-02-01T00:00:00Z', JSON.stringify(kept.map((p) => p.name)))
 
   // Atlas: a map cell goes to the Planner as the mission that map evaluated, even after the search form is edited
   // without re-mapping, by Enter and by the button (the same path).

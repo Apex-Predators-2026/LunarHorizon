@@ -104,7 +104,7 @@ const CHECKS = [
     command: { label: 'python scripts/verify_mission_story.py (replay of the committed mission definition)', argv: ['scripts/verify_mission_story.py'], cwd: BACKEND, env: { LUNAR_OFFLINE: '1' }, must: /VERIFIED/ },
     vitest: ['src/features/guide/guide.test.tsx'],
     browser: g('1 mission: definition loaded', '2 original plan passes', '3 delay applied', '4 what changed: blackout PASS -> FAIL', '6 Rescue recovery passes',
-      '7 comparison recommends the recovery', 'repeated restarts do not duplicate'),
+      '7 comparison recommends the recovery', 'repeated restarts do not duplicate', "the user's own plan survives"),
   },
   {
     id: 'evidence', name: 'Show why: evidence in the 3D view', outcome: 'The canonical window, at the right site and time, with the way back',
