@@ -65,7 +65,7 @@ function Gallery() {
       <div className="lnd-wrap">
         <div className="lnd-gallery-head" data-reveal>
           <h2 id="gallery-h">Inside the navigator</h2>
-          <p>Explore how the navigator uses Horizons and LOLA data to plan a lunar landing.</p>
+          <p>The four views you plan in, from the 3D terrain to the rescue after a launch slip</p>
         </div>
         <ul className="lnd-gallery-grid">
           {PICTURES.map((p, i) => (
@@ -132,7 +132,7 @@ function Footer() {
       <div className="lnd-wrap">
         <p className="lnd-close-name">Site Navigator</p>
         <div className="lnd-close-meta">
-          <span>Team Apex Predators · NASA Space Apps Challenge 2026</span>
+          <span>Built by Team Apex Predators for NASA Space Apps Challenge 2026</span>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
             Source on GitHub <ExternalIcon size={14} />
           </a>
@@ -145,14 +145,32 @@ function Footer() {
 
 /** The opening picture: the Moon with Earth rising behind it, with the project's headline over it. */
 function Hero({ onOpen }: { onOpen: () => void }) {
+  // The Moon settles into place once its pixels exist, so the move never plays over an empty frame.
+  const moon = useRef<HTMLImageElement>(null)
+  const [moonReady, setMoonReady] = useState(false)
+  useEffect(() => {
+    if (moon.current?.complete) setMoonReady(true)
+  }, [])
   return (
     <section className="lnd-hero-photo" aria-labelledby="lnd-title">
-      <img src="/landing/moon.jpg" alt="A crescent Moon, its craters lit along the terminator, with a small crescent Earth rising behind its edge." fetchPriority="high" />
+      <img
+        ref={moon}
+        className={moonReady ? 'is-ready' : undefined}
+        src="/landing/moon.jpg"
+        alt="A crescent Moon, its craters lit along the terminator, with a small crescent Earth rising behind its edge."
+        fetchPriority="high"
+        onLoad={() => setMoonReady(true)}
+      />
       <div className="lnd-scrim" aria-hidden="true" />
       <div className="lnd-hero-photo-copy">
         <div className="lnd-hero-copy">
-          <p className="lnd-hero-team">{HERO.team}</p>
-          <h1 id="lnd-title">{HERO.headline}</h1>
+          <h1 id="lnd-title">
+            {HERO.headlineLines.map((line) => (
+              <span key={line} className="lnd-line">
+                <span>{line}</span>
+              </span>
+            ))}
+          </h1>
           <p className="lnd-hero-lead">{HERO.lead}</p>
           <div className="lnd-hero-actions">
             <OpenNavigatorButton onOpen={onOpen} />
@@ -165,9 +183,12 @@ function Hero({ onOpen }: { onOpen: () => void }) {
           </div>
         </div>
       </div>
-      <p className="lnd-hero-credit">
-        Image: <a href="https://science.nasa.gov/moon/" target="_blank" rel="noopener noreferrer">NASA</a>
-      </p>
+      <div className="lnd-hero-credits">
+        <p>Built by Team Apex Predators for NASA Space Apps 2026</p>
+        <p>
+          Image: <a href="https://science.nasa.gov/moon/" target="_blank" rel="noopener noreferrer">NASA</a>
+        </p>
+      </div>
     </section>
   )
 }

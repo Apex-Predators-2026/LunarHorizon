@@ -806,21 +806,31 @@ export function computeTradeoff(entries: Entry[], w: Weights, traverseKm: number
 
 export type Align = 'met' | 'utc'
 
+// The backend evaluates every mission on the hourly data grid (backend/app/timegrid.py): landing rounded to the
+// nearest whole UTC hour (half rounds up), length to whole hours. The charts' data start at that evaluated
+// landing, so the shared axis must use the same times, or elapsed and UTC labels drift from the data.
+const HOUR = 3_600_000
+/** Evaluated landing time (ms): nearest whole UTC hour, half rounds up. */
+export const gridLandingMs = (s: Pick<ComparisonScenario, 'landing_utc'>) =>
+  Math.floor((new Date(s.landing_utc).getTime() + HOUR / 2) / HOUR) * HOUR
+/** Evaluated mission length in hours: whole hours, at least one. */
+export const gridHours = (s: Pick<ComparisonScenario, 'duration_days'>) => Math.max(1, Math.round(s.duration_days * 24))
+
 export function axisOffsets(scenarios: ComparisonScenario[], align: Align): Record<string, number> {
   if (align === 'met' || !scenarios.length) return Object.fromEntries(scenarios.map((s) => [s.id, 0]))
-  const t0 = Math.min(...scenarios.map((s) => new Date(s.landing_utc).getTime()))
-  return Object.fromEntries(scenarios.map((s) => [s.id, (new Date(s.landing_utc).getTime() - t0) / 3_600_000]))
+  const t0 = Math.min(...scenarios.map(gridLandingMs))
+  return Object.fromEntries(scenarios.map((s) => [s.id, (gridLandingMs(s) - t0) / HOUR]))
 }
 
 export function fullDomain(entries: Entry[]): [number, number] {
   if (!entries.length) return [0, 24]
   const lo = Math.min(...entries.map((e) => e.offsetHours))
-  const hi = Math.max(...entries.map((e) => e.offsetHours + e.scenario.duration_days * 24))
+  const hi = Math.max(...entries.map((e) => e.offsetHours + gridHours(e.scenario)))
   return [lo, hi > lo ? hi : lo + 24]
 }
 
 export function axisOrigin(scenarios: ComparisonScenario[]): number {
-  return scenarios.length ? Math.min(...scenarios.map((s) => new Date(s.landing_utc).getTime())) : 0
+  return scenarios.length ? Math.min(...scenarios.map(gridLandingMs)) : 0
 }
 
 /** Tick label for an axis value. */

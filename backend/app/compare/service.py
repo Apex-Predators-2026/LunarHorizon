@@ -16,6 +16,7 @@ import numpy as np
 
 from .. import store
 from ..models import Scenario
+from ..timegrid import snap_duration_days, snap_time, time_note
 from ..rescue.catalog import SITES_BY_ID, nearest_psr_edge_km
 from ..rescue.timeline import SyntheticTimelineProvider, Timeline
 from ..rescue.timeline.base import to_np_utc
@@ -55,16 +56,20 @@ def _site_record(site_id: str):
 
 
 def real_timeline(scenario: Scenario) -> Timeline | None:
-    """Mission slice of the data engine's record, or None if the site/dates are not covered."""
+    """Mission slice of the data engine's record, or None if the site has no data or the mission starts outside it.
+
+    A mission that starts inside the data but runs past its end gets the samples that exist (fewer than the
+    mission needs): the canonical engine then judges it on those real hours, as the Atlas and Rescue do (one
+    policy, app.timegrid), proving a fail where it can and otherwise reporting unknown, never a pass."""
     d = _site_record(scenario.site.id)
     if d is None or len(d.times) < 2:
         return None
     step_h = float((d.times[1] - d.times[0]).astype("timedelta64[s]").astype(np.int64)) / 3600.0
     n = max(1, int(round(scenario.duration_days * 24 / step_h)))
     i = int(np.searchsorted(d.times, to_np_utc(scenario.landing_utc)))
-    if to_np_utc(scenario.landing_utc) < d.times[0] or i + n > len(d.times):
+    if to_np_utc(scenario.landing_utc) < d.times[0] or to_np_utc(scenario.landing_utc) >= d.times[-1]:
         return None
-    c, s = d.cols, slice(i, i + n)
+    c, s = d.cols, slice(i, min(i + n, len(d.times)))
     sun_frac = np.asarray(c["sun_visible_fraction"][s], float).copy()
     earth_horizon = np.asarray(c["earth_horizon_deg"][s], float).copy()
     # Unknown flags (null in the file) must stay unknown: rescue's Timeline encodes that as NaN, which the
@@ -269,13 +274,18 @@ def _viability(sc: Scenario, tl: Timeline):
 
 
 def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> tuple[CompareResult, Assessed | None]:
-    sc = item.scenario
+    # One time policy on every screen (app.timegrid): evaluate on the hourly data grid and say so when it moves.
+    asked = item.scenario
+    sc = asked.model_copy(update={"landing_utc": snap_time(asked.landing_utc),
+                                  "duration_days": snap_duration_days(asked.duration_days)})
+    grid = dict(evaluated_landing_utc=_iso(to_np_utc(sc.landing_utc)), evaluated_duration_days=sc.duration_days,
+                time_note=time_note(asked.landing_utc, asked.duration_days, sc.landing_utc, sc.duration_days))
     tl = real_timeline(sc)
     kind = "real"
     if tl is None:
         if not allow_demo:
             reason = data_coverage(sc)
-            return CompareResult(key=item.key, status="unavailable", data_kind="unavailable", data_source="none",
+            return CompareResult(key=item.key, status="unavailable", data_kind="unavailable", data_source="none", **grid,
                                  message=reason + " Enable demonstration data to see a synthetic illustration instead.",
                                  ranking=unassessed_ranking(reason),
                                  site_context=site_context(sc), science_context=science_context(sc)), None
@@ -288,7 +298,14 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
         notes.append(problem)
     f = incidence_factor(tl, item.spacecraft)
     stats: dict = {}
-    if sun_unknown.any() or earth_unknown.any():
+    covered_h = len(tl.times) * tl.step_hours
+    if kind == "real" and covered_h < sc.duration_days * 24 - 1e-9:
+        # The mission runs past the end of the real data: only part of it can be described. Window statistics
+        # would treat the missing hours as nothing; withhold them. The verdict comes from the hours that exist.
+        notes.append(f"Real data ends at {_iso(tl.times[-1])}: it covers {covered_h:g} h of this {sc.duration_days * 24:g} h "
+                     "mission. Window statistics are withheld; the viability verdict is judged on the covered hours "
+                     "only (it can show a fail, never a pass).")
+    elif sun_unknown.any() or earth_unknown.any():
         # Window statistics would have to treat unknown hours as dark or blocked. Withhold them; the canonical
         # metrics (assessment.metrics) report bounds instead.
         notes.append(f"Incomplete data: the Sun's state is unknown for {sun_unknown.sum() * tl.step_hours:g} h and "
@@ -303,7 +320,7 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
             sun_windows=sun_w, dark_windows=dark_w, earth_windows=earth_w, blackout_windows=black_w, events=events(tl),
         )
     result = CompareResult(
-        key=item.key, status="ok", data_kind=kind, data_source=tl.source, message=" ".join(notes) or None,
+        key=item.key, status="ok", data_kind=kind, data_source=tl.source, message=" ".join(notes) or None, **grid,
         site_context=site_context(sc), science_context=science_context(sc),
         viability=viability,
         assessment=assessment_info(assessment) if assessment is not None else None,
