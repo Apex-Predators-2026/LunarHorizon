@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import store
 from .engine.net import OfflineError
 from .engine.sites import ALL_SITES
+from .engine.validation_summary import summarize
 from .engine.verify import verify
 from .engine.visibility import next_edge
 from .models import (
@@ -219,11 +220,15 @@ def verify_site(site_id: str, time: str = Query(..., description="ISO UTC time")
 
 @app.get("/api/validation")
 def validation_report() -> dict:
-    """Results of scripts/validate_engine.py (independent ephemeris, horizon geometry, LROC illumination)."""
+    """Results of scripts/validate_engine.py (independent ephemeris, horizon geometry, LROC illumination).
+    `summary` holds the headline numbers by kind, each with scope, date, reference and limitation, derived
+    from the per-site results (show those, not hand-typed numbers)."""
     path = store.DATA_DIR / "validation" / "engine_validation.json"
     if not path.exists():
         raise HTTPException(404, "No validation report yet: run backend/scripts/validate_engine.py")
-    return json.loads(path.read_text())
+    report = json.loads(path.read_text())
+    report["summary"] = summarize(report)  # always from the per-site results it is served with
+    return report
 
 
 @app.get("/api/sites/{site_id}/terrain")
