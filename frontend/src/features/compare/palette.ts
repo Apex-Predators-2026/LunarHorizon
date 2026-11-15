@@ -9,19 +9,18 @@ export const MAX_COMPARED = SERIES_COLORS.length
 export const seriesColor = (slot: number) => SERIES_COLORS[((slot % 4) + 4) % 4]
 export const seriesDash = (slot: number) => SERIES_DASH[((slot % 4) + 4) % 4]
 
-// State colours for timelines and chart chrome (state, not identity). The comparison page uses the
-// planner's light surfaces, so its chart chrome is light here; the data colours keep their meaning:
+// State colours for timelines and chart chrome (state, not identity). Chart chrome follows the surface theme; data colours keep their meaning:
 // Sun yellow, Earth blue, blackout red, and the timeline lanes stay a charcoal "night" so daylight reads.
 export const STATE = {
   sun: color.sun,
   dark: '#2f3337',
   earth: color.earth,
   blackout: color.blackout,
-  grid: '#e4e4e7',
-  axis: '#5b6168',
-  ink: '#3c4044',
-  muted: '#6b7076',
-  surface: '#ffffff',
+  grid: 'var(--cmp-chart-grid)',
+  axis: 'var(--color-ink-3)',
+  ink: 'var(--color-ink-2)',
+  muted: 'var(--color-ink-4)',
+  surface: 'var(--color-surface)',
   // Unknown (no data): a grey hatch, distinct from the night colour and from the red blackout hatch.
   unknown: '#8a9099',
   unknownBg: '#4a4f55',

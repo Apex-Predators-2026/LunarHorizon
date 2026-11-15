@@ -15,7 +15,6 @@ import type { Entry } from '../analysis'
 import type { PairEvidence, RankingGroup } from '../types'
 import { Icon } from '../ui'
 import { useCompareStore } from '../useCompareStore'
-import { useCompareTour } from '../tour/useCompareTour'
 import './assistantUi.css'
 import { buildAssistantContext, contextLine, type AssistantContext } from './context'
 import { openReport } from './openReport'
@@ -27,6 +26,8 @@ import type { NavTarget } from './navigation'
 import { RichText } from './RichText'
 import { suggestedQuestions } from './suggestions'
 import { MAX_QUESTION, useAssistant, type ChatMessage } from './useAssistant'
+import { actStart } from '../../tutorial/steps'
+import { useTutorialStore } from '../../tutorial/useTutorialStore'
 
 /** Default width of the side panel; the page leaves this much room on wide screens so nothing is covered. */
 export const ASSISTANT_WIDTH = 400
@@ -108,7 +109,7 @@ export function MissionAssistant({ entries, groups, pairs, notes, ready, onJump 
     if (typeof window !== 'undefined' && (window.innerWidth < SIDE_BY_SIDE_MIN || useAssistantLayout.getState().layout === 'full')) {
       useAssistantLayout.getState().setLayout('min')
     }
-    if (target === 'tour') useCompareTour.getState().start()
+    if (target === 'tour') useTutorialStore.getState().startTour(actStart(2))
     else if (target === 'report') openReport()
     else onJump?.(target)
   }
@@ -500,7 +501,7 @@ function Panel({ open, context, onNav, onClose }: {
             </div>
           )}
           {error && !pending && (
-            <div role="alert" className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-900">
+            <div role="alert" className="flex items-start gap-2 rounded-2xl border border-red-800 bg-red-950 px-3 py-2 text-xs leading-relaxed text-red-200">
               <Icon name="warning" size={14} className="mt-0.5 shrink-0" />
               <div className="flex-1">
                 <p>{error.message}</p>

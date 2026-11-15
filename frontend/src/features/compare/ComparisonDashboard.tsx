@@ -31,8 +31,7 @@ import { DataAssumptionsBlock, MissionAssessmentBlock, ScienceVsEngineeringBlock
 import { MissionAssistant } from './assistant/MissionAssistant'
 import { useAssistantLayout } from './assistant/layout'
 import { useAssistant } from './assistant/useAssistant'
-import { CompareTour } from './tour/CompareTour'
-import { TourButton, TourOffer } from './tour/TourButton'
+import { TourButton } from './tour/TourButton'
 import { ReportHeaderAction } from './ReportHeaderAction'
 import { COMPARE_METHODOLOGY } from '../../appRoute'
 import { ComparisonMethodology } from './methodology/ComparisonMethodology'
@@ -199,13 +198,12 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
             <Tabs base="cmp" label="Comparison views" tabs={COMPARE_TABS} value={tab} onChange={chooseTab}
               trailing={
                 <span className="ml-auto flex items-center gap-1.5 whitespace-nowrap pl-4 text-xs" aria-live="polite">
-                  {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-700" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
+                  {loading ? 'Evaluating scenarios…' : backendDown ? <><Icon name="warning" size={14} className="text-red-300" /> Backend unavailable</> : anyData ? 'Data loaded' : ''}
                 </span>
               } />
           </GlassSurface>
         </nav>
 
-        <TourOffer />
         {hasDemo && (
           <div role="alert" className="mb-4 flex gap-3 rounded-xl bg-amber-950 p-4 text-sm text-amber-200">
             <Icon name="warning" className="mt-0.5" /><p><span className="font-medium">Demonstration data in use.</span> Scenarios tagged “Demonstration data” use a synthetic placeholder (approximate Sun/Earth motion, invented terrain). They are ranked separately and must not be used for planning.</p>
@@ -315,7 +313,6 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
       </div>
       <MissionAssistant entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
         notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} onJump={jumpTo} />
-      <CompareTour />
     </div>
   )
 }
