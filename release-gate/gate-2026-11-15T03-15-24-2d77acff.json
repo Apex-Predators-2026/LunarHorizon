@@ -1,0 +1,41 @@
+{
+  "commit": "2d77acff501a412f754fb98140d98d8ff6e3e9ff",
+  "uncommitted_changes": false,
+  "started": "2026-11-15T03:15:24.657Z",
+  "finished": "2026-11-15T03:18:12.934Z",
+  "node": "v25.9.0",
+  "platform": "win32",
+  "full_suites": [],
+  "checks": [
+    {
+      "id": "production",
+      "name": "Production demo",
+      "outcome": "Works from a fresh browser",
+      "ok": true,
+      "limitations": null,
+      "evidence": [
+        {
+          "what": "whole journey (10 steps, fresh browser, production build)",
+          "ok": true,
+          "tail": "10/10 steps passed; 0 page errors; 0 API failures"
+        }
+      ]
+    },
+    {
+      "id": "offline",
+      "name": "Offline fallback",
+      "outcome": "Prepared demonstration works with stated limitations",
+      "ok": true,
+      "limitations": "Backend with LUNAR_OFFLINE=1: only cached terrain and precomputed data; the live JPL Horizons check and custom pins outside the cache are unavailable (the app says so); the UI font falls back to a system font.",
+      "evidence": [
+        {
+          "what": "whole journey (10 steps, offline backend)",
+          "ok": true,
+          "tail": "10/10 steps passed; 0 page errors; 0 API failures"
+        }
+      ]
+    }
+  ],
+  "verdict": "INCOMPLETE (checks skipped or not selected: not a release pass)",
+  "passed": false
+}
