@@ -152,7 +152,7 @@ async function run(viewport) {
 
   // A live edit after generation: the report keeps its snapshot, says it is out of date, and regenerates on request.
   await page.locator('#cmp-scenarios').getByRole('checkbox', { checked: true }).first().uncheck()
-  await page.getByTestId('reopen-report').click()
+  await page.getByTestId('reopen-report').first().click() // the page header and the decision area both offer it
   await page.getByTestId('report-stale').waitFor({ timeout: 10_000 })
   check(`${tag} report flags a changed comparison and keeps its snapshot`, (await preview.getAttribute('data-snapshot')) === snapId)
   const regen = page.getByRole('button', { name: 'Regenerate from the current comparison' })
