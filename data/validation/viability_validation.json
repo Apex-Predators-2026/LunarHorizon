@@ -1,0 +1,4271 @@
+{
+  "cases": [
+    {
+      "category": "PASS",
+      "checks": [
+        {
+          "detail": "pass",
+          "name": "eligibility PASS",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "every configured constraint passes",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "exact score",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "days": 14,
+        "site": "malapert-massif",
+        "start_utc": "2027-07-20T00:00:00Z"
+      },
+      "name": "pass_exact",
+      "outcome": {
+        "data_basis": "real_terrain_aware",
+        "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+        "eligibility": "pass",
+        "end_utc": "2027-08-03T00:00:00Z",
+        "failed": [],
+        "high_risk_indicators": [],
+        "overall_risk": "low",
+        "scenario_id": "malapert-massif-20270720T0000-336h",
+        "score": {
+          "bounds": [
+            78.044229,
+            78.044229
+          ],
+          "score": 78.044229,
+          "status": "known"
+        },
+        "site": "malapert-massif",
+        "start_utc": "2027-07-20T00:00:00Z",
+        "uncovered_h": 0.0,
+        "unknown": []
+      },
+      "passed": true,
+      "synthetic": false
+    },
+    {
+      "category": "confirmed FAIL",
+      "checks": [
+        {
+          "detail": "fail",
+          "name": "eligibility FAIL",
+          "passed": true
+        },
+        {
+          "detail": "max_continuous_darkness, max_communication_blackout, min_initial_sunlight, min_initial_earth_visibility",
+          "name": "at least one proven violation",
+          "passed": true
+        },
+        {
+          "detail": "226800.0..226800.0 vs 180000.0",
+          "name": "max_continuous_darkness: measurement past threshold",
+          "passed": true
+        },
+        {
+          "detail": "489600.0..489600.0 vs 345600.0",
+          "name": "max_communication_blackout: measurement past threshold",
+          "passed": true
+        },
+        {
+          "detail": "0.0..0.0 vs 86400.0",
+          "name": "min_initial_sunlight: measurement past threshold",
+          "passed": true
+        },
+        {
+          "detail": "0.0..0.0 vs 43200.0",
+          "name": "min_initial_earth_visibility: measurement past threshold",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "not rank-eligible",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "days": 14,
+        "site": "connecting-ridge",
+        "start_utc": "2027-03-01T00:00:00Z"
+      },
+      "name": "fail_confirmed",
+      "outcome": {
+        "data_basis": "real_terrain_aware",
+        "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+        "eligibility": "fail",
+        "end_utc": "2027-03-15T00:00:00Z",
+        "failed": [
+          "max_continuous_darkness",
+          "max_communication_blackout",
+          "min_initial_sunlight",
+          "min_initial_earth_visibility"
+        ],
+        "high_risk_indicators": [
+          "landing_in_darkness",
+          "landing_without_earth_visibility",
+          "darkness_exposure",
+          "communication_exposure",
+          "margin_headroom.min_initial_sunlight",
+          "margin_headroom.min_initial_earth_visibility"
+        ],
+        "overall_risk": "high",
+        "scenario_id": "connecting-ridge-20270301T0000-336h",
+        "score": {
+          "bounds": [
+            33.641069,
+            33.641069
+          ],
+          "score": 33.641069,
+          "status": "known"
+        },
+        "site": "connecting-ridge",
+        "start_utc": "2027-03-01T00:00:00Z",
+        "uncovered_h": 0.0,
+        "unknown": []
+      },
+      "passed": true,
+      "synthetic": false
+    },
+    {
+      "category": "PASS with high screening risk",
+      "checks": [
+        {
+          "detail": "pass",
+          "name": "eligibility PASS",
+          "passed": true
+        },
+        {
+          "detail": "high",
+          "name": "overall screening risk HIGH",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "risk does not remove it from the viable ranking",
+          "passed": true
+        },
+        {
+          "detail": "['communication_exposure']",
+          "name": "high indicators named",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "days": 14,
+        "site": "peak-near-shackleton",
+        "start_utc": "2027-10-13T00:00:00Z"
+      },
+      "name": "pass_high_screening_risk",
+      "outcome": {
+        "data_basis": "real_terrain_aware",
+        "dataset_id": "peak-near-shackleton_2026-01-01_2031-01-01",
+        "eligibility": "pass",
+        "end_utc": "2027-10-27T00:00:00Z",
+        "failed": [],
+        "high_risk_indicators": [
+          "communication_exposure"
+        ],
+        "overall_risk": "high",
+        "scenario_id": "peak-near-shackleton-20271013T0000-336h",
+        "score": {
+          "bounds": [
+            64.093922,
+            64.093922
+          ],
+          "score": 64.093922,
+          "status": "known"
+        },
+        "site": "peak-near-shackleton",
+        "start_utc": "2027-10-13T00:00:00Z",
+        "uncovered_h": 0.0,
+        "unknown": []
+      },
+      "passed": true,
+      "synthetic": false
+    },
+    {
+      "category": "UNKNOWN from missing data",
+      "checks": [
+        {
+          "detail": "unknown",
+          "name": "eligibility UNKNOWN",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "no proven failure",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "undecided constraints cite missing data",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "not scored",
+          "passed": true
+        },
+        {
+          "detail": "168 h",
+          "name": "168 h uncovered, nothing extrapolated",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "dataset_end_utc": "2031-01-01T00:00:00Z",
+        "days": 14,
+        "site": "connecting-ridge",
+        "start_utc": "2030-12-25T00:00:00Z"
+      },
+      "name": "unknown_missing_data",
+      "outcome": {
+        "data_basis": "real_terrain_aware",
+        "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+        "eligibility": "unknown",
+        "end_utc": "2031-01-08T00:00:00Z",
+        "failed": [],
+        "high_risk_indicators": [],
+        "overall_risk": "unknown",
+        "scenario_id": "connecting-ridge-20301225T0000-336h",
+        "score": {
+          "bounds": null,
+          "score": null,
+          "status": "eligibility_unknown"
+        },
+        "site": "connecting-ridge",
+        "start_utc": "2030-12-25T00:00:00Z",
+        "uncovered_h": 168.0,
+        "unknown": [
+          "max_continuous_darkness",
+          "max_communication_blackout",
+          "min_sunlight_percent",
+          "min_mean_solar_disk_fraction"
+        ]
+      },
+      "passed": true,
+      "synthetic": false
+    },
+    {
+      "category": "bounded score",
+      "checks": [
+        {
+          "detail": "pass",
+          "name": "eligibility PASS despite one unknown hour",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "score BOUNDED, no point value",
+          "passed": true
+        },
+        {
+          "detail": "[86.264814, 87.219676]",
+          "name": "proper interval",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "days": 3,
+        "last_hour": "beyond the data",
+        "site": "connecting-ridge",
+        "start_utc": "2030-12-29T01:00:00Z"
+      },
+      "name": "bounded_score",
+      "outcome": {
+        "data_basis": "real_terrain_aware",
+        "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+        "eligibility": "pass",
+        "end_utc": "2031-01-01T01:00:00Z",
+        "failed": [],
+        "high_risk_indicators": [],
+        "overall_risk": "moderate",
+        "scenario_id": "connecting-ridge-20301229T0100-72h",
+        "score": {
+          "bounds": [
+            86.264814,
+            87.219676
+          ],
+          "score": null,
+          "status": "bounded"
+        },
+        "site": "connecting-ridge",
+        "start_utc": "2030-12-29T01:00:00Z",
+        "uncovered_h": 1.0,
+        "unknown": []
+      },
+      "passed": true,
+      "synthetic": false
+    },
+    {
+      "category": "overlapping candidate score intervals / uncertain ranking",
+      "checks": [
+        {
+          "detail": "",
+          "name": "both PASS and ranked",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "exact one ranked first",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "ordered by guaranteed lower bound",
+          "passed": true
+        },
+        {
+          "detail": "not_established",
+          "name": "advantage NOT established (interval contains 0)",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "explanation says the ranges overlap",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "days": 3,
+        "missions": [
+          "2030-12-29T00:00:00Z",
+          "2030-12-29T01:00:00Z"
+        ],
+        "site": "connecting-ridge"
+      },
+      "name": "overlapping_intervals",
+      "outcome": {
+        "deciding_criterion": "score_lower_bound",
+        "difference_interval": [
+          -1.0000000000000002e-06,
+          0.9548610000000001
+        ],
+        "difference_status": "not_established",
+        "explanation": "connecting-ridge-20301229T0000-72h ranks above connecting-ridge-20301229T0100-72h under the conservative scoring policy (higher guaranteed lower bound), but their score ranges overlap (exact score 87.219675 vs score between 86.264814 and 87.219676 (bounded; no exact value)). The recorded evidence does not prove connecting-ridge-20301229T0000-72h has a higher desirability score. No single score component clearly favours either scenario within the recorded bounds. The score is a relative desirability index under the stated weights, not a probability of mission success, and the ranking order is not proof of physical superiority.",
+        "ranking": [
+          [
+            1,
+            "connecting-ridge-20301229T0000-72h",
+            87.219675,
+            87.219675
+          ],
+          [
+            2,
+            "connecting-ridge-20301229T0100-72h",
+            null,
+            86.264814
+          ]
+        ]
+      },
+      "passed": true,
+      "synthetic": false
+    },
+    {
+      "category": "exact ranking with an established score advantage",
+      "checks": [
+        {
+          "detail": "",
+          "name": "both PASS",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "both exact scores",
+          "passed": true
+        },
+        {
+          "detail": "selected_higher",
+          "name": "advantage established",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "deciding criterion is the score",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "days": 14,
+        "sites": [
+          "malapert-massif",
+          "connecting-ridge"
+        ],
+        "start_utc": "2027-12-03T00:00:00Z"
+      },
+      "name": "exact_ranking",
+      "outcome": {
+        "difference_interval": [
+          22.335293999999998,
+          22.335294
+        ],
+        "difference_status": "selected_higher",
+        "ranking": [
+          [
+            1,
+            "malapert-massif-20271203T0000-336h",
+            91.113497
+          ],
+          [
+            2,
+            "connecting-ridge-20271203T0000-336h",
+            68.778203
+          ]
+        ],
+        "summaries": [
+          {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+            "eligibility": "pass",
+            "end_utc": "2027-12-17T00:00:00Z",
+            "failed": [],
+            "high_risk_indicators": [],
+            "overall_risk": "low",
+            "scenario_id": "malapert-massif-20271203T0000-336h",
+            "score": {
+              "bounds": [
+                91.113497,
+                91.113497
+              ],
+              "score": 91.113497,
+              "status": "known"
+            },
+            "site": "malapert-massif",
+            "start_utc": "2027-12-03T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+            "eligibility": "pass",
+            "end_utc": "2027-12-17T00:00:00Z",
+            "failed": [],
+            "high_risk_indicators": [],
+            "overall_risk": "moderate",
+            "scenario_id": "connecting-ridge-20271203T0000-336h",
+            "score": {
+              "bounds": [
+                68.778203,
+                68.778203
+              ],
+              "score": 68.778203,
+              "status": "known"
+            },
+            "site": "connecting-ridge",
+            "start_utc": "2027-12-03T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        ]
+      },
+      "passed": true,
+      "synthetic": false
+    },
+    {
+      "category": "incompatible configurations",
+      "checks": [
+        {
+          "detail": "assessments are not comparable under policy 'strict' (reference 'm14'); differing: m14-sun-only: effective score weights; m7: requirements/configuration fingerp",
+          "name": "one combined ranking refused",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "three separate comparability groups",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "evidence states no order",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "weights never change eligibility",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "scenarios": {
+          "m14": "14 d",
+          "m14-sun-only": "14 d, sunlight weight only",
+          "m7": "7 d"
+        },
+        "site": "malapert-massif",
+        "start_utc": "2027-07-20T00:00:00Z"
+      },
+      "name": "incompatible_configurations",
+      "outcome": {
+        "evidence_status": "not_comparable",
+        "groups": [
+          [
+            "m14"
+          ],
+          [
+            "m14-sun-only"
+          ],
+          [
+            "m7"
+          ]
+        ],
+        "issues": [
+          "requirements/configuration fingerprint",
+          "evaluated duration (1.2096e+06 s vs 604800 s)"
+        ],
+        "message": "assessments are not comparable under policy 'strict' (reference 'm14'); differing: m14-sun-only: effective score weights; m7: requirements/configuration fingerprint, evaluated duration (1.2096e+06 s vs 604800 s). Use partition_comparable() and rank each group separately.",
+        "refused": true
+      },
+      "passed": true,
+      "synthetic": false
+    },
+    {
+      "category": "synthetic data kept separate",
+      "checks": [
+        {
+          "detail": "",
+          "name": "synthetic basis recorded",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "every explanation labelled [SYNTHETIC DATA]",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "never ranked with real data, even under the permissive policy",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "separate groups",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "evidence states no order",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "fixture": "intermittent_sunlight",
+        "label": "SYNTHETIC (not NASA-derived)",
+        "real": "malapert-massif-20270720T0000-336h"
+      },
+      "name": "synthetic_kept_separate",
+      "outcome": {
+        "groups": [
+          [
+            "malapert-massif-20270720T0000-336h"
+          ],
+          [
+            "synthetic-fixture"
+          ]
+        ],
+        "issues": [
+          "data basis (synthetic vs real_terrain_aware)",
+          "requirements/configuration fingerprint",
+          "evaluated duration (172800 s vs 1.2096e+06 s)"
+        ],
+        "synthetic": {
+          "data_basis": "synthetic",
+          "dataset_id": "synthetic-intermittent-sunlight",
+          "eligibility": "fail",
+          "end_utc": "2027-01-03T00:00:00Z",
+          "failed": [
+            "max_continuous_darkness"
+          ],
+          "high_risk_indicators": [
+            "darkness_exposure"
+          ],
+          "overall_risk": "high",
+          "scenario_id": "synthetic-fixture",
+          "score": {
+            "bounds": [
+              62.500052,
+              62.500052
+            ],
+            "score": 62.500052,
+            "status": "known"
+          },
+          "site": "synthetic-site-a",
+          "start_utc": "2027-01-01T00:00:00Z",
+          "uncovered_h": 0.0,
+          "unknown": []
+        }
+      },
+      "passed": true,
+      "synthetic": true
+    },
+    {
+      "category": "dataset boundary cases",
+      "checks": [
+        {
+          "detail": "",
+          "name": "ending at the last sample is fully covered",
+          "passed": true
+        },
+        {
+          "detail": "1 h",
+          "name": "one hour past the end leaves exactly one hour uncovered",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "one hour past the end is never scored exactly",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "starting before the data leaves the first 48 h uncovered",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "entirely after the data: UNKNOWN, every undecided check NO_DATA",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "ends_at_last_sample: no proven result contradicts the covered data",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "one_hour_past_end: no proven result contradicts the covered data",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "starts_before_first_sample: no proven result contradicts the covered data",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "entirely_after_data: no proven result contradicts the covered data",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "coverage": [
+          "2026-01-01T00:00:00Z",
+          "2031-01-01T00:00:00Z"
+        ],
+        "site": "connecting-ridge"
+      },
+      "name": "dataset_boundaries",
+      "outcome": {
+        "ends_at_last_sample": {
+          "data_basis": "real_terrain_aware",
+          "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+          "eligibility": "fail",
+          "end_utc": "2031-01-01T00:00:00Z",
+          "failed": [
+            "max_continuous_darkness",
+            "max_communication_blackout",
+            "min_initial_sunlight",
+            "min_initial_earth_visibility"
+          ],
+          "high_risk_indicators": [
+            "landing_in_darkness",
+            "landing_without_earth_visibility",
+            "darkness_exposure",
+            "communication_exposure",
+            "margin_headroom.min_initial_sunlight",
+            "margin_headroom.min_initial_earth_visibility"
+          ],
+          "overall_risk": "high",
+          "scenario_id": "connecting-ridge-20301218T0000-336h",
+          "score": {
+            "bounds": [
+              34.436025,
+              34.436025
+            ],
+            "score": 34.436025,
+            "status": "known"
+          },
+          "site": "connecting-ridge",
+          "start_utc": "2030-12-18T00:00:00Z",
+          "uncovered_h": 0.0,
+          "unknown": []
+        },
+        "entirely_after_data": {
+          "data_basis": "real_terrain_aware",
+          "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+          "eligibility": "unknown",
+          "end_utc": "2031-02-15T00:00:00Z",
+          "failed": [],
+          "high_risk_indicators": [],
+          "overall_risk": "unknown",
+          "scenario_id": "connecting-ridge-20310201T0000-336h",
+          "score": {
+            "bounds": null,
+            "score": null,
+            "status": "eligibility_unknown"
+          },
+          "site": "connecting-ridge",
+          "start_utc": "2031-02-01T00:00:00Z",
+          "uncovered_h": 336.0,
+          "unknown": [
+            "max_continuous_darkness",
+            "max_communication_blackout",
+            "min_sunlight_percent",
+            "min_earth_visibility_percent",
+            "min_mean_solar_disk_fraction",
+            "min_initial_sunlight",
+            "min_initial_earth_visibility"
+          ]
+        },
+        "one_hour_past_end": {
+          "data_basis": "real_terrain_aware",
+          "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+          "eligibility": "fail",
+          "end_utc": "2031-01-01T01:00:00Z",
+          "failed": [
+            "max_continuous_darkness",
+            "max_communication_blackout",
+            "min_initial_sunlight",
+            "min_initial_earth_visibility"
+          ],
+          "high_risk_indicators": [
+            "landing_in_darkness",
+            "landing_without_earth_visibility",
+            "darkness_exposure",
+            "communication_exposure",
+            "margin_headroom.min_initial_sunlight",
+            "margin_headroom.min_initial_earth_visibility"
+          ],
+          "overall_risk": "high",
+          "scenario_id": "connecting-ridge-20301218T0100-336h",
+          "score": {
+            "bounds": [
+              34.436024,
+              34.584835
+            ],
+            "score": null,
+            "status": "bounded"
+          },
+          "site": "connecting-ridge",
+          "start_utc": "2030-12-18T01:00:00Z",
+          "uncovered_h": 1.0,
+          "unknown": []
+        },
+        "starts_before_first_sample": {
+          "data_basis": "real_terrain_aware",
+          "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+          "eligibility": "unknown",
+          "end_utc": "2026-01-06T00:00:00Z",
+          "failed": [],
+          "high_risk_indicators": [],
+          "overall_risk": "unknown",
+          "scenario_id": "connecting-ridge-20251230T0000-168h",
+          "score": {
+            "bounds": null,
+            "score": null,
+            "status": "eligibility_unknown"
+          },
+          "site": "connecting-ridge",
+          "start_utc": "2025-12-30T00:00:00Z",
+          "uncovered_h": 48.0,
+          "unknown": [
+            "min_initial_sunlight",
+            "min_initial_earth_visibility"
+          ]
+        }
+      },
+      "passed": true,
+      "synthetic": false
+    },
+    {
+      "category": "sampling-policy agreement and disagreement",
+      "checks": [
+        {
+          "detail": "unchanged",
+          "name": "agreement: verdict unchanged",
+          "passed": true
+        },
+        {
+          "detail": "changed",
+          "name": "disagreement: verdict changed",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "disagreement explained by a named constraint",
+          "passed": true
+        },
+        {
+          "detail": "",
+          "name": "baseline is exactly the canonical result",
+          "passed": true
+        }
+      ],
+      "inputs": {
+        "agree": {
+          "days": 14,
+          "site": "malapert-massif",
+          "start_utc": "2027-07-20T00:00:00Z"
+        },
+        "alternate": "nearest_sample",
+        "baseline": "sample_hold",
+        "disagree": {
+          "days": 14,
+          "site": "malapert-massif",
+          "start_utc": "2027-07-20T14:00:00Z"
+        }
+      },
+      "name": "sampling_policy",
+      "outcome": {
+        "agree": {
+          "eligibility": [
+            "pass",
+            "pass"
+          ],
+          "summary": "Verdict unchanged under the two tested sampling methods: PASS under both, with the same status for every configured constraint.",
+          "verdict": "unchanged"
+        },
+        "disagree": {
+          "changed_constraints": [
+            "max_continuous_darkness"
+          ],
+          "eligibility": [
+            "pass",
+            "fail"
+          ],
+          "statements": [
+            "Maximum continuous power-darkness: PASS under sample-and-hold, FAIL under nearest-sample (threshold 50 h; measured 50 h (sample-and-hold) vs 50.5 h (nearest-sample), a difference of +0.5 h).",
+            "Longest power-dark period: 50 h (sample-and-hold) vs 50.5 h (nearest-sample), a difference of +0.5 h.",
+            "Longest period without direct sunlight: 29 h under both methods.",
+            "Longest communication blackout: 0 h under both methods."
+          ],
+          "summary": "Verdict changes depending on how the hourly measurements are interpreted: PASS under sample-and-hold (engine default) but FAIL under nearest-sample.",
+          "verdict": "changed"
+        }
+      },
+      "passed": true,
+      "synthetic": false
+    }
+  ],
+  "datasets": [
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "apollo-11_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/apollo-11.json",
+      "generated_at_utc": "2026-11-14T17:36:30Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "335fdcee77d8249f0f0d96657b3c044eb4fdd63247b4bbf0bbd367755a28b84b",
+      "site_id": "apollo-11",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "apollo-12_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/apollo-12.json",
+      "generated_at_utc": "2026-11-14T17:36:43Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "70dec369a7f4c499715859748cd6843cea5c3eee8aa88f1c01ede9489ca62cfd",
+      "site_id": "apollo-12",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "apollo-14_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/apollo-14.json",
+      "generated_at_utc": "2026-11-14T17:36:55Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "262ad0790611efe559045b2d73b95824d1d868b3e33ea87e10897f3ff2821462",
+      "site_id": "apollo-14",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "apollo-15_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/apollo-15.json",
+      "generated_at_utc": "2026-11-14T17:37:08Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "015eb9292d0ac38f04933cd81561c1d28d48012e066e8201ac12e4ab49b699ec",
+      "site_id": "apollo-15",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "apollo-16_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/apollo-16.json",
+      "generated_at_utc": "2026-11-14T17:37:21Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "f01cf95cf0d415976c11478b9b199792cdd988de76256edc10adfd7e7959872d",
+      "site_id": "apollo-16",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "apollo-17_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/apollo-17.json",
+      "generated_at_utc": "2026-11-14T17:37:35Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "4ac55a88f7ff61c5a0e1b843d82401f0f4b17b36ff957f1a0bc94c8d758a9c39",
+      "site_id": "apollo-17",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "blue-ghost-1_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/blue-ghost-1.json",
+      "generated_at_utc": "2026-11-14T17:38:18Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "d58c96ce8ae996c22bcbbd4e88c069ce8ef20cfb68f70d6c42d9c0d538556507",
+      "site_id": "blue-ghost-1",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "chandrayaan-3_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/chandrayaan-3.json",
+      "generated_at_utc": "2026-11-14T17:39:30Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "df232eb6c01f1cecf99a58b27effa458a196de3b3c1227750535fc30cb575cfe",
+      "site_id": "chandrayaan-3",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "change-3_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/change-3.json",
+      "generated_at_utc": "2026-11-14T17:38:32Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "32f3599bc143aa0017898e20afaefacdff206d84e6e4a6874ebb6c18f66ae16b",
+      "site_id": "change-3",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "change-4_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/change-4.json",
+      "generated_at_utc": "2026-11-14T17:38:47Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "5d968bb1410ddfaddb21a1ad73c1364061e1e3d9eaeeff56bf3bf84dcf88924a",
+      "site_id": "change-4",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "change-5_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/change-5.json",
+      "generated_at_utc": "2026-11-14T17:39:01Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "2d74ef907de144be4ebc9cc511b7b5b8fb80c8a80e7b100074f1c093ce8b005e",
+      "site_id": "change-5",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "change-6_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/change-6.json",
+      "generated_at_utc": "2026-11-14T17:39:16Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "72620410c1725f12e4226a6765597e620e0fe26eafa82c6ae8b96d05fb0e53aa",
+      "site_id": "change-6",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/connecting-ridge.json",
+      "generated_at_utc": "2026-11-14T17:34:31Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "e4133d3414f3125623ce2b23401f12f873155a0d714452b147e2271a5ed29c1e",
+      "site_id": "connecting-ridge",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "de-gerlache-rim_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/de-gerlache-rim.json",
+      "generated_at_utc": "2026-11-14T17:35:10Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "6bb41e568518e85c4bb5d0149388e9f84074369f08f83dbfe534ec1a4555a2b2",
+      "site_id": "de-gerlache-rim",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "faustini-rim-a_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/faustini-rim-a.json",
+      "generated_at_utc": "2026-11-14T17:36:04Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "4dcce379a363286cfc4afdf1843077c5edad632b2c748f2192dcf3efea898065",
+      "site_id": "faustini-rim-a",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "haworth-rim_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/haworth-rim.json",
+      "generated_at_utc": "2026-11-14T17:35:25Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "b6556259e4b9be716edf1acec0d53d5c5d78b2beb34c503c26818438c04faa2b",
+      "site_id": "haworth-rim",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "im-1-odysseus_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/im-1-odysseus.json",
+      "generated_at_utc": "2026-11-14T17:37:50Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "6f5be1180d0270349d1125497745d606d2d1c413b8207d3be064668da43870e3",
+      "site_id": "im-1-odysseus",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "im-2-athena_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/im-2-athena.json",
+      "generated_at_utc": "2026-11-14T17:38:05Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "534f0040e4c443119b8a9659aaa6eb7127b9bad502199b88402bf0e82c247afa",
+      "site_id": "im-2-athena",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/malapert-massif.json",
+      "generated_at_utc": "2026-11-14T17:34:57Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "9ebfa3157cc934ccce2778729e3dae82a07c0c1a37f2ee9323ddd757ac192d4a",
+      "site_id": "malapert-massif",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "mons-mouton_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/mons-mouton.json",
+      "generated_at_utc": "2026-11-14T17:35:52Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "0d915a2f3bae215afca22a28e5ef783d40012d5efa2e02f3e7fdf65270e63a56",
+      "site_id": "mons-mouton",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "nobile-rim-1_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/nobile-rim-1.json",
+      "generated_at_utc": "2026-11-14T17:35:39Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "4eafb0f1271846c58cbe4246bb5f342d003921fae66fb8dc152b03f39001389a",
+      "site_id": "nobile-rim-1",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "peak-near-shackleton_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/peak-near-shackleton.json",
+      "generated_at_utc": "2026-11-14T17:34:44Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "2fbaecab5cc372c8ec2365c9c435b460dc4b96eaf3a196c80f67ba2e23477eb5",
+      "site_id": "peak-near-shackleton",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "shackleton-floor_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/shackleton-floor.json",
+      "generated_at_utc": "2026-11-14T17:36:17Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "796b0d5cba8532db6dfccb186c0a9660d262bdaaa480e480552a1bcf5798c56a",
+      "site_id": "shackleton-floor",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    },
+    {
+      "calculation_basis": "terrain_aware",
+      "coverage_end_utc": "2031-01-01T00:00:00Z",
+      "coverage_start_utc": "2026-01-01T00:00:00Z",
+      "dataset_id": "slim_2026-01-01_2031-01-01",
+      "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+      "file": "data/sites/slim.json",
+      "generated_at_utc": "2026-11-14T17:39:44Z",
+      "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+      "is_synthetic": false,
+      "max_gap_s": 5400.0,
+      "nominal_interval_s": 3600.0,
+      "sample_count": 43825,
+      "sha256": "c6e32f3fbe12fbb6e4d624dc3c3fdbbe2d6a6287c45504a23fc0ed4adf166777",
+      "site_id": "slim",
+      "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+    }
+  ],
+  "invariants": [
+    {
+      "detail": "176 tightened evaluations; no improvement found",
+      "name": "stricter operational limits never improve the corresponding constraint or eligibility",
+      "passed": true
+    },
+    {
+      "detail": "22 missions with a 24 h gap; 149 decided constraints and 464 bounded metrics compared; all consistent",
+      "name": "missing data never creates certainty (decided-with-gap == full-data result; bounds contain it)",
+      "passed": true
+    },
+    {
+      "detail": "88 reweighted evaluations; identical",
+      "name": "preference-weight changes never alter eligibility, constraints, metrics, margins or risk",
+      "passed": true
+    },
+    {
+      "detail": "22 missions; identical",
+      "name": "explanation generation never changes the underlying calculations",
+      "passed": true
+    },
+    {
+      "detail": "720 permutations of 6 assessments (eligibility tiers ['fail', 'pass', 'unknown']); order r0-malapert-massif(1) > r1-connecting-ridge(2) > r2-peak-near-shackleton(3) > r4-connecting-ridge(None) > r5-connecting-ridge(None) > r3-connecting-ridge(None)",
+      "name": "ranking is deterministic regardless of input order",
+      "passed": true
+    }
+  ],
+  "lander": {
+    "blackout_h": 96.0,
+    "dark_h": 50.0,
+    "min_earth_percent": 40.0,
+    "min_initial_earth_h": 12.0,
+    "min_initial_sun_h": 24.0,
+    "min_mean_disk_fraction": 0.5,
+    "min_sunlight_percent": 50.0,
+    "panel_threshold": 0.25
+  },
+  "machine": {
+    "cpu_count": 22,
+    "implementation": "CPython",
+    "machine": "AMD64",
+    "numpy": "2.5.4",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 170 Stepping 4, GenuineIntel",
+    "pydantic": "2.14.3",
+    "python": "3.14.10"
+  },
+  "smoke": {
+    "checks": 1031,
+    "datasets": 24,
+    "failed": [],
+    "results": {
+      "apollo-11": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-11_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-11-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                64.443104,
+                64.443104
+              ],
+              "score": 64.443104,
+              "status": "known"
+            },
+            "site": "apollo-11",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-11_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-11-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                53.185161,
+                53.185161
+              ],
+              "score": 53.185161,
+              "status": "known"
+            },
+            "site": "apollo-11",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-11_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-11-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                68.741476,
+                68.741476
+              ],
+              "score": 68.741476,
+              "status": "known"
+            },
+            "site": "apollo-11",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "apollo-11_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/apollo-11.json",
+          "generated_at_utc": "2026-11-14T17:36:30Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "335fdcee77d8249f0f0d96657b3c044eb4fdd63247b4bbf0bbd367755a28b84b",
+          "site_id": "apollo-11",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "apollo-12": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-12_2026-01-01_2031-01-01",
+            "eligibility": "pass",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-12-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                72.436522,
+                72.436522
+              ],
+              "score": 72.436522,
+              "status": "known"
+            },
+            "site": "apollo-12",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-12_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-12-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                52.314903,
+                52.314903
+              ],
+              "score": 52.314903,
+              "status": "known"
+            },
+            "site": "apollo-12",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-12_2026-01-01_2031-01-01",
+            "eligibility": "pass",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [],
+            "high_risk_indicators": [],
+            "overall_risk": "low",
+            "scenario_id": "apollo-12-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                100.0,
+                100.0
+              ],
+              "score": 100.0,
+              "status": "known"
+            },
+            "site": "apollo-12",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "apollo-12_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/apollo-12.json",
+          "generated_at_utc": "2026-11-14T17:36:43Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "70dec369a7f4c499715859748cd6843cea5c3eee8aa88f1c01ede9489ca62cfd",
+          "site_id": "apollo-12",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "apollo-14": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-14_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-14-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                70.584424,
+                70.584424
+              ],
+              "score": 70.584424,
+              "status": "known"
+            },
+            "site": "apollo-14",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-14_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-14-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                51.457175,
+                51.457175
+              ],
+              "score": 51.457175,
+              "status": "known"
+            },
+            "site": "apollo-14",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-14_2026-01-01_2031-01-01",
+            "eligibility": "pass",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [],
+            "high_risk_indicators": [],
+            "overall_risk": "low",
+            "scenario_id": "apollo-14-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                98.850497,
+                98.850497
+              ],
+              "score": 98.850497,
+              "status": "known"
+            },
+            "site": "apollo-14",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "apollo-14_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/apollo-14.json",
+          "generated_at_utc": "2026-11-14T17:36:55Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "262ad0790611efe559045b2d73b95824d1d868b3e33ea87e10897f3ff2821462",
+          "site_id": "apollo-14",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "apollo-15": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-15_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-15-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                67.253753,
+                67.253753
+              ],
+              "score": 67.253753,
+              "status": "known"
+            },
+            "site": "apollo-15",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-15_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-15-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                50.0,
+                50.0
+              ],
+              "score": 50.0,
+              "status": "known"
+            },
+            "site": "apollo-15",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-15_2026-01-01_2031-01-01",
+            "eligibility": "pass",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-15-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                74.134383,
+                74.134383
+              ],
+              "score": 74.134383,
+              "status": "known"
+            },
+            "site": "apollo-15",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "apollo-15_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/apollo-15.json",
+          "generated_at_utc": "2026-11-14T17:37:08Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "015eb9292d0ac38f04933cd81561c1d28d48012e066e8201ac12e4ab49b699ec",
+          "site_id": "apollo-15",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "apollo-16": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-16_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-16-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                65.793042,
+                65.793042
+              ],
+              "score": 65.793042,
+              "status": "known"
+            },
+            "site": "apollo-16",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-16_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-16-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                51.729657,
+                51.729657
+              ],
+              "score": 51.729657,
+              "status": "known"
+            },
+            "site": "apollo-16",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-16_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-16-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                70.058488,
+                70.058488
+              ],
+              "score": 70.058488,
+              "status": "known"
+            },
+            "site": "apollo-16",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "apollo-16_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/apollo-16.json",
+          "generated_at_utc": "2026-11-14T17:37:21Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "f01cf95cf0d415976c11478b9b199792cdd988de76256edc10adfd7e7959872d",
+          "site_id": "apollo-16",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "apollo-17": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-17_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-17-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                63.106168,
+                63.106168
+              ],
+              "score": 63.106168,
+              "status": "known"
+            },
+            "site": "apollo-17",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-17_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-17-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                53.455353,
+                53.455353
+              ],
+              "score": 53.455353,
+              "status": "known"
+            },
+            "site": "apollo-17",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "apollo-17_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "apollo-17-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                67.452222,
+                67.452222
+              ],
+              "score": 67.452222,
+              "status": "known"
+            },
+            "site": "apollo-17",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "apollo-17_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/apollo-17.json",
+          "generated_at_utc": "2026-11-14T17:37:35Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "4ac55a88f7ff61c5a0e1b843d82401f0f4b17b36ff957f1a0bc94c8d758a9c39",
+          "site_id": "apollo-17",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "blue-ghost-1": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "blue-ghost-1_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "blue-ghost-1-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                58.857183,
+                58.857183
+              ],
+              "score": 58.857183,
+              "status": "known"
+            },
+            "site": "blue-ghost-1",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "blue-ghost-1_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "blue-ghost-1-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                58.781212,
+                58.781212
+              ],
+              "score": 58.781212,
+              "status": "known"
+            },
+            "site": "blue-ghost-1",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "blue-ghost-1_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "blue-ghost-1-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                63.267214,
+                63.267214
+              ],
+              "score": 63.267214,
+              "status": "known"
+            },
+            "site": "blue-ghost-1",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "blue-ghost-1_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/blue-ghost-1.json",
+          "generated_at_utc": "2026-11-14T17:38:18Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "d58c96ce8ae996c22bcbbd4e88c069ce8ef20cfb68f70d6c42d9c0d538556507",
+          "site_id": "blue-ghost-1",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "chandrayaan-3": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "chandrayaan-3_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "chandrayaan-3-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                63.030931,
+                63.030931
+              ],
+              "score": 63.030931,
+              "status": "known"
+            },
+            "site": "chandrayaan-3",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "chandrayaan-3_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "chandrayaan-3-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                53.767556,
+                53.767556
+              ],
+              "score": 53.767556,
+              "status": "known"
+            },
+            "site": "chandrayaan-3",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "chandrayaan-3_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "chandrayaan-3-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                66.855327,
+                66.855327
+              ],
+              "score": 66.855327,
+              "status": "known"
+            },
+            "site": "chandrayaan-3",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "chandrayaan-3_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/chandrayaan-3.json",
+          "generated_at_utc": "2026-11-14T17:39:30Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "df232eb6c01f1cecf99a58b27effa458a196de3b3c1227750535fc30cb575cfe",
+          "site_id": "chandrayaan-3",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "change-3": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-3_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "change-3-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                70.705841,
+                70.705841
+              ],
+              "score": 70.705841,
+              "status": "known"
+            },
+            "site": "change-3",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-3_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "change-3-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                51.832979,
+                51.832979
+              ],
+              "score": 51.832979,
+              "status": "known"
+            },
+            "site": "change-3",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-3_2026-01-01_2031-01-01",
+            "eligibility": "pass",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [],
+            "high_risk_indicators": [],
+            "overall_risk": "low",
+            "scenario_id": "change-3-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                100.0,
+                100.0
+              ],
+              "score": 100.0,
+              "status": "known"
+            },
+            "site": "change-3",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "change-3_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/change-3.json",
+          "generated_at_utc": "2026-11-14T17:38:32Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "32f3599bc143aa0017898e20afaefacdff206d84e6e4a6874ebb6c18f66ae16b",
+          "site_id": "change-3",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "change-4": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-4_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "change-4-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                6.437661,
+                6.437661
+              ],
+              "score": 6.437661,
+              "status": "known"
+            },
+            "site": "change-4",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-4_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_communication_blackout",
+              "min_earth_visibility_percent",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_without_earth_visibility",
+              "communication_exposure",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "change-4-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                50.0,
+                50.0
+              ],
+              "score": 50.0,
+              "status": "known"
+            },
+            "site": "change-4",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-4_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "change-4-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                1.996189,
+                1.996189
+              ],
+              "score": 1.996189,
+              "status": "known"
+            },
+            "site": "change-4",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "change-4_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/change-4.json",
+          "generated_at_utc": "2026-11-14T17:38:47Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "5d968bb1410ddfaddb21a1ad73c1364061e1e3d9eaeeff56bf3bf84dcf88924a",
+          "site_id": "change-4",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "change-5": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-5_2026-01-01_2031-01-01",
+            "eligibility": "pass",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [],
+            "high_risk_indicators": [],
+            "overall_risk": "low",
+            "scenario_id": "change-5-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                100.0,
+                100.0
+              ],
+              "score": 100.0,
+              "status": "known"
+            },
+            "site": "change-5",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-5_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "change-5-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                56.607789,
+                56.607789
+              ],
+              "score": 56.607789,
+              "status": "known"
+            },
+            "site": "change-5",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-5_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "change-5-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                72.995542,
+                72.995542
+              ],
+              "score": 72.995542,
+              "status": "known"
+            },
+            "site": "change-5",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "change-5_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/change-5.json",
+          "generated_at_utc": "2026-11-14T17:39:01Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "2d74ef907de144be4ebc9cc511b7b5b8fb80c8a80e7b100074f1c093ce8b005e",
+          "site_id": "change-5",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "change-6": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-6_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "change-6-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                10.875899,
+                10.875899
+              ],
+              "score": 10.875899,
+              "status": "known"
+            },
+            "site": "change-6",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-6_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_communication_blackout",
+              "min_earth_visibility_percent",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "change-6-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                22.947902,
+                22.947902
+              ],
+              "score": 22.947902,
+              "status": "known"
+            },
+            "site": "change-6",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "change-6_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "change-6-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                6.394475,
+                6.394475
+              ],
+              "score": 6.394475,
+              "status": "known"
+            },
+            "site": "change-6",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "change-6_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/change-6.json",
+          "generated_at_utc": "2026-11-14T17:39:16Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "72620410c1725f12e4226a6765597e620e0fe26eafa82c6ae8b96d05fb0e53aa",
+          "site_id": "change-6",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "connecting-ridge": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_mean_solar_disk_fraction"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "connecting-ridge-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                23.069009,
+                23.069009
+              ],
+              "score": 23.069009,
+              "status": "known"
+            },
+            "site": "connecting-ridge",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "connecting-ridge-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                34.436025,
+                34.436025
+              ],
+              "score": 34.436025,
+              "status": "known"
+            },
+            "site": "connecting-ridge",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "connecting-ridge-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                19.220927,
+                19.220927
+              ],
+              "score": 19.220927,
+              "status": "known"
+            },
+            "site": "connecting-ridge",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "connecting-ridge_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/connecting-ridge.json",
+          "generated_at_utc": "2026-11-14T17:34:31Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "e4133d3414f3125623ce2b23401f12f873155a0d714452b147e2271a5ed29c1e",
+          "site_id": "connecting-ridge",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "de-gerlache-rim": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "de-gerlache-rim_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "de-gerlache-rim-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                10.041955,
+                10.041955
+              ],
+              "score": 10.041955,
+              "status": "known"
+            },
+            "site": "de-gerlache-rim",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "de-gerlache-rim_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "de-gerlache-rim-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                11.607143,
+                11.607143
+              ],
+              "score": 11.607143,
+              "status": "known"
+            },
+            "site": "de-gerlache-rim",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "de-gerlache-rim_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "de-gerlache-rim-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                11.762019,
+                11.762019
+              ],
+              "score": 11.762019,
+              "status": "known"
+            },
+            "site": "de-gerlache-rim",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "de-gerlache-rim_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/de-gerlache-rim.json",
+          "generated_at_utc": "2026-11-14T17:35:10Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "6bb41e568518e85c4bb5d0149388e9f84074369f08f83dbfe534ec1a4555a2b2",
+          "site_id": "de-gerlache-rim",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "faustini-rim-a": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "faustini-rim-a_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "faustini-rim-a-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                8.482143,
+                8.482143
+              ],
+              "score": 8.482143,
+              "status": "known"
+            },
+            "site": "faustini-rim-a",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "faustini-rim-a_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "faustini-rim-a-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                13.318452,
+                13.318452
+              ],
+              "score": 13.318452,
+              "status": "known"
+            },
+            "site": "faustini-rim-a",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "faustini-rim-a_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "faustini-rim-a-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                12.202381,
+                12.202381
+              ],
+              "score": 12.202381,
+              "status": "known"
+            },
+            "site": "faustini-rim-a",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "faustini-rim-a_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/faustini-rim-a.json",
+          "generated_at_utc": "2026-11-14T17:36:04Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "4dcce379a363286cfc4afdf1843077c5edad632b2c748f2192dcf3efea898065",
+          "site_id": "faustini-rim-a",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "haworth-rim": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "haworth-rim_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "haworth-rim-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                17.968018,
+                17.968018
+              ],
+              "score": 17.968018,
+              "status": "known"
+            },
+            "site": "haworth-rim",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "haworth-rim_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "haworth-rim-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                13.988095,
+                13.988095
+              ],
+              "score": 13.988095,
+              "status": "known"
+            },
+            "site": "haworth-rim",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "haworth-rim_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "haworth-rim-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                19.813748,
+                19.813748
+              ],
+              "score": 19.813748,
+              "status": "known"
+            },
+            "site": "haworth-rim",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "haworth-rim_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/haworth-rim.json",
+          "generated_at_utc": "2026-11-14T17:35:25Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "b6556259e4b9be716edf1acec0d53d5c5d78b2beb34c503c26818438c04faa2b",
+          "site_id": "haworth-rim",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "im-1-odysseus": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "im-1-odysseus_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "im-1-odysseus-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                67.619318,
+                67.619318
+              ],
+              "score": 67.619318,
+              "status": "known"
+            },
+            "site": "im-1-odysseus",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "im-1-odysseus_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "im-1-odysseus-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                50.0,
+                50.0
+              ],
+              "score": 50.0,
+              "status": "known"
+            },
+            "site": "im-1-odysseus",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "im-1-odysseus_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "im-1-odysseus-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                70.054581,
+                70.054581
+              ],
+              "score": 70.054581,
+              "status": "known"
+            },
+            "site": "im-1-odysseus",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "im-1-odysseus_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/im-1-odysseus.json",
+          "generated_at_utc": "2026-11-14T17:37:50Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "6f5be1180d0270349d1125497745d606d2d1c413b8207d3be064668da43870e3",
+          "site_id": "im-1-odysseus",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "im-2-athena": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "im-2-athena_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "im-2-athena-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                43.242366,
+                43.242366
+              ],
+              "score": 43.242366,
+              "status": "known"
+            },
+            "site": "im-2-athena",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "im-2-athena_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "im-2-athena-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                37.075856,
+                37.075856
+              ],
+              "score": 37.075856,
+              "status": "known"
+            },
+            "site": "im-2-athena",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "im-2-athena_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "im-2-athena-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                59.257495,
+                59.257495
+              ],
+              "score": 59.257495,
+              "status": "known"
+            },
+            "site": "im-2-athena",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "im-2-athena_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/im-2-athena.json",
+          "generated_at_utc": "2026-11-14T17:38:05Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "534f0040e4c443119b8a9659aaa6eb7127b9bad502199b88402bf0e82c247afa",
+          "site_id": "im-2-athena",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "malapert-massif": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+            "eligibility": "pass",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [],
+            "high_risk_indicators": [],
+            "overall_risk": "low",
+            "scenario_id": "malapert-massif-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                100.0,
+                100.0
+              ],
+              "score": 100.0,
+              "status": "known"
+            },
+            "site": "malapert-massif",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "malapert-massif-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                58.287098,
+                58.287098
+              ],
+              "score": 58.287098,
+              "status": "known"
+            },
+            "site": "malapert-massif",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+            "eligibility": "pass",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [],
+            "high_risk_indicators": [],
+            "overall_risk": "low",
+            "scenario_id": "malapert-massif-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                100.0,
+                100.0
+              ],
+              "score": 100.0,
+              "status": "known"
+            },
+            "site": "malapert-massif",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/malapert-massif.json",
+          "generated_at_utc": "2026-11-14T17:34:57Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "9ebfa3157cc934ccce2778729e3dae82a07c0c1a37f2ee9323ddd757ac192d4a",
+          "site_id": "malapert-massif",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "mons-mouton": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "mons-mouton_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "communication_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "mons-mouton-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                27.861189,
+                27.861189
+              ],
+              "score": 27.861189,
+              "status": "known"
+            },
+            "site": "mons-mouton",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "mons-mouton_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "mons-mouton-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                17.261905,
+                17.261905
+              ],
+              "score": 17.261905,
+              "status": "known"
+            },
+            "site": "mons-mouton",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "mons-mouton_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "mons-mouton-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                34.405834,
+                34.405834
+              ],
+              "score": 34.405834,
+              "status": "known"
+            },
+            "site": "mons-mouton",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "mons-mouton_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/mons-mouton.json",
+          "generated_at_utc": "2026-11-14T17:35:52Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "0d915a2f3bae215afca22a28e5ef783d40012d5efa2e02f3e7fdf65270e63a56",
+          "site_id": "mons-mouton",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "nobile-rim-1": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "nobile-rim-1_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "nobile-rim-1-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                0.0,
+                0.0
+              ],
+              "score": 0.0,
+              "status": "known"
+            },
+            "site": "nobile-rim-1",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "nobile-rim-1_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_earth_visibility_percent",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "nobile-rim-1-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                12.735517,
+                12.735517
+              ],
+              "score": 12.735517,
+              "status": "known"
+            },
+            "site": "nobile-rim-1",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "nobile-rim-1_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "nobile-rim-1-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                0.0,
+                0.0
+              ],
+              "score": 0.0,
+              "status": "known"
+            },
+            "site": "nobile-rim-1",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "nobile-rim-1_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/nobile-rim-1.json",
+          "generated_at_utc": "2026-11-14T17:35:39Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "4eafb0f1271846c58cbe4246bb5f342d003921fae66fb8dc152b03f39001389a",
+          "site_id": "nobile-rim-1",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "peak-near-shackleton": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "peak-near-shackleton_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure",
+              "communication_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "peak-near-shackleton-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                30.423663,
+                30.423663
+              ],
+              "score": 30.423663,
+              "status": "known"
+            },
+            "site": "peak-near-shackleton",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "peak-near-shackleton_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "peak-near-shackleton-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                19.786557,
+                19.786557
+              ],
+              "score": 19.786557,
+              "status": "known"
+            },
+            "site": "peak-near-shackleton",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "peak-near-shackleton_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "peak-near-shackleton-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                18.502561,
+                18.502561
+              ],
+              "score": 18.502561,
+              "status": "known"
+            },
+            "site": "peak-near-shackleton",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "peak-near-shackleton_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/peak-near-shackleton.json",
+          "generated_at_utc": "2026-11-14T17:34:44Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "2fbaecab5cc372c8ec2365c9c435b460dc4b96eaf3a196c80f67ba2e23477eb5",
+          "site_id": "peak-near-shackleton",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "shackleton-floor": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "shackleton-floor_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "shackleton-floor-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                0.0,
+                0.0
+              ],
+              "score": 0.0,
+              "status": "known"
+            },
+            "site": "shackleton-floor",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "shackleton-floor_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "shackleton-floor-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                0.0,
+                0.0
+              ],
+              "score": 0.0,
+              "status": "known"
+            },
+            "site": "shackleton-floor",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "shackleton-floor_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "max_communication_blackout",
+              "min_sunlight_percent",
+              "min_earth_visibility_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight",
+              "min_initial_earth_visibility"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "landing_without_earth_visibility",
+              "darkness_exposure",
+              "communication_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_earth_visibility_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight",
+              "margin_headroom.min_initial_earth_visibility"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "shackleton-floor-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                0.0,
+                0.0
+              ],
+              "score": 0.0,
+              "status": "known"
+            },
+            "site": "shackleton-floor",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "shackleton-floor_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/shackleton-floor.json",
+          "generated_at_utc": "2026-11-14T17:36:17Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "796b0d5cba8532db6dfccb186c0a9660d262bdaaa480e480552a1bcf5798c56a",
+          "site_id": "shackleton-floor",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      },
+      "slim": {
+        "evaluations": {
+          "first": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "slim_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2026-01-15T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "slim-20260101T0000-336h",
+            "score": {
+              "bounds": [
+                64.065898,
+                64.065898
+              ],
+              "score": 64.065898,
+              "status": "known"
+            },
+            "site": "slim",
+            "start_utc": "2026-01-01T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "last": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "slim_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2031-01-01T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness",
+              "min_sunlight_percent",
+              "min_mean_solar_disk_fraction",
+              "min_initial_sunlight"
+            ],
+            "high_risk_indicators": [
+              "landing_in_darkness",
+              "darkness_exposure",
+              "margin_headroom.min_sunlight_percent",
+              "margin_headroom.min_mean_solar_disk_fraction",
+              "margin_headroom.min_initial_sunlight"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "slim-20301218T0000-336h",
+            "score": {
+              "bounds": [
+                52.459604,
+                52.459604
+              ],
+              "score": 52.459604,
+              "status": "known"
+            },
+            "site": "slim",
+            "start_utc": "2030-12-18T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          },
+          "middle": {
+            "data_basis": "real_terrain_aware",
+            "dataset_id": "slim_2026-01-01_2031-01-01",
+            "eligibility": "fail",
+            "end_utc": "2028-07-16T00:00:00Z",
+            "failed": [
+              "max_continuous_darkness"
+            ],
+            "high_risk_indicators": [
+              "darkness_exposure"
+            ],
+            "overall_risk": "high",
+            "scenario_id": "slim-20280702T0000-336h",
+            "score": {
+              "bounds": [
+                68.327732,
+                68.327732
+              ],
+              "score": 68.327732,
+              "status": "known"
+            },
+            "site": "slim",
+            "start_utc": "2028-07-02T00:00:00Z",
+            "uncovered_h": 0.0,
+            "unknown": []
+          }
+        },
+        "identity": {
+          "calculation_basis": "terrain_aware",
+          "coverage_end_utc": "2031-01-01T00:00:00Z",
+          "coverage_start_utc": "2026-01-01T00:00:00Z",
+          "dataset_id": "slim_2026-01-01_2031-01-01",
+          "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+          "file": "data/sites/slim.json",
+          "generated_at_utc": "2026-11-14T17:39:44Z",
+          "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+          "is_synthetic": false,
+          "max_gap_s": 5400.0,
+          "nominal_interval_s": 3600.0,
+          "sample_count": 43825,
+          "sha256": "c6e32f3fbe12fbb6e4d624dc3c3fdbbe2d6a6287c45504a23fc0ed4adf166777",
+          "site_id": "slim",
+          "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)"
+        }
+      }
+    }
+  },
+  "started_utc": "2026-11-14T22:24:26.855990Z",
+  "summary": {
+    "checks": 1089,
+    "failed": 0
+  },
+  "timing": {
+    "caches": "none added: preparation is already done once per dataset by the caller (prepare_series / prepare_policy_series); per-evaluation time is milliseconds",
+    "data_preparation": {
+      "description": "load = adapters.load_site_file (JSON parse + contract validation of every sample); prepare = windows.prepare_series (sample-and-hold step functions), once per dataset",
+      "per_site": {
+        "apollo-11": {
+          "load_s": 1.0133406999993895,
+          "prepare_s": 0.10170649999781745,
+          "samples": 43825
+        },
+        "apollo-12": {
+          "load_s": 1.2829158999993524,
+          "prepare_s": 0.09625700000106008,
+          "samples": 43825
+        },
+        "apollo-14": {
+          "load_s": 1.572431399999914,
+          "prepare_s": 0.10560350000014296,
+          "samples": 43825
+        },
+        "apollo-15": {
+          "load_s": 1.329632799999672,
+          "prepare_s": 0.10244569999849773,
+          "samples": 43825
+        },
+        "apollo-16": {
+          "load_s": 1.4639060000008612,
+          "prepare_s": 0.1129761000011058,
+          "samples": 43825
+        },
+        "apollo-17": {
+          "load_s": 1.5523925999987114,
+          "prepare_s": 0.09510280000176863,
+          "samples": 43825
+        },
+        "blue-ghost-1": {
+          "load_s": 1.6587838999985252,
+          "prepare_s": 0.10989330000302289,
+          "samples": 43825
+        },
+        "chandrayaan-3": {
+          "load_s": 1.812814500000968,
+          "prepare_s": 0.14025149999724817,
+          "samples": 43825
+        },
+        "change-3": {
+          "load_s": 2.071243999998842,
+          "prepare_s": 0.10205879999921308,
+          "samples": 43825
+        },
+        "change-4": {
+          "load_s": 0.8399528000009013,
+          "prepare_s": 0.0807223999981943,
+          "samples": 43825
+        },
+        "change-5": {
+          "load_s": 2.043703099996492,
+          "prepare_s": 0.10290310000345926,
+          "samples": 43825
+        },
+        "change-6": {
+          "load_s": 0.9155652000008558,
+          "prepare_s": 0.10785879999821191,
+          "samples": 43825
+        },
+        "connecting-ridge": {
+          "load_s": 2.1391068999982963,
+          "prepare_s": 0.10604930000044988,
+          "samples": 43825
+        },
+        "de-gerlache-rim": {
+          "load_s": 0.8324352000017825,
+          "prepare_s": 0.08928630000082194,
+          "samples": 43825
+        },
+        "faustini-rim-a": {
+          "load_s": 0.8566721999995934,
+          "prepare_s": 0.09590570000000298,
+          "samples": 43825
+        },
+        "haworth-rim": {
+          "load_s": 2.50494560000152,
+          "prepare_s": 0.09997659999862663,
+          "samples": 43825
+        },
+        "im-1-odysseus": {
+          "load_s": 0.9418417999986559,
+          "prepare_s": 0.09772349999911967,
+          "samples": 43825
+        },
+        "im-2-athena": {
+          "load_s": 0.866149099998438,
+          "prepare_s": 0.10315179999815882,
+          "samples": 43825
+        },
+        "malapert-massif": {
+          "load_s": 2.7945258999970974,
+          "prepare_s": 0.08803510000143433,
+          "samples": 43825
+        },
+        "mons-mouton": {
+          "load_s": 0.8933563999999024,
+          "prepare_s": 0.1483912000003329,
+          "samples": 43825
+        },
+        "nobile-rim-1": {
+          "load_s": 0.9593782000010833,
+          "prepare_s": 0.10504719999880763,
+          "samples": 43825
+        },
+        "peak-near-shackleton": {
+          "load_s": 3.3523127999978897,
+          "prepare_s": 0.11256689999936498,
+          "samples": 43825
+        },
+        "shackleton-floor": {
+          "load_s": 1.0414081999988412,
+          "prepare_s": 0.1042645999987144,
+          "samples": 43825
+        },
+        "slim": {
+          "load_s": 0.8163230999998632,
+          "prepare_s": 0.11439550000068266,
+          "samples": 43825
+        }
+      },
+      "policy_pair_description": "prepare_policy_series(malapert-massif): both sampling policies, once per dataset",
+      "policy_pair_prepare_s": 0.2376363000003039,
+      "total_load_s": 35.55513829998745,
+      "total_prepare_s": 2.522573199996259
+    },
+    "evaluate_scenario": {
+      "max_ms": 8.338800002093194,
+      "mean_ms": 3.6612505000994133,
+      "median_ms": 3.349000000525848,
+      "n": 200.0,
+      "p95_ms": 5.733599999075523,
+      "total_s": 0.7322501000198827,
+      "workload": "200 x 14-day missions at malapert-massif, landings every 37 h from 2027-01-01, standard lander, on the prepared series (full pipeline incl. explanations)"
+    },
+    "rank_assessments": {
+      "max_ms": 1.301299998885952,
+      "mean_ms": 0.8191019999503624,
+      "median_ms": 0.8703499988769181,
+      "n": 50.0,
+      "p95_ms": 1.2203999976918567,
+      "total_s": 0.04095509999751812,
+      "workload": "50 x ranking of 24 assessments (one per site)"
+    },
+    "sampling_sensitivity_report": {
+      "max_ms": 14.931399997294648,
+      "mean_ms": 9.12881499989453,
+      "median_ms": 8.921150001697242,
+      "n": 40.0,
+      "p95_ms": 13.094000001729,
+      "total_s": 0.3651525999957812,
+      "workload": "40 x 14-day missions at malapert-massif on the prepared policy pair (two full evaluations + comparison each)"
+    }
+  },
+  "validation_version": "member2-part2-validation-v1",
+  "versions": {
+    "alternate_sampling_policy": "nearest_sample",
+    "default_sampling_policy": "sample_hold",
+    "engine": "0.6.0-phase6",
+    "explanations": "explanations-v1",
+    "ranking_evidence": "ranking-evidence-v1",
+    "ranking_method": "ranking-phase5b-v1",
+    "sampling_policies_supported": "sample_hold, nearest_sample",
+    "sampling_sensitivity": "1.0.0-part2b",
+    "scoring_method": "desirability-v1",
+    "validation": "member2-part2-validation-v1"
+  },
+  "wall_s": 46.83032830000229
+}
