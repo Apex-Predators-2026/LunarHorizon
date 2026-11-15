@@ -25,8 +25,8 @@ class AssistantUnavailable(Exception):
 
 NOT_CONFIGURED = (
     "not_configured",
-    "The Mission Assistant is not configured on this server: add OPENROUTER_API_KEY to backend/.env "
-    "(copy backend/.env.example), then press Check again. The comparison itself works without it.",
+    "The Mission Assistant is not configured on this server: set OPENROUTER_API_KEY in the backend environment "
+    "(or backend/.env for local development), then press Check again. The comparison itself works without it.",
 )
 OFFLINE = (
     "offline",
@@ -53,7 +53,7 @@ def _open_completion(messages: list[dict], s: Settings, temperature: float, max_
             "Authorization": f"Bearer {s.api_key}",
             "Content-Type": "application/json",
             # OpenRouter's optional app attribution headers (no user data).
-            "HTTP-Referer": "http://localhost:5173",
+            "HTTP-Referer": s.http_referer,
             "X-Title": "Lunar Landing Site Navigator",
         },
     )
