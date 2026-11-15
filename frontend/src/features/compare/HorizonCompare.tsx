@@ -62,8 +62,11 @@ export function HorizonCompare({ entries }: { entries: Entry[] }) {
     const c = conditionsAt(e, cursor)
     return c ? [{ e, c }] : []
   })
-  const sunPts = points.map(({ e, c }) => ({ az: c.sunAz, el: c.sunEl, s: e.scenario, lit: c.sunFraction > 0 }))
-  const earthPts = points.map(({ e, c }) => ({ az: c.earthAz, el: c.earthEl, s: e.scenario, vis: c.earthVisible }))
+  // Positions that are unknown at the selected time are not drawn.
+  const sunPts = points.flatMap(({ e, c }) => (c.sunAz === null || c.sunEl === null ? []
+    : [{ az: c.sunAz, el: c.sunEl, s: e.scenario, lit: c.sunFraction !== null && c.sunFraction > 0 }]))
+  const earthPts = points.flatMap(({ e, c }) => (c.earthAz === null || c.earthEl === null ? []
+    : [{ az: c.earthAz, el: c.earthEl, s: e.scenario, vis: c.earthVisible === true }]))
 
   if (!siteIds.length) return <p className="text-xs text-slate-500">Terrain horizons are available for sites with real data only.</p>
   if (!lines.length) return <p className="animate-pulse text-xs text-slate-400">Loading LOLA terrain horizons…</p>
