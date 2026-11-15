@@ -4,7 +4,8 @@ Run from backend/:
     .venv\\Scripts\\python.exe scripts\\prefetch_tiles.py [--no-imagery] [--globe-zoom 3] [--polar-zoom 7] [--site-zoom 13]
 
   * terrain: the whole globe down to --globe-zoom, the south-polar region (within ~300 km of the pole)
-    down to --polar-zoom, and the 3 x 3 tiles around each of the 24 curated sites down to --site-zoom.
+    down to --polar-zoom, the wider ring to --limb-lat (67 S) down to --limb-zoom and the whole
+    south face down to --face-zoom (what the view shows towards the limb from high up), and the 3 x 3 tiles around each of the 24 curated sites down to --site-zoom.
     Tiles are warmed padded (pad=1), exactly as the 3D view requests them.
   * the PSR / surface-ice overlay (Moon Trek).
   * the LRO imagery the 3D view fades to when zoomed out (levels 0-3 everywhere, the polar region and the
@@ -40,12 +41,13 @@ def globe(zmax: int) -> set[Tile]:
     return {(f, z, x, y) for f in range(6) for z in range(zmax + 1) for x in range(2**z) for y in range(2**z)}
 
 
-def polar(zmax: int) -> set[Tile]:
+def polar(zmax: int, lat_limit: float = -80.0) -> set[Tile]:
+    """South-face tiles down to zmax whose centre is south of lat_limit (-80: ~300 km from the pole)."""
     out = set()
     for z in range(zmax + 1):
         for x in range(2**z):
             for y in range(2**z):
-                if tile_centre_latlon(SOUTH_FACE, z, x, y)[0] <= -80:  # ~300 km from the pole
+                if tile_centre_latlon(SOUTH_FACE, z, x, y)[0] <= lat_limit:
                     out.add((SOUTH_FACE, z, x, y))
     return out
 
@@ -97,11 +99,22 @@ def main():
     ap.add_argument("--globe-zoom", type=int, default=3)
     ap.add_argument("--polar-zoom", type=int, default=7)
     ap.add_argument("--site-zoom", type=int, default=13)
+    # From high up near the pole the view reaches the limb, ~600 km away, drawn at about level 8: warm
+    # that ring too (the demo tour's offline check found such tiles missing otherwise).
+    ap.add_argument("--limb-zoom", type=int, default=8, help="zoom for the wider south-polar ring")
+    ap.add_argument("--limb-lat", type=float, default=-67.0, help="the wider ring reaches this latitude")
+    ap.add_argument("--face-zoom", type=int, default=6, help="the whole south face (to ~35 S) down to this zoom")
     ap.add_argument("--no-imagery", action="store_true", help="skip the LRO imagery (the zoomed-out look of the 3D view)")
     args = ap.parse_args()
 
     failed: list[Tile] = []
-    terrain = globe(args.globe_zoom) | polar(args.polar_zoom) | around_sites(args.site_zoom, respect_data=True)
+    terrain = (
+        globe(args.globe_zoom)
+        | polar(args.polar_zoom)
+        | polar(args.limb_zoom, args.limb_lat)
+        | polar(args.face_zoom, 0.0)  # the whole south face: the limb seen from far above the pole
+        | around_sites(args.site_zoom, respect_data=True)
+    )
     failed += warm("Terrain", terrain, lambda t: tile_heights(*t, pad=1))
 
     print("PSR / surface-ice overlay", flush=True)
