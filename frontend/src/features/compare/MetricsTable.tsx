@@ -53,10 +53,9 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                   <tr>
                     <th scope="row" className="sticky left-0 bg-surface py-1 text-left text-xs font-normal text-slate-300">Eligibility · canonical rank</th>
                     {entries.map((e) => {
-                      const v = e.result?.viability
                       return (
                         <td key={e.scenario.id} className="py-1 pl-3 text-xs">
-                          {v && eligibilityOf(e) ? (
+                          {eligibilityOf(e) ? (
                             <span className="inline-flex flex-wrap items-center gap-1">
                               <EligibilityBadge eligibility={eligibilityOf(e)!} />
                               {rankText(e.ranking, groupCount) && <RankBadge text={rankText(e.ranking, groupCount)!} />}
@@ -80,7 +79,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                         const isBest = best.has(e.scenario.id)
                         return (
                           <td key={e.scenario.id} className="py-1 pl-3 align-top tabular-nums">
-                            <span className={isBest ? 'font-medium text-slate-50' : 'text-slate-300'}>{(e.result && m.text?.(e.result)) ?? fmtMetric(v, m.unit)}</span>
+                            <span className={isBest ? 'font-medium text-slate-50' : 'text-slate-300'}>{(e.result && m.text?.(e.result, e.scenario)) ?? fmtMetric(v, m.unit)}</span>
                             {isBest && <span className="ml-1 text-xs text-emerald-300" title="Best among compared real-data scenarios">best</span>}
                             {d && (
                               <span className={`block text-[11px] ${d.better === null ? 'text-slate-500' : d.better ? 'text-emerald-400' : 'text-red-400'}`}>

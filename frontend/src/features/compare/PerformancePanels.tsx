@@ -2,7 +2,7 @@
 // Eligibility, ranks and order come from the canonical viability engine via the backend (never recomputed here).
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
-import { canonicalRanking, comparableEntries, fmtMetric, okEntries, scoreText, type Entry } from './analysis'
+import { canonicalRanking, cm, comparableEntries, fmtMetric, inexactText, knownValue, okEntries, scoreText, type Entry, type MetricDef } from './analysis'
 import { STATE, seriesColor } from './palette'
 import type { RankingGroup } from './types'
 import { DataKindBadge, EligibilityBadge, Explain, Icon, ScenarioChip } from './ui'
@@ -15,13 +15,14 @@ interface BarRow {
   entry: Entry
 }
 
-function ScenarioBars({ rows, unit, title, max, format, limitLabel }: {
+function ScenarioBars({ rows, unit, title, max, format, limitLabel, notPlotted = [] }: {
   rows: BarRow[]
   unit: string
   title: string
   max?: number
   format: (v: number) => string
   limitLabel?: string
+  notPlotted?: { entry: Entry; text: string }[] // values that are only bounded or unavailable: listed, never drawn
 }) {
   return (
     <div>
@@ -63,6 +64,15 @@ function ScenarioBars({ rows, unit, title, max, format, limitLabel }: {
           ))}
         </ul>
       )}
+      {notPlotted.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-[11px] text-slate-400" aria-label="Values not plotted">
+          {notPlotted.map(({ entry, text }) => (
+            <li key={entry.scenario.id} className="flex items-center gap-1.5">
+              <ScenarioChip s={entry.scenario} size="sm" /> {text}. Not plotted: the engine could not determine an exact value.
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
@@ -70,11 +80,29 @@ function ScenarioBars({ rows, unit, title, max, format, limitLabel }: {
 const h = (v: number) => fmtMetric(v, 'h')
 const pctf = (v: number) => `${v.toFixed(1)}%`
 
+/**
+ * Availability and outage bars from the viability engine's own metrics. Only exact (known) values are drawn;
+ * bounded or unavailable values are listed under the chart instead of being drawn at a guessed length.
+ */
 export function AvailabilityCharts({ entries }: { entries: Entry[] }) {
-  const ok = comparableEntries(entries).filter((e) => e.result?.solar && e.result.earth)
+  const ok = comparableEntries(entries).filter((e) => e.result?.assessment)
   const left = okEntries(entries).filter((e) => !ok.includes(e))
   if (ok.length === 0) return <p className="text-xs text-slate-500">No results with data yet.</p>
-  const row = (e: Entry, value: number, limit?: number): BarRow => ({ id: e.scenario.id, name: e.scenario.label, value, limit, entry: e })
+  const chart = (key: string, unit: MetricDef['unit'], limit?: (e: Entry) => number) => {
+    const rows: BarRow[] = []
+    const notPlotted: { entry: Entry; text: string }[] = []
+    for (const e of ok) {
+      const m = cm(e.result, key)
+      const v = knownValue(m)
+      if (v !== null) rows.push({ id: e.scenario.id, name: e.scenario.label, value: v, limit: limit?.(e), entry: e })
+      else notPlotted.push({ entry: e, text: m ? (inexactText(m, unit) ?? 'unavailable') : 'unavailable' })
+    }
+    return { rows, notPlotted }
+  }
+  const sun = chart('sunlight_percent', '%')
+  const earth = chart('earth_visible_percent', '%')
+  const dark = chart('longest_power_darkness_h', 'h', (e) => e.scenario.requirements.battery_hours)
+  const black = chart('longest_blackout_h', 'h', (e) => e.scenario.requirements.max_comms_gap_hours)
   return (
     <div className="grid gap-5 lg:grid-cols-2">
       {left.length > 0 && (
@@ -82,14 +110,10 @@ export function AvailabilityCharts({ entries }: { entries: Entry[] }) {
           <Icon name="warning" size={14} className="mr-1 align-[-2px]" />{left.map((e) => e.scenario.label).join(', ')} {left.length > 1 ? 'use' : 'uses'} demonstration data and {left.length > 1 ? 'are' : 'is'} left out of these real-data charts.
         </p>
       )}
-      <ScenarioBars title="Mission illuminated (any solar disk visible)" unit="%" max={100} format={pctf}
-        rows={ok.map((e) => row(e, e.result!.solar!.sunlit_fraction * 100))} />
-      <ScenarioBars title="Mission with Earth in line of sight" unit="%" max={100} format={pctf}
-        rows={ok.map((e) => row(e, e.result!.earth!.visible_fraction * 100))} />
-      <ScenarioBars title="Longest power gap (Sun below panel threshold) vs battery limit" unit=" h" format={h} limitLabel="battery limit"
-        rows={ok.filter((e) => e.result!.viability).map((e) => row(e, e.result!.viability!.metrics.longest_dark_gap_hours, e.scenario.requirements.battery_hours))} />
-      <ScenarioBars title="Longest communication blackout vs allowed blackout" unit=" h" format={h} limitLabel="allowed"
-        rows={ok.map((e) => row(e, e.result!.earth!.longest_blackout_hours, e.scenario.requirements.max_comms_gap_hours))} />
+      <ScenarioBars title="Mission in direct sunlight (any solar disk visible)" unit="%" max={100} format={pctf} {...sun} />
+      <ScenarioBars title="Mission with Earth in line of sight" unit="%" max={100} format={pctf} {...earth} />
+      <ScenarioBars title="Longest power gap (Sun below panel threshold) vs battery limit" unit=" h" format={h} limitLabel="battery limit" {...dark} />
+      <ScenarioBars title="Longest communication blackout vs allowed blackout" unit=" h" format={h} limitLabel="allowed" {...black} />
     </div>
   )
 }
