@@ -4,9 +4,11 @@ no unknown is filled, no bound is collapsed to a number.
 """
 from __future__ import annotations
 
+from datetime import timezone
+
 from ..viability.enums import MetricStatus, Unit
-from ..viability.outputs import Metric, ViabilityAssessment
-from .schemas import AssessmentInfo, CanonicalMetric, ConstraintItem, RankingInfo, RiskItem
+from ..viability.outputs import Metric, ViabilityAssessment, VisibilityWindow
+from .schemas import AssessmentInfo, CanonicalMetric, ConstraintItem, EvidenceWindow, RankingInfo, RiskItem
 
 _HOUR = 3600.0
 
@@ -47,6 +49,21 @@ def canonical_metric(m: Metric) -> CanonicalMetric:
     )
 
 
+def _iso(t) -> str:
+    return t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
+
+
+def evidence_window(w: VisibilityWindow, start) -> EvidenceWindow:
+    return EvidenceWindow(
+        kind=w.kind.value,
+        start_hour=(w.start_utc - start).total_seconds() / _HOUR,
+        end_hour=(w.end_utc - start).total_seconds() / _HOUR,
+        duration_hours=w.duration_s / _HOUR,
+        start_utc=_iso(w.start_utc), end_utc=_iso(w.end_utc),
+        clipped_at_start=w.clipped_at_start, clipped_at_end=w.clipped_at_end,
+    )
+
+
 def assessment_info(a: ViabilityAssessment) -> AssessmentInfo:
     q = a.data_quality
     metrics = {key: canonical_metric(getattr(a.metrics, field)) for key, field in METRIC_FIELDS.items()}
@@ -57,6 +74,7 @@ def assessment_info(a: ViabilityAssessment) -> AssessmentInfo:
             threshold=_conv(c.threshold, c.unit), measured=canonical_metric(c.measured), message=c.message,
             requirement_field=c.requirement_field,
             unknown_reason=c.unknown_reason.value if c.unknown_reason else None,
+            evidence_windows=[evidence_window(w, a.evaluated_start_utc) for w in c.evidence_windows],
         )
         for c in a.constraints
     ]
