@@ -1,8 +1,15 @@
 // Basic answers without AI, used when the AI service is unavailable. Every sentence is assembled from the
 // comparison context (the page's own verdicts, decisions and display figures); nothing is inferred or worded
 // freely, and the panel labels these answers "Basic answer · not AI".
-import type { AssistantContext, AssistantScenario } from './context'
+import { fmtEvaluatedLength, fmtRequestedLength, fmtWhen } from '../missionTime'
+import type { AssistantContext, AssistantMissionTime, AssistantScenario } from './context'
 import { guideAnswer, guideFor } from './navigation'
+
+/** The evaluated window (what the results describe); the request only when nothing was evaluated, named as such. */
+const windowText = (t: AssistantMissionTime) =>
+  t.evaluated_landing_utc && t.evaluated_duration_hours !== null
+    ? `evaluated ${fmtWhen(t.evaluated_landing_utc)}, ${fmtEvaluatedLength(t.evaluated_duration_hours)}${t.adjusted ? ', adjusted to the hourly evaluation grid' : ''}`
+    : `requested ${fmtWhen(t.requested_landing_utc)}, ${fmtRequestedLength(t.requested_duration_days)}, not evaluated yet`
 
 const STATUS: Record<string, string> = { pass: 'PASS', fail: 'FAIL', unknown: 'UNKNOWN' }
 const status = (s: AssistantScenario) => (s.eligibility ? STATUS[s.eligibility] : s.result === 'loading' ? 'still loading' : 'not assessed')
@@ -53,7 +60,7 @@ export function basicSummary(c: AssistantContext): string {
   const out: string[] = ['### Overall assessment']
   const note = stateNote(c)
   if (note) out.push(note)
-  out.push(`Comparing ${c.scenarios.map((s) => `Scenario ${s.label} (${s.site.name}, landing ${s.landing_utc.slice(0, 10)}, ${s.duration_days} d)`).join(', ')}.`)
+  out.push(`Comparing ${c.scenarios.map((s) => `Scenario ${s.label} (${s.site.name}, ${windowText(s.mission_time)})`).join(', ')}.`)
   for (const d of c.decisions) out.push(d.headline)
 
   out.push('', '### Solar conditions', ...figureLines(c, [c.at_a_glance[0]?.metric, c.at_a_glance[1]?.metric]))

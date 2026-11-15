@@ -5,16 +5,21 @@
 // "recommended" only from the decision panel). Figures come from the same tables the page renders (At a glance,
 // Key metrics, Requirements), as display text with units, so the assistant quotes what the user sees and a missing
 // value reads "unavailable", never 0.
+//
+// v3: each scenario's mission window is the one the backend evaluated (mission_time, from missionTime.ts), with the
+// request and the adjustment note beside it. v2 sent the requested landing_utc / duration_days, which read as the
+// assessed window. Nothing evaluated yet: the evaluated fields are null and status says why.
 import { formatMarginMetric } from '../../../lib/headroom'
 import { METRICS, bestIds, fmtMetric, requirementMatrix, type Entry } from '../analysis'
 import { buildExport, type ExportedScenario } from '../export'
 import { HEADLINES, headlineRows } from '../glance'
 import { changedChanged, rescueSteps, type RescueContext } from '../rescueFlow'
 import { guideForAI } from './navigation'
+import type { EvaluationStatus } from '../missionTime'
 import { COMPARE_SECTIONS } from '../sections'
 import type { PairEvidence, RankingGroup } from '../types'
 
-export const ASSISTANT_CONTEXT_VERSION = 'comparison-assistant-context-v2'
+export const ASSISTANT_CONTEXT_VERSION = 'comparison-assistant-context-v3'
 
 /** empty: nothing selected · loading: results being computed · updating: ranking being recomputed · ready: all current */
 export type ContextState = 'empty' | 'loading' | 'updating' | 'ready'
@@ -27,8 +32,7 @@ export interface AssistantScenario {
   name: string
   origin: string // user | duplicate | preset | rescue | external
   site: ExportedScenario['site']
-  landing_utc: string
-  duration_days: number
+  mission_time: AssistantMissionTime
   spacecraft: ExportedScenario['spacecraft']
   result: 'not_requested' | 'loading' | 'done' | 'error'
   data_kind: string | null
@@ -45,6 +49,18 @@ export interface AssistantScenario {
   rescue_role: string | null
   ranking_explanation: string | null
   message: string | null
+}
+
+/** The mission window the comparison describes: evaluated by the backend (null until it is), and the request. */
+export interface AssistantMissionTime {
+  status: EvaluationStatus
+  evaluated_landing_utc: string | null
+  evaluated_duration_hours: number | null
+  evaluated_end_utc: string | null
+  requested_landing_utc: string
+  requested_duration_days: number
+  adjusted: boolean | null // null = nothing evaluated yet
+  note: string | null // the backend's explanation when it adjusted the request
 }
 
 export interface AssistantContext {
@@ -156,8 +172,16 @@ export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], 
       name: s.name,
       origin: s.origin,
       site: s.site,
-      landing_utc: s.landing_utc,
-      duration_days: s.duration_days,
+      mission_time: {
+        status: s.mission_time.evaluation_status,
+        evaluated_landing_utc: s.mission_time.evaluated_landing_utc,
+        evaluated_duration_hours: s.mission_time.evaluated_duration_hours,
+        evaluated_end_utc: s.mission_time.evaluated_end_utc,
+        requested_landing_utc: s.mission_time.requested_landing_utc,
+        requested_duration_days: s.mission_time.requested_duration_days,
+        adjusted: s.mission_time.time_adjusted,
+        note: s.mission_time.time_note,
+      },
       spacecraft: s.spacecraft,
       result: st ? st.state : 'not_requested',
       data_kind: s.data.kind,
@@ -212,7 +236,8 @@ export function buildAssistantContext(entries: Entry[], groups: RankingGroup[], 
 
   const revision = hash(JSON.stringify([state, entries.map((e) => [e.scenario.label, e.scenario.site.id, e.scenario.landing_utc,
     e.scenario.duration_days, e.scenario.requirements, e.scenario.spacecraft, e.state?.state, e.result?.key ?? null]),
-  scenarios.map((s) => [s.eligibility, s.canonical_rank, s.recommended]), rescue?.importedAt ?? null]))
+  // The evaluated window is part of the answer: a changed evaluation is a new revision even with the same inputs.
+  scenarios.map((s) => [s.eligibility, s.canonical_rank, s.recommended, s.mission_time]), rescue?.importedAt ?? null]))
 
   return {
     format: ASSISTANT_CONTEXT_VERSION,
