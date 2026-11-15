@@ -1,6 +1,7 @@
 // "At a glance": the answer first. The decision headline and each scenario's verdict, then the four headline
 // conditions drawn side by side so the differences are visible without reading the tables. Everything shown comes
 // from the canonical engine (verdicts, ranks, metrics); bars are drawn only for exact values.
+import { scenarioDisplayName } from './scenario'
 import { eligibilityOf, groupCountOf, rankText, requirementSummary, type Entry } from './analysis'
 import { HEADLINES, headlineNote, headlineRows, type Headline } from './glance'
 import { buildDecision } from './decision'
@@ -81,7 +82,7 @@ export function AtAGlance({ entries, groups, pairs, ready, onJump }: {
             return (
               <li key={e.scenario.id} className="flex flex-wrap items-center gap-1.5 text-xs text-ink-2">
                 <ScenarioChip s={e.scenario} size="sm" />
-                <span className="max-w-[14rem] truncate" title={e.scenario.name}>{e.scenario.site.name}</span>
+                <span className="min-w-0 break-words">{scenarioDisplayName(e.scenario)}</span>
                 {el ? <EligibilityBadge eligibility={el} /> : <span className="text-ink-4">{e.state?.state === 'loading' ? 'evaluating…' : 'not assessed'}</span>}
                 {rank && <RankBadge text={rank} />}
                 {req && <span className="tabular-nums text-ink-3">{req.passed}/{req.applicable} requirements met</span>}
