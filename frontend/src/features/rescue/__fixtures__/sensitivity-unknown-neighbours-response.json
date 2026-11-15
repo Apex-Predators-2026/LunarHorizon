@@ -1,0 +1,179 @@
+{
+  "base": {
+    "scenario": {
+      "site": {
+        "id": "peak-near-shackleton",
+        "name": "Peak Near Shackleton",
+        "lat": -89.01701,
+        "lon": 126.27302
+      },
+      "landing_utc": "2025-12-31T00:00:00Z",
+      "duration_days": 7.0,
+      "requirements": {
+        "min_sunlight_fraction": 0.5,
+        "battery_hours": 50.0,
+        "panel_threshold": 0.25,
+        "min_earth_visibility_fraction": 0.4,
+        "max_comms_gap_hours": 96.0,
+        "min_initial_sun_hours": 24.0,
+        "min_initial_comms_hours": 12.0
+      }
+    },
+    "passes": false,
+    "eligibility": "unknown",
+    "score": null,
+    "metrics": {
+      "sunlight_fraction": 0.0,
+      "equivalent_sun_hours": 0.0,
+      "longest_dark_gap_hours": 168.0,
+      "earth_visibility_fraction": 0.0,
+      "longest_comms_gap_hours": 168.0,
+      "initial_sun_hours": 0.0,
+      "initial_comms_hours": 0.0,
+      "hours_to_first_sunset": null,
+      "hours_to_first_earthset": null,
+      "mean_sun_clearance_deg": null,
+      "mean_earth_clearance_deg": null,
+      "mean_solar_elevation_deg": 0.0
+    },
+    "violations": [
+      {
+        "constraint": "data_coverage",
+        "required": 168.0,
+        "actual": 144.0,
+        "unit": "h",
+        "shortfall": 24.0,
+        "relative_shortfall": 0.14285714285714285,
+        "message": "UNKNOWN: real data for Peak Near Shackleton covers 2026-01-01 to 2031-01-01, but this mission runs 2025-12-31 to 2026-01-07, so it can't be fully checked. Turn on simulation mode to use synthetic placeholder data instead (not real).",
+        "is_unknown": true
+      }
+    ],
+    "headroom": null,
+    "source": "rescue-coverage-check",
+    "data_source": "no-real-data",
+    "score_status": null,
+    "score_bounds": null,
+    "configuration_key": null
+  },
+  "points": [
+    {
+      "date_offset_hours": -24.0,
+      "distance_km": 0.0,
+      "bearing_deg": null,
+      "lat": -89.01701,
+      "lon": 126.27302,
+      "passes": false,
+      "score": null,
+      "failing_constraints": [],
+      "status": "unknown",
+      "darkness_headroom_h": null,
+      "comms_headroom_h": null,
+      "closest_label": null,
+      "closest_headroom_text": null,
+      "headroom_status": null,
+      "reason": "outside_coverage",
+      "undecided_constraints": [
+        "data_coverage"
+      ]
+    },
+    {
+      "date_offset_hours": 48.0,
+      "distance_km": 0.0,
+      "bearing_deg": null,
+      "lat": -89.01701,
+      "lon": 126.27302,
+      "passes": true,
+      "score": 57.94651,
+      "failing_constraints": [],
+      "status": "pass",
+      "darkness_headroom_h": 8.0,
+      "comms_headroom_h": 61.0,
+      "closest_label": "Maximum continuous power-darkness",
+      "closest_headroom_text": "+8 h",
+      "headroom_status": "comfortable",
+      "reason": null,
+      "undecided_constraints": []
+    },
+    {
+      "date_offset_hours": 72.0,
+      "distance_km": 0.0,
+      "bearing_deg": null,
+      "lat": -89.01701,
+      "lon": 126.27302,
+      "passes": false,
+      "score": 40.77975,
+      "failing_constraints": [
+        "battery_hours"
+      ],
+      "status": "fail",
+      "darkness_headroom_h": -12.0,
+      "comms_headroom_h": 37.0,
+      "closest_label": "Maximum continuous power-darkness",
+      "closest_headroom_text": "-12 h",
+      "headroom_status": "failed",
+      "reason": null,
+      "undecided_constraints": []
+    },
+    {
+      "date_offset_hours": 0.0,
+      "distance_km": 1.0,
+      "bearing_deg": 0.0,
+      "lat": -88.98403211378346,
+      "lon": 126.27302000000002,
+      "passes": false,
+      "score": null,
+      "failing_constraints": [],
+      "status": "not_evaluated",
+      "darkness_headroom_h": null,
+      "comms_headroom_h": null,
+      "closest_label": null,
+      "closest_headroom_text": null,
+      "headroom_status": null,
+      "reason": "position_unsupported",
+      "undecided_constraints": []
+    },
+    {
+      "date_offset_hours": 0.0,
+      "distance_km": 1.0,
+      "bearing_deg": 180.0,
+      "lat": -89.04998788621701,
+      "lon": 126.27302000000002,
+      "passes": false,
+      "score": null,
+      "failing_constraints": [],
+      "status": "not_evaluated",
+      "darkness_headroom_h": null,
+      "comms_headroom_h": null,
+      "closest_label": null,
+      "closest_headroom_text": null,
+      "headroom_status": null,
+      "reason": "position_unsupported",
+      "undecided_constraints": []
+    }
+  ],
+  "counts": {
+    "requested": 5,
+    "evaluated": 3,
+    "skipped": 2,
+    "passed": 1,
+    "failed": 1,
+    "unknown": 1,
+    "by_reason": {
+      "outside_coverage": 1,
+      "position_unsupported": 2
+    }
+  },
+  "date_pass_rate": 0.5,
+  "position_pass_rate": null,
+  "safe_date_window_hours": null,
+  "safe_date_window_tested": 0,
+  "score_min": 40.77975,
+  "score_max": 57.94651,
+  "most_sensitive_constraint": "battery_hours",
+  "skipped_points": 3,
+  "verdict": "unknown",
+  "explanation": "The planned date can't be judged: the site's real data does not cover the mission's dates. Real data for Peak Near Shackleton covers 2026-01-01 to 2031-01-01, but this mission runs 2025-12-31 to 2026-01-07, so it can't be fully checked. Turn on simulation mode to use synthetic placeholder data instead (not real). Of the 2 neighbouring date slip(s) that could be judged, 1 pass and 1 fail. Each slip is a separate mission: this says nothing about whether the planned date passes. Landing-position error was not checked (2 points skipped: no real terrain data around the site), so passing date slips does not show robustness to landing-position error. 1 point(s) could not be judged: the site's real data does not cover the mission's dates.",
+  "date_limited_offsets_hours": [],
+  "tightest_passing_headroom": "+48 h: Maximum continuous power-darkness (+8 h)",
+  "screening_note": "Model screening across discrete tested offsets only; not a guarantee between tested points or of spacecraft survival."
+}

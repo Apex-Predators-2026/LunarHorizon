@@ -4,9 +4,9 @@
 //
 // Nothing is decided here: every status, number, bound, margin and reason is the engine's. The helpers below
 // only convert units for display. UNKNOWN stays UNKNOWN, a bound stays a range, unavailable stays unavailable.
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 
-import { API_URL } from '../viz/api'
+import { useAssessmentStore, type AssessState as StoreState } from '../features/assessment/useAssessmentStore'
 import type { Eligibility, Scenario } from '../types'
 
 // ---------------------------------------------------------------- wire types (subset of AssessResponse)
@@ -168,59 +168,39 @@ export function assessmentKey(sc: Scenario): string {
   return JSON.stringify([sc.site.id, Date.parse(sc.landing_utc) || sc.landing_utc, sc.duration_days, sc.requirements])
 }
 
-const cache = new Map<string, Promise<AssessmentState>>()
+/** Adapter: the single request/cache layer is features/assessment/useAssessmentStore (one in-flight request and one
+ * cached answer per exact mission), so this view of it and the Mission assessment panel can never disagree. */
+function toState(s: StoreState): AssessmentState {
+  if (s.status !== 'error') return s as unknown as AssessmentState
+  return {
+    status: 'error',
+    message:
+      s.httpStatus === 404
+        ? s.message || 'no scientific data for this site'
+        : s.httpStatus === 0
+          ? 'backend unavailable'
+          : `request failed (${s.httpStatus})${s.message ? `: ${s.message}` : ''}`,
+  }
+}
 
 export function fetchAssessment(sc: Scenario): Promise<AssessmentState> {
-  const key = assessmentKey(sc)
-  const hit = cache.get(key)
-  if (hit) return hit
-  const p: Promise<AssessmentState> = (async () => {
-    try {
-      const res = await fetch(`${API_URL}/api/viability/assess-scenario`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scenario: sc, include_explanation_details: true }),
-      })
-      if (!res.ok) {
-        cache.delete(key) // errors are retryable and never a verdict
-        let detail = ''
-        try {
-          const body = (await res.json()) as { detail?: unknown }
-          if (typeof body.detail === 'string') detail = body.detail
-        } catch {
-          /* no JSON body */
-        }
-        const message = res.status === 404 ? detail || 'no scientific data for this site' : `request failed (${res.status})${detail ? `: ${detail}` : ''}`
-        return { status: 'error', message }
-      }
-      return { status: 'done', response: (await res.json()) as AssessResponse }
-    } catch {
-      cache.delete(key)
-      return { status: 'error', message: 'backend unavailable' }
-    }
-  })()
-  cache.set(key, p)
-  return p
+  return useAssessmentStore.getState().assess(sc).then(toState)
 }
 
 /** Forget cached answers (tests). */
-export const clearAssessmentCache = () => cache.clear()
+export const clearAssessmentCache = () => useAssessmentStore.setState({ results: {} })
 
 /** The plan's full canonical assessment (loading until the engine has answered). Re-asked when the plan changes. */
 export function useAssessment(sc: Scenario | null | undefined, enabled = true): AssessmentState | null {
   const key = sc && enabled && typeof fetch === 'function' ? assessmentKey(sc) : null
-  const [got, setGot] = useState<{ key: string; v: AssessmentState } | null>(null)
+  const state = useAssessmentStore((s) => (key ? s.results[key] : undefined))
   useEffect(() => {
     if (!key || !sc) return
-    let live = true
-    void fetchAssessment(sc).then((v) => live && setGot({ key, v }))
-    return () => {
-      live = false
-    }
+    void useAssessmentStore.getState().assess(sc)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed by the plan revision
   }, [key])
   if (!key) return null
-  return got?.key === key ? got.v : { status: 'loading' }
+  return state ? toState(state) : { status: 'loading' }
 }
 
 // ---------------------------------------------------------------- display (unit conversion only)
