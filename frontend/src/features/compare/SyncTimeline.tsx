@@ -3,8 +3,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
 import { fmtAxis, missionExtent, violationWindows, type Align, type Entry } from './analysis'
+import { LANE, sunPath } from './lanes'
 import { STATE } from './palette'
-import type { TimelineColumns, Window } from './types'
+import type { Window } from './types'
 import { ScenarioChip, btn } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { clampView, hourTicks, panView, useWidth, zoomView } from './useTimeAxis'
@@ -13,7 +14,6 @@ import { clampView, hourTicks, panView, useWidth, zoomView } from './useTimeAxis
 const GUTTER_WIDE = 168
 const GUTTER_NARROW = 60
 const gutterFor = (width: number) => (width < 520 ? GUTTER_NARROW : GUTTER_WIDE)
-const LANE = 20
 const LANE_GAP = 4
 const ROW_GAP = 14
 const AXIS_H = 26
@@ -32,23 +32,6 @@ function longest(ws: Window[]): Window | null {
   return ws.reduce<Window | null>((a, w) => (!a || w.duration_hours > a.duration_hours ? w : a), null)
 }
 
-/** Area path of the visible solar-disk fraction inside a lane. */
-function sunPath(tl: TimelineColumns, offset: number, x: (v: number) => number, view: [number, number], top: number) {
-  const pts: string[] = []
-  const half = tl.step_hours / 2
-  for (let i = 0; i < tl.hour.length; i++) {
-    const t = offset + tl.hour[i]
-    if (t < view[0] - tl.step_hours || t > view[1] + tl.step_hours) continue
-    const frac = tl.sun_visible_fraction[i]
-    if (frac === null) continue // unknown: no sunlight is drawn and none is implied
-    const y = top + LANE - frac * LANE
-    pts.push(`${x(t - half).toFixed(1)},${y.toFixed(1)}`, `${x(t + half).toFixed(1)},${y.toFixed(1)}`)
-  }
-  if (!pts.length) return ''
-  const first = pts[0].split(',')[0], last = pts[pts.length - 1].split(',')[0]
-  return `M${first},${top + LANE} L${pts.join(' L')} L${last},${top + LANE} Z`
-}
-
 const Lanes = memo(function Lanes({ e, top, x, view, w, gutter: GUTTER }: { e: Entry; top: number; x: (v: number) => number; view: [number, number]; w: number; gutter: number }) {
   const r = e.result!
   const o = e.offsetHours
@@ -56,6 +39,11 @@ const Lanes = memo(function Lanes({ e, top, x, view, w, gutter: GUTTER }: { e: E
   const rect = (win: Window) => ({ x: clipX(o + win.start_hour), w: Math.max(0.5, clipX(o + win.end_hour) - clipX(o + win.start_hour)) })
   const [extA, extB] = missionExtent(e) // the evaluated window, not the requested length
   const missionA = clipX(extA), missionB = clipX(extB)
+  const durationH = r.evaluated_hours ?? e.scenario.duration_days * 24
+  const unknownSun = (r.unknown_windows ?? []).filter((w) => w.kind === 'sun_unknown')
+  const unknownEarth = (r.unknown_windows ?? []).filter((w) => w.kind === 'earth_unknown')
+  // Without the engine's windows nothing about the lanes is known: the whole extent is marked unknown.
+  const noWindows = !r.assessment
   const longDark = longest(r.dark_windows)
   const longBlack = longest(r.blackout_windows)
   const earthTop = top + LANE + LANE_GAP
@@ -63,11 +51,19 @@ const Lanes = memo(function Lanes({ e, top, x, view, w, gutter: GUTTER }: { e: E
   const showEvents = span <= 24 * 40
   return (
     <g>
-      {/* mission extent */}
-      <rect x={missionA} y={top} width={Math.max(0, missionB - missionA)} height={LANE} fill={STATE.dark} />
-      <rect x={missionA} y={earthTop} width={Math.max(0, missionB - missionA)} height={LANE} fill={STATE.dark} />
-      {/* solar lane: visible-disk fraction (partial Sun shows as a lower fill) */}
-      {r.timeline && <path d={sunPath(r.timeline, o, x, view, top)} fill={STATE.sun} opacity={0.9} />}
+      {/* mission extent (outline only: a lane is dark only where the data say so) */}
+      <rect x={missionA} y={top} width={Math.max(0, missionB - missionA)} height={LANE} fill="none" stroke={STATE.grid} />
+      <rect x={missionA} y={earthTop} width={Math.max(0, missionB - missionA)} height={LANE} fill="none" stroke={STATE.grid} />
+      {/* solar lane: known Sun time has a dark background (the hidden part of the disk), sunlight on top */}
+      {[...r.sun_windows, ...r.dark_windows].map((win) => {
+        const b = rect(win)
+        return <rect key={`k${win.start_hour}`} x={b.x} y={top} width={b.w} height={LANE} fill={STATE.dark} />
+      })}
+      {r.timeline && <path d={sunPath(r.timeline, o, x, view, top, durationH)} fill={STATE.sun} opacity={0.9} />}
+      {(noWindows ? [{ start_hour: 0, end_hour: durationH, duration_hours: durationH, start_utc: '', end_utc: '' } as Window] : unknownSun).map((win) => {
+        const b = rect(win)
+        return <rect key={`us${win.start_hour}`} data-testid="unknown-band" aria-label={`Sun unknown for ${fmtDur(win.duration_hours)}: missing data, not darkness`} x={b.x} y={top} width={b.w} height={LANE} fill="url(#hatch-unknown)"><title>Sun unknown {fmtDur(win.duration_hours)} (missing data: not darkness){win.start_utc ? `: ${win.start_utc} → ${win.end_utc}` : ''}</title></rect>
+      })}
       {longDark && longDark.duration_hours > 0 && (() => {
         const b = rect(longDark)
         return (
@@ -86,7 +82,16 @@ const Lanes = memo(function Lanes({ e, top, x, view, w, gutter: GUTTER }: { e: E
       })}
       {r.blackout_windows.map((win) => {
         const b = rect(win)
-        return <rect key={`b${win.start_hour}`} x={b.x} y={earthTop} width={b.w} height={LANE} fill="url(#hatch-blackout)"><title>Blackout {fmtDur(win.duration_hours)}: {win.start_utc} → {win.end_utc}</title></rect>
+        return (
+          <g key={`b${win.start_hour}`}>
+            <rect x={b.x} y={earthTop} width={b.w} height={LANE} fill={STATE.dark} />
+            <rect x={b.x} y={earthTop} width={b.w} height={LANE} fill="url(#hatch-blackout)"><title>Blackout {fmtDur(win.duration_hours)}: {win.start_utc} → {win.end_utc}</title></rect>
+          </g>
+        )
+      })}
+      {(noWindows ? [{ start_hour: 0, end_hour: durationH, duration_hours: durationH, start_utc: '', end_utc: '' } as Window] : unknownEarth).map((win) => {
+        const b = rect(win)
+        return <rect key={`ue${win.start_hour}`} data-testid="unknown-band" aria-label={`Earth unknown for ${fmtDur(win.duration_hours)}: missing data, not a blackout`} x={b.x} y={earthTop} width={b.w} height={LANE} fill="url(#hatch-unknown)"><title>Earth unknown {fmtDur(win.duration_hours)} (missing data: not a blackout){win.start_utc ? `: ${win.start_utc} → ${win.end_utc}` : ''}</title></rect>
       })}
       {longBlack && longBlack.duration_hours > 0 && (() => {
         const b = rect(longBlack)
@@ -261,6 +266,10 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
           onPointerLeave={() => setHover(null)}
         >
           <defs>
+            <pattern id="hatch-unknown" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+              <rect width="5" height="5" fill="#e5e7eb" />
+              <line x1="0" y1="0" x2="0" y2="5" stroke="#9ca3af" strokeWidth="2" />
+            </pattern>
             <pattern id="hatch-blackout" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill="#2a0f18" />
               <line x1="0" y1="0" x2="0" y2="6" stroke={STATE.blackout} strokeWidth="2" opacity="0.7" />
@@ -322,6 +331,7 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border border-dashed" style={{ borderColor: STATE.muted }} /> Longest gap (measured)</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border-2" style={{ borderColor: STATE.blackout }} /> ✕ Window behind a failed requirement</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border-2 border-dashed" style={{ borderColor: STATE.muted }} /> ? Window behind an undecided requirement</span>
+        <span className="flex items-center gap-1.5"><svg width="20" height="12"><rect width="20" height="12" fill="url(#hatch-unknown)" /></svg> Unknown (missing data: neither dark nor blocked)</span>
         <span>▲ rise · ▼ set</span>
       </div>
     </div>
