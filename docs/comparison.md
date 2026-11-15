@@ -122,6 +122,22 @@ what it fixes, Rescue's own note, any disagreement with Rescue's verdict -> the 
 canonical rank can differ (Rescue's ordering also weighs date shift and distance); the decision uses the canonical
 ranking. Logic: `frontend/src/features/compare/rescueFlow.ts`.
 
+## Export (CSV / JSON)
+
+"Export JSON" / "Export CSV" in the comparison summary save the comparison exactly as displayed (enabled once the
+selection has been ranked). Built in the browser from the same data (`frontend/src/features/compare/export.ts`,
+format `comparison-export-v1`); nothing is recomputed and nothing is sent anywhere.
+
+- JSON: per scenario the plan and requirements, data provenance (kind, source, dataset, engine and scoring
+  versions, coverage), eligibility, canonical rank and group, `recommended`, score (status, exact, bounds), risk,
+  failed / undecided requirements, every requirement verdict, the canonical metrics with their status, and the
+  engine's ranking explanation; plus the ranking groups, the decision per group and the notes.
+- CSV: one row per scenario; each metric has `value`, `_lower`, `_upper` and `_status` columns.
+- Integrity: missing values are `null` / empty cells with a status, never 0; UNKNOWN stays `unknown`; a rank is only
+  exported for a PASS scenario (any other rank is dropped and listed under `warnings`); `recommended` is only true
+  for the scenario the decision panel recommends.
+- Shareable links were not added: the workspace is session-only and there is no sharing backend to build on.
+
 ## Integration points
 
 **Mission Rescue → comparison** (Member 5 / Arush). The scenario workspace shows an *Import from
