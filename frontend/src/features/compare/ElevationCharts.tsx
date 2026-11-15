@@ -1,5 +1,6 @@
 // Section 6: Sun and Earth elevation over time (or clearance above the local terrain), plus the
 // idealised panel incidence factor, all on the shared, synchronized time axis.
+import { scenarioDisplayName } from './scenario'
 import { useState } from 'react'
 
 import type { Align, Entry } from './analysis'
@@ -37,7 +38,7 @@ export function ElevationCharts({ entries, view, align, originMs }: { entries: E
         </div>
         <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400" aria-label="Legend">
           {entries.filter((e) => e.result?.timeline).map((e) => (
-            <span key={e.scenario.id} className="flex items-center gap-1.5"><ScenarioChip s={e.scenario} size="sm" />{e.scenario.site.name}{e.result?.data_kind === 'demonstration' && <span className="text-amber-300">(demonstration data)</span>}</span>
+            <span key={e.scenario.id} className="flex items-center gap-1.5"><ScenarioChip s={e.scenario} size="sm" />{scenarioDisplayName(e.scenario)}{e.result?.data_kind === 'demonstration' && <span className="text-amber-300">(demonstration data)</span>}</span>
           ))}
         </div>
       </div>
