@@ -167,14 +167,22 @@ sites on real data (6 start dates in 2027, delays of 3 to 20 days, default requi
 that pass, then fail after the delay, then get rescued. Of the candidates that fit, this one has a
 single clear failure.
 
-- **Plan:** Connecting Ridge, 7 days, landing 2027-02-08 00:00 UTC, default requirements.
+- **Plan:** Connecting Ridge, 7 days, landing 2027-02-08 00:00 UTC. Version 2 of the file writes every requirement
+  out (sunlight >= 50 %, battery darkness <= 50 h at a 25 % panel threshold, Earth in view >= 40 %, Earth blackout
+  <= 96 h, >= 24 h of sunlight and >= 12 h of Earth contact after landing; today's defaults), so a change of
+  defaults cannot change the story.
 - **Before the delay:** passes, score 100.
 - **After a 5-day launch delay** (landing 2027-02-13): fails, score 64.8. One requirement is
   violated: the longest continuous power-darkness is 63 h and the declared limit is 50 h
   (`battery_hours`).
 - **Rescue:** status `rescued`, 5 alternatives, all passing. The best is Malapert Massif, landing
-  2027-02-16 12:00 UTC, score 100.
-- `backend/tests/test_rescue_real_data.py` checks this transition, and checks that every
+  2027-02-16 12:00 UTC (84 h, 3.5 days, after the delayed date), score 100.
+- The file records these values under `verified`. `test_demo_scenario_transition` recomputes them on real data
+  and the hourly grid and fails if any value, or a number quoted in `story`, drifts;
+  `test_demo_scenario_does_not_depend_on_default_requirements` checks every requirement is written out.
+- Stable entry point for other features (e.g. a guided mission): read `original`, `change` and `verified` from
+  this file (or build the same `RescueRequest`) and call `POST /api/rescue`; never copy the numbers.
+- `backend/tests/test_rescue_real_data.py` also checks that every
   recommended alternative also passes when re-evaluated directly by the canonical engine with the
   cache and fast path off, with the same verdict and score (the release gate).
 

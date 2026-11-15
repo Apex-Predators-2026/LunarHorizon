@@ -1,0 +1,146 @@
+{
+  "schema": "mission-story-v1",
+  "id": "pns-oct-2027-launch-delay",
+  "version": 1,
+  "title": "A four-day launch slip at Peak Near Shackleton",
+  "objective": "Keep a solar-powered lander with a direct-to-Earth radio alive and in contact for a 14-day surface mission on a ridge near Shackleton crater, an Artemis III candidate region at the lunar south pole.",
+  "audience_summary": "The plan works as scheduled. A four-day launch slip moves the landing into a period when Earth sinks behind the local terrain for longer than the radio-silence limit. Mission Rescue finds a nearby site that works on the delayed date without relaxing any requirement.",
+  "original": {
+    "name": "Try a mission: Peak Near Shackleton",
+    "scenario": {
+      "site": {
+        "id": "peak-near-shackleton",
+        "name": "Peak Near Shackleton",
+        "lat": -89.01701,
+        "lon": 126.27302
+      },
+      "landing_utc": "2027-10-10T00:00:00Z",
+      "duration_days": 14,
+      "requirements": {
+        "min_sunlight_fraction": 0.5,
+        "battery_hours": 50,
+        "panel_threshold": 0.25,
+        "min_earth_visibility_fraction": 0.4,
+        "max_comms_gap_hours": 96,
+        "min_initial_sun_hours": 24,
+        "min_initial_comms_hours": 12
+      }
+    },
+    "requirements_plain": [
+      "Battery: survive at most 50 h with less than 25% of the solar disk visible",
+      "Radio: at most 96 h in a row without Earth in line of sight",
+      "Earth in line of sight at least 40% of the mission",
+      "Mean visible solar disk at least 50%",
+      "At least 24 h of power-lit time and 12 h of Earth contact right after landing"
+    ]
+  },
+  "disruption": {
+    "kind": "launch_delay",
+    "launch_delay_days": 4,
+    "reason": "Launch slipped 4 days",
+    "description": "The launch slips four days. The lander arrives on 14 October 2027 instead of 10 October. Mission length and every requirement stay the same."
+  },
+  "search": {
+    "date_window_days": 30,
+    "date_step_hours": 12,
+    "top_n": 5
+  },
+  "data_mode": {
+    "allow_demo_data": false,
+    "include_synthetic": false,
+    "note": "Real data only: committed JPL Horizons + LOLA site files (data/sites/). Synthetic placeholder data is never used."
+  },
+  "expected": {
+    "original": {
+      "eligibility": "pass",
+      "margin_constraints": [
+        "max_communication_blackout",
+        "max_continuous_darkness",
+        "min_earth_visibility_percent"
+      ]
+    },
+    "disrupted": {
+      "eligibility": "fail",
+      "failing": [
+        "max_communication_blackout"
+      ],
+      "min_exceedance": [
+        {
+          "constraint": "max_communication_blackout",
+          "hours": 12
+        }
+      ]
+    },
+    "evidence": {
+      "constraint": "max_communication_blackout",
+      "kind": "communication_blackout",
+      "start_utc": "2027-10-23T02:00:00Z",
+      "end_utc": "2027-10-28T00:00:00Z",
+      "clipped_at_end": true
+    },
+    "recovery": {
+      "criteria": {
+        "eligibility": "pass",
+        "same_duration": true,
+        "same_requirements": true,
+        "real_data": true
+      },
+      "selection": "The first Mission Rescue alternative (in Rescue's own order) that passes, keeps the 14-day duration and the unchanged requirements, and uses real data.",
+      "expected_first": {
+        "site_id": "malapert-massif",
+        "landing_utc": "2027-10-14T00:00:00Z",
+        "kind": "site_change"
+      }
+    },
+    "comparison": {
+      "ranked_first": "recovery",
+      "groups": 1
+    }
+  },
+  "assertions": {
+    "stable": [
+      "Original plan: PASS",
+      "After the 4-day delay: FAIL, on max_communication_blackout only, by at least 12 h over the 96 h limit",
+      "Evidence: communication blackout from 2027-10-23T02:00Z to the end of the mission (2027-10-28T00:00Z)",
+      "Mission Rescue finds at least one passing recovery with the same 14-day duration and requirements, on real data",
+      "The canonical assessment confirms the recovery passes; the comparison agrees with all three verdicts and ranks the recovery first in a single comparability group"
+    ],
+    "incidental": [
+      "Scores and exact measured values (shown from the live result)",
+      "Which recovery Rescue ranks first (the selection rule above decides; the recorded pick is informational)",
+      "Generated scenario ids, labels, colours and timestamps",
+      "Dataset hashes and method versions (a change flags the example for re-verification but does not by itself invalidate it)"
+    ]
+  },
+  "provenance": {
+    "verified_utc": "2026-11-15T02:31:45Z",
+    "datasets": [
+      {
+        "site_file": "data/sites/malapert-massif.json",
+        "sha256": "9ebfa3157cc934ccce2778729e3dae82a07c0c1a37f2ee9323ddd757ac192d4a",
+        "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+        "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2"
+      },
+      {
+        "site_file": "data/sites/peak-near-shackleton.json",
+        "sha256": "2fbaecab5cc372c8ec2365c9c435b460dc4b96eaf3a196c80f67ba2e23477eb5",
+        "dataset_id": "peak-near-shackleton_2026-01-01_2031-01-01",
+        "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2"
+      }
+    ],
+    "methods": {
+      "api": "viability-api/1.0.0",
+      "schema_version": "0.1.0-draft",
+      "engine": "0.6.0-phase6",
+      "scoring": "desirability-v1",
+      "ranking": "ranking-phase5b-v1",
+      "explanations": "explanations-v1"
+    }
+  },
+  "reproduce": [
+    "cd backend",
+    "python scripts/verify_mission_story.py                      # replays the story through the API and checks every expectation",
+    "python scripts/verify_mission_story.py --write-provenance   # after a deliberate data/engine update: record hashes and versions",
+    "pytest tests/test_mission_story.py                          # the same checks as a regression test"
+  ]
+}

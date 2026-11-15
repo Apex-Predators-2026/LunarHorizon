@@ -8,6 +8,8 @@ import { useCompareStore } from './useCompareStore'
 const d2 = (v: number | null) => (v === null ? '—' : `${v.toFixed(2)}°`)
 const az = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)}°`)
 const diff = (a: number | null, b: number | null) => (a === null || b === null ? null : a - b)
+// Hours after landing, exact to the minute (a landing between samples gives fractional hours).
+const fmtMet = (h: number) => (Math.abs(h - Math.round(h)) < 1 / 120 ? `${Math.round(h)} h` : `${h.toFixed(2)} h`)
 
 export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entries: Entry[]; align: Align; originMs: number; onOpen3D?: () => void }) {
   const cursor = useCompareStore((s) => s.cursor)
@@ -19,7 +21,7 @@ export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entrie
     <div>
       <p className="mb-2 text-xs text-slate-300">
         Selected: <b className="text-slate-100">{fmtAxis(cursor, align, originMs, 0)}</b>
-        {align === 'met' ? ' after each landing' : ''} — sampled at the nearest timeline point.
+        {align === 'met' ? ' after each landing' : ''} — each scenario shows the data sample holding at that moment (a sample holds until the next one, as the viability engine reads it; nothing is interpolated).
       </p>
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         {entries.map((e) => {
@@ -41,7 +43,10 @@ export function ConditionsPanel({ entries, align, originMs, onOpen3D }: { entrie
                 <p className="text-slate-500">{e.result ? 'Outside this mission’s time span.' : 'No data.'}</p>
               ) : (
                 <>
-                  <p className="text-[11px] text-slate-400">{fmtUtc(c.time_utc)} · T+{Math.round(c.met)} h</p>
+                  <p className="text-[11px] text-slate-400">
+                    Data sample {fmtUtc(c.time_utc)}
+                    {c.held && <> · held at T+{fmtMet(c.selectedMet)} (sample at T{c.met < 0 ? '−' : '+'}{fmtMet(Math.abs(c.met))})</>}
+                  </p>
                   <div className={`mt-1.5 rounded px-2 py-1 ${c.sunFraction === null ? 'bg-slate-800 text-slate-200' : c.sunFraction > 0 ? 'bg-amber-950/40 text-amber-200' : 'bg-slate-900 text-slate-300'}`}>
                     <div className="font-medium">Sun: {c.sunReason}</div>
                     <div className="mt-0.5 grid grid-cols-2 gap-x-2 text-[11px] tabular-nums text-slate-300">

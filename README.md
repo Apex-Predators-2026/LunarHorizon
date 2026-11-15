@@ -9,8 +9,9 @@ Everything it reports is computed from NASA data: Sun and Earth positions from *
 **LRO LOLA** elevation models served by **NASA Moon Trek**. Results are cross-checked against **LROC** illumination
 maps. Validation evidence and limitations are shown in the app (Methodology view) and in [`docs/`](docs/).
 
-> **Status (2026-11-15):** hackathon build. Sections marked *To verify* at the end of this file still need a final
-> check once the guided mission journey and the mission report are integrated.
+> **Status (2026-11-15):** hackathon build. The guided *Try a mission* journey is verified in a real browser on the
+> branch `recovery/workflows-remaining` (see [`docs/integration/workflow-recovery-progress.md`](docs/integration/workflow-recovery-progress.md));
+> it reaches `main` when that branch is merged. The Comparison report it ends on is already on `main`.
 
 ## What it does (implemented on this branch)
 
@@ -21,7 +22,8 @@ maps. Validation evidence and limitations are shown in the app (Methodology view
 | **Scenario Comparison** (`#app/compare`) | Side-by-side plans: headline conditions, synchronized timelines, a metrics table, trade-offs, the canonical ranking (only PASS plans are ranked), CSV/JSON export. An optional AI Mission Assistant (see *AI assistance*). |
 | **Feasibility Atlas** (`#app/atlas`) | Landing date × mission length grid for one site and spacecraft: which missions pass, fail or cannot be decided. |
 | **Validation & Methodology** (`#app/method`) | Where each answer comes from, the independent scientific checks (ephemeris, horizon geometry, LROC sunlight), the viability engine's software-verification report, and the limitations. |
-| **Guided Mission Briefing** | A 9-step tutorial offered on first visit. |
+| **Try a mission** (landing page button, and the header button in the navigator) | A guided, real-data mission through the actual tools: a Peak Near Shackleton plan that passes, a 4-day launch delay that makes it fail on the Earth-radio blackout, "Show why" in 3D, a Mission Rescue recovery, the Comparison, and a frozen summary report you can export. Every verdict is read live from the engine; nothing is scripted. Restart and exit are always available. Definition and replay check: [`docs/mission-story.md`](docs/mission-story.md). |
+| **Guided Mission Briefing** | A 9-step tutorial offered on first visit (about the Comparison; separate from *Try a mission*, and the two never run at once). |
 
 Verdicts are **PASS**, **FAIL** or **UNKNOWN**. UNKNOWN means the data cannot decide (for example the mission runs
 past the end of the data) and is never treated as a failure. A missing score is never shown as 0.
@@ -104,6 +106,8 @@ Interfaces: [`docs/interfaces.md`](docs/interfaces.md), [`docs/viability-api.md`
 cd backend;  .venv\Scripts\python.exe -m pytest -q          # backend suite (CI runs it with LUNAR_OFFLINE=1)
 cd frontend; npx vitest run; npx oxlint; npm run build       # frontend tests, lint, type-check + bundle
 cd frontend; node scripts/smoke-prod.mjs                     # production build in a real browser (backend on 8000)
+cd frontend; node scripts/e2e-guided.mjs                     # the Try-a-mission journey + Atlas transfer, real browser, 1366x768 and 1920x1080
+cd backend;  .venv\Scripts\python.exe scripts\verify_mission_story.py   # replay the mission definition against the live engine
 node scripts/release-gate.mjs --full                         # from the repository root: full suites + every gate check
 ```
 
@@ -112,8 +116,8 @@ The release gate starts its own backends (ports 8011 and 8012), needs Chrome or 
 writes [`release-gate/LATEST.md`](release-gate/LATEST.md). The latest recorded run (commit `2d77acf`) covers only the
 production and offline checks, so it is **not** a full release pass.
 
-The Phase-6 rescue compatibility tests in `backend/tests/viability/` that used to fail were out of date with the
-whole-hour, partial-coverage policy (`app/timegrid.py`); they now assert that policy and pass (2026-11-15 run).
+The Phase-6 rescue compatibility tests in `backend/tests/viability/` assert the current one-hourly-grid time policy
+(`app/timegrid.py`); details in [`docs/integration/workflow-recovery-progress.md`](docs/integration/workflow-recovery-progress.md).
 
 ## NASA data and references
 

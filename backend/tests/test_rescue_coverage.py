@@ -112,10 +112,42 @@ def test_rescue_simulation_mode_is_opt_in(ev):
 def test_sensitivity_of_unknown_plan_says_unknown(ev):
     s = sensitivity(SensitivityRequest(scenario=plan(DATA_END + timedelta(days=60))), ev)
     assert s.verdict == "unknown"
-    assert s.skipped_points > 0 and s.points  # every requested point is listed, none evaluated
-    assert all(p.status == "not_evaluated" for p in s.points)
-    assert s.counts.requested == len(s.points) == s.counts.skipped
-    assert "no real data" in s.explanation.lower()
+    assert s.skipped_points == len(s.points) > 0  # every requested point is listed, none decided
+    dates = [p for p in s.points if p.distance_km == 0]
+    positions = [p for p in s.points if p.distance_km > 0]
+    # Each slip was looked up on its own: all are outside the real data, so unknown with that reason.
+    assert dates and all(p.status == "unknown" and p.reason == "outside_coverage" for p in dates)
+    # Landing-position checks are unsupported on real data (no terrain around the site): skipped, not unknown.
+    assert positions and all(p.status == "not_evaluated" and p.reason == "position_unsupported" for p in positions)
+    assert s.counts.by_reason == {"outside_coverage": len(dates), "position_unsupported": len(positions)}
+    assert s.counts.requested == s.counts.unknown + s.counts.skipped
+    assert s.safe_date_window_hours is None and s.date_pass_rate is None
+    assert "does not cover" in s.explanation
+
+
+def test_unknown_plan_still_judges_neighbouring_dates_that_real_data_covers(ev):
+    # The planned date starts a day before the data, so it can't be judged; slips of +48 h and +72 h lie
+    # fully inside the data and are separate missions, judged on their own.
+    s = sensitivity(SensitivityRequest(scenario=plan(DATA_START - timedelta(days=1)),
+                                       date_offsets_hours=[-24, 48, 72], position_offsets_km=[]), ev)
+    assert s.base.verdict == "unknown" and s.verdict == "unknown"
+    by = {p.date_offset_hours: p for p in s.points}
+    assert by[-24].status == "unknown" and by[-24].reason == "outside_coverage"
+    assert all(by[h].status in ("pass", "fail") and by[h].reason is None for h in (48, 72))
+    assert s.date_pass_rate is not None  # rate over the slips that could be decided
+    assert s.safe_date_window_hours is None  # no window around a plan that is itself undecided
+    assert "separate mission" in s.explanation and "can't be judged" in s.explanation
+    assert s.counts.passed + s.counts.failed == 2 and s.counts.by_reason == {"outside_coverage": 1}
+
+
+def test_site_without_any_real_data_says_so_per_point(ev):
+    far = custom_site("No data here", -84.0, 30.0)
+    s = sensitivity(SensitivityRequest(scenario=Scenario(site=far, landing_utc=DATA_START + timedelta(days=30)),
+                                       date_offsets_hours=[-24, 24], position_offsets_km=[1], bearings=2), ev)
+    assert s.verdict == "unknown"
+    assert [p.reason for p in s.points if p.distance_km == 0] == ["no_real_data", "no_real_data"]
+    assert all(p.reason == "position_unsupported" for p in s.points if p.distance_km > 0)
+    assert "has no real data" in s.explanation
 
 
 def test_sensitivity_near_the_end_skips_slips_past_the_data(ev):

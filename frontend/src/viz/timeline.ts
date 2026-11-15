@@ -57,6 +57,23 @@ export function nearestIndex(times: number[], t: number): number {
   return lo > 0 && Math.abs(times[lo - 1] - t) <= Math.abs(times[lo] - t) ? lo - 1 : lo
 }
 
+/**
+ * The sample that represents instant t under the project's sample-and-hold policy (app/mission_time.py): the last
+ * sample at or before t, if t is less than `maxHoldMs` after it. -1 if none. The viewer shows this sample's state for
+ * any time inside its hour (never a later sample, never interpolated).
+ */
+export function heldIndex(times: number[], t: number, maxHoldMs = HOUR_MS): number {
+  let lo = 0
+  let hi = times.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (times[mid] <= t) lo = mid + 1
+    else hi = mid
+  }
+  const i = lo - 1
+  return i >= 0 && t - times[i] < maxHoldMs ? i : -1
+}
+
 /** Contiguous runs where flags[i] === value, as [start, end) index pairs. */
 export function runs(flags: boolean[], value = true): [number, number][] {
   const out: [number, number][] = []

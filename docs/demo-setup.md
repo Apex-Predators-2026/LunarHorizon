@@ -68,6 +68,8 @@ The UI font comes from Google Fonts: offline the UI falls back to a system font 
 | `node scripts/demo-tour.mjs` (terrain-cache tour) | Do the demo's views load their terrain, imagery and data (from the cache, with `--verify`)? | The **dev server**: steers the app through its stores (sites, times, camera); a diagnostic tool |
 | `node scripts/smoke-prod.mjs` (production smoke test) | Can a user, on the **production build**, open the app, assess a site, plan missions, run one, investigate it in 3D, rescue it after a launch slip, compare and export plans, find a landing date in the Feasibility Atlas and send it to the Planner, and come back? | Builds and serves `dist/` (or `--url` for a deployed copy); only clicks, types and reads the interface |
 
+| `node scripts/e2e-guided.mjs` (guided journey) | Does the judge-facing journey work end to end: landing "Try a mission" → plan passes → 4-day delay → fails on the radio blackout → evidence in 3D → Mission Rescue recovery → Comparison recommends it → summary report (preview, JSON, A4/Letter PDF) → restart / exit, then an Atlas map cell opened in the Planner as the mission the map evaluated? | A real Chrome/Edge at **1366×768 and 1920×1080** from a fresh profile; only real UI controls; `--url` for a running dev/preview server, `--serve-dist` for the production build |
+
 A passing dev tour doesn't show that the built app works; run the smoke test before a demo or after a deploy:
 ```
 cd frontend
@@ -76,6 +78,18 @@ node scripts/smoke-prod.mjs                   # backend on port 8000 (--api to c
 It fails (exit 1) on a failed step, any uncaught page error or any API 5xx, with a screenshot of the failing
 step and `smoke-output/report.json`. A step the app doesn't offer at all (none at the moment) is
 listed as MISSING; `--strict` fails on that too. `--online` adds the live JPL Horizons check.
+
+### The guided journey (judges' path)
+```
+cd frontend
+node scripts/e2e-guided.mjs --url http://localhost:5173        # dev server + backend on 8000
+node scripts/e2e-guided.mjs --serve-dist --api http://127.0.0.1:8000   # the PRODUCTION build (run npm run build first)
+cd ../backend; .venv\Scripts\python.exe scripts\verify_mission_story.py   # replay the mission definition on the live engine
+```
+It exits non-zero on any failed expectation, uncaught page error or API 5xx, and writes screenshots, the exported
+report JSON, the PDFs and `report.json` to `--out` (default `e2e-output/`, git-ignored). It needs the backend with the
+committed site files; it uses no synthetic data. It proves the journey through the real interface, not the offline
+mode: for offline, run it with `LUNAR_OFFLINE=1` on the backend, as `smoke-prod.mjs` does.
 
 ### Release gate (before a release; then freeze features)
 ```
