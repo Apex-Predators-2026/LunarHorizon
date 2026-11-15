@@ -522,7 +522,9 @@
  * 1 px outline, label rests inside and floats onto the outline on focus or when there is a value.
  * ========================================================================== */
 .md-field {
-  --md-field-bg: #e8e8e8; /* the surface behind the field: the floating label "cuts" the outline with it */
+  /* The surface behind the field: the floating label "cuts" the outline with it. A container on another
+   * surface sets --md-field-surface (a variable set on .md-field itself would beat one inherited from it). */
+  --md-field-bg: var(--md-field-surface, #e8e8e8);
   position: relative;
   display: block;
   margin-top: 8px; /* room for the floated label; with an 8 dp gap that makes 16 dp between fields */
@@ -908,7 +910,7 @@
   background-color: #2f3237;
 }
 .lp-dark .lp-light:not(.cmp-page) .md-field {
-  --md-field-bg: var(--color-opal-100);
+  --md-field-bg: var(--md-field-surface, var(--color-opal-100));
 }
 .lp-dark .lp-light:not(.cmp-page) .md-field-label,
 .lp-dark .lp-light:not(.cmp-page) .md-field-trailing {

@@ -125,7 +125,7 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
         aria-label={plan ? 'Edit plan' : 'New plan'}
         onSubmit={save}
         className={`lp-light relative flex max-h-[90vh] w-[min(26rem,100%)] flex-col rounded-[28px] bg-opal-50 shadow-2xl shadow-black/50 ${closing ? '' : 'md-dialog-in'}`}
-        style={{ ['--md-field-bg' as string]: 'var(--color-opal-50)' }}
+        style={{ ['--md-field-surface' as string]: 'var(--color-opal-50)' }}
       >
         <h2 className="px-6 pb-2 pt-6 text-2xl leading-8">{plan ? 'Edit plan' : 'New plan'}</h2>
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-6 pb-2 text-xs">
