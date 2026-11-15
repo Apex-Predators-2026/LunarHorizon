@@ -568,7 +568,7 @@ function Panel({ open, context, onNav, onClose }: {
             </span>
             <span className="relative flex items-center gap-0.5">
               {messages.length > 0 && <BarButton label="New chat" onClick={clear}><BarIcon name="plus" /></BarButton>}
-              <BarButton label="Minimize to the side" onClick={() => setLayout('min')}><BarIcon name="minimize" /></BarButton>
+              <BarButton label="Minimize" onClick={() => (full ? setLayout('side') : onClose())}><BarIcon name="minimize" /></BarButton>
               <BarButton label={full ? 'Exit full screen' : 'Full screen'} onClick={() => setLayout(full ? 'side' : 'full')}>
                 <BarIcon name={full ? 'restore' : 'full'} />
               </BarButton>
