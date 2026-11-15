@@ -137,6 +137,11 @@ export default function App() {
     document.documentElement.classList.toggle('lp-dark', dark)
   }, [dark])
 
+  // The Mission Planner stays mounted (hidden) after its first visit, so going to another page and back keeps
+  // the loaded terrain and the camera instead of rebuilding the 3D view from scratch.
+  const [plannerKept, setPlannerKept] = useState(view === 'planner')
+  if (view === 'planner' && route.page === 'app' && !plannerKept) setPlannerKept(true)
+
   const tourLaunchedRef = useRef(false)
 
   useEffect(() => {
@@ -175,22 +180,17 @@ export default function App() {
       </header>
       <PlanDialogHost />
       <ReportPreview />
-      {compare ? (
-        <main key="compare" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
-          <ComparisonDashboard onOpen3D={() => goToView('planner')} section={route.section} onSection={rememberSection} />
-        </main>
-      ) : view === 'atlas' ? (
-        <main key="atlas" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
-          <AtlasView />
-        </main>
-      ) : view === 'method' ? (
-        <main key="method" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
-          <MethodologyView />
-        </main>
-      ) : (
-        <main key="planner" className="md-fade-through h-full">
+      {plannerKept && (
+        // Hidden, not removed, while another page is open: invisible (keeps its size, so the canvas doesn't
+        // resize), inert (no clicks, focus or keys) and out of the accessibility tree; Scene stops drawing.
+        <main
+          className={`absolute inset-0 ${pageView ? 'invisible' : 'md-fade-through'}`}
+          aria-hidden={pageView || undefined}
+          inert={pageView}
+        >
           {/* Full-screen 3D simulation; the sidebar content is Member 5's mission-rescue panel. */}
           <Scene
+            active={!pageView}
             fab={<PlanFab />}
             sidebar={
               <div className="space-y-6">
@@ -201,6 +201,19 @@ export default function App() {
           />
         </main>
       )}
+      {compare ? (
+        <main key="compare" className="md-fade-through absolute inset-0 overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
+          <ComparisonDashboard onOpen3D={() => goToView('planner')} section={route.section} onSection={rememberSection} />
+        </main>
+      ) : view === 'atlas' ? (
+        <main key="atlas" className="md-fade-through absolute inset-0 overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
+          <AtlasView />
+        </main>
+      ) : view === 'method' ? (
+        <main key="method" className="md-fade-through absolute inset-0 overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
+          <MethodologyView />
+        </main>
+      ) : null}
       {/* The tour lives in the planner toolbar's More (⋮) menu; the one-time offer points there. */}
       <TutorialOfferChip uiHidden={uiHidden && !pageView} compareActive={compare} anchorToMenu={!pageView} />
       <TutorialSpotlight uiHidden={uiHidden && !pageView} />
