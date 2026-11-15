@@ -6,7 +6,7 @@ import { TextField } from '../../ui/MdFields'
 import type { ChangeEvent, FormEvent } from 'react'
 
 import { AlternativeCard } from './AlternativeCard'
-import { fmtShift, fmtUtc, planInfo } from './format'
+import { evaluatedTimeNote, fmtShift, fmtUtc, planInfo } from './format'
 import { SensitivityView } from './SensitivityView'
 import { buildWalkthrough, GLOSSARY } from './walkthrough'
 import { usePlansStore } from '../plans/usePlansStore'
@@ -147,6 +147,7 @@ export function RescuePanel() {
       {res && (
         <RescueResults
           res={res}
+          requestedLanding={s.original?.landing_utc}
           explain={s.explain}
           selected={s.selected}
           sensitivity={s.sensitivityStatus === 'done' ? s.sensitivity : null}
@@ -188,6 +189,8 @@ export function Walkthrough({ res }: { res: RescueResponse }) {
 
 interface ResultsProps {
   res: RescueResponse
+  /** The landing time the user entered (before rounding to the hourly grid). */
+  requestedLanding?: string
   /** Educator mode: show the walkthrough above the alternatives. */
   explain?: boolean
   selected: Scenario | null
@@ -198,12 +201,15 @@ interface ResultsProps {
 }
 
 /** Pure display of a RescueResponse (no store access), so other views can reuse it. */
-export function RescueResults({ res, explain, selected, sensitivity, sensitivityLoading, onSelect, onCheckSensitivity }: ResultsProps) {
+export function RescueResults({ res, requestedLanding, explain, selected, sensitivity, sensitivityLoading, onSelect, onCheckSensitivity }: ResultsProps) {
   return (
     <>
       <div role="status" className={`rounded-md border p-3 text-xs ${STATUS_STYLE[res.status]}`}>
         <h3 className="text-sm font-medium">{STATUS_TITLE[res.status]}</h3>
         <p className="mt-1">{res.summary}</p>
+        {evaluatedTimeNote(requestedLanding, res.original.scenario.landing_utc) && (
+          <p className="mt-1 opacity-70">{evaluatedTimeNote(requestedLanding, res.original.scenario.landing_utc)}</p>
+        )}
         <p className="mt-1 opacity-70">
           Checked {res.stats.candidates_evaluated} site/date combinations at {res.stats.locations_considered} locations;{' '}
           {res.stats.passing} pass.
