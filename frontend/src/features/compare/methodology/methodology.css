@@ -1,0 +1,201 @@
+/* Scenario Comparison methodology: the intro at the bottom of the comparison and its subpage.
+   Scoped to .cmp-page like the rest of the comparison (see ../compare.css); nothing shared changes. */
+
+.cmp-page .cmp-kicker {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent-strong);
+}
+
+/* ---- intro (bottom of the comparison) ---- */
+.cmp-page .cmp-method-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px 32px;
+  margin-top: 32px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ffffff 0%, #ffffff 55%, #fff4f1 100%);
+  padding: 20px 24px;
+}
+.cmp-page .cmp-method-chip {
+  border: 1px solid var(--color-line);
+  border-radius: 9999px;
+  background: #ffffff;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: var(--color-ink-2);
+}
+
+/* ---- subpage ---- */
+.cmp-page .cmp-method-hero {
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+  background: linear-gradient(160deg, #ffffff 0%, #ffffff 60%, #fff4f1 100%);
+  padding: 28px;
+}
+.cmp-page .cmp-method-stat {
+  border-radius: 12px;
+  background: var(--color-inset);
+  padding: 12px 14px;
+}
+.cmp-page .cmp-method-part {
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+  background: #ffffff;
+  padding: 24px;
+}
+.cmp-page .cmp-method-card,
+.cmp-page .cmp-method-figure {
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 16px;
+}
+.cmp-page .cmp-method-part .cmp-method-figure { background: #fcfcfd; }
+.cmp-page .cmp-method-link {
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.cmp-page .cmp-method-link:hover { color: var(--color-accent); }
+
+/* Table of contents: a sticky column on wide screens, a scrolling chip row on narrow ones. */
+.cmp-page .cmp-method-toc {
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  margin: 0 -4px 16px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  padding: 6px;
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+.cmp-page .cmp-method-toc ul {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.cmp-page .cmp-method-toc a {
+  display: block;
+  white-space: nowrap;
+  border-radius: 9999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--color-ink-3);
+}
+.cmp-page .cmp-method-toc a:hover { background: rgba(60, 64, 68, 0.06); color: var(--color-ink); }
+.cmp-page .cmp-method-toc a[aria-current] { background: rgba(217, 71, 47, 0.1); color: var(--color-accent-strong); font-weight: 500; }
+@media (min-width: 1024px) {
+  .cmp-page .cmp-method-toc {
+    align-self: start;
+    top: 16px;
+    margin: 0;
+    border-radius: 0;
+    background: none;
+    backdrop-filter: none;
+    padding: 0;
+    box-shadow: none;
+  }
+  .cmp-page .cmp-method-toc ul {
+    flex-direction: column;
+    gap: 2px;
+    overflow: visible;
+    border-left: 1px solid var(--color-line);
+  }
+  .cmp-page .cmp-method-toc a {
+    margin-left: -1px;
+    border-left: 2px solid transparent;
+    border-radius: 0 8px 8px 0;
+    padding: 6px 12px;
+  }
+  .cmp-page .cmp-method-toc a[aria-current] { border-left-color: var(--color-accent); }
+}
+
+/* Pipeline steps */
+.cmp-page .cmp-method-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+.cmp-page .cmp-method-step {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 10px 12px;
+  text-align: left;
+  transition: border-color var(--md-dur-short4) var(--md-ease-standard), background-color var(--md-dur-short4) var(--md-ease-standard);
+}
+.cmp-page .cmp-method-step:hover { background: rgba(60, 64, 68, 0.04); }
+.cmp-page .cmp-method-step[aria-selected='true'] { border-color: var(--color-accent); background: #fff4f1; }
+.cmp-page .cmp-method-step-n {
+  display: grid;
+  height: 22px;
+  min-width: 22px;
+  place-items: center;
+  border-radius: 9999px;
+  background: var(--color-inset);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-ink-2);
+}
+.cmp-page .cmp-method-step[aria-selected='true'] .cmp-method-step-n { background: var(--color-accent); color: #ffffff; }
+
+/* Option buttons used as radios (metric group, requirement) */
+.cmp-page .cmp-method-figure [role='radio'][aria-checked='true'] {
+  background: rgba(217, 71, 47, 0.1);
+  color: var(--color-accent-strong);
+}
+
+/* Sliders */
+.cmp-page .cmp-method-slider input[type='range'] { accent-color: var(--color-accent); }
+
+/* Tables */
+.cmp-page .cmp-method-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cmp-page .cmp-method-table th,
+.cmp-page .cmp-method-table td {
+  border-bottom: 1px solid var(--color-line);
+  padding: 8px 10px 8px 0;
+  text-align: left;
+  vertical-align: top;
+}
+.cmp-page .cmp-method-table thead th { font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-ink-4); }
+.cmp-page .cmp-method-table tbody th { font-weight: 500; color: var(--color-ink); }
+.cmp-page .cmp-method-table td { color: var(--color-ink-3); }
+
+/* Architecture: four lanes joined by arrows */
+.cmp-page .cmp-method-flow {
+  display: grid;
+  gap: 24px;
+}
+@media (min-width: 768px) {
+  .cmp-page .cmp-method-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+}
+.cmp-page .cmp-method-flow > li { position: relative; }
+.cmp-page .cmp-method-flow > li + li::before {
+  content: '↓';
+  position: absolute;
+  top: -21px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--color-ink-4);
+  font-size: 14px;
+}
+@media (min-width: 768px) {
+  .cmp-page .cmp-method-flow > li + li::before {
+    content: '→';
+    top: 50%;
+    left: -15px;
+    transform: translateY(-50%);
+  }
+}
