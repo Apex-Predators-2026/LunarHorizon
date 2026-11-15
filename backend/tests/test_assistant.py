@@ -179,3 +179,11 @@ def test_instruction_covers_uncertainty_eligibility_glossary_and_answer_layout()
         assert f"### {section}" in system
     for term in ("Continuous darkness", "Communication blackout", "Canonical ranking", "Eligibility", "Desirability score"):
         assert term in system
+
+
+def test_instruction_limits_navigation_to_the_interface_guide_and_known_links():
+    system = build_messages([{"role": "user", "content": "q"}], {})[0]["content"]
+    for rule in ('"interface_guide": the only description', "never invent a button", "[[go:cmp-metrics]]",
+                 "Use only tokens listed there", '"rescue" (present only when', 'outcome_here is "confirmed"',
+                 "How does the rescued mission differ from my original plan?"):
+        assert rule in system, rule
