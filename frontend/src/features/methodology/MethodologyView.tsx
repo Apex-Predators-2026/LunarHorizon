@@ -128,18 +128,18 @@ export function LrocChart({ data }: { data: IlluminationCheck }) {
             <g key={id}>
               <text x={0} y={cy + 4} className="fill-ink-2 text-[12px]">{siteName(id)}</text>
               <rect x={x(p.lroc_3x3_pct[0])} y={cy - 7} width={Math.max(2, x(p.lroc_3x3_pct[1]) - x(p.lroc_3x3_pct[0]))} height={14}
-                rx={3} className="fill-[#d9dadd]" />
-              <circle cx={x(p.lroc_pct)} cy={cy} r={6} fill="none" stroke="#3c4044" strokeWidth={2} />
-              <circle cx={x(p.model_any_sun_pct)} cy={cy} r={5} fill="#b07a00" />
+                rx={3} fill="var(--cmp-method-range)" />
+              <circle cx={x(p.lroc_pct)} cy={cy} r={6} fill="none" stroke="var(--color-ink-2)" strokeWidth={2} />
+              <circle cx={x(p.model_any_sun_pct)} cy={cy} r={5} fill="var(--method-sun-marker, #b07a00)" />
               <title>{`${siteName(id)}: model ${pct(p.model_any_sun_pct)}, LROC pixel ${pct(p.lroc_pct)}, LROC 3×3 neighbourhood ${pct(p.lroc_3x3_pct[0])}–${pct(p.lroc_3x3_pct[1])}`}</title>
             </g>
           )
         })}
       </svg>
       <figcaption className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink-3">
-        <span><span aria-hidden className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-[#b07a00] align-middle" />Model: share of time any of the Sun is visible</span>
-        <span><span aria-hidden className="mr-1 inline-block h-2.5 w-2.5 rounded-full border-2 border-[#3c4044] align-middle" />LROC: the site’s own 100 m pixel</span>
-        <span><span aria-hidden className="mr-1 inline-block h-2.5 w-4 rounded-sm bg-[#d9dadd] align-middle" />LROC: range across the 3×3 pixels around it</span>
+        <span><span aria-hidden className="mr-1 inline-block h-2.5 w-2.5 rounded-full bg-[var(--method-sun-marker,#b07a00)] align-middle" />Model: share of time any of the Sun is visible</span>
+        <span><span aria-hidden className="mr-1 inline-block h-2.5 w-2.5 rounded-full border-2 border-ink-2 align-middle" />LROC: the site’s own 100 m pixel</span>
+        <span><span aria-hidden className="mr-1 inline-block h-2.5 w-4 rounded-sm bg-[var(--cmp-method-range)] align-middle" />LROC: range across the 3×3 pixels around it</span>
       </figcaption>
     </figure>
   )

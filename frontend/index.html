@@ -3,6 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/lunar-horizon-favicon.png" />
+    <script>
+      try {
+        document.documentElement.classList.toggle('lp-dark', localStorage.getItem('lunar-dark-mode') === '1')
+      } catch {
+        // Use the default theme when storage is unavailable.
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

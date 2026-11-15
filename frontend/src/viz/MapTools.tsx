@@ -316,7 +316,7 @@ function CoordinateForm({ onSubmit }: { onSubmit: (lat: number, lon: number) => 
         onChange={(e) => setLon(e.target.value)}
         aria-label="Longitude (degrees east)"
       />
-      <button type="submit" className="md-compact border border-opal-300 bg-white transition-colors hover:bg-calcite-peach/40">
+      <button type="submit" className="md-compact border border-opal-300 bg-panel-fill transition-colors hover:bg-calcite-peach/40">
         Analyse
       </button>
       {error && <span role="alert" className="w-full text-red-300">{error}</span>}

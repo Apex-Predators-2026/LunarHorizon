@@ -500,7 +500,7 @@ function Panel({ open, context, onNav, onClose }: {
             </div>
           )}
           {error && !pending && (
-            <div role="alert" className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-900">
+            <div role="alert" className="flex items-start gap-2 rounded-2xl border border-red-800 bg-red-950 px-3 py-2 text-xs leading-relaxed text-red-200">
               <Icon name="warning" size={14} className="mt-0.5 shrink-0" />
               <div className="flex-1">
                 <p>{error.message}</p>

@@ -156,7 +156,7 @@ export function DatePopup({
               aria-invalid={!!typedError}
               tip="Type a date as year-month-day"
             />
-            <p className={`md-field-support ${typedError ? 'text-[#b3261e]' : ''}`}>{typedError ?? 'Year-month-day, e.g. 2027-01-15'}</p>
+            <p className={`md-field-support ${typedError ? 'text-field-error' : ''}`}>{typedError ?? 'Year-month-day, e.g. 2027-01-15'}</p>
           </div>
         ) : (
           <>

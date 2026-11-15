@@ -329,11 +329,11 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
                 </text>
               )
             })}
-            {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={AXIS_H - 4} y2={height} stroke="#6b7076" strokeDasharray="2 3" opacity={0.7} />}
+            {hover !== null && <line x1={x(hover)} x2={x(hover)} y1={AXIS_H - 4} y2={height} stroke={STATE.muted} strokeDasharray="2 3" opacity={0.7} />}
             {cursor !== null && cursor >= view[0] && cursor <= view[1] && (
               <g>
-                <line x1={x(cursor)} x2={x(cursor)} y1={AXIS_H - 6} y2={height} stroke="#d9472f" strokeWidth={1.5} />
-                <rect x={x(cursor) - 3} y={AXIS_H - 8} width={6} height={6} fill="#d9472f" transform={`rotate(45 ${x(cursor)} ${AXIS_H - 5})`} />
+                <line x1={x(cursor)} x2={x(cursor)} y1={AXIS_H - 6} y2={height} stroke="var(--color-accent)" strokeWidth={1.5} />
+                <rect x={x(cursor) - 3} y={AXIS_H - 8} width={6} height={6} fill="var(--color-accent)" transform={`rotate(45 ${x(cursor)} ${AXIS_H - 5})`} />
               </g>
             )}
           </g>
