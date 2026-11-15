@@ -26,6 +26,8 @@ import {
   knownValue,
   marginOf,
   rankText,
+  requirementMatrix,
+  requirementSummary,
   scoreText,
   type Entry,
 } from './analysis'
@@ -371,7 +373,7 @@ describe('components render real results', () => {
     )
     expect(html).toContain('Peak Near Shackleton')
     expect(html).toContain('JPL Horizons + LOLA')
-    expect(html).toContain('title="Best among compared real-data scenarios">best</span>') // the best value is marked
+    expect(html).toContain('title="Best among compared real-data scenarios, ahead by a meaningful margin">best</span>') // the best value is marked
     expect(html).toContain('Longest continuous darkness')
     expect(html).toContain('falls outside it') // D: unavailable message, not fabricated numbers
     expect(html).toContain('Canonical ranking from the viability engine')
@@ -504,5 +506,98 @@ describe('canonical evidence (Phase 3)', () => {
     expect(c.sunReason).toMatch(/^Unknown/)
     expect(c.earthReason).toMatch(/^Unknown/)
     expect(mergeSeries([unknown], (t, i) => t.sun_visible_fraction[i], [0, 24]).every((r) => r[b.scenario.id] === null)).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------- Phase 4: comparison interface
+
+/** Server-rendered HTML without React's text-node separators, for plain-text assertions. */
+const plain = (html: string) => html.replace(/<!-- -->/g, '')
+
+describe('comparison interface (Phase 4)', () => {
+  it('marks "best" only when the lead is meaningful', () => {
+    const [a, b, c] = entries(['A', 'B', 'C'])
+    expect([...bestIds([a, b, c], METRIC_BY_ID.dark_longest)]).toEqual([b.scenario.id]) // 4 h vs 12 h: meaningful
+    // B leads C by only 0.5 percentage points: similar, so no winner even though A is far behind.
+    const close = { ...c, result: { ...c.result!, solar: { ...c.result!.solar!, mean_visible_fraction: b.result!.solar!.mean_visible_fraction - 0.005 } } }
+    expect(bestIds([a, b, close], METRIC_BY_ID.mean_disk).size).toBe(0)
+  })
+
+  it('a negligible change against the baseline is neither better nor worse', () => {
+    const [b, c] = entries(['B', 'C'])
+    const close = { ...c, result: { ...c.result!, solar: { ...c.result!.solar!, longest_dark_hours: b.result!.solar!.longest_dark_hours + 1 } } }
+    const d = deltaVsBaseline(METRIC_BY_ID.dark_longest, close, b)!
+    expect(d.meaningful).toBe(false)
+    expect(d.better).toBeNull()
+    expect(deltaVsBaseline(METRIC_BY_ID.dark_longest, c, b)!.better).toBe(false) // 12 h vs 4 h: clearly worse
+  })
+
+  it('builds the requirements matrix from the engine verdicts', () => {
+    const e = entries(['A', 'B', 'C'])
+    const rows = requirementMatrix(e)
+    const ids = rows.map((r) => r.id)
+    expect(ids).toContain('max_continuous_darkness')
+    expect(ids).not.toContain('min_sun_clearance') // not applicable to any scenario
+    const disk = rows.find((r) => r.id === 'min_mean_solar_disk_fraction')!
+    const a = disk.cells[e[0].scenario.id]!
+    expect(a.status).toBe('fail')
+    expect(a.measured).toBe('36.8%') // fraction shown as a percentage
+    expect(a.threshold).toBe('≥ 50.0%')
+    expect(disk.cells[e[1].scenario.id]!.status).toBe('pass')
+    const sum = requirementSummary(e[0])!
+    expect(sum.failed.map((f) => f.id)).toEqual(['min_mean_solar_disk_fraction'])
+    expect(sum.passed + sum.failed.length + sum.undecided.length).toBe(sum.applicable)
+  })
+
+  it('overview cards lead with status and show requirement verdicts', () => {
+    const html = plain(renderToString(<OverviewCards entries={entries(['A', 'B', 'C', 'D'])} />))
+    expect(html).toContain('requirements met')
+    expect(html).toContain('Minimum mean visible solar-disk fraction')
+    expect(html).toContain('Lands ')
+    expect(html).toContain('89.017°S')
+    expect(html).toContain('not ranked')
+    expect(html).toContain('Cannot be decided') // D: no data
+  })
+
+  it('metrics table shows the requirements matrix and which direction is better', () => {
+    const html = plain(renderToString(<MetricsTable entries={entries(['A', 'B', 'C'])} />))
+    expect(html).toContain('Mission requirements (canonical viability engine)')
+    expect(html).toContain('required ≥ 50.0%')
+    expect(html).toContain('lower is better')
+  })
+
+  it('quick successive requirement edits never overwrite each other', () => {
+    useCompareStore.setState({ scenarios: [], selectedIds: [] })
+    const id = useCompareStore.getState().addScenario({ site: SITES.B, landing_utc: '2027-01-15T00:00:00Z' })
+    const st = useCompareStore.getState()
+    st.updateRequirements(id, { battery_hours: 110 })
+    st.updateRequirements(id, { min_initial_sun_hours: 0 })
+    st.updateSpacecraft(id, { average_load_w: 120 })
+    const s = useCompareStore.getState().scenarios.find((x) => x.id === id)!
+    expect(s.requirements.battery_hours).toBe(110)
+    expect(s.requirements.min_initial_sun_hours).toBe(0)
+    expect(s.spacecraft.average_load_w).toBe(120)
+  })
+
+  it('a new scenario defaults to a curated landing candidate', () => {
+    useCompareStore.setState({ scenarios: [], selectedIds: [], sites: [
+      { id: 'apollo-11', name: 'Apollo 11', lat: 0.67, lon: 23.47, source: 'x', ground_height_m: null, isControl: false, summary: null, dataRange: null },
+      { id: 'malapert-massif', name: 'Malapert Massif', lat: -85.9635, lon: 357.6326, source: 'x', ground_height_m: null, isControl: false, summary: null, dataRange: null },
+    ] })
+    const id = useCompareStore.getState().addScenario()
+    expect(useCompareStore.getState().scenarios.find((x) => x.id === id)!.site.id).toBe('malapert-massif')
+  })
+})
+
+describe('quick comparisons', () => {
+  it('"Same date, 3 sites" uses the curated south-pole candidates', () => {
+    useCompareStore.setState({ scenarios: [], selectedIds: [], sites: [
+      { id: 'apollo-11', name: 'Apollo 11', lat: 0.67, lon: 23.47, source: 'x', ground_height_m: null, isControl: false, summary: null, dataRange: null },
+      { id: 'apollo-12', name: 'Apollo 12', lat: -3.01, lon: 336.58, source: 'x', ground_height_m: null, isControl: false, summary: null, dataRange: null },
+    ] })
+    useCompareStore.getState().loadPreset('locations')
+    const s = useCompareStore.getState()
+    const sel = s.selectedIds.map((id) => s.scenarios.find((x) => x.id === id)!.site.id)
+    expect(sel).toEqual(['peak-near-shackleton', 'malapert-massif', 'connecting-ridge'])
   })
 })
