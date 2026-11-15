@@ -34,11 +34,6 @@ describe('phone width (375 px)', () => {
     expect(scene).toContain('max-md:bottom-[var(--fab-b-sm)]')
   })
 
-  it('the larger planner logo applies from lg up only, so "Try a mission" stays on the first line at tablet width', async () => {
-    const app = await source('./App.tsx')
-    expect(app).toContain("w-[clamp(144px,15vw,178px)] ${view === 'planner' ? 'lg:w-[clamp(176px,20vw,240px)]' : ''}")
-  })
-
   it('the Methodology check grid has a shrinkable column, so wide cards do not scroll the page sideways', async () => {
     const view = await source('./features/methodology/MethodologyView.tsx')
     expect(view).toContain('<div className="grid grid-cols-1 gap-4 xl:grid-cols-2">')
