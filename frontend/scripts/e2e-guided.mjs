@@ -151,6 +151,9 @@ async function run(viewport) {
   check(`${tag} finish leaves the story`, (await card.count()) === 0)
 
   // A live edit after generation: the report keeps its snapshot, says it is out of date, and regenerates on request.
+  // The scenario checkboxes live in the "Manage scenarios" disclosure, collapsed once two scenarios are compared.
+  const manage = page.locator('#cmp-scenarios').getByRole('button', { name: /Manage scenarios/ })
+  if ((await manage.getAttribute('aria-expanded')) !== 'true') await manage.click()
   await page.locator('#cmp-scenarios').getByRole('checkbox', { checked: true }).first().uncheck()
   await page.getByTestId('reopen-report').first().click() // the page header and the decision area both offer it
   await page.getByTestId('report-stale').waitFor({ timeout: 10_000 })
