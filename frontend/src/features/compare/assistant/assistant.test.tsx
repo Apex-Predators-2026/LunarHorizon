@@ -9,7 +9,9 @@ import type { Entry } from '../analysis'
 import { makeScenario } from '../scenario'
 import type { CompareResponse, CompareResult } from '../types'
 import { buildAssistantContext, contextLine, contextSignature, contextState, verdictChips } from './context'
-import { basicAnswer, basicRequirements, basicSummary } from './fallback'
+import type { RescueContext } from '../rescueFlow'
+import { basicAnswer, basicRequirements, basicSummary, isNavigationQuestion } from './fallback'
+import { INTERFACE_GUIDE, guideFor, isNavTarget } from './navigation'
 import { inlineParts, parseBlocks } from './markdown'
 import { MissionAssistant } from './MissionAssistant'
 import { RichText } from './RichText'
@@ -144,9 +146,19 @@ describe('basic answers without AI', () => {
 
 describe('suggested questions', () => {
   it('leads with getting started when nothing is selected, and with the comparison otherwise', () => {
-    expect(suggestedQuestions('empty')[0]).toMatch(/select scenarios/)
-    expect(suggestedQuestions('ready')[0]).toBe('Summarize my current comparison.')
-    expect(suggestedQuestions('ready')).toContain('Where can I see the longest blackout?')
+    expect(suggestedQuestions(ctx([]))[0]).toMatch(/select scenarios/)
+    const q = suggestedQuestions(ctx())
+    expect(q[0]).toBe('Summarize my current comparison.')
+    expect(q.length).toBeLessThanOrEqual(6)
+  })
+
+  it('name the scenarios that matter in this comparison', () => {
+    const q = suggestedQuestions(ctx(), 10)
+    expect(q).toContain('Why is Scenario B recommended?')
+    expect(q).toContain('Why did Scenario A fail?')
+    expect(q).toContain('Why is Scenario D UNKNOWN?')
+    expect(q).toContain('Why are some scenarios ranked separately?')
+    expect(suggestedQuestions(ctx(all(), false), 10).some((x) => /recommended/.test(x))).toBe(false) // nothing stated while updating
   })
 })
 
@@ -154,10 +166,88 @@ describe('answer formatting', () => {
   it('parses paragraphs, headings and lists, and keeps everything as text', () => {
     const b = parseBlocks('### Overall assessment\nScenario B **passes**.\n\n- Sun: 97%\n- Earth: 100%\n1. first\n2. second')
     expect(b.map((x) => x.kind)).toEqual(['h', 'p', 'ul', 'ol'])
-    expect(inlineParts('a **b** [c](http://x) `d`')).toEqual([{ bold: false, text: 'a ' }, { bold: true, text: 'b' }, { bold: false, text: ' c d' }])
+    expect(inlineParts('a **b** [c](http://x) `d`')).toEqual([{ kind: 'text', text: 'a ' }, { kind: 'bold', text: 'b' }, { kind: 'text', text: ' c d' }])
     const html = renderToString(<RichText text={'<img src=x onerror=alert(1)> **ok**'} />)
     expect(html).not.toContain('<img')
     expect(html).toContain('&lt;img')
+  })
+
+  it('turns Go-to tokens into links to real places only, and drops anything else', () => {
+    expect(inlineParts('See [[go:cmp-metrics]] or [[go:tour]] [[go:admin-panel]].')).toEqual([
+      { kind: 'text', text: 'See ' }, { kind: 'nav', target: 'cmp-metrics' }, { kind: 'text', text: ' or ' },
+      { kind: 'nav', target: 'tour' }, { kind: 'text', text: ' ' }, { kind: 'text', text: '.' },
+    ])
+    const withNav = renderToString(<RichText text="Open [[go:cmp-timeline]]" onNav={() => {}} />)
+    expect(withNav).toContain('Go to Timeline</button>')
+    expect(renderToString(<RichText text="Open [[go:cmp-timeline]]" />)).not.toContain('button')
+  })
+})
+
+describe('navigation help', () => {
+  it('has a guide entry for each navigation question in the brief, pointing at real places', () => {
+    const cases: [string, string][] = [
+      ['How do I add another scenario?', 'add'],
+      ['How do I compare different landing dates?', 'dates'],
+      ['Where can I see the longest darkness period?', 'darkness'],
+      ['How do I find the communication blackout?', 'blackout'],
+      ['Where can I see the mission requirements?', 'requirements'],
+      ['How do I compare a rescued mission with the original?', 'rescue'],
+      ['How do I restart the tutorial?', 'tour'],
+      ['What does UNKNOWN mean?', 'unknown'],
+      ['What does canonical rank mean?', 'rank'],
+      ['How do I select scenarios to compare?', 'select'],
+    ]
+    for (const [q, id] of cases) expect(guideFor(q)?.id, q).toBe(id)
+    for (const e of INTERFACE_GUIDE) for (const g of e.go) expect(isNavTarget(g), `${e.id} -> ${g}`).toBe(true)
+  })
+
+  it('answers navigation questions without AI, even with nothing selected', () => {
+    expect(isNavigationQuestion('How do I restart the tutorial?')).toBe(true)
+    expect(isNavigationQuestion('Why did Scenario A fail?')).toBe(false)
+    const tour = basicAnswer('How do I restart the tutorial?', ctx([]))
+    expect(tour).toContain('How to compare missions')
+    expect(tour).toContain('[[go:tour]]')
+    expect(basicAnswer('Where can I see the longest blackout?', ctx())).toContain('Go to longest blackout')
+    expect(basicAnswer('Summarize', ctx([]))).toMatch(/tick two to four/)
+  })
+
+  it('sends the interface guide and section list to the AI', () => {
+    const c = ctx()
+    expect(c.interface_guide.length).toBe(INTERFACE_GUIDE.length)
+    expect(c.interface_guide.find((g) => g.topic === 'Restart the tutorial')?.links).toEqual(['[[go:tour]]'])
+  })
+})
+
+describe('Mission Rescue in the assistant', () => {
+  const rescueCtx: RescueContext = {
+    importedAt: '2027-01-01T00:00:00Z', status: 'rescued', summary: 'Two alternatives restore the plan.',
+    change: ['Launch delayed by 14 days'],
+    roles: {
+      's-A': { role: 'changed' },
+      's-B': { role: 'alternative', rank: 1, kind: 'site_change', rescueVerdict: 'pass' },
+      's-D': { role: 'alternative', rank: 2, kind: 'date_shift', rescueVerdict: 'pass' },
+    },
+  }
+  const withRescue = () => buildAssistantContext(all().slice(0, 4), res.ranking_groups, res.pairwise, res.notes, true, rescueCtx)
+
+  it('carries the rescue story as the page re-assessed it', () => {
+    const r = withRescue().rescue!
+    expect(r.changed).toBe('A')
+    expect(r.change).toEqual(['Launch delayed by 14 days'])
+    const [b, d] = r.alternatives
+    expect([b.label, b.outcome_here]).toEqual(['B', 'confirmed'])
+    expect(b.fixes.length).toBeGreaterThan(0)
+    expect([d.label, d.outcome_here, d.disagrees_with_rescue]).toEqual(['D', 'not_assessed', true]) // Rescue said PASS; no data here
+    expect(ctx().rescue).toBeNull()
+  })
+
+  it('suggests the rescue question and answers it without AI', () => {
+    expect(suggestedQuestions(withRescue())).toContain('How does the rescued mission differ from my original plan?')
+    const t = basicAnswer('How does the rescued mission differ from my original plan?', withRescue())
+    expect(t).toMatch(/Changed plan:\*\* Scenario A, FAIL/)
+    expect(t).toMatch(/Scenario B\):\*\* Passes every requirement here: a confirmed fix/)
+    expect(t).toMatch(/Scenario D\):\*\* Not assessed here \(no data\): not a confirmed fix.*Mission Rescue reported PASS/)
+    expect(basicAnswer('How does the rescued mission differ from my original plan?', ctx())).toMatch(/No Mission Rescue plans/)
   })
 })
 
@@ -238,6 +328,13 @@ describe('conversation', () => {
     await useAssistant.getState().ask('And the trade-off?', ctx())
     const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string)
     expect(body.messages.map((m: { role: string }) => m.role)).toEqual(['user', 'user'])
+  })
+
+  it('opens the panel for a question asked from the page, and hands it over once', () => {
+    useAssistant.getState().askFromPage('Explain the metric “Longest continuous darkness”.')
+    expect(useAssistant.getState()).toMatchObject({ open: true, queued: 'Explain the metric “Longest continuous darkness”.' })
+    expect(useAssistant.getState().takeQueued()).toMatch(/Longest continuous darkness/)
+    expect(useAssistant.getState().takeQueued()).toBeNull()
   })
 
   it('ignores empty questions, and New chat clears the conversation', async () => {

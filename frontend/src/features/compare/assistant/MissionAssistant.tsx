@@ -9,7 +9,10 @@ import { createPortal } from 'react-dom'
 import type { Entry } from '../analysis'
 import type { PairEvidence, RankingGroup } from '../types'
 import { Icon } from '../ui'
+import { useCompareStore } from '../useCompareStore'
+import { useCompareTour } from '../tour/useCompareTour'
 import { buildAssistantContext, contextLine, type AssistantContext } from './context'
+import type { NavTarget } from './navigation'
 import { RichText } from './RichText'
 import { suggestedQuestions } from './suggestions'
 import { MAX_QUESTION, useAssistant, type ChatMessage } from './useAssistant'
@@ -37,19 +40,32 @@ function useHeaderOffset(): number {
   return top
 }
 
-export function MissionAssistant({ entries, groups, pairs, notes, ready }: {
+/** Below this width the open panel covers the page, so following a link closes it to show the section. */
+const SIDE_BY_SIDE_MIN = 1100
+
+export function MissionAssistant({ entries, groups, pairs, notes, ready, onJump }: {
   entries: Entry[]
   groups: RankingGroup[]
   pairs: PairEvidence[]
   notes: string[]
   ready: boolean
+  /** Scroll the page to a section (the section bar's own jump). */
+  onJump?: (sectionId: string) => void
 }) {
   const open = useAssistant((s) => s.open)
-  // Rebuilt whenever the selection, the requirements or the results change, so a question always goes out with
-  // the comparison as it is at that moment (never a stale copy).
-  const context = useMemo(() => buildAssistantContext(entries, groups, pairs, notes, ready), [entries, groups, pairs, notes, ready])
+  const rescue = useCompareStore((s) => s.rescueContext)
+  // Rebuilt whenever the selection, the requirements, the results or the Rescue import change, so a question always
+  // goes out with the comparison as it is at that moment (never a stale copy).
+  const context = useMemo(() => buildAssistantContext(entries, groups, pairs, notes, ready, rescue),
+    [entries, groups, pairs, notes, ready, rescue])
+  // Links in answers only move around the page or start the tour: they never change anything.
+  const onNav = (target: NavTarget) => {
+    if (typeof window !== 'undefined' && window.innerWidth < SIDE_BY_SIDE_MIN) useAssistant.getState().setOpen(false)
+    if (target === 'tour') useCompareTour.getState().start()
+    else onJump?.(target)
+  }
   if (typeof document === 'undefined') return null
-  return createPortal(open ? <Panel context={context} /> : <Launcher />, document.body)
+  return createPortal(open ? <Panel context={context} onNav={onNav} /> : <Launcher />, document.body)
 }
 
 function Launcher() {
@@ -64,13 +80,14 @@ function Launcher() {
   )
 }
 
-function Panel({ context }: { context: AssistantContext }) {
+function Panel({ context, onNav }: { context: AssistantContext; onNav: (t: NavTarget) => void }) {
   const messages = useAssistant((s) => s.messages)
   const pending = useAssistant((s) => s.pending)
   const error = useAssistant((s) => s.error)
   const availability = useAssistant((s) => s.availability)
   const availabilityMessage = useAssistant((s) => s.availabilityMessage)
-  const { setOpen, ask, askBasic, showBasic, retry, stop, clear, checkStatus } = useAssistant.getState()
+  const queued = useAssistant((s) => s.queued)
+  const { takeQueued, setOpen, ask, askBasic, showBasic, retry, stop, clear, checkStatus } = useAssistant.getState()
   const [draft, setDraft] = useState('')
   const top = useHeaderOffset()
   const logRef = useRef<HTMLDivElement>(null)
@@ -102,7 +119,15 @@ function Panel({ context }: { context: AssistantContext }) {
       submit(draft)
     }
   }
-  const suggestions = suggestedQuestions(context.state)
+  const suggestions = suggestedQuestions(context)
+
+  // A question asked from a button on the page: sent once the availability check is done, with the current context.
+  useEffect(() => {
+    if (!queued || pending || availability === 'checking' || availability === 'unknown') return
+    const q = takeQueued()
+    if (q) submit(q)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- submit reads the latest context on each render
+  }, [queued, pending, availability])
 
   return (
     <div className={`${SCOPE} fixed bottom-4 right-4 z-[70] flex`} style={{ ...SCOPE_STYLE, top, width: `min(${ASSISTANT_WIDTH}px, calc(100vw - 32px))` }}>
@@ -152,7 +177,7 @@ function Panel({ context }: { context: AssistantContext }) {
               <Suggestions items={suggestions} disabled={pending} onPick={submit} />
             </div>
           )}
-          {messages.map((m) => <Message key={m.id} m={m} />)}
+          {messages.map((m) => <Message key={m.id} m={m} onNav={onNav} />)}
           {pending && (
             <div className="flex items-center gap-2 text-xs text-ink-3" role="status">
               <span className="inline-flex gap-1" aria-hidden="true">
@@ -218,7 +243,7 @@ function Suggestions({ items, disabled, onPick, compact = false }: { items: stri
   )
 }
 
-function Message({ m }: { m: ChatMessage }) {
+function Message({ m, onNav }: { m: ChatMessage; onNav: (t: NavTarget) => void }) {
   if (m.role === 'notice') {
     return <p className="border-y border-dashed border-line py-1.5 text-center text-[11px] text-ink-3">{m.content}</p>
   }
@@ -237,7 +262,7 @@ function Message({ m }: { m: ChatMessage }) {
           Basic answer · not AI
         </p>
       )}
-      <RichText text={m.content} />
+      <RichText text={m.content} onNav={onNav} />
       {m.verdicts && m.verdicts.length > 0 && (
         <p className="mt-2 flex flex-wrap gap-1" aria-label="The page's verdicts when this was answered">
           {m.verdicts.map((v) => <span key={v} className="rounded border border-line px-1.5 py-0.5 text-[10px] text-ink-3">{v}</span>)}

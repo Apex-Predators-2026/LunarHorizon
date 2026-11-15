@@ -7,6 +7,7 @@ import { buildDecision } from './decision'
 import { seriesColor } from './palette'
 import type { PairEvidence, RankingGroup } from './types'
 import { EligibilityBadge, RankBadge, ReqIcon, ScenarioChip } from './ui'
+import { AskButton } from './assistant/AskButton'
 
 function Bars({ h, entries }: { h: Headline; entries: Entry[] }) {
   const rows = headlineRows(h, entries)
@@ -61,7 +62,10 @@ export function AtAGlance({ entries, groups, pairs, ready, onJump }: {
                 : !main ? 'Updating the canonical ranking…' : main.headline}
             </p>
           </div>
-          <button type="button" className="cmp-btn" onClick={() => onJump('cmp-summary')}>Read the reasoning</button>
+          <span className="flex flex-wrap items-center gap-2">
+            {anyData && main && <AskButton question="Explain this verdict: why did these scenarios get these results?" label="Ask why" />}
+            <button type="button" className="cmp-btn" onClick={() => onJump('cmp-summary')}>Read the reasoning</button>
+          </span>
         </div>
         <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2" aria-label="Status of each scenario">
           {entries.map((e) => {

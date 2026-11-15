@@ -2,6 +2,7 @@
 // comparison context (the page's own verdicts, decisions and display figures); nothing is inferred or worded
 // freely, and the panel labels these answers "Basic answer · not AI".
 import type { AssistantContext, AssistantScenario } from './context'
+import { guideAnswer, guideFor } from './navigation'
 
 const STATUS: Record<string, string> = { pass: 'PASS', fail: 'FAIL', unknown: 'UNKNOWN' }
 const status = (s: AssistantScenario) => (s.eligibility ? STATUS[s.eligibility] : s.result === 'loading' ? 'still loading' : 'not assessed')
@@ -81,9 +82,45 @@ export function basicRequirements(c: AssistantContext, label: string): string | 
   return [...(note ? [note] : []), ...lines.map((l) => l.replace(/^ {2}/, ''))].join('\n')
 }
 
+/** "How / where / what does … mean" questions about the page itself (not about a result). */
+export const isNavigationQuestion = (q: string) =>
+  /\b(how (do|can|to|should) (i|we|you)|where (can|do|is|are)|restart|what (does|do|is|are) .*\b(mean|means)\b|what is (an? |the )?(unknown|canonical|baseline|eligib))/i.test(q)
+
+/** The Mission Rescue story, as the "from problem to decision" panel tells it. */
+export function basicRescue(c: AssistantContext): string | null {
+  const r = c.rescue
+  if (!r) return null
+  const s = (l: string | null) => (l ? c.scenarios.find((x) => x.label === l) : undefined)
+  const out = ['### Mission Rescue', ...r.change.map((x) => `- ${x}`)]
+  const orig = s(r.original), changed = s(r.changed)
+  if (orig) out.push(`- **Original plan:** Scenario ${orig.label}, ${status(orig)}`)
+  if (changed) {
+    const p = r.changed_problems
+    const probs = p ? [...p.failed.map((f) => `fails ${f}`), ...p.undecided.map((u) => `cannot decide ${u}`)] : []
+    out.push(`- **Changed plan:** Scenario ${changed.label}, ${status(changed)}${probs.length ? ` (${probs.join('; ')})` : ''}`)
+  }
+  for (const a of r.alternatives) {
+    const fixes = a.fixes.length ? ` Fixes: ${a.fixes.join(', ')}.` : ''
+    const rem = a.remaining.length ? ` Still open: ${a.remaining.join(', ')}.` : ''
+    const disagree = a.disagrees_with_rescue ? ` (Mission Rescue reported ${a.rescue_verdict?.toUpperCase()}; the re-assessment here differs.)` : ''
+    out.push(`- **Alternative ${a.rescue_rank ?? ''} (Scenario ${a.label}):** ${a.outcome_text}.${fixes}${rem}${disagree}`.replace('Alternative  (', 'Alternative ('))
+  }
+  if (stateNote(c)) out.push(stateNote(c)!)
+  return out.join('\n')
+}
+
 /** A basic answer to the user's question, or the summary when the question is not one it can answer exactly. */
 export function basicAnswer(question: string, c: AssistantContext): string {
+  // Questions about using the page are answered from the interface guide, with or without a comparison.
+  const guide = isNavigationQuestion(question) ? guideFor(question) : null
+  if (guide) return guideAnswer(guide)
   if (c.state === 'empty') return NOTHING_SELECTED
+  if (/rescu/i.test(question)) {
+    const rescue = basicRescue(c)
+    if (rescue) return rescue
+    const g = guideFor('rescue')
+    if (g) return `No Mission Rescue plans are in this comparison.\n${guideAnswer(g)}`
+  }
   const letter = /\bscenario\s+([A-Z])\b/i.exec(question)?.[1]?.toUpperCase()
   if (/fail|violat|requirement|unknown|pass/i.test(question)) {
     if (letter && c.selected.includes(letter)) return basicRequirements(c, letter)!
