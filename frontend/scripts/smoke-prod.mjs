@@ -176,6 +176,24 @@ await step('Run a plan: it becomes the active mission and its card shows the can
     .catch(async (e) => { throw new Error(`no canonical verdict on the plan card: ${(await card.innerText()).replace(/\s+/g, ' ').slice(0, 240)} (${String(e).split('\n')[0]})`) })
 })
 
+await step('Plan assessment dialog: Show in 3D, then Back returns to the same dialog', async () => {
+  const card = page.getByRole('listitem', { name: 'Plan Smoke Ridge' })
+  await card.getByRole('button', { name: /Full assessment/ }).click()
+  const dialogs = () => page.getByRole('dialog', { name: 'Mission assessment: Smoke Ridge' })
+  await dialogs().waitFor({ timeout: 60_000 })
+  const show = dialogs().getByRole('button', { name: 'Show in 3D' }).first() // the failing requirement's evidence window
+  await show.waitFor({ timeout: 60_000 })
+  await show.click()
+  await dialogs().waitFor({ state: 'detached', timeout: 10_000 }) // the dialog gives way to the 3D view
+  const banner = page.getByRole('status').filter({ hasText: 'Back to Smoke Ridge assessment' })
+  await banner.waitFor({ timeout: 30_000 })
+  await banner.getByRole('button', { name: 'Back to Smoke Ridge assessment' }).click()
+  await dialogs().waitFor({ timeout: 10_000 }) // the same plan's dialog, not the running plan's panel
+  await banner.waitFor({ state: 'detached', timeout: 10_000 })
+  await dialogs().getByRole('button', { name: 'Close' }).click()
+  await dialogs().waitFor({ state: 'detached', timeout: 10_000 })
+})
+
 await step("Investigate: the lander's-eye Sun view, the sky plot and the map layers", async () => {
   await cameraView('Sun')
   const lit = await drawnFraction()

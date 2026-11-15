@@ -102,6 +102,14 @@ describe('summary report snapshot', () => {
     expect(html).not.toContain('NaN')
   })
 
+  it('the printed sources say Gracy & Lee located two sites and validated nothing', () => {
+    load(['A', 'B'])
+    useReportStore.getState().generate()
+    const html = plain(renderToString(<ReportDocument s={useReportStore.getState().snapshot!} />))
+    expect(html).toMatch(/Gracy &amp; Lee, LPSC 2024: source of the Connecting Ridge and Peak Near Shackleton coordinates\. It locates those two sites; it is not a validation of this model\./)
+    expect(html).not.toMatch(/Validation reference/)
+  })
+
   it('separate comparability groups get group-specific conclusions', () => {
     load(['B', 'C', 'E'])
     useReportStore.getState().generate()

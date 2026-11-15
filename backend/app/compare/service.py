@@ -82,8 +82,9 @@ def real_timeline(scenario: Scenario) -> Timeline | None:
     or before landing to the last one before the end. None if the site has no data or the mission starts outside it.
 
     A mission that starts inside the data but runs past its end gets the samples that exist (one policy with Rescue
-    and the Atlas, app.timegrid): the canonical engine judges it on those real hours, proving a fail where it can and
-    otherwise reporting unknown, never a pass."""
+    and the Atlas, app.timegrid): the canonical engine judges it on those real hours and bounds the missing ones. It
+    gives a verdict only where that evidence proves it (usually a fail; a pass only when even the worst case for the
+    missing hours still passes) and otherwise reports unknown."""
     d = _site_record(scenario.site.id)
     if d is None or len(d.times) < 2:
         return None
@@ -474,11 +475,13 @@ def evaluate_one(item: CompareScenarioIn, allow_demo: bool, max_points: int) -> 
     # computed as if unknown time were dark or blocked) and the engine's bounds in assessment.metrics stand in.
     if kind == "real" and sup.uncovered_s > 0:
         # The mission runs past the end of the real data: only part of it can be described. Whole-mission statistics
-        # are withheld; the verdict comes from the hours that exist (it can show a fail, never a pass).
+        # are withheld; the verdict comes from the hours that exist, the missing ones bounded: a verdict only where
+        # that evidence proves it (usually a fail; a pass only if even the worst case for the missing hours passes).
         covered_h = total_h - sup.uncovered_s / 3600.0
         notes.append(f"Real data ends at {_iso(tl.times[-1])}: it covers {covered_h:g} h of this {total_h:g} h "
-                     "mission. Window statistics are withheld; the viability verdict is judged on the covered hours "
-                     "only (it can show a fail, never a pass).")
+                     "mission. Window statistics are withheld; the viability verdict is judged on the covered hours, with "
+                     "the uncovered hours bounded: it gives a verdict only where the covered hours prove it (usually a "
+                     "fail) and otherwise cannot be decided.")
     if sun_unknown_s > 0:
         why = (f"The Sun's state is unknown for {sun_unknown_s / 3600:.1f} h of this {total_h:.1f} h mission; "
                "whole-mission solar and power statistics are withheld (the engine's metrics give bounds).")

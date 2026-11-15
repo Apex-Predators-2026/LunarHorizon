@@ -50,7 +50,7 @@ def test_coverage_ends_at_the_last_sample():
     late = ev.evaluate(Scenario(site=site, landing_utc=end - timedelta(hours=167)))
     assert is_real(ok) and ok.verdict in ("pass", "fail")
     # One hour past the last sample: the canonical engine judges the real hours that exist (one policy with the
-    # Comparison and the Atlas, app.timegrid). It may prove a fail, never a pass, and never gives a score.
+    # Comparison and the Atlas, app.timegrid). It proves a verdict only where the covered hours settle it (a fail, or a pass the worst case cannot overturn) and never gives a score.
     assert late.verdict in ("fail", "unknown") and is_real(late) and late.score is None
 
 
