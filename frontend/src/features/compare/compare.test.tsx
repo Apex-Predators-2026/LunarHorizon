@@ -178,7 +178,7 @@ describe('analysis on real data', () => {
       .toBe('not scored: eligibility unknown')
     expect(scoreText({ ...base, score: null, score_status: 'no_scorable_components', score_lower: null, score_upper: null }))
       .toBe('not scored: no active score component')
-    expect(scoreText(null, null)).toBe('—')
+    expect(scoreText(null, null)).toBe('-')
     expect(scoreText({ ...base, score: 0, score_status: 'known', score_lower: 0, score_upper: 0 })).toBe('0.0')
     expect(METRIC_BY_ID.score.better).toBeNull() // the canonical ranking, not a "best score" highlight, decides
   })

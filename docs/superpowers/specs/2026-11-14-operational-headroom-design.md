@@ -85,7 +85,7 @@ Add `headroom: OperationalHeadroom | None = None` to `ViabilityResult` (`backend
 1. **Shared Presenter (`frontend/src/lib/headroom.ts`) & Shared Component (`frontend/src/ui/PassHeadroom.tsx`):**
    - Consumes canonical backend `OperationalHeadroom` first (`viability.headroom` or `assessment.headroom`), with pure fallback from `ViabilityMetrics + MissionRequirements` (plus client `MissionTrack` for offline 3D playback).
    - Formats exact values OR bounded intervals (`between +X h and +Y h`), never collapsing bounded metrics or treating missing data as `0`.
-   - Exposes consistent badge/tone (`comfortable` emerald check, `limited` / `at_threshold` amber warning `"Passes · limited <constraint> margin"`) + explicit screening caveat (`"Screening result only — not a guarantee of spacecraft survival."`).
+   - Exposes consistent badge/tone (`comfortable` emerald check, `limited` / `at_threshold` amber warning `"Passes · limited <constraint> margin"`) + explicit screening caveat (`"Screening result only - not a guarantee of spacecraft survival."`).
    - Preserves existing `headroom()` / `headroomSummary()` behavior in `features/rescue/format.ts`.
 
 2. **Mounted UI Surfaces:**

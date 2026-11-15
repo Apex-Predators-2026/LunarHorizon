@@ -10,9 +10,9 @@
 * **Project Submission Deadline:** **Sunday, November 15, 2026, at 11:59 p.m. local time** of your Local Event (e.g., 11:59 p.m. EST for Ottawa).
   * *Critical Rule:* You must explicitly click **"Submit for Judging"** before 11:59 p.m. Saving a draft is not enough; late submissions are disqualified from Global Judging.
 * **Judging Pipeline:**
-  1. **Phase 1 — Local Event Judging:** Local judges select **Global Nominees** to advance.
-  2. **Phase 2 — Global Finalists & Honorable Mentions (December 2026):** NASA and Space Agency Partner Subject Matter Experts (SMEs) review all Global Nominees.
-  3. **Phase 3 — Global Winners (January 2027):** Executive committee of NASA & Space Agency Partner leaders selects the **10 Global Winners**.
+  1. **Phase 1 - Local Event Judging:** Local judges select **Global Nominees** to advance.
+  2. **Phase 2 - Global Finalists & Honorable Mentions (December 2026):** NASA and Space Agency Partner Subject Matter Experts (SMEs) review all Global Nominees.
+  3. **Phase 3 - Global Winners (January 2027):** Executive committee of NASA & Space Agency Partner leaders selects the **10 Global Winners**.
 
 ---
 

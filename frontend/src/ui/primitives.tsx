@@ -42,10 +42,10 @@ export function Label({ children, className }: { children: ReactNode; className?
 // ---------------------------------------------------------------- values
 
 /** Placeholder for a value that does not exist. Never rendered as 0. */
-export const UNAVAILABLE = '—'
+export const UNAVAILABLE = '-'
 
 /**
- * A measured or derived value with its unit. `value === null` renders as unavailable (an em dash with a
+ * A measured or derived value with its unit. `value === null` renders as unavailable (a dash with a
  * tooltip), so missing data is never confused with zero.
  */
 export function Value({ value, unit, digits = 1, className, unavailableReason = 'Unavailable' }: {
