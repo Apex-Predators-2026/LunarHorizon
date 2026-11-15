@@ -7,6 +7,7 @@ import { PassHeadroomBadge } from '../../ui/PassHeadroom'
 import { METRICS, bestIds, deltaVsBaseline, eligibilityOf, fmtDeltaValue, fmtMetric, groupCountOf, headroomOfEntry, rankText, requirementMatrix, requirementSummary, type Entry, type MetricDef } from './analysis'
 import { DataKindBadge, EligibilityBadge, Explain, ProvenanceTag, RankBadge, ReqIcon, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
+import { AskButton } from './assistant/AskButton'
 
 function marginBadgeClass(cls: MarginStatus): string {
   if (cls === 'narrow' || cls === 'at_threshold') return 'border-warn/45 bg-inset text-warn'
@@ -131,8 +132,14 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
               </tr>
             )}
             {open.requirements && requirements.map((row) => (
-              <tr key={row.id} className="hover:bg-inset">
-                <th scope="row" className="sticky left-0 bg-surface py-1 pr-2 text-left text-xs font-normal text-slate-300">{row.name}</th>
+              <tr key={row.id} className="group hover:bg-inset">
+                <th scope="row" className="sticky left-0 bg-surface py-1 pr-2 text-left text-xs font-normal text-slate-300">
+                  {row.name}
+                  {Object.values(row.cells).some((c) => c && (c.status === 'fail' || c.status === 'unknown')) && (
+                    <AskButton iconOnly className="ml-1 align-middle"
+                      question={`Explain the requirement “${row.name}”: which scenarios fail it or cannot decide it, and why?`} />
+                  )}
+                </th>
                 {entries.map((e) => {
                   const c = row.cells[e.scenario.id]
                   const marginText = c && c.margin.status !== 'unavailable' ? formatMarginMetric(c.margin, true) : null
@@ -182,13 +189,14 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                 {open[g.id] && METRICS.filter((m) => m.group === g.id).map((m) => {
                   const best = bestIds(entries, m)
                   return (
-                    <tr key={m.id} className="hover:bg-inset">
+                    <tr key={m.id} className="group hover:bg-inset">
                       <th scope="row" title={m.hint} className="sticky left-0 bg-surface py-1 pr-2 text-left text-xs font-normal text-slate-300">
                         <span className="mr-1">{m.label}</span>
                         {m.better && (
                           <span className="mr-1.5 text-slate-500" title={DIRECTION[m.better].text} aria-label={DIRECTION[m.better].text}>{DIRECTION[m.better].mark}</span>
                         )}
                         <ProvenanceTag p={m.provenance} />
+                        <AskButton iconOnly className="ml-1 align-middle" question={`Explain the metric “${m.label}” and how the selected scenarios compare on it.`} />
                       </th>
                       {entries.map((e) => {
                         const v = e.result ? m.get(e.result, e.scenario) : null

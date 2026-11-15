@@ -11,6 +11,7 @@ import { changedChanged, rescueSteps, type AltOutcome, type RescueContext } from
 import type { PairEvidence, RankingGroup } from './types'
 import { EligibilityBadge, Icon, RankBadge, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
+import { AskButton } from './assistant/AskButton'
 
 const OUTCOME_STYLE: Record<AltOutcome, string> = {
   confirmed: 'text-emerald-300',
@@ -54,7 +55,8 @@ export function RescueStory({ entries, groups, pairs, rescueContext: ctxProp }: 
       <header className="mb-3 flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-medium text-slate-100">Mission Rescue: from problem to decision</h3>
         <span className="text-[11px] text-slate-500">imported {fmtUtc(ctx.importedAt)}</span>
-        <button type="button" className="ml-auto text-[11px] text-cyan-400 hover:underline" onClick={() => clear(null)}>Hide</button>
+        <AskButton question="How does the rescued mission differ from my original plan?" label="Ask about this rescue" className="ml-auto" />
+        <button type="button" className="text-[11px] text-cyan-400 hover:underline" onClick={() => clear(null)}>Hide</button>
       </header>
       <ol className="ml-2.5 space-y-4">
         {steps.original && (

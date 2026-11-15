@@ -8,6 +8,7 @@ import { buildSummary, eligibilityOf, headroomOfEntry, isLimitedHeadroom, type E
 import { buildDecision, tradeoffSentence, type DecisionKind, type GroupDecision } from './decision'
 import type { PairEvidence, RankingGroup } from './types'
 import { EligibilityBadge, Icon, ReqIcon, ScenarioChip } from './ui'
+import { AskButton } from './assistant/AskButton'
 
 const KIND: Record<DecisionKind, { label: string; cls: string; icon: 'check' | 'close' | 'unknown' | 'info' }> = {
   recommended: { label: 'Preferred option', cls: 'border-emerald-800 bg-emerald-950 text-emerald-300', icon: 'check' },
@@ -33,6 +34,18 @@ function Block({ title, note, children }: { title: string; note: string; childre
   )
 }
 
+/** The question the "Ask why" button asks about this decision (none for a lone scenario: nothing to compare). */
+function decisionQuestion(d: GroupDecision): string | null {
+  const r = d.recommended ? `Scenario ${d.recommended.scenario.label}` : null
+  switch (d.kind) {
+    case 'recommended': return `Why is ${r} preferred over the other scenarios?`
+    case 'single_pass': return `Why is ${r} the only option that meets every requirement?`
+    case 'none_pass': return 'Why does no scenario meet the requirements?'
+    case 'insufficient': return 'Why can the comparison not reach a conclusion?'
+    default: return null
+  }
+}
+
 function GroupCard({ d, showGroup }: { d: GroupDecision; showGroup: boolean }) {
   const k = KIND[d.kind]
   const recHr = d.recommended ? headroomOfEntry(d.recommended) : null
@@ -51,6 +64,7 @@ function GroupCard({ d, showGroup }: { d: GroupDecision; showGroup: boolean }) {
           <PassHeadroomBadge headroom={recHr} eligibility={eligibilityOf(d.recommended) ?? undefined} surface="compare" />
         )}
         {showGroup && <span className="text-[11px] text-slate-500">Group {d.group.id}{d.group.primary ? ' (main comparison)' : ''}</span>}
+        {decisionQuestion(d) && <AskButton question={decisionQuestion(d)!} label="Ask why" className="ml-auto" />}
       </header>
       <p className="text-sm leading-relaxed text-slate-100">{d.headline}</p>
       {recHr && <PassHeadroom headroom={recHr} surface="compare" compact showScreeningNote />}

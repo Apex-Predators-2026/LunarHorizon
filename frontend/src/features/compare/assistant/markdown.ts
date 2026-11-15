@@ -1,3 +1,5 @@
+import { isNavTarget, type NavTarget } from './navigation'
+
 // The light Markdown the assistant is asked to use, parsed into blocks (no HTML, no external parser).
 export type Block =
   | { kind: 'p'; text: string }
@@ -35,9 +37,27 @@ export function parseBlocks(src: string): Block[] {
   return blocks
 }
 
-/** Inline pieces: bold runs, everything else as text. Links become their text; inline code becomes plain text. */
-export function inlineParts(text: string): { bold: boolean; text: string }[] {
+export type InlinePart = { kind: 'text'; text: string } | { kind: 'bold'; text: string } | { kind: 'nav'; target: NavTarget }
+
+/**
+ * Inline pieces: bold runs, "Go to" links ([[go:section]], only to places that exist; others are dropped), and text.
+ * Markdown links become their text; inline code becomes plain text.
+ */
+export function inlineParts(text: string): InlinePart[] {
   const clean = text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/`([^`]+)`/g, '$1')
-  return clean.split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part) =>
-    part.startsWith('**') && part.endsWith('**') && part.length > 4 ? { bold: true, text: part.slice(2, -2) } : { bold: false, text: part })
+  const out: InlinePart[] = []
+  for (const piece of clean.split(/(\[\[go:[a-z-]+\]\])/g)) {
+    if (!piece) continue
+    const nav = /^\[\[go:([a-z-]+)\]\]$/.exec(piece)
+    if (nav) {
+      if (isNavTarget(nav[1])) out.push({ kind: 'nav', target: nav[1] })
+      continue
+    }
+    for (const part of piece.split(/(\*\*[^*]+\*\*)/g)) {
+      if (!part) continue
+      if (part.startsWith('**') && part.endsWith('**') && part.length > 4) out.push({ kind: 'bold', text: part.slice(2, -2) })
+      else out.push({ kind: 'text', text: part })
+    }
+  }
+  return out
 }
