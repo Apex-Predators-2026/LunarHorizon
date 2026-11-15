@@ -22,6 +22,7 @@ import { PassHeadroomBadge } from '../../ui/PassHeadroom'
 import { DatePopup } from '../../viz/DatePopup'
 import { showSnackbar } from '../../viz/snackbarStore'
 import { verdictFor } from '../../viz/useMissionPlayback'
+import { EvidenceBanner, MissionAssessment } from '../assessment/MissionAssessment'
 import { sendToComparison } from '../compare'
 import { EligibilityBadge } from '../compare/ui'
 import { fetchRescueCatalog } from '../rescue/api'
@@ -339,6 +340,7 @@ export function PlansPanel({ onCompare }: { onCompare: () => void }) {
   }
 
   return (
+    <>
     <section aria-label="Plans" data-tour="plans-panel">
       <div className="mb-2 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-slate-100">Plans</h2>
@@ -362,6 +364,10 @@ export function PlansPanel({ onCompare }: { onCompare: () => void }) {
       )}
 
     </section>
+    {/* The canonical assessment of the running plan, and the floating explanation while "Show why" evidence is open. */}
+    <MissionAssessment />
+    <EvidenceBanner />
+    </>
   )
 }
 

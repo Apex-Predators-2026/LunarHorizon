@@ -7,7 +7,6 @@ import { DatePopup } from './DatePopup'
 import { HOUR_MS, longestRun, parseUtc, roundHour, runs, sunUp, toIsoMinute } from './timeline'
 import { useTutorialStore } from '../features/tutorial'
 
-const MISSING_COLOR = '#9ca3af' // unknown data: neutral grey, distinct from darkness and blackout
 const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', dark: '#111a2e', gap: '#d03b3b', grid: '#22304d', axis: '#5b6168' }
 const SPEEDS = [
   { label: '1 h/s', hoursPerSec: 1 },
@@ -80,7 +79,19 @@ export interface StripMission {
   start: number
   end: number
   failures: number[] // epoch ms
+  label?: string // legend text; default "Mission"
 }
+
+/** "Show why" evidence (viz/evidence.ts): the canonical window, or a single moment when the source gives no end. */
+export interface StripEvidence {
+  start: number
+  end: number
+  point: boolean
+  dataMissing: boolean // the window marks missing data, not a measured condition
+}
+
+export const EVIDENCE_COLOR = '#38bdf8'
+export const MISSING_COLOR = '#9ca3af' // unknown data: neutral grey, distinct from darkness and blackout
 
 function Strip({
   steps,
@@ -88,6 +99,7 @@ function Strip({
   now,
   onSeek,
   mission,
+  evidence,
   rightSlot,
 }: {
   steps: TimelineStep[]
@@ -95,6 +107,7 @@ function Strip({
   now: number
   onSeek: (ms: number) => void
   mission?: StripMission | null
+  evidence?: StripEvidence | null
   rightSlot?: ReactNode
 }) {
   const [boxRef, width] = useWidth<HTMLDivElement>()
@@ -256,6 +269,21 @@ function Strip({
               ))}
           </g>
         )}
+        {evidence && evidence.end >= win[0] && evidence.start <= win[1] && (() => {
+          const color = evidence.dataMissing ? MISSING_COLOR : EVIDENCE_COLOR
+          const a = x(Math.max(evidence.start, win[0]))
+          const b = x(Math.min(evidence.end, win[1]))
+          return (
+            <g pointerEvents="none" data-testid="evidence-band" data-evidence-start={evidence.start} data-evidence-end={evidence.end}>
+              {evidence.point ? (
+                <line x1={a} x2={a} y1={-2} y2={earthTop + EARTH_H + 2} stroke={color} strokeWidth={2} strokeDasharray="2 2" />
+              ) : (
+                <rect x={a} y={-3} width={Math.max(2, b - a)} height={earthTop + EARTH_H + 6} fill={color} fillOpacity={evidence.dataMissing ? 0.22 : 0.16}
+                  stroke={color} strokeWidth={1.5} strokeDasharray={evidence.dataMissing ? '1 3' : undefined} rx={3} />
+              )}
+            </g>
+          )
+        })()}
         {now >= win[0] && now <= win[1] && (() => {
           const px = x(now)
           const badgeX = Math.min(GUTTER + w - 42, Math.max(GUTTER + 42, px))
@@ -283,10 +311,14 @@ function Strip({
             Longest gap in window{dark ? ` · dark ${fmtDur(dark.hours)}` : ''}{blackout ? ` · blackout ${fmtDur(blackout.hours)}` : ''}</span>
           {mission && (
             <span><span className="mr-1 inline-block h-2 w-3 border border-dashed align-middle" style={{ borderColor: '#ff634a' }} />
-              Mission{mission.failures.length ? <> · <span className="text-red-400">▼</span> requirement broken</> : ''}</span>
+              {mission.label ?? 'Mission'}{mission.failures.length ? <> · <span className="text-red-400">▼</span> requirement broken</> : ''}</span>
           )}
           {(data.sunUnknownRuns.length > 0 || data.earthUnknownRuns.length > 0) && (
             <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: MISSING_COLOR, opacity: 0.55 }} />Unknown (missing data: neither dark nor blocked)</span>
+          )}
+          {evidence && (
+            <span><span className="mr-1 inline-block h-2 w-3 border align-middle" style={{ borderColor: evidence.dataMissing ? MISSING_COLOR : EVIDENCE_COLOR, background: `${evidence.dataMissing ? MISSING_COLOR : EVIDENCE_COLOR}33` }} />
+              {evidence.dataMissing ? 'Missing data (unknown, not dark or blocked)' : evidence.point ? 'Evidence moment' : 'Evidence window'}</span>
           )}
         </div>
         {rightSlot}
@@ -306,6 +338,7 @@ export function TimeBar({
   views,
   onHide,
   mission,
+  evidence,
 }: {
   site: SiteInfo
   steps: TimelineStep[]
@@ -316,6 +349,7 @@ export function TimeBar({
   onHide?: () => void // slides the panel off screen
   views?: ReactNode // camera view buttons, shown under the slider
   mission?: StripMission | null // mission playback: window band and failure markers on the strip
+  evidence?: StripEvidence | null // "Show why": drawn alongside the mission band, never instead of it
 }) {
   const timeUtc = useAppStore((s) => s.timeUtc)
   const setTime = useAppStore((s) => s.setTime)
@@ -413,7 +447,7 @@ export function TimeBar({
       </div>
 
       {steps.length ? (
-        <Strip steps={steps} win={win} now={now} onSeek={seek} mission={mission} rightSlot={datePill} />
+        <Strip steps={steps} win={win} now={now} onSeek={seek} mission={mission} evidence={evidence} rightSlot={datePill} />
       ) : (
         <div className="flex flex-col justify-end pb-1" style={{ height: STRIP_H + 14 }}>
           <div className="flex items-center justify-end">{datePill}</div>

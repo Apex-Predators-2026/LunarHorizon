@@ -56,7 +56,7 @@ import { playBubblePop, playBubbleRemove } from './sfx'
 import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
 import { HorizonProbe } from './HorizonProbe'
-import { useEvidence } from './evidence'
+import { attachEvidenceViewer, clearEvidence, evidenceBand, markEvidenceProblem, markEvidenceShown, resolveEvidence, useEvidence, type ActiveEvidence } from './evidence'
 import { SiteSelect, TopInfo, useViewerSetup } from './ViewerHud'
 
 const SHADOW_HALF_WIDTH_M = 6000 // shadow map covers ~12 km around the lander
@@ -114,28 +114,37 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   // middle of the free area to their left (half the panels' width, re-measured on resize).
   const sideRef = useRef<HTMLDivElement>(null)
   const [cameraReset, setCameraReset] = useState(0)
-  // "Show me why" (evidence.ts): another panel points the 3D view at the evidence for a result.
+  // "Show me why" (evidence.ts): a request is taken when it arrives, or on mount if it was made on another page
+  // before this view existed. Playback pauses at once; the site and moment are applied once the site list is
+  // known, and a newer request replaces one still waiting. The camera turns only for an explicit request.
+  const [pendingEvidence, setPendingEvidence] = useState<ActiveEvidence | null>(null)
   useEffect(
     () =>
-      useEvidence.subscribe((st, prev) => {
-        const r = st.request
-        if (!r || r.id === prev.request?.id) return
-        const app = useAppStore.getState()
-        app.setPlaying(false)
-        app.setSite(r.siteId)
-        app.setTime(new Date(Date.parse(r.startUtc)).toISOString())
-        setView(r.body) // looking at the Sun / Earth from the lander: the blocker line shows the terrain
-        setCameraReset((n) => n + 1)
+      attachEvidenceViewer((r) => {
+        useAppStore.getState().setPlaying(false)
+        setPendingEvidence(r)
       }),
     [],
   )
-  const evidence = useEvidence((st) => st.request)
-  const evidenceStrip = useMemo(() => {
-    if (!evidence || evidence.siteId !== siteId) return null
-    const start = Date.parse(evidence.startUtc)
-    const end = evidence.endUtc ? Date.parse(evidence.endUtc) : start + 3_600_000
-    return { start, end, failures: [start] }
-  }, [evidence, siteId])
+  useEffect(() => {
+    if (!pendingEvidence) return
+    const res = resolveEvidence(pendingEvidence, sites.data, sites.error ? String(sites.error) : null)
+    if (res.status === 'wait') return
+    setPendingEvidence(null)
+    if (res.status === 'error') {
+      markEvidenceProblem(pendingEvidence, res.message)
+      return
+    }
+    const app = useAppStore.getState()
+    app.setPlaying(false)
+    app.setSite(pendingEvidence.siteId)
+    app.setTime(res.timeUtc)
+    setView(pendingEvidence.body) // from the lander towards the Sun / Earth: the blocker line shows the terrain
+    setCameraReset((n) => n + 1)
+    markEvidenceShown(res.note ? { ...pendingEvidence, note: res.note } : pendingEvidence)
+  }, [pendingEvidence, sites.data, sites.error])
+  const evidence = useEvidence((st) => st.highlight)
+  const evidenceStrip = useMemo(() => evidenceBand(evidence, siteId), [evidence, siteId])
   const readoutRef = useRef<HTMLDivElement>(null)
   const scaleBarRef = useRef<HTMLDivElement>(null)
   const scaleLabelRef = useRef<HTMLDivElement>(null)
@@ -243,6 +252,11 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   useViewerSetup(sites.data)
   // Plays the sidebar's plan (landing to end) in the 3D view, pausing where it fails.
   const mission = useMissionPlayback(sites.data)
+  // Starting mission playback leaves the evidence view; until then the evidence and mission bands are both drawn.
+  const startMission = () => {
+    clearEvidence()
+    mission.start()
+  }
   const barRef = useRef<HTMLDivElement>(null)
   const [barHidden, setBarHidden] = useState(false)
   const [barH, setBarH] = useState(0)
@@ -453,6 +467,11 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
   return (
     <div
       ref={sceneRef}
+      data-testid="scene"
+      data-view={view}
+      data-site={siteId ?? ''}
+      data-time={timeUtc}
+      data-playing={playing ? 'true' : 'false'}
       onPointerDownCapture={(e) => {
         if ((e.target as HTMLElement).tagName === 'CANVAS') {
           dragStartRef.current = { x: e.clientX, y: e.clientY }
@@ -812,7 +831,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
               farShadows={farShadows && gfx.shadows}
               farShadowsAvailable={gfx.shadows}
               onFarShadows={setFarShadows}
-              mission={{ available: mission.available, active: !!mission.run, reason: mission.reason, start: mission.start, stop: mission.stop }}
+              mission={{ available: mission.available, active: !!mission.run, reason: mission.reason, start: startMission, stop: mission.stop }}
               measure={{
                 armed: measureArmed,
                 onArm: (armed) => {
@@ -876,7 +895,8 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
                 windowDays={windowDays}
                 onWindowDays={setWindowDays}
                 loading={timeline.loading}
-                mission={mission.strip ?? evidenceStrip}
+                mission={mission.strip}
+                evidence={evidenceStrip}
                 onHide={() => {
                   setBarH(barRef.current?.offsetHeight ?? 0)
                   setBarHidden(true)
