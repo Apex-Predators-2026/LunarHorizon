@@ -90,7 +90,7 @@ export const SMOKE_STEPS = [
   'Assess a site: Sun/Earth status, next events and the timeline',
   'Plan two missions (New plan dialog)',
   'Run a plan: it becomes the active mission and its card shows the canonical assessment',
-  'Plan assessment dialog: Show in 3D, then Back returns to the same dialog',
+  'Plan assessment in the Comparison: Show in 3D, then Back returns to the same assessment',
   "Investigate: the lander's-eye Sun view, the sky plot and the map layers",
   'Rescue: a 10-day launch slip, find alternatives',
   'Compare the two plans side by side',
@@ -102,8 +102,8 @@ export const SMOKE_STEPS = [
 /** The guided journey's essential steps (frontend/scripts/e2e-guided.mjs): each at BOTH viewports (name prefixes). */
 export const GUIDED_ESSENTIAL = [
   '1 mission: definition loaded', '2 original plan passes', "2 plan card shows the active plan's canonical verdict",
-  "3 delay applied through Rescue's change control", '3 assessment shows the plan after the change', '4 what changed: blackout PASS -> FAIL',
-  '5 evidence opens the blackout window in 3D', '6 Rescue recovery passes', '6 assessment shows the Rescue pick', '7 comparison recommends the recovery',
+  "3 delay applied through Rescue's change control", '3 the saved plan keeps its date and verdict', '4 what changed: blackout PASS -> FAIL',
+  '5 evidence opens the blackout window in 3D', '6 Rescue recovery passes', '6 the saved plan keeps its date and verdict after the Rescue search', '7 comparison recommends the recovery',
   '8 summary report opens for the evaluated selection', '8 report first page', '8 JSON = report snapshot', '8 JSON records dataset hashes',
   '8 Download PDF produces the report PDF', '8 A4 PDF renders only the report', '8 Letter PDF renders only the report', 'report flags a changed comparison', 'regenerate uses the new selection',
   'repeated restarts do not duplicate', "the user's own plan survives", 'atlas enter transfer creates exactly one plan', 'atlas enter transfer: the mapped site',
