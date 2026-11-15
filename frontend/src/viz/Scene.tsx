@@ -476,7 +476,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
     }
     setMeasureArmed(true)
     setPin((p) => (p.phase === 'armed' ? { phase: 'idle' } : p))
-    showSnackbar('Waypoint A anchored at Lander — click terrain to measure outward')
+    showSnackbar('Waypoint A anchored at Lander - click terrain to measure outward')
   }, [site, waypoints])
 
   const finestResM = terrainStats ? Math.max(5, Math.round(vertexSpacingM(terrainStats.deepest))) : null
@@ -861,7 +861,9 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
           <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
           <ColorKey layers={layers} />
         </div>
-        <div ref={sideRef} className="absolute bottom-44 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4">
+        {/* On viewports narrower than ~1760 px the navigation row (tabs + "Try a mission") reaches over this column, so
+            the column starts below the header there (at 1366x768 the Map/Sky tabs used to cover "Methodology"). */}
+        <div ref={sideRef} className="absolute bottom-44 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4 max-[1760px]:top-[100px]">
           {site && (
             <MiniMapPanel
               horizon={horizon.data}

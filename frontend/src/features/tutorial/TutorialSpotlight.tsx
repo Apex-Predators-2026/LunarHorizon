@@ -325,7 +325,7 @@ export function TutorialSpotlightView({
               <span className="font-semibold text-slate-100">
                 {actionDone
                   ? isLast
-                    ? 'Great — click Finish when you are ready.'
+                    ? 'Great! Click Finish when you are ready.'
                     : 'Nice! Advancing to next control…'
                   : 'Try it live: '}
               </span>

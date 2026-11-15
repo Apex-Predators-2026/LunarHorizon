@@ -74,7 +74,7 @@ function ConstraintRow({ r, c, skey }: { r: AssessResponse; c: ConstraintEvaluat
       <dl className="mt-1 grid grid-cols-3 gap-1 text-[11px]">
         <div><dt className="text-slate-500">Required</dt><dd className="tabular-nums text-slate-200">{thresholdText(c)}</dd></div>
         <div><dt className="text-slate-500">{c.measured.status === 'bounded' ? 'Measured (range)' : 'Measured'}</dt><dd className="tabular-nums text-slate-200">{fmtMetric(c.measured)}</dd></div>
-        <div><dt className="text-slate-500">Margin</dt><dd className="tabular-nums text-slate-200">{margin ? (margin.value.status === 'known' && margin.value.value !== null ? `${margin.value.value >= 0 ? '+' : '−'}${fmtValue(Math.abs(margin.value.value), margin.value.unit)}` : fmtMetric(margin.value)) : '—'}</dd></div>
+        <div><dt className="text-slate-500">Margin</dt><dd className="tabular-nums text-slate-200">{margin ? (margin.value.status === 'known' && margin.value.value !== null ? `${margin.value.value >= 0 ? '+' : '−'}${fmtValue(Math.abs(margin.value.value), margin.value.unit)}` : fmtMetric(margin.value)) : '-'}</dd></div>
       </dl>
       <p className="mt-1 text-[11px] leading-snug text-slate-400">{PLAIN[c.constraint_id] ?? c.message}</p>
       {c.status === 'unknown' && (
@@ -293,7 +293,7 @@ export function EvidenceBanner() {
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
         <button type="button" onClick={() => returnFromEvidence(h)} className="rounded-full border border-white/40 px-3 py-1 text-white hover:bg-white/10">
-          {h.origin?.kind === 'comparison' ? 'Back to comparison' : h.origin?.kind === 'guide' ? 'Exit evidence view' : 'Back to assessment'}
+          {h.origin?.kind === 'comparison' ? 'Back to comparison' : h.origin?.kind === 'guide' ? 'Exit evidence view' : h.origin?.returnTo ? `Back to ${h.origin.label}` : 'Back to assessment'}
         </button>
         {other && (
           <button type="button" onClick={() => showEvidence({ ...h, body: other })} className="rounded-full border border-white/40 px-3 py-1 text-white hover:bg-white/10">

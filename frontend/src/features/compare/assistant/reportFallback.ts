@@ -80,25 +80,27 @@ function strengthsWeaknesses(r: AssistantReport, label: string): string {
 
 /** Report sections that show what the question asks about, by the topic words it uses. */
 const SECTION_TOPICS: [RegExp, string[]][] = [
-  [/blackout|communication|comms|earth|line of sight|dark|sun|light|solar|power|figure|metric|measure/i, ['Decisive differences', 'Scenario configuration and results']],
-  [/requirement|threshold|limit|constraint|margin|fail|violat/i, ['Declared requirements', 'Scenario configuration and results']],
-  [/decision|recommend|final|conclusion|verdict|winner|suitable/i, ['Decision', 'Plans evaluated']],
-  [/rank|order|group|compar/i, ['Ranking method and comparability', 'Pairwise evidence behind the order']],
-  [/trade/i, ['Measured trade-offs']],
-  [/uncertain|unknown|confidence|limitation/i, ['Main uncertainty', 'Uncertainty', 'Assumptions and limitations']],
-  [/source|data|nasa|jpl|lola|horizons|coverage|dataset/i, ['Sources and data coverage']],
-  [/baseline|change/i, ['Changes against the baseline']],
-  [/weight|preference/i, ['User preference weights']],
-  [/reproduc|version/i, ['Reproducing this report']],
-  [/site|coordinate|location|date|window|duration|spacecraft|battery|panel/i, ['Scenario configuration and results', 'Plans evaluated']],
+  [/strength|weakness|advantage|disadvantage/i, ['Strengths and weaknesses']],
+  [/disclaimer|official|approval|guarantee/i, ['Disclaimer']],
+  [/trade/i, ['Comparison analysis']],
+  [/blackout|communication|comms|earth|line of sight|dark|sun|light|solar|power|figure|metric|measure|chart/i, ['Mission performance', 'Comparison analysis']],
+  [/requirement|threshold|limit|constraint|margin|fail|violat/i, ['Mission requirements assessment', 'Mission overview']],
+  [/decision|recommend|final|conclusion|verdict|winner|suitable/i, ['Final assessment and recommendation', 'Executive summary']],
+  [/rank|order|group|compar/i, ['Final assessment and recommendation', 'Appendix: technical record']],
+  [/uncertain|unknown|confidence|limitation|assumption/i, ['Mission requirements assessment', 'Data sources and methodology']],
+  [/source|data|nasa|jpl|lola|horizons|coverage|dataset|method/i, ['Data sources and methodology']],
+  [/baseline|change|weight|preference|pairwise/i, ['Appendix: technical record']],
+  [/reproduc|version/i, ['Data sources and methodology', 'Appendix: technical record']],
+  [/site|coordinate|location|date|window|duration|spacecraft|battery|panel/i, ['Mission overview']],
+  [/summary|overview|finding/i, ['Executive summary']],
 ]
 
 function sectionAnswer(r: AssistantReport, q: string): string {
   const topic = SECTION_TOPICS.find(([re]) => re.test(q.replace(/\b(report|section|which|where|show|shows)\b/gi, '')))
   const titles = topic ? topic[1] : []
   const found = r.sections.filter((s) => titles.includes(s.title))
-  if (!found.length) return ['The report has these sections:', ...r.sections.map((s) => `- **${s.title}:** ${s.contains}`)].join('\n')
-  return found.map((s, i) => `${i ? 'Also' : 'See'} the **${s.title}** section: ${s.contains}`).join('\n')
+  if (!found.length) return ['The report has these sections:', ...r.sections.map((s) => `- **${s.title}** (${s.where}): ${s.contains}`)].join('\n')
+  return found.map((s, i) => `${i ? 'Also' : 'See'} the **${s.title}** section (${s.where}): ${s.contains}`).join('\n')
 }
 
 function unknownAnswer(r: AssistantReport): string {

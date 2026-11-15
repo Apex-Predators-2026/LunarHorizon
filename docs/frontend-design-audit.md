@@ -1,8 +1,8 @@
 # Lunar Landing Site Navigator: Master Frontend Design Audit & Awwwards Elevation Blueprint
 
-**Document Version:** 1.2.0 (Certified Master Release — Verification-Hardened)  
+**Document Version:** 1.2.0 (Certified Master Release - Verification-Hardened)  
 **Classification:** Systems Architecture & Design Engineering Specification  
-**Project:** Lunar Landing Site Navigator — NASA Space Apps Challenge 2026 ("The Next Frontier")  
+**Project:** Lunar Landing Site Navigator - NASA Space Apps Challenge 2026 ("The Next Frontier")  
 **Target File:** `docs/frontend-design-audit.md`  
 **Date:** November 14, 2026  
 **Auditor:** Lead Design Auditor & Systems Architect (worker_3)  
@@ -911,7 +911,7 @@ Add a top-level action in the Top Flight Rail: `[ Scientific Validation ]`. Clic
 #### 3. Empirical Illumination Validation vs. LROC WAC Imagery
 - Cross-validation against NASA LROC (Lunar Reconnaissance Orbiter Camera) Wide Angle Camera time-weighted average illumination map (`WAC_POLE_ILL_TWI_SOUTH_100M`) compiled from over 3,800 orbital passes.
 - Pearson correlation coefficient: $\mathbf{r = 0.66\text{ to }0.88}$ across south pole topographic features.
-- Mean illumination bias: $-0.5\%\text{ to }-3.9\%$, closely tracking published scientific literature (Gracy & Lee, LPSC 2024).
+- Mean illumination bias: $-0.5\%\text{ to }-3.9\%$, as measured against LROC. (An earlier draft of this audit said this tracked Gracy & Lee, LPSC 2024; that paper is only the coordinate source for two sites and was not compared against.)
 
 #### 4. Topographic Summit Correction Benchmark (Malapert Massif)
 - Documentation of near-field micro-topography correction: at Malapert Massif summit, accounting for localized 20-meter terrain ridges adjusts modeled solar availability from $82.6\%$ down to $77.1\%$, accurately replicating empirical lunar surface measurements.
