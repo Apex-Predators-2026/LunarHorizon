@@ -13,6 +13,7 @@ describe('app routes (URL hash)', () => {
     expect(parseRoute('#app/compare')).toEqual({ page: 'app', view: 'compare', section: null })
     expect(parseRoute('#app/compare/cmp-metrics')).toEqual({ page: 'app', view: 'compare', section: 'cmp-metrics' })
     expect(parseRoute('#app/nonsense')).toEqual({ page: 'app', view: 'planner', section: null })
+    expect(parseRoute('#app/atlas')).toEqual({ page: 'app', view: 'atlas', section: null })
   })
 
   it('a comparison section link is the comparison, not the landing page (the bug)', () => {
@@ -20,7 +21,7 @@ describe('app routes (URL hash)', () => {
   })
 
   it('round-trips', () => {
-    for (const [view, section] of [['planner', null], ['compare', null], ['compare', 'cmp-summary']] as const) {
+    for (const [view, section] of [['planner', null], ['compare', null], ['compare', 'cmp-summary'], ['atlas', null]] as const) {
       const r = parseRoute(routeHash(view, section))
       expect(r).toEqual({ page: 'app', view, section })
     }

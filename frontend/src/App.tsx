@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { goToView, parseRoute, rememberSection, routeHash } from './appRoute'
+import { AtlasView } from './features/atlas/AtlasView'
 import { ComparisonDashboard } from './features/compare'
 import { PlanDialogHost, PlanFab, PlansPanel } from './features/plans/PlansPanel'
 import { MissionRescue } from './features/rescue'
@@ -43,6 +44,7 @@ function openNavigator() {
 const VIEWS = [
   { id: 'planner', label: 'Mission Planner' },
   { id: 'compare', label: 'Scenario Comparison' }, // Member 4
+  { id: 'atlas', label: 'Feasibility Atlas' },
 ] as const
 
 type View = (typeof VIEWS)[number]['id']
@@ -108,6 +110,7 @@ export default function App() {
   const route = parseRoute(hash)
   const view: View = route.page === 'app' ? route.view : 'planner'
   const compare = view === 'compare'
+  const pageView = view !== 'planner' // a scrolling page (Comparison, Atlas) rather than the 3D view
   useEffect(() => initMaterialMotion(), [])
   useEffect(() => installMangoTexture(), [])
   const dark = useUiPrefs((u) => u.dark)
@@ -155,17 +158,21 @@ export default function App() {
   )
 
   return (
-    <div className="relative h-full overflow-hidden bg-black" data-ui-hidden={uiHidden && !compare}>
+    <div className="relative h-full overflow-hidden bg-black" data-ui-hidden={uiHidden && !pageView}>
       <UiHiddenNotice />
       {/* The header is rendered once for both pages (floating over the 3D view, or above the comparison). */}
       <GlassDefs />
-      <header className={`ui-chrome md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${compare ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
+      <header className={`ui-chrome md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${pageView ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
         <TopNav view={view} onView={goToView} />
       </header>
       <PlanDialogHost />
       {compare ? (
         <main key="compare" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
           <ComparisonDashboard onOpen3D={() => goToView('planner')} section={route.section} onSection={rememberSection} />
+        </main>
+      ) : view === 'atlas' ? (
+        <main key="atlas" className="md-fade-through h-full overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
+          <AtlasView />
         </main>
       ) : (
         <main key="planner" className="md-fade-through h-full">
@@ -181,10 +188,10 @@ export default function App() {
           />
         </main>
       )}
-      <TutorialOfferChip uiHidden={uiHidden && !compare} compareActive={compare} />
+      <TutorialOfferChip uiHidden={uiHidden && !pageView} compareActive={compare} />
       <TutorialSpotlight
-        uiHidden={uiHidden && !compare}
-        appView={view}
+        uiHidden={uiHidden && !pageView}
+        appView={view === 'atlas' ? undefined : view} // the guided tour has no Atlas steps
         onOpenCompare={() => goToView('compare')}
         onResetTourView={() => goToView('planner')}
       />

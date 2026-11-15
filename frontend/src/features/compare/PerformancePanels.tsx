@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Too
 import { formatMarginMetric, marginStatusClassLabel } from '../../lib/headroom'
 import type { MarginMetricValue, MarginStatus } from '../../types'
 import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
-import { canonicalRanking, cm, comparableEntries, constraintMarginById, fmtMetric, headroomOfEntry, inexactText, isLimitedHeadroom, knownValue, okEntries, scoreText, type Entry, type MetricDef } from './analysis'
+import { canonicalRanking, cm, comparableEntries, constraintMarginById, fmtMetric, headroomOfEntry, humanizeSeconds, inexactText, isLimitedHeadroom, knownValue, okEntries, scoreText, type Entry, type MetricDef } from './analysis'
 import { STATE, seriesColor } from './palette'
 import type { RankingGroup } from './types'
 import { DataKindBadge, EligibilityBadge, Explain, Icon, ScenarioChip } from './ui'
@@ -264,7 +264,7 @@ export function MissionPerformance({ entries, groups, ranking = 'ready' }: {
               {v.group.primary ? `Group ${v.group.id} (main comparison)` : `Group ${v.group.id}: ranked separately`}
               {v.group.data_basis === 'synthetic' && <span className="ml-2 text-amber-300">demonstration data</span>}
               {v.group.separate_reason && (
-                <span className="ml-2 font-normal text-slate-400">Not comparable with {views[0].group.id}: {v.group.separate_reason}</span>
+                <span className="ml-2 font-normal text-slate-400">Not comparable with {views[0].group.id}: {humanizeSeconds(v.group.separate_reason)}</span>
               )}
             </h3>
           )}
