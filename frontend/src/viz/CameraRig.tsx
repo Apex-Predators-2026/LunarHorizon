@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { Vector3 } from 'three'
 import type { TimelineStep } from '../types'
+import { applyCameraPose, type CameraPose } from './cameraPose'
 import { azElToVector } from './geometry'
 import { MOON_RADIUS_M, type Vec3 } from './globe/cubeSphere'
 
@@ -9,6 +10,7 @@ import { MOON_RADIUS_M, type Vec3 } from './globe/cubeSphere'
 type Controls = {
   target: Vector3
   update: () => void
+  dispatchEvent?: (event: { type: 'change' }) => void
   addEventListener: (type: 'start', fn: () => void) => void
   removeEventListener: (type: 'start', fn: () => void) => void
 }
@@ -48,6 +50,7 @@ export function CameraRig({
   maxTerrainHeight,
   moonCentre,
   resetKey = 0,
+  restorePoseRef,
 }: {
   view: ViewMode
   status: TimelineStep | null
@@ -55,6 +58,7 @@ export function CameraRig({
   maxTerrainHeight: number | null // highest nearby terrain, relative to the site (m)
   moonCentre: Vec3 | null // in the site frame
   resetKey?: number // bump to fly back to the current view preset (e.g. after orbiting away)
+  restorePoseRef?: { current: CameraPose | null } // preserved camera pose across a canvas remount
 }) {
   // Read camera/controls from the store inside the effect (they are mutable three.js objects).
   const get = useThree((s) => s.get)
@@ -69,6 +73,7 @@ export function CameraRig({
 
   const flight = useRef<Flight | null>(null)
   const last = useRef<{ view: ViewMode; resetKey: number } | null>(null)
+  const mountRestore = useRef<{ pose: CameraPose; key: string } | null>(null)
 
   // The user grabbing the view cancels a flight in progress.
   useEffect(() => {
@@ -83,6 +88,21 @@ export function CameraRig({
     const { camera } = get()
     const controls = get().controls as unknown as Controls | null
     if (!controls) return
+    const depKey = `${view}|${siteId ?? ''}|${az ?? ''}|${el ?? ''}|${maxTerrainHeight ?? ''}|${cy ?? ''}|${resetKey}`
+    if (restorePoseRef?.current && !mountRestore.current) {
+      mountRestore.current = { pose: restorePoseRef.current, key: depKey }
+      restorePoseRef.current = null
+    }
+    if (mountRestore.current) {
+      if (mountRestore.current.key === depKey) {
+        flight.current = null
+        last.current = { view, resetKey }
+        applyCameraPose(camera, controls, mountRestore.current.pose)
+        invalidate()
+        return
+      }
+      mountRestore.current = null
+    }
     let pos: V3
     let target: V3
     if (view === 'globe' && cy !== undefined) {
@@ -125,7 +145,7 @@ export function CameraRig({
     controls.target.set(...target)
     controls.update()
     invalidate()
-  }, [view, siteId, az, el, maxTerrainHeight, cy, controlsReady, resetKey, get, invalidate])
+  }, [view, siteId, az, el, maxTerrainHeight, cy, controlsReady, resetKey, restorePoseRef, get, invalidate])
 
   // Advance the flight: the target slides, and the camera's offset from it turns along the shortest
   // way while its distance changes exponentially, so a globe -> site move feels like a steady dive.
