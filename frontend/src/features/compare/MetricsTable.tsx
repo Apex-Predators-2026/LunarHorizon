@@ -1,7 +1,7 @@
 // Section 3: side-by-side scientific metrics, best values marked, deltas against the baseline.
 import { Fragment, useState } from 'react'
 
-import { METRICS, bestIds, deltaVsBaseline, eligibilityOf, fmtDeltaValue, fmtMetric, groupCountOf, rankText, requirementMatrix, type Entry, type MetricDef } from './analysis'
+import { METRICS, bestIds, deltaVsBaseline, eligibilityOf, fmtDeltaValue, fmtMetric, groupCountOf, rankText, requirementMatrix, requirementSummary, type Entry, type MetricDef } from './analysis'
 import { DataKindBadge, EligibilityBadge, Explain, ProvenanceTag, RankBadge, ReqIcon, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
 
@@ -10,18 +10,24 @@ const DIRECTION: Record<'higher' | 'lower', { mark: string; text: string }> = {
   lower: { mark: '↓', text: 'lower is better' },
 }
 
+// Solar and Earth conditions first, then the engine's mission figures; the idealised panel factor is a secondary aid.
 const GROUPS: { id: MetricDef['group']; title: string; note?: string }[] = [
-  { id: 'solar', title: 'Solar power' },
-  { id: 'power', title: 'Idealised solar incidence', note: 'Geometric upper bound: visible disk × max(0, cos θ). Not electrical output.' },
+  { id: 'solar', title: 'Solar conditions' },
   { id: 'earth', title: 'Earth communication (geometric line of sight)', note: 'Earth above the local terrain. A working link also needs antenna pointing, ground stations and link margin.' },
-  { id: 'mission', title: 'Mission performance (team viability evaluator)' },
+  { id: 'mission', title: 'Mission viability (canonical engine)' },
+  { id: 'power', title: 'Idealised solar incidence (secondary)', note: 'Geometric upper bound: visible disk × max(0, cos θ). Not electrical output.' },
 ]
 
 export function MetricsTable({ entries }: { entries: Entry[] }) {
   const groupCount = groupCountOf(entries)
   const baselineId = useCompareStore((s) => s.baselineId)
-  const [open, setOpen] = useState<Record<string, boolean>>({ requirements: true, solar: true, power: true, earth: true, mission: true })
+  const [open, setOpen] = useState<Record<string, boolean>>({ requirements: true, solar: true, earth: true, mission: true, power: false })
   const requirements = requirementMatrix(entries)
+  // "most requirements met": a single scenario strictly ahead of every other assessed one.
+  const metCounts = entries.map((e) => ({ id: e.scenario.id, n: requirementSummary(e)?.passed ?? null })).filter((x) => x.n !== null)
+  const maxMet = Math.max(...metCounts.map((x) => x.n!))
+  const leaders = metCounts.filter((x) => x.n === maxMet)
+  const mostMet = new Set(metCounts.length >= 2 && leaders.length === 1 ? [leaders[0].id] : [])
   const base = entries.find((e) => e.scenario.id === baselineId)
   const cols = entries.length
 
@@ -71,6 +77,21 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                     ) : <span className="text-slate-500" title="No canonical assessment">—</span>}
                   </td>
                 ))}
+              </tr>
+            )}
+            {open.requirements && (
+              <tr>
+                <th scope="row" className="sticky left-0 bg-surface py-1 text-left text-xs font-normal text-slate-300">Requirements met</th>
+                {entries.map((e) => {
+                  const r = requirementSummary(e)
+                  const most = r !== null && mostMet.has(e.scenario.id)
+                  return (
+                    <td key={e.scenario.id} className="py-1 pl-3 text-xs tabular-nums">
+                      {r ? <span className={most ? 'font-medium text-slate-50' : 'text-slate-300'}>{r.passed} of {r.applicable}</span> : <span className="text-slate-500">—</span>}
+                      {most && <span className="ml-1 text-xs text-emerald-300" title="Meets more requirements than every other compared scenario">most</span>}
+                    </td>
+                  )
+                })}
               </tr>
             )}
             {open.requirements && requirements.map((row) => (
