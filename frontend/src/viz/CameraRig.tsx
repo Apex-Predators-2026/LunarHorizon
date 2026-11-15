@@ -39,7 +39,7 @@ const REGION_CAMERA: [number, number, number] = [0, 420_000, 250_000] // ~420 km
  *  - globe: the whole Moon, seen from above the site's hemisphere.
  *  - region: a few hundred km around the site (e.g. the whole south-polar region).
  *  - overview: a few km around the lander.
- *  - sun / earth: just behind the lander at eye level, looking along that body's azimuth/elevation,
+ *  - sun / earth: at the lander's eye (the horizon mask's observer), looking along that body's azimuth/elevation,
  *    following the body as time changes.
  * The user can orbit and zoom freely afterwards.
  */
@@ -51,10 +51,12 @@ export function CameraRig({
   moonCentre,
   resetKey = 0,
   restorePoseRef,
+  eyeHeightM = 2,
 }: {
   view: ViewMode
   status: TimelineStep | null
   siteId: string | null
+  eyeHeightM?: number // observer height of the site's horizon mask (sun / earth views)
   maxTerrainHeight: number | null // highest nearby terrain, relative to the site (m)
   moonCentre: Vec3 | null // in the site frame
   resetKey?: number // bump to fly back to the current view preset (e.g. after orbiting away)
@@ -88,7 +90,7 @@ export function CameraRig({
     const { camera } = get()
     const controls = get().controls as unknown as Controls | null
     if (!controls) return
-    const depKey = `${view}|${siteId ?? ''}|${az ?? ''}|${el ?? ''}|${maxTerrainHeight ?? ''}|${cy ?? ''}|${resetKey}`
+    const depKey = `${view}|${siteId ?? ''}|${az ?? ''}|${el ?? ''}|${maxTerrainHeight ?? ''}|${cy ?? ''}|${resetKey}|${eyeHeightM}`
     if (restorePoseRef?.current && !mountRestore.current) {
       mountRestore.current = { pose: restorePoseRef.current, key: depKey }
       restorePoseRef.current = null
@@ -119,10 +121,13 @@ export function CameraRig({
       pos = [OVERVIEW[0], y, OVERVIEW[2]]
       target = [0, 0, 0]
     } else {
-      const [dx, , dz] = azElToVector(az, 0, 1)
-      pos = [-dx * 45, 12, -dz * 45] // 45 m behind the lander, 12 m up
+      // At the engine's observer: the eye height above the lander's ground point that the horizon
+      // mask was computed for (the lander itself is hidden around the camera). From anywhere else
+      // the orange skyline wouldn't sit on the terrain: 45 m behind and 12 m up put a rim 1 km away
+      // ~0.6 deg (more than the Sun's disk) below the line.
+      pos = [0, eyeHeightM, 0]
       const t = azElToVector(az, el, 5000)
-      target = [t[0], t[1] + 12, t[2]]
+      target = [t[0], t[1] + eyeHeightM, t[2]]
     }
 
     // Fly (rather than jump) when the user asked for a different view or pressed the camera button.
@@ -145,7 +150,7 @@ export function CameraRig({
     controls.target.set(...target)
     controls.update()
     invalidate()
-  }, [view, siteId, az, el, maxTerrainHeight, cy, controlsReady, resetKey, restorePoseRef, get, invalidate])
+  }, [view, siteId, az, el, maxTerrainHeight, cy, controlsReady, resetKey, restorePoseRef, eyeHeightM, get, invalidate])
 
   // Advance the flight: the target slides, and the camera's offset from it turns along the shortest
   // way while its distance changes exponentially, so a globe -> site move feels like a steady dive.

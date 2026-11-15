@@ -10,10 +10,20 @@ import {
   runs,
   skyRange,
   skyXY,
+  sunKnown,
   sunUp,
   toIsoMinute,
   windowFor,
 } from './timeline'
+
+describe('sunKnown', () => {
+  it('is false only when neither the flag nor the fraction is known (unknown is not darkness)', () => {
+    expect(sunKnown({ visible: null, visible_fraction: null })).toBe(false)
+    expect(sunKnown({ visible_fraction: null })).toBe(false)
+    expect(sunKnown({ visible: false, visible_fraction: null })).toBe(true)
+    expect(sunKnown({ visible_fraction: 0 })).toBe(true) // known dark
+  })
+})
 
 const T0 = parseUtc('2027-01-01T00:00Z')
 const T_END = parseUtc('2029-01-01T00:00Z')
