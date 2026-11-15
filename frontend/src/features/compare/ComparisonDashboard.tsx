@@ -28,6 +28,7 @@ import { useCompareStore } from './useCompareStore'
 import { useView } from './useTimeAxis'
 import { COMPARE_SECTIONS } from './sections'
 import { MissionAssistant } from './assistant/MissionAssistant'
+import { useAssistantLayout } from './assistant/layout'
 import { useAssistant } from './assistant/useAssistant'
 import { CompareTour } from './tour/CompareTour'
 import { TourButton, TourOffer } from './tour/TourButton'
@@ -69,7 +70,9 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   const notes = useCompareStore((s) => s.notes)
   const sitesStatus = useCompareStore((s) => s.sitesStatus)
   const { setAllowDemo, setEducational, setAlign, loadSites, refresh } = useCompareStore.getState()
-  const assistantOpen = useAssistant((s) => s.open)
+  const assistantIsOpen = useAssistant((s) => s.open)
+  const assistantLayout = useAssistantLayout((s) => s.layout)
+  const assistantOpen = assistantIsOpen && assistantLayout === 'side' // the page only makes room for the side panel
 
   useEffect(() => {
     if (sitesStatus === 'idle') loadSites()
