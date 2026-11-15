@@ -104,8 +104,13 @@ request goes through `/assess` unchanged; the response is the same `AssessRespon
   `assessment.evaluated_start_utc` / `evaluated_end_utc`. `/assess` itself takes explicit instants and is not
   rounded.
 - Only precomputed sites: a `custom:...` or unknown site id is a 404 with an explanation; invalid input is 422.
-- Used by the planner's Mission assessment panel and "Show why" (`frontend/src/features/assessment/`).
-- Frontend fixtures are real responses written by `backend/scripts/make_assessment_fixtures.py`.
+- Used by the planner's plan cards (verdict) and their Mission assessment panel (`frontend/src/features/assessment/`):
+  every requirement with its measured value or proven range, threshold, margin, headroom level and evidence windows
+  ("Show in 3D" jumps the 3D view there), the other screening risks, dataset provenance, coverage, assumptions,
+  limitations and method versions. Both read one cached request per plan revision (`frontend/src/lib/assessment.ts`).
+- Frontend fixtures (`frontend/src/lib/__fixtures__/assess-{fail,unknown}.json`) are real responses from this
+  endpoint: Malapert Massif, 14 d from 2027-10-15 with `min_initial_sun_hours: 500` (FAIL), and 30 d from
+  2031-12-30, past the end of the data (UNKNOWN).
 
 ## 2. `GET /api/viability/validation-summary`
 
