@@ -92,3 +92,111 @@ def test_describe_violation_equal_rounded_values_use_one_decimal():
     assert "40.0%" in out and "39.6%" in out and "(needs at least 40.0%)" in out
     v2 = v.model_copy(update={"actual": 0.35})
     assert "35%" in describe_violation(v2) and ".0%" not in describe_violation(v2)
+
+
+# --- sensitivity never overclaims -------------------------------------------------------------------
+
+from datetime import timedelta  # noqa: E402
+
+from app.rescue import Evaluator  # noqa: E402
+from app.rescue.sensitivity import quick_robustness  # noqa: E402
+from app.rescue.timeline.synthetic import SyntheticTimelineProvider  # noqa: E402
+
+
+class ScriptedEvaluator(Evaluator):
+    """Real-data-only behaviour (no simulation, no real data around the site), with chosen answers per slip."""
+
+    def __init__(self, script: dict[float, str], default: str = "pass"):
+        super().__init__(provider=SyntheticTimelineProvider(), simulation=False)
+        self.script, self.default = script, default
+
+    def has_real_data(self, site, start=None, end=None):
+        return False
+
+    def evaluate_many(self, site, starts, duration_days, req, simulation=None):
+        results = super().evaluate_many(site, starts, duration_days, req, simulation=True)
+        out = []
+        for t, r in zip(starts, results):
+            off = (t - self.base_time).total_seconds() / 3600
+            what = "pass" if off == 0 else self.script.get(off, self.default)
+            if what == "pass":
+                upd = {"passes": True, "eligibility": "pass", "score": 80.0, "violations": []}
+            elif what == "fail":
+                upd = {"passes": False, "eligibility": "fail", "score": 20.0}
+            else:
+                upd = {"passes": False, "eligibility": "unknown", "score": None}
+            out.append(r.model_copy(update=upd))
+        return out
+
+
+def _scripted(pns_scenario, script, default="pass"):
+    e = ScriptedEvaluator(script, default)
+    e.base_time = pns_scenario.landing_utc
+    return e
+
+
+def test_no_evaluable_neighbours_is_not_assessed(pns_scenario):
+    e = _scripted(pns_scenario, {}, default="unknown")
+    r = sensitivity(SensitivityRequest(scenario=pns_scenario, date_offsets_hours=[-24, 24],
+                                       position_offsets_km=[1], bearings=2), e)
+    assert r.base.passes
+    assert r.verdict == "not_assessed" and r.verdict != "robust"
+    assert r.date_pass_rate is None and r.position_pass_rate is None
+    assert r.safe_date_window_hours is None
+    assert "not assessed" in r.explanation.lower()
+    assert "landing-position" in r.explanation.lower()
+
+
+def test_window_does_not_bridge_unknown_gaps(pns_scenario):
+    e = _scripted(pns_scenario, {-12.0: "unknown", 48.0: "unknown", 72.0: "pass"})
+    r = sensitivity(SensitivityRequest(scenario=pns_scenario, date_offsets_hours=[-48, -24, -12, 12, 24, 48, 72],
+                                       position_offsets_km=[]), e)
+    assert r.safe_date_window_hours == (0.0, 24.0)  # -48/-24 and +72 pass but sit behind unknown points
+    assert r.safe_date_window_tested == 2
+    assert "tested" in r.explanation and "+24 h" in r.explanation
+    assert "guarantee" in r.explanation.lower()
+    by = {p.date_offset_hours: p.status for p in r.points if p.distance_km == 0}
+    assert by[-12.0] == "unknown" and by[48.0] == "unknown" and by[72.0] == "pass"
+    unknown = next(p for p in r.points if p.date_offset_hours == -12.0)
+    assert unknown.passes is False and unknown.score is None
+
+
+def test_window_stops_at_a_failing_point(pns_scenario):
+    e = _scripted(pns_scenario, {24.0: "fail"})
+    r = sensitivity(SensitivityRequest(scenario=pns_scenario, date_offsets_hours=[-24, 12, 24, 48],
+                                       position_offsets_km=[]), e)
+    assert r.safe_date_window_hours == (-24.0, 12.0)
+    assert r.safe_date_window_tested == 2
+
+
+def test_skipped_position_points_are_listed_as_not_evaluated(pns_scenario):
+    e = _scripted(pns_scenario, {})
+    r = sensitivity(SensitivityRequest(scenario=pns_scenario, date_offsets_hours=[-24, 24],
+                                       position_offsets_km=[1, 2], bearings=4), e)
+    pos = [p for p in r.points if p.distance_km > 0]
+    assert len(pos) == 8 and all(p.status == "not_evaluated" and not p.passes and p.score is None for p in pos)
+    assert all(p.bearing_deg is not None for p in pos)
+    assert r.position_pass_rate is None
+    assert "not checked" in r.explanation.lower() or "not evaluated" in r.explanation.lower()
+    assert "does not show" in r.explanation  # date slips say nothing about landing-position error
+
+
+def test_counts_add_up(pns_scenario):
+    e = _scripted(pns_scenario, {-24.0: "fail", 48.0: "unknown"})
+    r = sensitivity(SensitivityRequest(scenario=pns_scenario, date_offsets_hours=[-24, -12, 12, 24, 48],
+                                       position_offsets_km=[1], bearings=3), e)
+    c = r.counts
+    assert c.requested == len(r.points) == 5 + 3
+    assert c.evaluated == c.passed + c.failed + c.unknown
+    assert c.requested == c.evaluated + c.skipped
+    assert (c.passed, c.failed, c.unknown, c.skipped) == (3, 1, 1, 3)
+    assert r.skipped_points == c.unknown + c.skipped  # legacy field
+    assert r.date_pass_rate == 3 / 4  # unknown does not count as a pass or a fail
+
+
+def test_quick_robustness_ignores_unknown_points(pns_scenario):
+    e = _scripted(pns_scenario, {-24.0: "unknown", -12.0: "unknown"})
+    rob = quick_robustness(pns_scenario, e)
+    assert rob.checked_points == 2 and rob.passing_points == 2 and rob.verdict == "robust"
+    none = quick_robustness(pns_scenario, _scripted(pns_scenario, {}, default="unknown"))
+    assert none.verdict == "unchecked" and none.pass_rate is None
