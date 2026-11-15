@@ -30,6 +30,7 @@ export function MiniMapPanel(props: {
   const cardRef = useRef<HTMLDivElement>(null)
   const { pos, size, dragging, handlers } = useDraggable(cardRef)
   const [tab, setTab] = useState<Tab>('map')
+  const skyFrom = props.sites?.find((x) => x.id === props.siteId)?.name ?? null
   const tabRefs = useRef<Partial<Record<Tab, HTMLButtonElement | null>>>({})
   const [pill, setPill] = useState<{ left: number; width: number } | null>(null)
   useLayoutEffect(() => {
@@ -78,7 +79,13 @@ export function MiniMapPanel(props: {
         {tab === 'map' ? (
           <MoonMiniMap sites={props.sites} siteId={props.siteId} frame={props.frame} current={props.current} />
         ) : (
-          <SkyPlot horizon={props.horizon} steps={props.steps} current={props.current} windowLabel={props.windowLabel} suppressTip={dragging} />
+          <>
+            <SkyPlot horizon={props.horizon} steps={props.steps} current={props.current} windowLabel={props.windowLabel} suppressTip={dragging} />
+            {/* Whose sky: it changes with the site (and the time), not with where the 3D camera is. */}
+            <p className="mt-1 h-4 w-full truncate text-center text-[11px] text-white/90">
+              {skyFrom ? `Sky from ${skyFrom}` : ' '}
+            </p>
+          </>
         )}
       </div>
     </div>
