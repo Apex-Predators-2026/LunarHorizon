@@ -14,6 +14,8 @@ import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
 import { resultKey, selectionKey, validateScenario } from './scenario'
+import { ExportButtons } from './ExportButtons'
+import { RescueStory } from './RescueStory'
 import { ScenarioManager } from './ScenarioManager'
 import { SummaryPanel } from './SummaryPanel'
 import { SyncTimeline } from './SyncTimeline'
@@ -217,6 +219,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
           ) : (
             <>
               <Section id="cmp-overview" title={sameSite && differentDates ? 'Landing date comparison' : !differentDates && !sameSite ? 'Landing location comparison' : 'Scenario overview'}>
+                <RescueStory entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
                 <OverviewCards entries={entries} />
               </Section>
 
@@ -258,7 +261,10 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                 <TradeoffPanel entries={entries} />
               </Section>
 
-              <Section id="cmp-summary" title="Comparison summary">
+              <Section id="cmp-summary" title="Comparison summary" actions={
+                <ExportButtons entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
+                  notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} />
+              }>
                 <SummaryPanel entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
               </Section>
 

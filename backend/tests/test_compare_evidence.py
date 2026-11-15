@@ -103,3 +103,17 @@ def test_custom_site_source_points_at_its_file(monkeypatch):
     fake = store.CUSTOM_DIR / "custom_x.json"
     monkeypatch.setattr(store, "_site_files", lambda: {"custom_x": fake})
     assert service._source_path("custom_x") == "custom/custom_x.json"
+
+
+def test_failed_requirements_carry_the_engine_evidence_windows():
+    r = _post(("p", PNS))["p"]
+    cons = {c["id"]: c for c in r["assessment"]["constraints"]}
+    dark = cons["max_continuous_darkness"]
+    assert dark["status"] == "fail" and dark["evidence_windows"]
+    w = dark["evidence_windows"][0]
+    assert w["kind"] == "power_dark"
+    assert 0 <= w["start_hour"] < w["end_hour"] <= 7 * 24 + 1e-9
+    assert abs((w["end_hour"] - w["start_hour"]) - w["duration_hours"]) < 1e-6
+    # The cited window is the measured longest darkness (same engine metric).
+    assert abs(w["duration_hours"] - dark["measured"]["value"]) < 1e-6
+    assert w["start_utc"].endswith("Z")
