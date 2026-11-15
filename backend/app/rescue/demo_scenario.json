@@ -1,5 +1,6 @@
 {
   "id": "connecting-ridge-feb-2027-slip",
+  "version": 2,
   "original": {
     "site": {
       "id": "connecting-ridge",
@@ -8,11 +9,41 @@
       "lon": 209.94767
     },
     "landing_utc": "2027-02-08T00:00:00Z",
-    "duration_days": 7
+    "duration_days": 7,
+    "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96,
+      "min_initial_sun_hours": 24,
+      "min_initial_comms_hours": 12
+    }
   },
   "change": {
     "launch_delay_days": 5,
     "reason": "Launch slipped 5 days"
   },
-  "story": "A 7-day landing at Connecting Ridge on 2027-02-08 meets every default requirement. If the launch slips 5 days, the lander arrives on 2027-02-13, when the Sun sets for 63 h in a row. That is longer than the 50 h the battery is declared to survive, so the plan fails. Mission Rescue then finds passing options, for example a landing at Malapert Massif about 3 days after the delayed date."
+  "story": "A 7-day landing at Connecting Ridge on 2027-02-08 meets every requirement listed above. If the launch slips 5 days, the lander arrives on 2027-02-13, when the Sun sets for 63 h in a row. That is longer than the 50 h the battery is declared to survive, so the plan fails. Mission Rescue then finds passing options; the top one lands at Malapert Massif on 2027-02-16 12:00 UTC, 3.5 days (84 h) after the delayed date.",
+  "verified": {
+    "note": "Recomputed with the canonical engine on real data and the hourly grid by backend/tests/test_rescue_real_data.py::test_demo_scenario_transition, which fails if any of these values or the story's numbers drift. The requirements are written out so a change of defaults cannot change the story.",
+    "original": {
+      "verdict": "pass",
+      "score": 100.0
+    },
+    "delayed": {
+      "landing_utc": "2027-02-13T00:00:00Z",
+      "verdict": "fail",
+      "constraint": "battery_hours",
+      "actual_h": 63.0,
+      "limit_h": 50.0
+    },
+    "first_alternative": {
+      "site_id": "malapert-massif",
+      "landing_utc": "2027-02-16T12:00:00Z",
+      "date_shift_hours": 84.0,
+      "verdict": "pass",
+      "score": 100.0
+    }
+  }
 }
