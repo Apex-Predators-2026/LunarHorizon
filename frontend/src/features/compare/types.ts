@@ -195,6 +195,30 @@ export interface RankingInfo {
   data_basis: string
 }
 
+/** The viability engine's evidence for the order of two scenarios (ranking_evidence.compare_scenarios). */
+export interface PairEvidence {
+  selected: string
+  competitor: string
+  selected_id: string // engine scenario ids as they appear in the texts
+  competitor_id: string
+  comparable: boolean
+  comparability_issues: string[]
+  higher: string | null
+  deciding_criterion: string | null
+  deciding_detail: string
+  policy_tie_break: boolean // order decided by a policy tie-break, not a measured difference
+  score_difference: {
+    status: 'selected_higher' | 'competitor_higher' | 'not_established' | 'unavailable' | 'not_comparable'
+    lower: number | null
+    upper: number | null
+    both_exact: boolean
+    statement: string
+  }
+  components: { component: string; label: string; advantage: 'selected' | 'competitor' | 'equal' | 'not_established' | 'inactive' | 'unavailable' }[]
+  limitations: string[]
+  explanation: string
+}
+
 /** Scenarios that may share one ranking, in canonical order (PASS ranked, then UNKNOWN, then FAIL). */
 export interface RankingGroup {
   id: string
@@ -233,6 +257,7 @@ export interface CompareResponse {
   results: CompareResult[]
   ranking_groups: RankingGroup[]
   ranking_method: string | null
+  pairwise: PairEvidence[]
   viability_source: string
   notes: string[]
 }

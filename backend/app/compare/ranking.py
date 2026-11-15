@@ -27,7 +27,8 @@ from ..viability.ranking import (
     rank_assessments,
     ranking_explanations,
 )
-from .schemas import RankingGroup, RankingInfo
+from ..viability.ranking_evidence import compare_scenarios
+from .schemas import ComponentAdvantage, PairEvidence, RankingGroup, RankingInfo, ScoreDifferenceInfo
 
 POLICY = ComparabilityPolicy.STRICT
 
@@ -132,3 +133,57 @@ def rank_comparison(items: Sequence[Assessed]) -> tuple[dict[str, RankingInfo], 
             separate_reason=separate,
         ))
     return info, out_groups, method
+
+
+# Ranking-key positions that are policy tie-breaks rather than measured differences (consumer handoff §8).
+TIE_BREAKS = {"exact_before_bounded", "overall_risk", "min_coverage", "scenario_id"}
+
+
+def pairwise_evidence(items: Sequence[Assessed]) -> list[PairEvidence]:
+    """The engine's ``compare_scenarios`` for every pair of assessed scenarios. Pairs inside one comparable group
+    use that group's ranking (so ranks and the deciding criterion are the ranking's own); pairs across groups are
+    reported as not comparable, with the engine's reasons, and get no order or score difference."""
+    if len(items) < 2:
+        return []
+    pairs = _unique_ids(items)
+    key_of = {a.scenario_id: key for key, a in pairs}
+    assessments = [a for _, a in pairs]
+    try:
+        groups = partition_comparable(assessments, POLICY)
+    except RankingComparabilityError:
+        return []
+    group_of: dict[str, int] = {}
+    rankings = []
+    order: dict[str, int] = {}
+    for gi, members in enumerate(groups):
+        result = rank_assessments(members, POLICY)
+        rankings.append(result)
+        for pos, e in enumerate(result.entries):
+            group_of[e.scenario_id] = gi
+            order[e.scenario_id] = gi * 1000 + pos
+    ordered = sorted(assessments, key=lambda a: order[a.scenario_id])
+    out: list[PairEvidence] = []
+    for i, a in enumerate(ordered):
+        for b in ordered[i + 1:]:
+            same = group_of[a.scenario_id] == group_of[b.scenario_id]
+            ev = compare_scenarios(a, b, policy=POLICY, ranking=rankings[group_of[a.scenario_id]] if same else None)
+            sd = ev.score_difference
+            crit = ev.deciding_criterion.value if ev.deciding_criterion is not None else None
+            out.append(PairEvidence(
+                selected=key_of[a.scenario_id], competitor=key_of[b.scenario_id],
+                selected_id=a.scenario_id, competitor_id=b.scenario_id,
+                comparable=ev.comparable, comparability_issues=list(ev.comparability_issues),
+                higher=key_of[ev.higher_id] if ev.higher_id else None,
+                deciding_criterion=crit, deciding_detail=ev.deciding_detail,
+                policy_tie_break=crit in TIE_BREAKS,
+                score_difference=ScoreDifferenceInfo(
+                    status=sd.status.value,
+                    lower=sd.interval.lower if sd.interval else None,
+                    upper=sd.interval.upper if sd.interval else None,
+                    both_exact=sd.both_exact, statement=sd.statement,
+                ),
+                components=[ComponentAdvantage(component=c.component.value, label=c.label, advantage=c.advantage.value)
+                            for c in ev.components],
+                limitations=list(ev.limitations), explanation=ev.explanation,
+            ))
+    return out
