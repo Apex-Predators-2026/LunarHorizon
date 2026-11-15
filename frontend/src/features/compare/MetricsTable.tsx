@@ -4,7 +4,7 @@ import { Fragment, useState } from 'react'
 import { formatMarginMetric, marginStatusClassLabel } from '../../lib/headroom'
 import type { MarginStatus } from '../../types'
 import { PassHeadroomBadge } from '../../ui/PassHeadroom'
-import { METRICS, bestIds, deltaVsBaseline, eligibilityOf, fmtDeltaValue, fmtMetric, groupCountOf, headroomOfEntry, rankText, requirementMatrix, requirementSummary, type Entry, type MetricDef } from './analysis'
+import { METRICS, bestIds, bestPool, deltaVsBaseline, eligibilityOf, fmtDeltaValue, fmtMetric, groupCountOf, headroomOfEntry, rankText, requirementMatrix, requirementSummary, type Entry, type MetricDef } from './analysis'
 import { DataKindBadge, EligibilityBadge, Explain, ProvenanceTag, RankBadge, ReqIcon, ScenarioChip } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { AskButton } from './assistant/AskButton'
@@ -34,11 +34,14 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
   const baselineId = useCompareStore((s) => s.baselineId)
   const [open, setOpen] = useState<Record<string, boolean>>({ requirements: true, solar: true, earth: true, mission: true, power: false })
   const requirements = requirementMatrix(entries)
-  // "most requirements met": a single scenario strictly ahead of every other assessed one.
-  const metCounts = entries.map((e) => ({ id: e.scenario.id, n: requirementSummary(e)?.passed ?? null })).filter((x) => x.n !== null)
-  const maxMet = Math.max(...metCounts.map((x) => x.n!))
+  // "most requirements met": a single scenario strictly ahead of every other one in the same fair pool as "best"
+  // (same data kind, duration and requirements; nobody missing), so counts are of the same requirements.
+  const pool = bestPool(entries)
+  const illustrative = pool.basis === 'illustrative'
+  const metCounts = pool.entries.map((e) => ({ id: e.scenario.id, n: requirementSummary(e)?.passed ?? null }))
+  const maxMet = Math.max(...metCounts.map((x) => x.n ?? -1))
   const leaders = metCounts.filter((x) => x.n === maxMet)
-  const mostMet = new Set(metCounts.length >= 2 && leaders.length === 1 ? [leaders[0].id] : [])
+  const mostMet = new Set(metCounts.length >= 2 && metCounts.every((x) => x.n !== null) && leaders.length === 1 ? [leaders[0].id] : [])
   const base = entries.find((e) => e.scenario.id === baselineId)
   const cols = entries.length
 
@@ -205,7 +208,7 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                         return (
                           <td key={e.scenario.id} className="py-1 pl-3 align-top tabular-nums">
                             <span className={isBest ? 'font-medium text-slate-50' : 'text-slate-300'}>{(e.result && m.text?.(e.result, e.scenario)) ?? fmtMetric(v, m.unit)}</span>
-                            {isBest && <span className="ml-1 text-xs text-emerald-300" title="Best among compared real-data scenarios, ahead by a meaningful margin">best</span>}
+                            {isBest && <span className="ml-1 text-xs text-emerald-300" title={illustrative ? 'Best among demonstration results only: illustrative' : 'A meaningful, proven lead among comparable real-data scenarios. Descriptive, not a recommendation.'}>{illustrative ? 'best (illustrative)' : 'best'}</span>}
                             {d && (
                               <span className={`block text-[11px] ${d.better === null ? 'text-slate-500' : d.better ? 'text-emerald-400' : 'text-red-400'}`}>
                                 {d.better === null ? (m.better && !d.meaningful && Math.abs(d.value) > 1e-9 ? '≈ ' : '') : d.better ? '▲ better ' : '▼ worse '}

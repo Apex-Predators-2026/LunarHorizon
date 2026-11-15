@@ -386,7 +386,7 @@ describe('components render real results', () => {
     )
     expect(html).toContain('Peak Near Shackleton')
     expect(html).toContain('JPL Horizons + LOLA')
-    expect(html).toContain('title="Best among compared real-data scenarios, ahead by a meaningful margin">best</span>') // the best value is marked
+    expect(html).toContain('title="A meaningful, proven lead among comparable real-data scenarios. Descriptive, not a recommendation.">best</span>') // the best value is marked
     expect(html).toContain('Longest continuous darkness')
     expect(html).toContain('falls outside it') // D: unavailable message, not fabricated numbers
     expect(html).toContain('Canonical ranking from the viability engine')
