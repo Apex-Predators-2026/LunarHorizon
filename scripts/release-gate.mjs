@@ -139,7 +139,7 @@ const CHECKS = [
     id: 'decision-report', name: 'Mission decision report (frozen snapshot)', outcome: 'Preview of a frozen evaluated snapshot, matching JSON, A4 / Letter print, stale + regenerate',
     vitest: ['src/features/compare/report.test.tsx', 'src/features/compare/reportCard.test.tsx', 'src/features/compare/reportHeader.test.tsx', 'src/features/compare/reportRecovery.test.tsx'],
     browser: g('8 summary report opens for the evaluated selection', '8 report first page', '8 JSON = report snapshot', '8 JSON records dataset hashes',
-      '8 A4 PDF renders only the report', '8 Letter PDF renders only the report', 'report flags a changed comparison', 'regenerate uses the new selection'),
+      '8 Download PDF produces the report PDF', '8 A4 PDF renders only the report', '8 Letter PDF renders only the report', 'report flags a changed comparison', 'regenerate uses the new selection'),
   },
   {
     id: 'scientific-validation', name: 'Scientific validation (data-engine checks)', outcome: 'Stored independent checks are reproducible and shown in the Methodology view',

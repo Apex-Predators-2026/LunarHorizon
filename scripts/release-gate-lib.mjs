@@ -97,7 +97,7 @@ export const GUIDED_ESSENTIAL = [
   "3 delay applied through Rescue's change control", '3 assessment shows the plan after the change', '4 what changed: blackout PASS -> FAIL',
   '5 evidence opens the blackout window in 3D', '6 Rescue recovery passes', '6 assessment shows the Rescue pick', '7 comparison recommends the recovery',
   '8 summary report opens for the evaluated selection', '8 report first page', '8 JSON = report snapshot', '8 JSON records dataset hashes',
-  '8 A4 PDF renders only the report', '8 Letter PDF renders only the report', 'report flags a changed comparison', 'regenerate uses the new selection',
+  '8 Download PDF produces the report PDF', '8 A4 PDF renders only the report', '8 Letter PDF renders only the report', 'report flags a changed comparison', 'regenerate uses the new selection',
   'repeated restarts do not duplicate', "the user's own plan survives", 'atlas enter transfer creates exactly one plan', 'atlas enter transfer: the mapped site',
   "atlas enter transfer: the Planner's canonical verdict matches the cell", 'atlas button transfer creates exactly one plan',
   'atlas button transfer: the mapped site', "atlas button transfer: the Planner's canonical verdict matches the cell",
