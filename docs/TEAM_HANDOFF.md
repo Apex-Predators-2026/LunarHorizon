@@ -1,3 +1,5 @@
+> **HISTORICAL (written at the overnight stop on 2026-11-15). Its "local only / not pushed / not integrated" statements are no longer true.** The recovered work reached main through the core, workflow and UI/UX recovery branches; the current account is [integration/final-recovery-progress.md](integration/final-recovery-progress.md) and the per-commit ledger is [integration/final-recovery-ledger.md](integration/final-recovery-ledger.md).
+
 # TEAM HANDOFF — overnight recovery (PARTIAL, local only)
 
 **Status: partially verified, stopped early on the user's instruction. NOT pushed, NOT merged into `main`.**
