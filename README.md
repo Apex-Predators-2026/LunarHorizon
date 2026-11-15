@@ -116,9 +116,8 @@ The release gate starts its own backends (ports 8011 and 8012), needs Chrome or 
 writes [`release-gate/LATEST.md`](release-gate/LATEST.md). The latest recorded run (commit `2d77acf`) covers only the
 production and offline checks, so it is **not** a full release pass.
 
-Known: 7 backend tests in `tests/viability/` (Phase-6 rescue compatibility) fail on `main`: they still pin the policy
-that the one-hourly-grid time policy replaced. The branch `recovery/workflows-remaining` updates them to the current
-contract (details in [`docs/integration/workflow-recovery-progress.md`](docs/integration/workflow-recovery-progress.md)).
+The Phase-6 rescue compatibility tests in `backend/tests/viability/` assert the current one-hourly-grid time policy
+(`app/timegrid.py`); details in [`docs/integration/workflow-recovery-progress.md`](docs/integration/workflow-recovery-progress.md).
 
 ## NASA data and references
 
