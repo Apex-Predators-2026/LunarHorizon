@@ -119,6 +119,22 @@ describe('different missions are described, not ranked', () => {
     expect(sum.caveats.join(' ')).toMatch(/different mission durations/)
   })
 
+  it('summary: a real scenario with withheld statistics is not dropped to make a winner, nor called demonstration data', () => {
+    const withStats = (label: string, f: number, dark: number): CompareResult => ({
+      ...B, key: label,
+      solar: { ...B.solar!, mean_visible_fraction: f, longest_dark_hours: dark },
+      earth: { ...B.earth!, visible_fraction: 1, longest_blackout_hours: 0 },
+    })
+    const a = entry('A', withStats('A', 0.9, 2)), b = entry('B', withStats('B', 0.3, 40))
+    expect(buildSummary([a, b]).bests.map((x) => x.label)).toContain('Best solar performance')
+    const w = entry('W', { ...withStats('W', 0.5, 10), solar: null, withheld: { solar: 'Sun unknown for 18 h' } })
+    const sum = buildSummary([a, b, w])
+    expect(sum.bests.filter((x) => x.label !== 'Top canonical rank')).toEqual([])
+    expect(sum.caveats.join(' ')).toMatch(/Scenario W has withheld or unavailable Sun\/Earth statistics/)
+    expect(sum.caveats.join(' ')).not.toMatch(/Scenario W use demonstration data/)
+    expect(sum.highlights.map((x) => x.entry.scenario.label)).toContain('W') // its own verdicts still appear
+  })
+
   it('different requirements: no best', () => {
     const e = [entry('A', solar(0.4), { battery: 50 }), entry('B', solar(0.8), { battery: 30 })]
     expect(bestLabels(headlineRows(SOLAR, e))).toEqual([])

@@ -3,9 +3,9 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 
 import { fmtAxis, missionExtent, violationWindows, type Align, type Entry } from './analysis'
-import { LANE, sunPath } from './lanes'
+import { knownSpans, knownSunRuns, laneCoverage, timelineEarthRuns, unknownWindows, withheldNotes, type HourSpan, type LaneCoverage } from './lanes'
 import { STATE } from './palette'
-import type { Window } from './types'
+import type { TimelineColumns, Window } from './types'
 import { ScenarioChip, btn } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { clampView, hourTicks, panView, useWidth, zoomView } from './useTimeAxis'
@@ -14,6 +14,7 @@ import { clampView, hourTicks, panView, useWidth, zoomView } from './useTimeAxis
 const GUTTER_WIDE = 168
 const GUTTER_NARROW = 60
 const gutterFor = (width: number) => (width < 520 ? GUTTER_NARROW : GUTTER_WIDE)
+const LANE = 20
 const LANE_GAP = 4
 const ROW_GAP = 14
 const AXIS_H = 26
@@ -32,37 +33,66 @@ function longest(ws: Window[]): Window | null {
   return ws.reduce<Window | null>((a, w) => (!a || w.duration_hours > a.duration_hours ? w : a), null)
 }
 
+/**
+ * Area path of the visible solar-disk fraction inside a lane: one closed shape per run of known samples, so
+ * an unknown stretch is a break in the shape (no sunlight drawn and none implied), never bridged across.
+ */
+function sunPath(tl: TimelineColumns, offset: number, x: (v: number) => number, view: [number, number], top: number) {
+  const half = tl.step_hours / 2
+  let d = ''
+  for (const [a, b] of knownSunRuns(tl)) {
+    const pts: string[] = []
+    for (let i = a; i < b; i++) {
+      const t = offset + tl.hour[i]
+      if (t < view[0] - tl.step_hours || t > view[1] + tl.step_hours) continue
+      const y = top + LANE - tl.sun_visible_fraction[i]! * LANE
+      pts.push(`${x(t - half).toFixed(1)},${y.toFixed(1)}`, `${x(t + half).toFixed(1)},${y.toFixed(1)}`)
+    }
+    if (!pts.length) continue
+    const first = pts[0].split(',')[0], last = pts[pts.length - 1].split(',')[0]
+    d += `M${first},${top + LANE} L${pts.join(' L')} L${last},${top + LANE} Z `
+  }
+  return d
+}
+
+/** An engine window (with times and duration), as opposed to a span derived from the timeline samples. */
+const isWindow = (s: HourSpan): s is Window => 'end_utc' in s && 'duration_hours' in s
+
+const pctKnown = (c: LaneCoverage) => (c.knownHours === null || c.totalHours <= 0 ? null : Math.round((100 * c.knownHours) / c.totalHours))
+
 const Lanes = memo(function Lanes({ e, top, x, view, w, gutter: GUTTER }: { e: Entry; top: number; x: (v: number) => number; view: [number, number]; w: number; gutter: number }) {
   const r = e.result!
   const o = e.offsetHours
   const clipX = (v: number) => Math.min(GUTTER + w, Math.max(GUTTER, x(v)))
-  const rect = (win: Window) => ({ x: clipX(o + win.start_hour), w: Math.max(0.5, clipX(o + win.end_hour) - clipX(o + win.start_hour)) })
+  const rect = (win: HourSpan) => ({ x: clipX(o + win.start_hour), w: Math.max(0.5, clipX(o + win.end_hour) - clipX(o + win.start_hour)) })
   const [extA, extB] = missionExtent(e) // the evaluated window, not the requested length
   const missionA = clipX(extA), missionB = clipX(extB)
-  const durationH = r.evaluated_hours ?? e.scenario.duration_days * 24
-  const unknownSun = (r.unknown_windows ?? []).filter((w) => w.kind === 'sun_unknown')
-  const unknownEarth = (r.unknown_windows ?? []).filter((w) => w.kind === 'earth_unknown')
-  // Without the engine's windows nothing about the lanes is known: the whole extent is marked unknown.
-  const noWindows = !r.assessment
   const longDark = longest(r.dark_windows)
   const longBlack = longest(r.blackout_windows)
   const earthTop = top + LANE + LANE_GAP
   const span = view[1] - view[0]
   const showEvents = span <= 24 * 40
+  // Earth: the engine's windows, or (never assessed) the timeline samples. Unknown samples are in neither.
+  const engineEarth = r.earth_windows.length + r.blackout_windows.length + unknownWindows(r, 'earth').length > 0
+  const earthIn = engineEarth || !r.timeline ? r.earth_windows : timelineEarthRuns(r.timeline, true)
+  const earthOut = engineEarth || !r.timeline ? r.blackout_windows : timelineEarthRuns(r.timeline, false)
+  const unknownTitle = (lane: 'Sun' | 'Earth', w: Window) =>
+    `${lane} unknown ${fmtDur(w.duration_hours)}: ${w.start_utc} → ${w.end_utc}. No terrain or ephemeris data — ` +
+    `not ${lane === 'Sun' ? 'darkness' : 'a blackout'}, and not counted as one.`
   return (
     <g>
-      {/* mission extent (outline only: a lane is dark only where the data say so) */}
-      <rect x={missionA} y={top} width={Math.max(0, missionB - missionA)} height={LANE} fill="none" stroke={STATE.grid} />
-      <rect x={missionA} y={earthTop} width={Math.max(0, missionB - missionA)} height={LANE} fill="none" stroke={STATE.grid} />
-      {/* solar lane: known Sun time has a dark background (the hidden part of the disk), sunlight on top */}
-      {[...r.sun_windows, ...r.dark_windows].map((win) => {
-        const b = rect(win)
-        return <rect key={`k${win.start_hour}`} x={b.x} y={top} width={b.w} height={LANE} fill={STATE.dark} />
+      {/* mission extent: "no data" until known time is painted over it (incl. hours past the end of the data) */}
+      <rect x={missionA} y={top} width={Math.max(0, missionB - missionA)} height={LANE} fill="url(#hatch-unknown)" />
+      <rect x={missionA} y={earthTop} width={Math.max(0, missionB - missionA)} height={LANE} fill="url(#hatch-unknown)" />
+      {/* solar lane: known time is night-coloured, the visible-disk fraction on top (partial Sun = lower fill) */}
+      {knownSpans(r, 'sun').map((k) => {
+        const b = rect(k)
+        return <rect key={`k${k.start_hour}`} x={b.x} y={top} width={b.w} height={LANE} fill={STATE.dark} />
       })}
-      {r.timeline && <path d={sunPath(r.timeline, o, x, view, top, durationH)} fill={STATE.sun} opacity={0.9} />}
-      {(noWindows ? [{ start_hour: 0, end_hour: durationH, duration_hours: durationH, start_utc: '', end_utc: '' } as Window] : unknownSun).map((win) => {
+      {r.timeline && <path d={sunPath(r.timeline, o, x, view, top)} fill={STATE.sun} opacity={0.9} />}
+      {unknownWindows(r, 'sun').map((win) => {
         const b = rect(win)
-        return <rect key={`us${win.start_hour}`} data-testid="unknown-band" aria-label={`Sun unknown for ${fmtDur(win.duration_hours)}: missing data, not darkness`} x={b.x} y={top} width={b.w} height={LANE} fill="url(#hatch-unknown)"><title>Sun unknown {fmtDur(win.duration_hours)} (missing data: not darkness){win.start_utc ? `: ${win.start_utc} → ${win.end_utc}` : ''}</title></rect>
+        return <rect key={`su${win.start_hour}`} x={b.x} y={top} width={b.w} height={LANE} fill="transparent"><title>{unknownTitle('Sun', win)}</title></rect>
       })}
       {longDark && longDark.duration_hours > 0 && (() => {
         const b = rect(longDark)
@@ -76,22 +106,19 @@ const Lanes = memo(function Lanes({ e, top, x, view, w, gutter: GUTTER }: { e: E
         )
       })()}
       {/* Earth lane */}
-      {r.earth_windows.map((win) => {
+      {earthIn.map((win) => {
         const b = rect(win)
-        return <rect key={`e${win.start_hour}`} x={b.x} y={earthTop} width={b.w} height={LANE} fill={STATE.earth} opacity={0.85}><title>Earth in view {fmtDur(win.duration_hours)}: {win.start_utc} → {win.end_utc}</title></rect>
+        const tip = isWindow(win) ? `Earth in view ${fmtDur(win.duration_hours)}: ${win.start_utc} → ${win.end_utc}` : 'Earth in view'
+        return <rect key={`e${win.start_hour}`} x={b.x} y={earthTop} width={b.w} height={LANE} fill={STATE.earth} opacity={0.85}><title>{tip}</title></rect>
       })}
-      {r.blackout_windows.map((win) => {
+      {earthOut.map((win) => {
         const b = rect(win)
-        return (
-          <g key={`b${win.start_hour}`}>
-            <rect x={b.x} y={earthTop} width={b.w} height={LANE} fill={STATE.dark} />
-            <rect x={b.x} y={earthTop} width={b.w} height={LANE} fill="url(#hatch-blackout)"><title>Blackout {fmtDur(win.duration_hours)}: {win.start_utc} → {win.end_utc}</title></rect>
-          </g>
-        )
+        const tip = isWindow(win) ? `Blackout ${fmtDur(win.duration_hours)}: ${win.start_utc} → ${win.end_utc}` : 'Blackout (Earth below the terrain)'
+        return <rect key={`b${win.start_hour}`} x={b.x} y={earthTop} width={b.w} height={LANE} fill="url(#hatch-blackout)"><title>{tip}</title></rect>
       })}
-      {(noWindows ? [{ start_hour: 0, end_hour: durationH, duration_hours: durationH, start_utc: '', end_utc: '' } as Window] : unknownEarth).map((win) => {
+      {unknownWindows(r, 'earth').map((win) => {
         const b = rect(win)
-        return <rect key={`ue${win.start_hour}`} data-testid="unknown-band" aria-label={`Earth unknown for ${fmtDur(win.duration_hours)}: missing data, not a blackout`} x={b.x} y={earthTop} width={b.w} height={LANE} fill="url(#hatch-unknown)"><title>Earth unknown {fmtDur(win.duration_hours)} (missing data: not a blackout){win.start_utc ? `: ${win.start_utc} → ${win.end_utc}` : ''}</title></rect>
+        return <rect key={`eu${win.start_hour}`} x={b.x} y={earthTop} width={b.w} height={LANE} fill="transparent"><title>{unknownTitle('Earth', win)}</title></rect>
       })}
       {longBlack && longBlack.duration_hours > 0 && (() => {
         const b = rect(longBlack)
@@ -266,13 +293,14 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
           onPointerLeave={() => setHover(null)}
         >
           <defs>
-            <pattern id="hatch-unknown" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
-              <rect width="5" height="5" fill="#e5e7eb" />
-              <line x1="0" y1="0" x2="0" y2="5" stroke="#9ca3af" strokeWidth="2" />
-            </pattern>
             <pattern id="hatch-blackout" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
               <rect width="6" height="6" fill="#2a0f18" />
               <line x1="0" y1="0" x2="0" y2="6" stroke={STATE.blackout} strokeWidth="2" opacity="0.7" />
+            </pattern>
+            {/* Unknown: grey, leaning the other way from the blackout hatch, so the two never read alike. */}
+            <pattern id="hatch-unknown" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)">
+              <rect width="6" height="6" fill={STATE.unknownBg} />
+              <line x1="0" y1="0" x2="0" y2="6" stroke={STATE.unknown} strokeWidth="1.5" />
             </pattern>
             <clipPath id="tl-plot"><rect x={GUTTER} y={0} width={w} height={height} /></clipPath>
           </defs>
@@ -303,12 +331,25 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
           {/* gutter labels */}
           {entries.map((e, i) => {
             const top = AXIS_H + i * rowH
+            const r = e.result
+            const sunCov = r ? laneCoverage(r, 'sun', e.scenario.duration_days) : null
+            const earthCov = r ? laneCoverage(r, 'earth', e.scenario.duration_days) : null
+            const partial = !!(sunCov && earthCov && sunCov.knownHours !== null && earthCov.knownHours !== null && !(sunCov.complete && earthCov.complete))
+            const covTitle = partial
+              ? `Hours with known data: Sun ${sunCov!.knownHours!.toFixed(1)} of ${sunCov!.totalHours.toFixed(1)} h, Earth ${earthCov!.knownHours!.toFixed(1)} of ${earthCov!.totalHours.toFixed(1)} h. The rest is unknown (hatched grey), not darkness or blackout.`
+              : undefined
             return (
               <g key={e.scenario.id}>
                 <foreignObject x={0} y={top - 2} width={GUTTER - 8} height={2 * LANE + LANE_GAP + 4}>
                   <div className="flex h-full flex-col justify-center gap-0.5 pr-1 text-[11px] leading-tight text-slate-300">
                     <div className="flex items-center gap-1.5 truncate"><ScenarioChip s={e.scenario} size="sm" /><span className="truncate">{e.scenario.site.name}</span></div>
-                    <div className="truncate text-[11px] text-slate-500">Sun · Earth</div>
+                    {partial ? (
+                      <div className="truncate text-[11px] text-amber-500" title={covTitle}>
+                        known: Sun {pctKnown(sunCov!)}% · Earth {pctKnown(earthCov!)}%
+                      </div>
+                    ) : (
+                      <div className="truncate text-[11px] text-slate-500">Sun · Earth</div>
+                    )}
                   </div>
                 </foreignObject>
               </g>
@@ -328,12 +369,54 @@ export function SyncTimeline({ entries, full, view, align, originMs }: Props) {
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border border-slate-700" style={{ background: STATE.dark }} /> Darkness</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm" style={{ background: STATE.earth }} /> Earth in line of sight</span>
         <span className="flex items-center gap-1.5"><svg width="20" height="12"><rect width="20" height="12" fill="url(#hatch-blackout)" /></svg> Communication blackout</span>
+        <span className="flex items-center gap-1.5"><svg width="20" height="12"><rect width="20" height="12" fill="url(#hatch-unknown)" /></svg> Unknown (no data; not darkness or blackout)</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border border-dashed" style={{ borderColor: STATE.muted }} /> Longest gap (measured)</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border-2" style={{ borderColor: STATE.blackout }} /> ✕ Window behind a failed requirement</span>
         <span className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-sm border-2 border-dashed" style={{ borderColor: STATE.muted }} /> ? Window behind an undecided requirement</span>
-        <span className="flex items-center gap-1.5"><svg width="20" height="12"><rect width="20" height="12" fill="url(#hatch-unknown)" /></svg> Unknown (missing data: neither dark nor blocked)</span>
         <span>▲ rise · ▼ set</span>
       </div>
+      <IncompleteDataNotes entries={entries} />
+    </div>
+  )
+}
+
+/** Per scenario: known hours per body and the backend's reasons for statistics it withheld (never shown as 0). */
+function IncompleteDataNotes({ entries }: { entries: Entry[] }) {
+  const rows = entries.flatMap((e) => {
+    const r = e.result
+    if (!r) return []
+    const notes = withheldNotes(r)
+    const sun = laneCoverage(r, 'sun', e.scenario.duration_days)
+    const earth = laneCoverage(r, 'earth', e.scenario.duration_days)
+    const unknownCount = (r.unknown_windows ?? []).length
+    const partial = (sun.knownHours !== null && !sun.complete) || (earth.knownHours !== null && !earth.complete)
+    if (!notes.length && !partial && !unknownCount) return []
+    return [{ e, notes, sun, earth, unknownCount }]
+  })
+  if (!rows.length) return null
+  const h = (v: number | null, total: number) => (v === null ? 'not reported' : `${v.toFixed(1)} of ${total.toFixed(1)} h`)
+  return (
+    <div className="mt-3 rounded-md border border-amber-600/40 bg-amber-500/5 p-2.5 text-[11px] text-slate-300" aria-label="Incomplete data">
+      <div className="mb-1 font-medium text-amber-500">Incomplete data: what is unknown and what is withheld</div>
+      <ul className="space-y-1.5">
+        {rows.map(({ e, notes, sun, earth, unknownCount }) => (
+          <li key={e.scenario.id}>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <ScenarioChip s={e.scenario} size="sm" />
+              <span className="text-slate-200">{e.scenario.site.name}</span>
+              <span className="text-slate-500">
+                · known Sun {h(sun.knownHours, sun.totalHours)} · known Earth {h(earth.knownHours, earth.totalHours)}
+                {unknownCount ? ` · ${unknownCount} unknown window${unknownCount === 1 ? '' : 's'} (grey hatch)` : ''}
+              </span>
+            </div>
+            {notes.map((n) => (
+              <p key={n.blocks} className="mt-0.5 pl-1 text-slate-400">
+                <b className="font-medium text-slate-300">{n.blocks} withheld:</b> {n.reason}
+              </p>
+            ))}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
