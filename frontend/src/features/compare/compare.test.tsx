@@ -362,6 +362,15 @@ describe('compare store', () => {
     expect(useAppStore.getState().siteId).toBe('connecting-ridge')
     expect(useAppStore.getState().timeUtc).toBe('2027-01-16T06:00:00.000Z')
   })
+
+  it('mirrors the evaluated (hourly-grid) landing, not the requested one, into the 3D view', () => {
+    // The backend evaluates 00:15 as 00:00 (timegrid), so the charts' hour 5 is 05:00, not 05:15.
+    useCompareStore.setState({ scenarios: [], selectedIds: [] })
+    const id = useCompareStore.getState().addScenario({ site: SITES.C, landing_utc: '2027-01-15T00:15:00Z' })
+    useCompareStore.getState().setActive(id)
+    useCompareStore.getState().setCursor(5)
+    expect(useAppStore.getState().timeUtc).toBe('2027-01-15T05:00:00.000Z')
+  })
 })
 
 describe('components render real results', () => {
