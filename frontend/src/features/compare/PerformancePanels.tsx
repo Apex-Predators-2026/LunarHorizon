@@ -172,7 +172,7 @@ export function ShowWhy({ e, c, section = 'cmp-performance' }: { e: Entry; c: Co
   return (
     <button type="button" onClick={() => openEvidence(ev.request)}
       className="ml-2 rounded-full border border-sky-700 px-2 py-0.5 text-[11px] text-sky-300 hover:bg-sky-950"
-      aria-label={`Show why: ${c.name ?? c.id}, Scenario ${e.scenario.label}`}
+      aria-label={`Show why: ${c.name ?? c.id}, Plan ${e.scenario.label}`}
       data-tip={`Open the 3D view at this ${ev.evidence.role === 'missing_data' ? 'missing-data window' : 'evidence window'} and look toward the ${ev.request.body === 'earth' ? 'Earth' : 'Sun'}`}>
       Show why
     </button>
@@ -264,7 +264,7 @@ export function MissionPerformance({ entries, groups, ranking = 'ready' }: {
   const { groups: views, unassessed } = canonicalRanking(entries, groups)
   const sources = [...new Set(entries.map((e) => e.result?.viability?.source).filter(Boolean))].join(', ')
   const method = groups[0]?.method_version
-  if (ranking === 'updating') return <p className="text-xs text-slate-400">Updating the canonical ranking for the selected scenarios…</p>
+  if (ranking === 'updating') return <p className="text-xs text-slate-400">Updating the canonical ranking for the selected plans…</p>
   if (!views.length && !unassessed.some((e) => e.result)) return <p className="text-xs text-slate-500">No viability results yet.</p>
   const multi = views.length > 1
   return (
@@ -272,9 +272,9 @@ export function MissionPerformance({ entries, groups, ranking = 'ready' }: {
       <p className="text-[11px] text-slate-400">
         Canonical ranking from the viability engine
         {sources && <> (<code className="text-slate-300">{sources}</code>{method && <>, <code className="text-slate-300">{method}</code></>})</>}.
-        Only scenarios that pass every requirement are ranked, in the engine’s own order. Scenarios that fail or cannot be
+        Only plans that pass every requirement are ranked, in the engine’s own order. Plans that fail or cannot be
         decided are listed for inspection and never ranked.
-        {multi && ' Scenarios with a different data basis, requirements or mission duration form separate groups; ranks never cross groups.'}
+        {multi && ' Plans with a different data basis, requirements or mission duration form separate groups; ranks never cross groups.'}
       </p>
       {views.map((v) => (
         <section key={v.group.id} aria-label={`Ranking group ${v.group.id}`} className="space-y-2">
@@ -292,7 +292,7 @@ export function MissionPerformance({ entries, groups, ranking = 'ready' }: {
               {v.ranked.map((e) => <ScenarioRow key={e.scenario.id} e={e} rankLabel={`#${e.ranking!.rank}`} />)}
             </ol>
           ) : (
-            <p className="text-xs text-slate-400">No scenario in this group passes every requirement, so this group has no recommended option.</p>
+            <p className="text-xs text-slate-400">No plan in this group passes every requirement, so this group has no recommended option.</p>
           )}
           {v.unknown.length > 0 && (
             <div>

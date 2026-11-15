@@ -92,7 +92,7 @@ describe('incomplete data never becomes a measurement', () => {
     const sum = buildSummary(es)
     expect(sum.bests.map((b) => b.label)).not.toContain('Best solar performance')
     expect(sum.bests.map((b) => b.label)).not.toContain('Shortest darkness')
-    expect(sum.caveats.join(" ")).toMatch(/Scenario B has withheld or unavailable Sun\/Earth statistics/)
+    expect(sum.caveats.join(" ")).toMatch(/Plan B has withheld or unavailable Sun\/Earth statistics/)
     expect(sum.overall).toEqual([]) // no overall power-versus-communication verdict is claimed while a member's data is incomplete
   })
 
@@ -204,7 +204,7 @@ describe('availability lanes', () => {
     const demo = entry('B', (r) => ({ ...r, data_kind: 'demonstration' }), 'Z' as 'B')
     const es = [entry('A'), entry('C'), demo]
     expect(bestIds(es, METRIC_BY_ID.earth_pct).has(demo.scenario.id)).toBe(false)
-    expect(buildSummary(es).caveats.join(' ')).toMatch(/Scenario Z use demonstration data/)
+    expect(buildSummary(es).caveats.join(' ')).toMatch(/Plan Z use demonstration data/)
   })
 })
 

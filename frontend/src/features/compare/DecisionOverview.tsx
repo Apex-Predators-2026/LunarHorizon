@@ -26,7 +26,7 @@ const ICON = { recommended: 'check', unresolved: 'info', single_pass: 'check', l
 
 /** "Scenario C" -> "Scenario C (Recovery)" where the selection carries story roles. */
 const withRoles = (text: string, entries: Entry[], roles: Record<string, RoleInfo>) =>
-  entries.reduce((t, e) => (roles[e.scenario.id] ? t.split(`Scenario ${e.scenario.label} `).join(`Scenario ${e.scenario.label} (${lcFirst(roles[e.scenario.id].label)}) `) : t), text)
+  entries.reduce((t, e) => (roles[e.scenario.id] ? t.split(`Plan ${e.scenario.label} `).join(`Plan ${e.scenario.label} (${lcFirst(roles[e.scenario.id].label)}) `) : t), text)
 
 function GroupBrief({ d, pairs, entries, roles, multi }: { d: GroupDecision; pairs: PairEvidence[]; entries: Entry[]; roles: Record<string, RoleInfo>; multi: boolean }) {
   const strength = preferenceStrength(d, pairs)
@@ -131,7 +131,7 @@ export function DecisionOverview({ entries, groups, pairs, rankingCurrent, notes
         <ul className="space-y-1 text-[12px] leading-snug text-ink-3">
           {origFirst && (
             <li className="flex gap-1.5 text-amber-300"><Icon name="info" size={14} className="mt-0.5" />
-              The top-ranked plan is the original, pre-change plan. If the change is real it can no longer be flown{bestAvailable ? `; the best-ranked alternative is Scenario ${bestAvailable.scenario.label} (${bestAvailable.scenario.site.name})` : ''}.</li>
+              The top-ranked plan is the original, pre-change plan. If the change is real it can no longer be flown{bestAvailable ? `; the best-ranked alternative is Plan ${bestAvailable.scenario.label} (${bestAvailable.scenario.site.name})` : ''}.</li>
           )}
           {report.notes.slice(0, -1).map((n) => <li key={n}>{n}</li>)}
         </ul>

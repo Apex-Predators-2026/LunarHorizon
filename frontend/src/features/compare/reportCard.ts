@@ -118,7 +118,7 @@ export interface ReportCard {
 const STATUS: Record<string, Status> = { pass: 'PASS', fail: 'FAIL', unknown: 'UNKNOWN' }
 const statusOf = (e: string | null | undefined): Status => (e ? STATUS[e] ?? 'NOT ASSESSED' : 'NOT ASSESSED')
 const list = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`)
-const scen = (ls: string[]) => (ls.length === 1 ? `Scenario ${ls[0]}` : `Scenarios ${list(ls)}`)
+const scen = (ls: string[]) => (ls.length === 1 ? `Plan ${ls[0]}` : `Plans ${list(ls)}`)
 
 /** A canonical measurement as displayed: fractions as %, bounds as a range, nothing missing turned into a number. */
 export function valueOf(m: ExportedMetric | null | undefined, assessed = true): CardValue {
@@ -300,7 +300,7 @@ function requirementRows(scenarios: ExportedScenario[]): { rows: RequirementRow[
       if (st === 'UNKNOWN') {
         const w = r.evidence_windows[0]
         note = r.message ?? (w ? `Undecided ${w.kind.replace(/_/g, ' ')} from ${fmtWhen(w.start_utc)} to ${fmtWhen(w.end_utc)}` : 'The data cannot decide this requirement')
-        unknown_notes.push(`Scenario ${s.label} · ${name}: ${note}`)
+        unknown_notes.push(`Plan ${s.label} · ${name}: ${note}`)
       } else if (st === 'FAIL') note = r.message
       cells[s.label] = { status: st, limit, measured: valueOf(r.measured).text, margin: marginText(s, r), note }
     }
@@ -392,9 +392,9 @@ function finalAssessment(s: ReportSnapshot, x: ExportedScenario[]): ReportCard['
     const rec = outcome === 'recommended' || outcome === 'single_pass' || outcome === 'lone' ? d.recommended : null
     const g = s.decisions.length > 1 ? ` in group ${d.id}` : ''
     // Our sentence states the outcome; the decision's own headline is added only where it gives more than that.
-    const statement = outcome === 'recommended' ? `Scenario ${rec} is the canonical top-ranked eligible option${g}: it meets every requirement and holds rank 1.`
-      : outcome === 'single_pass' ? `Scenario ${rec} is the only plan${g} that meets every requirement.`
-        : outcome === 'lone' ? `Scenario ${rec} meets every requirement, but there is no comparable plan to rank it against.`
+    const statement = outcome === 'recommended' ? `Plan ${rec} is the canonical top-ranked eligible option${g}: it meets every requirement and holds rank 1.`
+      : outcome === 'single_pass' ? `Plan ${rec} is the only plan${g} that meets every requirement.`
+        : outcome === 'lone' ? `Plan ${rec} meets every requirement, but there is no comparable plan to rank it against.`
           : outcome === 'unresolved' ? `Several plans${g} meet every requirement, but the evidence does not establish a preference between them. ${d.headline}`
             : outcome === 'none_pass' ? `No eligible passing recommendation is available${g}: no plan meets every requirement.`
               : `A definitive recommendation cannot be established${g}: the evidence does not decide every requirement. ${d.headline}`
@@ -404,8 +404,8 @@ function finalAssessment(s: ReportSnapshot, x: ExportedScenario[]): ReportCard['
   const conclusion = !groups.length
     ? 'No plan has a canonical assessment, so none can be judged and no recommendation is made.'
     : primary.recommended && (primary.outcome === 'recommended' || primary.outcome === 'single_pass')
-      ? `On the evidence in this report, Scenario ${primary.recommended} is the most suitable plan under the selected requirements${groups.length > 1 ? ' (main comparison group)' : ''}.`
-      : primary.outcome === 'lone' ? `Scenario ${primary.recommended} meets every requirement; with nothing comparable, no ranking preference is stated.`
+      ? `On the evidence in this report, Plan ${primary.recommended} is the most suitable plan under the selected requirements${groups.length > 1 ? ' (main comparison group)' : ''}.`
+      : primary.outcome === 'lone' ? `Plan ${primary.recommended} meets every requirement; with nothing comparable, no ranking preference is stated.`
         : primary.outcome === 'unresolved' ? 'The passing plans cannot be separated on the evidence; the choice between them depends on the trade-offs listed in this report.'
           : primary.outcome === 'none_pass' ? 'No eligible passing recommendation is available: every assessed plan fails at least one requirement.'
             : 'A definitive recommendation cannot be established from the available evidence.'
@@ -422,13 +422,13 @@ function executiveSummary(card: Omit<ReportCard, 'executive_summary' | 'key_find
   const reqNames = card.requirements.rows.map((r) => r.requirement.toLowerCase())
   const c = card.final.categories
   const parts: string[] = []
-  parts.push(`This report evaluates ${n} lunar south-pole mission plan${n === 1 ? '' : 's'} (${card.plans.map((p) => `Scenario ${p.label}, ${p.site}`).join('; ')}) against ${reqNames.length ? `${reqNames.length} selected requirement${reqNames.length === 1 ? '' : 's'} on sunlight, darkness and direct-to-Earth communication` : 'their selected requirements'}, using hourly NASA JPL Horizons ephemerides and LOLA terrain${sites.length === 1 ? ` at ${sites[0]}` : ''}.`)
+  parts.push(`This report evaluates ${n} lunar south-pole mission plan${n === 1 ? '' : 's'} (${card.plans.map((p) => `Plan ${p.label}, ${p.site}`).join('; ')}) against ${reqNames.length ? `${reqNames.length} selected requirement${reqNames.length === 1 ? '' : 's'} on sunlight, darkness and direct-to-Earth communication` : 'their selected requirements'}, using hourly NASA JPL Horizons ephemerides and LOLA terrain${sites.length === 1 ? ` at ${sites[0]}` : ''}.`)
   const states: string[] = []
   if (c.eligible_pass.length) states.push(`${scen(c.eligible_pass)} ${c.eligible_pass.length === 1 ? 'meets' : 'meet'} every assessed requirement`)
   if (c.fail.length) {
     states.push(c.fail.map((l) => {
       const p = s.export.scenarios.find((e) => e.label === l)!
-      return `Scenario ${l} fails ${list(p.failed_requirements.map((x) => x.toLowerCase()))}`
+      return `Plan ${l} fails ${list(p.failed_requirements.map((x) => x.toLowerCase()))}`
     }).join('; '))
   }
   if (c.unknown.length) states.push(`${scen(c.unknown)} cannot be decided from the data (UNKNOWN, not a failure)`)
@@ -448,7 +448,7 @@ export const NASA_SOURCES = [
   'Gracy & Lee, LPSC 2024: source of the Connecting Ridge and Peak Near Shackleton coordinates. It locates those two sites; it is not a validation of this model.',
 ]
 
-export const DISCLAIMER = 'This report summarizes the Lunar Landing Site Navigator\'s modelled results for the selected scenarios and mission requirements, as computed at the time shown. It is a planning aid: it is not an official NASA mission approval, certification or guarantee of operational safety. Geometric sunlight and Earth line of sight are not power or radio-link budgets.'
+export const DISCLAIMER = 'This report summarizes the Lunar Landing Site Navigator\'s modelled results for the selected plans and mission requirements, as computed at the time shown. It is a planning aid: it is not an official NASA mission approval, certification or guarantee of operational safety. Geometric sunlight and Earth line of sight are not power or radio-link budgets.'
 
 export function buildReportCard(s: ReportSnapshot): ReportCard {
   const x = s.export.scenarios
@@ -475,8 +475,8 @@ export function buildReportCard(s: ReportSnapshot): ReportCard {
       ...TOPICS.map((t) => ({ topic: t.topic, text: topicFinding(t.table === 'solar' ? performance.solar : performance.communication, t.row, t.phrase, labels) })),
       { topic: 'Requirements', text: [
         plans.filter((p) => p.status === 'PASS').length ? `${scen(plans.filter((p) => p.status === 'PASS').map((p) => p.label))} meet${plans.filter((p) => p.status === 'PASS').length === 1 ? 's' : ''} every requirement.` : 'No plan meets every requirement.',
-        ...plans.filter((p) => p.status === 'FAIL').map((p) => `Scenario ${p.label} fails ${list(x.find((e) => e.label === p.label)!.failed_requirements.map((f) => f.toLowerCase()))}.`),
-        ...plans.filter((p) => p.status === 'UNKNOWN').map((p) => `Scenario ${p.label} has requirements that cannot be decided (UNKNOWN).`),
+        ...plans.filter((p) => p.status === 'FAIL').map((p) => `Plan ${p.label} fails ${list(x.find((e) => e.label === p.label)!.failed_requirements.map((f) => f.toLowerCase()))}.`),
+        ...plans.filter((p) => p.status === 'UNKNOWN').map((p) => `Plan ${p.label} has requirements that cannot be decided (UNKNOWN).`),
       ].join(' ') },
     ],
     tradeoffs: [...new Set(s.decisions.flatMap((d) => d.tradeoffs))],

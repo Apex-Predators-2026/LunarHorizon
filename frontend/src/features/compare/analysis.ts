@@ -458,14 +458,14 @@ export function bestPool(entries: Entry[]): BestPool {
   const ok = okEntries(entries)
   const real = ok.filter((e) => e.result!.data_kind === 'real')
   const demo = ok.filter((e) => e.result!.data_kind !== 'real')
-  const names = (es: Entry[]) => es.map((e) => `Scenario ${e.scenario.label}`).join(', ')
+  const names = (es: Entry[]) => es.map((e) => `Plan ${e.scenario.label}`).join(', ')
   if (pendingOrFailed.length && ok.length)
     return none(`No “best” is marked while ${names(pendingOrFailed)} ${pendingOrFailed.length > 1 ? 'have' : 'has'} no result yet: a missing value could be the best.`)
   const excluded = noData.length ? ` ${names(noData)} ${noData.length > 1 ? 'have' : 'has'} no data for the chosen site and time and ${noData.length > 1 ? 'are' : 'is'} not compared.` : ''
   let pool: Entry[]
   let basis: BestPool['basis']
   if (real.length >= 2) [pool, basis] = [real, 'real']
-  else if (real.length === 1) return none(demo.length ? 'Only one scenario uses real data, so no “best” is marked: demonstration scenarios never compete with real ones.' : null)
+  else if (real.length === 1) return none(demo.length ? 'Only one plan uses real data, so no “best” is marked: demonstration plans never compete with real ones.' : null)
   else if (demo.length >= 2) [pool, basis] = [demo, 'illustrative']
   else return none(null)
   const dur = new Set(pool.map((e) => e.scenario.duration_days)).size > 1
@@ -473,7 +473,7 @@ export function bestPool(entries: Entry[]): BestPool {
   if (dur || req)
     return none(`The compared plans have ${[dur && 'different mission durations', req && 'different requirements'].filter(Boolean).join(' and ')}: their values are descriptive and no “best” is marked.`)
   const note = (basis === 'illustrative' ? 'Demonstration data only: a “best” here is illustrative, not a statement about the real Moon.'
-    : demo.length ? 'Demonstration scenarios are shown for illustration and do not compete with real-data ones.' : '') + excluded
+    : demo.length ? 'Demonstration plans are shown for illustration and do not compete with real-data ones.' : '') + excluded
   return { entries: pool, basis, note: note.trim() || null }
 }
 
@@ -1069,7 +1069,7 @@ export interface Summary {
   caveats: string[]
 }
 
-const lbl = (e: Entry) => `Scenario ${e.scenario.label}`
+const lbl = (e: Entry) => `Plan ${e.scenario.label}`
 
 function pick(list: Entry[], f: (e: Entry) => number | null | undefined, better: 'higher' | 'lower') {
   const vals = list.map((e) => ({ e, v: f(e) })).filter((x): x is { e: Entry; v: number } => x.v !== null && x.v !== undefined)
@@ -1100,17 +1100,17 @@ export function buildSummary(entries: Entry[]): Summary {
   if (unavailable.length) caveats.push(`${unavailable.map(lbl).join(', ')} ${unavailable.length > 1 ? 'have' : 'has'} no scientific data for the chosen site/dates and ${unavailable.length > 1 ? 'are' : 'is'} not included.`)
   // Only the other data kind is "demonstration": a real scenario with withheld statistics is not.
   const demoOut = okEntries(entries).filter((e) => !comparable.includes(e))
-  if (demoOut.length) caveats.push(`${demoOut.map(lbl).join(', ')} use demonstration data and are not compared with real-data scenarios.`)
+  if (demoOut.length) caveats.push(`${demoOut.map(lbl).join(', ')} use demonstration data and are not compared with real-data plans.`)
   // Comparable scenarios without complete statistics (withheld or unavailable): they are not dropped to make a winner.
   const incomplete = comparable.filter((e) => !list.includes(e))
-  if (incomplete.length) caveats.push(`${incomplete.map(lbl).join(', ')} ${incomplete.length > 1 ? 'have' : 'has'} withheld or unavailable Sun/Earth statistics (incomplete data), so no scenario is called best or worst on those measures.`)
-  if (comparable.length && comparable[0].result!.data_kind === 'demonstration') caveats.push('All compared scenarios use demonstration data: the statements below illustrate the tool, not the real Moon.')
+  if (incomplete.length) caveats.push(`${incomplete.map(lbl).join(', ')} ${incomplete.length > 1 ? 'have' : 'has'} withheld or unavailable Sun/Earth statistics (incomplete data), so no plan is called best or worst on those measures.`)
+  if (comparable.length && comparable[0].result!.data_kind === 'demonstration') caveats.push('All compared plans use demonstration data: the statements below illustrate the tool, not the real Moon.')
   caveats.push('Earth visibility is geometric line of sight; it does not guarantee a working radio link.')
   caveats.push(SCREENING_NOTE)
 
   const empty: Summary = { bests: [], highlights: [], overall: [], caveats }
   if (comparable.length < 2) {
-    if (comparable.length === 1) empty.overall.push('Add at least one more scenario with data to generate a comparison.')
+    if (comparable.length === 1) empty.overall.push('Add at least one more plan with data to generate a comparison.')
     if (pool.note) caveats.unshift(pool.note)
     return empty
   }
@@ -1127,7 +1127,7 @@ export function buildSummary(entries: Entry[]): Summary {
       return { entry: e, strengths: [], cautions: [], weaknesses, uncertain }
     })
     const groups = new Set(comparable.map((e) => e.ranking?.group).filter(Boolean))
-    if (groups.size > 1) caveats.push(`These scenarios fall into ${groups.size} separate ranking groups (different data basis, requirements or mission duration). Canonical ranks only compare scenarios inside the same group.`)
+    if (groups.size > 1) caveats.push(`These plans fall into ${groups.size} separate ranking groups (different data basis, requirements or mission duration). Canonical ranks only compare plans inside the same group.`)
     return { bests: [], highlights: noPool, overall: [], caveats }
   }
 
@@ -1212,9 +1212,9 @@ export function buildSummary(entries: Entry[]): Summary {
   const sameStart = cmp.length > 1 && new Set(cmp.map((e) => placement(e).landingMs)).size === 1 // evaluated landings
   if (sameSite && !sameStart) {
     const el = pick(cmp, (e) => e.result!.solar!.mean_elevation_deg, 'higher')!
-    overall.push(`All scenarios use the same site, so the differences come from where the Sun and Earth are on those dates, not from the terrain: mean solar elevation ranges from ${el.worst.v.toFixed(2)}° (${lbl(el.worst.e)}) to ${el.best.v.toFixed(2)}° (${lbl(el.best.e)}).`)
+    overall.push(`All plans use the same site, so the differences come from where the Sun and Earth are on those dates, not from the terrain: mean solar elevation ranges from ${el.worst.v.toFixed(2)}° (${lbl(el.worst.e)}) to ${el.best.v.toFixed(2)}° (${lbl(el.best.e)}).`)
   } else if (sameStart && !sameSite) {
-    overall.push('All scenarios share the same landing time, so the Sun and Earth sit in almost the same part of the sky for each; the differences come mainly from each site’s local terrain horizon.')
+    overall.push('All plans share the same landing time, so the Sun and Earth sit in almost the same part of the sky for each; the differences come mainly from each site’s local terrain horizon.')
   }
   const clear = pick(cmp, (e) => e.result!.solar!.mean_clearance_lit_deg, 'higher')
   if (clear && clear.best.v - clear.worst.v > 0.5) {
@@ -1226,7 +1226,7 @@ export function buildSummary(entries: Entry[]): Summary {
   if (assessed.length) {
     const limitedPassing = passing.filter((e) => isLimitedHeadroom(headroomOfEntry(e)))
     const comfortablePassing = passing.filter((e) => !isLimitedHeadroom(headroomOfEntry(e)))
-    if (passing.length === 0 && unknown.length === 0) overall.push('No compared scenario passes every mission requirement, so none is ranked as a recommendation; see each scenario’s failed requirements below.')
+    if (passing.length === 0 && unknown.length === 0) overall.push('No compared plan passes every mission requirement, so none is ranked as a recommendation; see each plan’s failed requirements below.')
     else if (passing.length && (passing.length < assessed.length || limitedPassing.length > 0)) {
       if (limitedPassing.length === 0) {
         overall.push(`${passing.map(lbl).join(', ')} ${passing.length > 1 ? 'pass' : 'passes'} every requirement according to the canonical viability engine.`)
@@ -1243,6 +1243,6 @@ export function buildSummary(entries: Entry[]): Summary {
     if (unknown.length) overall.push(`${unknown.map(lbl).join(', ')} cannot be decided from the available data (UNKNOWN): neither passing nor failing, and not ranked.`)
   }
   const groupIds = new Set(list.map((e) => e.ranking?.group).filter(Boolean))
-  if (groupIds.size > 1) caveats.push(`These scenarios fall into ${groupIds.size} separate ranking groups (different data basis, requirements or mission duration). Canonical ranks only compare scenarios inside the same group.`)
+  if (groupIds.size > 1) caveats.push(`These plans fall into ${groupIds.size} separate ranking groups (different data basis, requirements or mission duration). Canonical ranks only compare plans inside the same group.`)
   return { bests, highlights, overall, caveats }
 }

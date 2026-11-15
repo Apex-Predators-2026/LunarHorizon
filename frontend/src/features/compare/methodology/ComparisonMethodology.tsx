@@ -43,7 +43,7 @@ function Card({ title, children, className = '' }: { title: string; children: Re
 
 const BackButton = ({ className = '' }: { className?: string }) => (
   <button type="button" className={`cmp-btn ${className}`} onClick={backToComparison}>
-    <span aria-hidden="true">←</span> Back to Scenario Comparison
+    <span aria-hidden="true">←</span> Back to Plan Comparison
   </button>
 )
 
@@ -102,7 +102,7 @@ const ASSUMPTIONS = [
 ]
 
 const STACK = [
-  { lane: 'In the browser', items: ['React 19 + TypeScript (Vite)', 'Zustand stores: scenarios, results, ranking', 'Recharts and SVG charts', 'Mission Report: @react-pdf/renderer, loaded on demand'] },
+  { lane: 'In the browser', items: ['React 19 + TypeScript (Vite)', 'Zustand stores: plans, results, ranking', 'Recharts and SVG charts', 'Mission Report: @react-pdf/renderer, loaded on demand'] },
   { lane: 'API (FastAPI)', items: ['POST /api/compare: evaluates each plan', 'GET /api/sites: curated sites and data range', '/api/assistant: proxy to the AI provider; the key never leaves the server'] },
   { lane: 'Engine (Python)', items: ['Horizon: numpy + rasterio over LOLA GeoTIFFs', 'Ephemeris: astroquery → JPL Horizons, precomputed hourly', 'Viability: metrics, constraints, scoring, ranking (Pydantic models)'] },
   { lane: 'Checks', items: ['2,100+ backend tests incl. a validation suite', 'Frontend tests for the comparison rules', 'Cross-checks against LROC and published results'] },
@@ -180,14 +180,14 @@ export function ComparisonMethodology() {
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center justify-between gap-3">
           <BackButton />
           <ol className="flex items-center gap-1.5 text-xs text-ink-4">
-            <li><a href={routeHash('compare')} onClick={(e) => { e.preventDefault(); backToComparison() }} className="hover:text-ink">Scenario Comparison</a></li>
+            <li><a href={routeHash('compare')} onClick={(e) => { e.preventDefault(); backToComparison() }} className="hover:text-ink">Plan Comparison</a></li>
             <li aria-hidden="true">/</li>
             <li aria-current="page" className="text-ink-2">Methodology</li>
           </ol>
         </nav>
 
         <header className="cmp-method-hero mt-5">
-          <p className="cmp-kicker">Scenario Comparison · Methodology</p>
+          <p className="cmp-kicker">Plan Comparison · Methodology</p>
           <h1 className="mt-1 text-2xl font-medium leading-tight text-ink sm:text-3xl">How This Analysis Was Built</h1>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-3 sm:text-base">
             Every comparison starts from NASA data: where the Sun and Earth are in the sky, from JPL Horizons, and what

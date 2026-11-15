@@ -34,7 +34,7 @@ function Bars({ h, entries }: { h: Headline; entries: Entry[] }) {
               <span className={r.value === null ? 'text-ink-4' : ''}>{r.text}</span>
               {r.best && (
                 <span className="text-[11px] font-medium text-emerald-300" data-testid="glance-best"
-                  title={r.illustrative ? 'Best among demonstration results only: illustrative, not about the real Moon' : 'A meaningful, proven lead on this quantity among comparable real-data scenarios. Descriptive, not a recommendation.'}>
+                  title={r.illustrative ? 'Best among demonstration results only: illustrative, not about the real Moon' : 'A meaningful, proven lead on this quantity among comparable real-data plans. Descriptive, not a recommendation.'}>
                   {r.illustrative ? 'best (illustrative)' : 'best'}
                 </span>
               )}
@@ -64,16 +64,16 @@ export function AtAGlance({ entries, groups, pairs, ready, onJump }: {
           <div className="min-w-0 max-w-3xl">
             <div className="text-[11px] font-medium uppercase tracking-wide text-ink-3">Verdict under the selected requirements</div>
             <p className="mt-1 text-base leading-snug text-ink">
-              {!anyData ? 'Results appear once the selected scenarios have been assessed.'
+              {!anyData ? 'Results appear once the selected plans have been assessed.'
                 : !main ? 'Updating the canonical ranking…' : main.headline}
             </p>
           </div>
           <span className="flex flex-wrap items-center gap-2">
-            {anyData && main && <AskButton question="Explain this verdict: why did these scenarios get these results?" label="Ask why" />}
+            {anyData && main && <AskButton question="Explain this verdict: why did these plans get these results?" label="Ask why" />}
             <button type="button" className="cmp-btn" onClick={() => onJump('cmp-summary')}>Read the reasoning</button>
           </span>
         </div>
-        <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2" aria-label="Status of each scenario">
+        <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2" aria-label="Status of each plan">
           {entries.map((e) => {
             const el = eligibilityOf(e)
             const rank = rankText(e.ranking, groupCount)

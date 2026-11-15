@@ -101,13 +101,13 @@ export function ReportDocument({ s }: { s: ReportSnapshot }) {
           {s.mission.objective ?? `Decide between ${labels.length} landing plan${labels.length === 1 ? '' : 's'} under their declared requirements, using the canonical viability engine on real ephemeris and terrain data.`}
         </p>
         {s.mission.change.length > 0 && <p className="rpt-objective"><b>What changed. </b>{s.mission.change.join('; ').replace(/\.?$/, '.')}</p>}
-        <p className="rpt-meta">{labels.length} scenario{labels.length === 1 ? '' : 's'} evaluated · snapshot {s.snapshot_id}{s.mission.mission_id ? ` · mission definition ${s.mission.mission_id} v${s.mission.mission_version}` : ''}</p>
+        <p className="rpt-meta">{labels.length} plan{labels.length === 1 ? '' : 's'} evaluated · snapshot {s.snapshot_id}{s.mission.mission_id ? ` · mission definition ${s.mission.mission_id} v${s.mission.mission_version}` : ''}</p>
 
         <h2>Decision</h2>
         {s.decisions.length === 0 && <p className="rpt-box">No plan has a canonical assessment, so none can be judged and nothing is recommended.</p>}
         {s.decisions.map((d) => (
           <div key={d.id} className="rpt-box rpt-keep">
-            <p className="rpt-verdict">{d.label}{s.decisions.length > 1 ? ` · group ${d.id}${d.primary ? ' (main comparison)' : ''}` : ''}{d.recommended ? ` · Scenario ${d.recommended}` : ''}</p>
+            <p className="rpt-verdict">{d.label}{s.decisions.length > 1 ? ` · group ${d.id}${d.primary ? ' (main comparison)' : ''}` : ''}{d.recommended ? ` · Plan ${d.recommended}` : ''}</p>
             <p>{d.headline}</p>
             {d.evidence.slice(0, 2).map((e) => <p key={e} className="rpt-small">{e}</p>)}
             {d.separate_reason && <p className="rpt-small">Separate group: {d.separate_reason}. No preference is stated across groups.</p>}
@@ -168,10 +168,10 @@ export function ReportDocument({ s }: { s: ReportSnapshot }) {
 
       {/* ---------------- supporting pages ---------------- */}
       <section className="rpt-page rpt-break">
-        <h2>Scenario configuration and results</h2>
+        <h2>Plan configuration and results</h2>
         {x.scenarios.map((sc) => (
           <div key={sc.label} className="rpt-scenario">
-            <h3>Scenario {sc.label}{sc.role ? ` · ${sc.role}` : ''}: <span className="rpt-wrap">{sc.name}</span></h3>
+            <h3>Plan {sc.label}{sc.role ? ` · ${sc.role}` : ''}: <span className="rpt-wrap">{sc.name}</span></h3>
             <table className="rpt-table rpt-kv">
               <tbody>
                 <tr><th>Site</th><td className="rpt-wrap">{sc.site.name} ({sc.site.id}) · {Math.abs(sc.site.lat).toFixed(5)}° {sc.site.lat < 0 ? 'S' : 'N'}, {sc.site.lon.toFixed(5)}° E{sc.coordinate_source ? <><br /><span className="rpt-small">Coordinates: {sc.coordinate_source}</span></> : null}</td></tr>
@@ -209,7 +209,7 @@ export function ReportDocument({ s }: { s: ReportSnapshot }) {
 
       <section className="rpt-page rpt-break">
         <h2>Changes against the baseline</h2>
-        {s.baseline ? <p className="rpt-small">Baseline: Scenario {s.baseline}. Hours in h, shares of the mission in percentage points (pp). Exact values only; bounds are not differenced.</p> : <p className="rpt-small">No baseline was set, so no changes are listed.</p>}
+        {s.baseline ? <p className="rpt-small">Baseline: Plan {s.baseline}. Hours in h, shares of the mission in percentage points (pp). Exact values only; bounds are not differenced.</p> : <p className="rpt-small">No baseline was set, so no changes are listed.</p>}
         <table className="rpt-table">
           <thead><tr><th>Measure</th>{Object.keys(s.decisive[0]?.cells ?? {}).map((l) => <th key={l}>{l}{l === s.baseline ? ' (baseline)' : ''}</th>)}</tr></thead>
           <tbody>
@@ -337,7 +337,7 @@ export function ReportPreview() {
       <div className="report-toolbar">
         <div className="report-toolbar-text">
           <h2 id="rpt-dialog-title" ref={headRef} tabIndex={-1}>Mission Report preview</h2>
-          <p>Scenarios {snapshot.selection.labels.join(', ')} as evaluated at {utc(snapshot.generated_at)} · snapshot {snapshot.snapshot_id}</p>
+          <p>Plans {snapshot.selection.labels.join(', ')} as evaluated at {utc(snapshot.generated_at)} · snapshot {snapshot.snapshot_id}</p>
         </div>
         <div className="report-toolbar-actions">
           <SnapshotPdfButton snapshot={snapshot} />
@@ -370,7 +370,7 @@ export function LastReportButton({ className = 'cmp-btn' }: { className?: string
   if (!snap) return null
   return (
     <button type="button" className={className} onClick={reopen} data-testid="reopen-report"
-      title={`Reopen the report for Scenarios ${snap.selection.labels.join(', ')} generated ${utc(snap.generated_at)}`}>
+      title={`Reopen the report for Plans ${snap.selection.labels.join(', ')} generated ${utc(snap.generated_at)}`}>
       Reopen last report
     </button>
   )

@@ -52,7 +52,7 @@ export function Section({ id, title, actions, children, className = '' }: {
 export function ScenarioChip({ s, size = 'md' }: { s: Pick<ComparisonScenario, 'label' | 'colorSlot'>; size?: 'sm' | 'md' }) {
   const c = seriesColor(s.colorSlot)
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5" aria-label={`Scenario ${s.label}`}>
+    <span className="inline-flex shrink-0 items-center gap-1.5" aria-label={`Plan ${s.label}`}>
       <svg width={size === 'sm' ? 14 : 18} height="8" aria-hidden="true">
         <line x1="1" y1="4" x2={size === 'sm' ? 13 : 17} y2="4" stroke={c} strokeWidth="2.5" strokeDasharray={seriesDash(s.colorSlot)} strokeLinecap="round" />
       </svg>
@@ -140,7 +140,7 @@ export function ReqIcon({ status }: { status: keyof typeof REQ_ICON }) {
 /** Canonical rank badge, scoped to its comparable group. Only rendered for ranked (PASS) scenarios. */
 export function RankBadge({ text }: { text: string }) {
   return (
-    <span title="Canonical rank from the viability engine, among comparable passing scenarios"
+    <span title="Canonical rank from the viability engine, among comparable passing plans"
       className="inline-flex items-center rounded-md bg-sky-950 px-2 py-0.5 text-xs font-medium tabular-nums text-sky-200 ring-1 ring-sky-800">
       {text.startsWith('#') ? `Rank ${text}` : text}
     </span>
