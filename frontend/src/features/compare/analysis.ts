@@ -1030,8 +1030,10 @@ const h = (v: number) => (v >= 72 ? `${Math.round(v)} h (${(v / 24).toFixed(1)} 
 const p = (v: number) => `${(v * 100).toFixed(1)}%`
 
 export function buildSummary(entries: Entry[]): Summary {
-  // A scenario is summarised only when both bodies' statistics exist and the engine's longest-gap values are known.
-  const list = comparableEntries(entries).filter((e) => e.result!.solar && e.result!.earth &&
+  // Scenarios of one data kind (real, else demonstration); never mixed.
+  const comparable = comparableEntries(entries)
+  // Narrative numbers need both bodies' statistics and the engine's longest-gap values.
+  const list = comparable.filter((e) => e.result!.solar && e.result!.earth &&
     e.result!.solar.longest_dark_hours != null && e.result!.earth.longest_blackout_hours != null)
   const pool = bestPool(entries)
   const caveats: string[] = []
@@ -1040,29 +1042,35 @@ export function buildSummary(entries: Entry[]): Summary {
   const blackOf = (r: CompareResult): number => r.earth!.longest_blackout_hours as number
   const unavailable = entries.filter((e) => e.state?.state === 'done' && !e.result)
   if (unavailable.length) caveats.push(`${unavailable.map(lbl).join(', ')} ${unavailable.length > 1 ? 'have' : 'has'} no scientific data for the chosen site/dates and ${unavailable.length > 1 ? 'are' : 'is'} not included.`)
-  const demoOut = okEntries(entries).filter((e) => !list.includes(e))
+  // Only the other data kind is "demonstration": a real scenario with withheld statistics is not.
+  const demoOut = okEntries(entries).filter((e) => !comparable.includes(e))
   if (demoOut.length) caveats.push(`${demoOut.map(lbl).join(', ')} use demonstration data and are not compared with real-data scenarios.`)
-  if (list.length && list[0].result!.data_kind === 'demonstration') caveats.push('All compared scenarios use demonstration data: the statements below illustrate the tool, not the real Moon.')
+  // Comparable scenarios without complete statistics (withheld or unavailable): they are not dropped to make a winner.
+  const incomplete = comparable.filter((e) => !list.includes(e))
+  if (incomplete.length) caveats.push(`${incomplete.map(lbl).join(', ')} ${incomplete.length > 1 ? 'have' : 'has'} withheld or unavailable Sun/Earth statistics (incomplete data), so no scenario is called best or worst on those measures.`)
+  if (comparable.length && comparable[0].result!.data_kind === 'demonstration') caveats.push('All compared scenarios use demonstration data: the statements below illustrate the tool, not the real Moon.')
   caveats.push('Earth visibility is geometric line of sight; it does not guarantee a working radio link.')
   caveats.push(SCREENING_NOTE)
 
   const empty: Summary = { bests: [], highlights: [], overall: [], caveats }
-  if (list.length < 2) {
-    if (list.length === 1) empty.overall.push('Add at least one more scenario with data to generate a comparison.')
+  if (comparable.length < 2) {
+    if (comparable.length === 1) empty.overall.push('Add at least one more scenario with data to generate a comparison.')
     if (pool.note) caveats.unshift(pool.note)
     return empty
   }
-  // "Best" statements compare only the fair pool (bestPool); with no fair pool none are made.
-  const cmp = pool.entries.filter((e) => list.includes(e))
+  // "Best" statements compare only the fair pool (bestPool), and only when every member of it has the statistics:
+  // a member with withheld statistics could be the best (or the worst), so then none are made.
+  const poolIncomplete = pool.entries.some((e) => !list.includes(e))
+  const cmp = poolIncomplete ? [] : pool.entries
   if (pool.note && (pool.basis === 'none' || cmp.length < 2)) caveats.unshift(pool.note)
   if (cmp.length < 2) {
     // No fair pool: no comparative claims, but each scenario's own violations and the ranking-group caveat stay.
-    const noPool = list.map((e) => {
+    const noPool = comparable.map((e) => {
       const weaknesses: string[] = [], uncertain: string[] = []
       for (const v of e.result!.viability?.violations ?? []) (v.is_unknown ? uncertain : weaknesses).push(v.message)
       return { entry: e, strengths: [], cautions: [], weaknesses, uncertain }
     })
-    const groups = new Set(list.map((e) => e.ranking?.group).filter(Boolean))
+    const groups = new Set(comparable.map((e) => e.ranking?.group).filter(Boolean))
     if (groups.size > 1) caveats.push(`These scenarios fall into ${groups.size} separate ranking groups (different data basis, requirements or mission duration). Canonical ranks only compare scenarios inside the same group.`)
     return { bests: [], highlights: noPool, overall: [], caveats }
   }
