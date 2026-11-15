@@ -11,9 +11,11 @@ type Mode = 'elevation' | 'clearance'
 
 // Stable accessor functions so the memoised charts only recompute when data or view change.
 const sunEl = (tl: TimelineColumns, i: number) => tl.sun_elevation_deg[i]
-const sunClear = (tl: TimelineColumns, i: number) => tl.sun_elevation_deg[i] - tl.sun_horizon_deg[i]
+// null (unknown) stays null so the chart shows a gap instead of a made-up value.
+const sub = (a: number | null, b: number | null) => (a === null || b === null ? null : a - b)
+const sunClear = (tl: TimelineColumns, i: number) => sub(tl.sun_elevation_deg[i], tl.sun_horizon_deg[i])
 const earthEl = (tl: TimelineColumns, i: number) => tl.earth_elevation_deg[i]
-const earthClear = (tl: TimelineColumns, i: number) => tl.earth_elevation_deg[i] - tl.earth_horizon_deg[i]
+const earthClear = (tl: TimelineColumns, i: number) => sub(tl.earth_elevation_deg[i], tl.earth_horizon_deg[i])
 const incidence = (tl: TimelineColumns, i: number) => tl.incidence_factor[i]
 const deg = (v: number) => `${v.toFixed(2)}°`
 

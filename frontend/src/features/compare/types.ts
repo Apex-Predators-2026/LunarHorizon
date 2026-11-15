@@ -118,19 +118,60 @@ export interface ScienceContext {
   source: string
 }
 
+/** Decimated mission timeline. `null` = unknown at that sample (terrain or ephemeris gap), never a measurement. */
 export interface TimelineColumns {
   step_hours: number
   hour: number[]
   time_utc: string[]
-  sun_elevation_deg: number[]
-  sun_azimuth_deg: number[]
-  sun_horizon_deg: number[]
-  sun_visible_fraction: number[]
-  earth_elevation_deg: number[]
-  earth_azimuth_deg: number[]
-  earth_horizon_deg: number[]
-  earth_visible: boolean[]
-  incidence_factor: number[]
+  sun_elevation_deg: (number | null)[]
+  sun_azimuth_deg: (number | null)[]
+  sun_horizon_deg: (number | null)[]
+  sun_visible_fraction: (number | null)[]
+  earth_elevation_deg: (number | null)[]
+  earth_azimuth_deg: (number | null)[]
+  earth_horizon_deg: (number | null)[]
+  earth_visible: (boolean | null)[]
+  incidence_factor: (number | null)[]
+}
+
+/** A metric exactly as the viability engine reports it (display units: h, %, fraction, deg). */
+export interface CanonicalMetric {
+  status: 'known' | 'bounded' | 'unavailable' | 'not_applicable'
+  unit: string
+  value: number | null // known only
+  lower: number | null // bounded only
+  upper: number | null
+  reason: string | null
+}
+
+export interface ConstraintItem {
+  id: string
+  name: string | null
+  status: 'pass' | 'fail' | 'unknown' | 'not_applicable'
+  comparison: 'at_least' | 'at_most' | null
+  threshold: number | null
+  measured: CanonicalMetric
+  message: string
+  requirement_field: string | null
+  unknown_reason: string | null
+}
+
+/** Canonical evidence beyond pass/fail and score: metric states, constraints, risk, coverage, versions. */
+export interface AssessmentInfo {
+  engine_version: string
+  scoring_method_version: string
+  dataset_id: string
+  data_basis: string
+  is_synthetic: boolean
+  overall_risk: string
+  risks: { code: string; level: string; message: string }[]
+  sun_coverage_percent: number
+  earth_coverage_percent: number
+  uncovered_hours: number
+  metrics: Record<string, CanonicalMetric>
+  constraints: ConstraintItem[]
+  explanations: string[]
+  limitations: string[]
 }
 
 /**
@@ -140,6 +181,7 @@ export interface TimelineColumns {
  */
 export interface RankingInfo {
   eligibility: Eligibility
+  assessed: boolean // false = never assessed by the engine (e.g. no data); eligibility is then UNKNOWN
   rank: number | null
   group: string | null
   group_size: number
@@ -174,7 +216,8 @@ export interface CompareResult {
   site_context: SiteContext | null
   science_context: ScienceContext | null
   viability: ViabilityResult | null
-  ranking: RankingInfo | null // null = no canonical assessment (e.g. no data)
+  ranking: RankingInfo | null // UNKNOWN with assessed=false when the engine never assessed it (e.g. no data)
+  assessment: AssessmentInfo | null
   solar: SolarStats | null
   earth: EarthStats | null
   power: PowerStats | null

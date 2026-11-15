@@ -20,7 +20,11 @@ import {
   METRIC_BY_ID,
   outageIndex,
   canonicalRanking,
+  cm,
   eligibilityOf,
+  inexactText,
+  knownValue,
+  marginOf,
   rankText,
   scoreText,
   type Entry,
@@ -28,10 +32,10 @@ import {
 import fixture from './__fixtures__/compare-response.json'
 import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
-import { MissionPerformance } from './PerformancePanels'
+import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
 import { duplicateShifted, makeScenario, nextLabel, resultKey, toTeamScenario, validateScenario } from './scenario'
 import { SummaryPanel } from './SummaryPanel'
-import type { CompareResponse, CompareResult, ComparisonScenario, RankingInfo } from './types'
+import type { CanonicalMetric, CompareResponse, CompareResult, ComparisonScenario, RankingInfo } from './types'
 import { sendToComparison, useCompareStore } from './useCompareStore'
 
 const res = fixture as unknown as CompareResponse
@@ -56,7 +60,7 @@ function entries(keys: (keyof typeof SITES)[] = ['A', 'B', 'C']): Entry[] {
     labels.push(s.label)
     const r = byKey[k]
     const result = r.status === 'ok' ? r : null
-    return { scenario: s, state: { state: 'done', result: r }, result, offsetHours: 0, ranking: result?.ranking ?? null }
+    return { scenario: s, state: { state: 'done', result: r }, result, offsetHours: 0, ranking: r.ranking ?? null }
   })
 }
 
@@ -136,7 +140,7 @@ describe('analysis on real data', () => {
     expect(g1.failed.map((x) => x.scenario.label)).toEqual(['A'])
     expect(unassessed.map((x) => x.scenario.label)).toEqual(['D'])
     // Every rank shown equals the backend's, and only PASS has one.
-    for (const x of e.filter((x) => x.ranking)) {
+    for (const x of e.filter((x) => x.result && x.ranking)) {
       expect(x.ranking!.rank !== null).toBe(x.ranking!.eligibility === 'pass')
       expect(x.ranking!.rank).toBe(byKey[x.result!.key].ranking!.rank)
     }
@@ -214,7 +218,7 @@ describe('analysis on real data', () => {
     const closest = [...e].sort((a, b) => a.result!.science_context!.distance_to_psr_edge_km - b.result!.science_context!.distance_to_psr_edge_km)[0]
     expect(sci[0].entry.scenario.id).toBe(closest.scenario.id)
     expect(power[0].raw.solar).toMatch(/% mean disk/)
-    for (const r of power) expect(r.weighted).toBeCloseTo(Object.values(r.contributions).reduce((a, b) => a + b, 0))
+    for (const r of power) expect(r.weighted).toBeCloseTo(Object.values(r.contributions).reduce<number>((a, b) => a + (b ?? 0), 0))
     expect(outageIndex(0, 50)).toBe(1)
     expect(outageIndex(50, 50)).toBe(0.5)
     expect(outageIndex(500, 50)).toBe(0)
@@ -398,5 +402,107 @@ describe('UNKNOWN in the ranking panel', () => {
     expect(html).toContain('Cannot be decided (UNKNOWN), not ranked')
     expect(html).toContain('not scored: eligibility unknown')
     expect(html).not.toMatch(/Fails a requirement, not ranked/)
+  })
+})
+
+// ---------------------------------------------------------------- Phase 3: canonical evidence
+
+/** Copy of an entry whose canonical metric `key` is replaced (e.g. by a bounded or unavailable one). */
+function withMetric(e: Entry, key: string, m: CanonicalMetric): Entry {
+  const a = e.result!.assessment!
+  const result = { ...e.result!, assessment: { ...a, metrics: { ...a.metrics, [key]: m } } }
+  return { ...e, result, state: { state: 'done', result } }
+}
+const BOUNDED_H: CanonicalMetric = { status: 'bounded', unit: 'h', value: null, lower: 40, upper: 60, reason: null }
+const UNAVAILABLE: CanonicalMetric = { status: 'unavailable', unit: 'h', value: null, lower: null, upper: null, reason: 'no data' }
+
+describe('canonical evidence (Phase 3)', () => {
+  it('every assessed result carries the engine metric states, risk, coverage and versions', () => {
+    for (const e of entries(['A', 'B', 'C', 'E'])) {
+      const a = e.result!.assessment!
+      expect(a.engine_version).toBeTruthy()
+      expect(a.dataset_id).toBeTruthy()
+      expect(['low', 'moderate', 'high', 'unknown']).toContain(a.overall_risk)
+      expect(a.metrics.longest_power_darkness_h.unit).toBe('h')
+      expect(a.constraints.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('margins come from canonical metrics: exact, a range, or unavailable, never a worst-case number', () => {
+    const [b] = entries(['B'])
+    const req = b.scenario.requirements
+    const dark = knownValue(cm(b.result, 'longest_power_darkness_h'))!
+    expect(METRIC_BY_ID.battery_margin.get(b.result!, b.scenario)).toBeCloseTo(req.battery_hours - dark)
+    expect(METRIC_BY_ID.battery_margin.text!(b.result!, b.scenario)).toBeNull() // exact: shown as a number
+
+    const bounded = withMetric(b, 'longest_power_darkness_h', BOUNDED_H)
+    expect(METRIC_BY_ID.battery_margin.get(bounded.result!, b.scenario)).toBeNull()
+    expect(METRIC_BY_ID.battery_margin.text!(bounded.result!, b.scenario)).toBe('between 40 h and 60 h') // 100 - [40, 60]
+
+    const missing = withMetric(b, 'longest_power_darkness_h', UNAVAILABLE)
+    expect(METRIC_BY_ID.battery_margin.get(missing.result!, b.scenario)).toBeNull()
+    expect(METRIC_BY_ID.battery_margin.text!(missing.result!, b.scenario)).toBe('unavailable')
+  })
+
+  it('marginOf keeps a real zero and orders a bounded range', () => {
+    const zero: CanonicalMetric = { status: 'known', unit: 'h', value: 0, lower: null, upper: null, reason: null }
+    expect(marginOf(zero, 50, -1).value).toBe(50)
+    expect(marginOf({ ...zero, value: 50 }, 50, -1).value).toBe(-0) // exactly at the limit
+    const r = marginOf(BOUNDED_H, 50, -1)
+    expect([r.lower, r.upper]).toEqual([-10, 10])
+    expect(inexactText(r, 'h')).toBe('between -10 h and 10 h')
+    expect(marginOf(null, 50, -1).status).toBe('missing')
+  })
+
+  it('a scenario with an inexact measurement is "incomplete" in the trade-off, never ranked or zero-filled', () => {
+    const [a, b, c] = entries(['A', 'B', 'C'])
+    const rows = computeTradeoff([a, withMetric(b, 'longest_blackout_h', BOUNDED_H), c], WEIGHT_PRESETS.balanced.weights, 15)
+    const inc = rows.find((r) => r.entry.scenario.id === b.scenario.id)!
+    expect(inc.weighted).toBeNull()
+    expect(inc.rank).toBeNull()
+    expect(inc.scores.safety).toBeNull()
+    expect(inc.missing.join(' ')).toMatch(/Operational safety/)
+    expect(rows.filter((r) => r.rank !== null).map((r) => r.rank)).toEqual([1, 2])
+    expect(rows[rows.length - 1]).toBe(inc) // listed after the complete rows
+    // With safety weighted 0 the bounded blackout is not needed, so the row is complete again.
+    const noSafety = computeTradeoff([withMetric(b, 'longest_blackout_h', BOUNDED_H)], { solar: 1, comms: 1, science: 1, safety: 0 }, 15)
+    expect(noSafety[0].weighted).not.toBeNull()
+  })
+
+  it('a scenario without data is UNKNOWN (not assessed), not failed and not ranked', () => {
+    const e = entries(['B', 'C', 'D'])
+    const d = e[2]
+    expect(d.result).toBeNull()
+    expect(d.ranking!.eligibility).toBe('unknown')
+    expect(d.ranking!.assessed).toBe(false)
+    expect(d.ranking!.rank).toBeNull()
+    expect(eligibilityOf(d)).toBe('unknown')
+    const { unassessed } = canonicalRanking(e, res.ranking_groups)
+    expect(unassessed).toContain(d)
+    const html = renderToString(<MissionPerformance entries={e} groups={res.ranking_groups} />)
+    expect(html).toContain('Not assessed')
+    expect(html).toContain('falls outside it')
+  })
+
+  it('outage charts draw only exact values and list bounded or unavailable ones', () => {
+    const [a, b, c] = entries(['A', 'B', 'C'])
+    const html = renderToString(<AvailabilityCharts entries={[a, withMetric(b, 'longest_power_darkness_h', BOUNDED_H), withMetric(c, 'longest_blackout_h', UNAVAILABLE)]} />)
+    expect(html).toContain('between 40 h and 60 h')
+    expect(html).toContain('Not plotted')
+    expect(html).toContain('unavailable')
+  })
+
+  it('unknown timeline samples read as unknown, not as darkness or blackout', () => {
+    const [b] = entries(['B'])
+    const tl = b.result!.timeline!
+    const nulls = { ...tl, sun_visible_fraction: tl.sun_visible_fraction.map(() => null), sun_horizon_deg: tl.sun_horizon_deg.map(() => null),
+      earth_visible: tl.earth_visible.map(() => null), earth_horizon_deg: tl.earth_horizon_deg.map(() => null) }
+    const unknown = { ...b, result: { ...b.result!, timeline: nulls } }
+    const c = conditionsAt(unknown, 10)!
+    expect(c.sunFraction).toBeNull()
+    expect(c.earthVisible).toBeNull()
+    expect(c.sunReason).toMatch(/^Unknown/)
+    expect(c.earthReason).toMatch(/^Unknown/)
+    expect(mergeSeries([unknown], (t, i) => t.sun_visible_fraction[i], [0, 24]).every((r) => r[b.scenario.id] === null)).toBe(true)
   })
 })
