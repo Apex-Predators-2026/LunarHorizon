@@ -26,6 +26,8 @@ import './compare.css'
 import { Empty, Explain, Icon, Section } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { useView } from './useTimeAxis'
+import { CompareTour } from './tour/CompareTour'
+import { TourButton, TourOffer } from './tour/TourButton'
 
 // Reading order: choose plans -> the answer -> the evidence -> when it happens -> ranking -> deeper analysis.
 const NAV = [
@@ -166,6 +168,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
             <p className="mt-2 text-base text-ink-3">Sunlight, Earth contact and outages for each landing plan, side by side, from the same JPL Horizons and LOLA data</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <TourButton />
             <SelectField label="Align timelines by" value={align} fieldClassName="w-60"
               tip="Line the scenarios up by time since landing, or by calendar date"
               onChange={(e) => setAlign(e.target.value as 'met' | 'utc')}>
@@ -197,6 +200,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
           </div>
         </nav>
 
+        <TourOffer />
         {hasDemo && (
           <div role="alert" className="mb-6 flex gap-3 rounded-xl bg-amber-950 p-4 text-sm text-amber-200">
             <Icon name="warning" className="mt-0.5" /><p><span className="font-medium">Demonstration data in use.</span> Scenarios tagged “Demonstration data” use a synthetic placeholder (approximate Sun/Earth motion, invented terrain). They are ranked separately and must not be used for planning.</p>
@@ -287,6 +291,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
           )}
         </div>
       </div>
+      <CompareTour />
     </div>
   )
 }
