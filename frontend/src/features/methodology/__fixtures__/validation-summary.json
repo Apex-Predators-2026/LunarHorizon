@@ -1,0 +1,132 @@
+{
+ "run": {
+  "run_utc": "2026-11-15T01:37:46Z",
+  "code_commit": "ca63223+changes",
+  "sites": 24,
+  "site_generator_versions": [
+   "1.2"
+  ],
+  "data_range": "2026-01-01 to 2031-01-01"
+ },
+ "ephemeris_agreement": {
+  "kind": "Software agreement (independent ephemeris)",
+  "date": "2026-11-15T01:37:46Z",
+  "sites": 24,
+  "scope": "24 sites, Sun and Earth, every 6 h over the site files' data range (2026-01-01 to 2031-01-01)",
+  "reference": "Skyfield + JPL DE421 + MOON_ME_DE421 frame (moon_080317.tf, moon_pa_de421_1900-2050.bpc)",
+  "max_separation_deg": 0.00072,
+  "max_rms_deg": 0.00041,
+  "verdict_checks": 350640,
+  "verdict_changes": 0,
+  "limitation": "Compares two computations (JPL Horizons DE441 vs Skyfield DE421), not observations. The differences are mostly the 0.001 deg rounding of the stored angles. Verdict changes count sampled visible/blocked verdicts that flip when the reference positions are run through our horizon."
+ },
+ "horizon_method": {
+  "kind": "Method agreement (independent geometry, same elevation data)",
+  "date": "2026-11-15T01:37:46Z",
+  "scope": "12 of 24 sites (those the south-polar map plane covers), 720 directions each",
+  "reference": "Straight lines in the polar map plane + central-angle formula (the engine's original method)",
+  "max_difference_deg": {
+   "min": 0.00094,
+   "max": 0.04573,
+   "site": "nobile-rim-1"
+  },
+  "per_site_max_deg": {
+   "connecting-ridge": 0.00562,
+   "peak-near-shackleton": 0.00177,
+   "malapert-massif": 0.02423,
+   "de-gerlache-rim": 0.00969,
+   "haworth-rim": 0.00611,
+   "nobile-rim-1": 0.04573,
+   "mons-mouton": 0.01443,
+   "faustini-rim-a": 0.00534,
+   "shackleton-floor": 0.00094,
+   "im-1-odysseus": 0.00575,
+   "im-2-athena": 0.00743,
+   "chandrayaan-3": 0.03014
+  },
+  "mirrored_max_deg": {
+   "min": 1.50973,
+   "max": 30.0769
+  },
+  "limitation": "Tests the geometry only: both methods read the same LOLA elevation data, so errors in the terrain data itself are not tested. The differences grow away from the pole, where the flat-map method's straight-line approximation is weakest."
+ },
+ "illumination_observed": {
+  "kind": "Comparison with observations (LROC orbital images)",
+  "date": "2026-11-15T01:37:46Z",
+  "scope": "4 of 24 sites inside the LROC map (88-90 S); model re-run for the map's period with the sensor at the surface",
+  "reference": "LROC WAC_POLE_ILL_TWI_SOUTH_100M (Speyerer & Robinson 2013), 2010-02-15..2011-02-05",
+  "site_pixel": {
+   "connecting-ridge": {
+    "model_any_sun_pct": 42.8,
+    "lroc_pct": 8.7,
+    "lroc_3x3_pct": [
+     7.9,
+     30.1
+    ]
+   },
+   "peak-near-shackleton": {
+    "model_any_sun_pct": 12.2,
+    "lroc_pct": 7.1,
+    "lroc_3x3_pct": [
+     7.1,
+     12.6
+    ]
+   },
+   "de-gerlache-rim": {
+    "model_any_sun_pct": 12.3,
+    "lroc_pct": 11.5,
+    "lroc_3x3_pct": [
+     10.9,
+     11.8
+    ]
+   },
+   "shackleton-floor": {
+    "model_any_sun_pct": 0.0,
+    "lroc_pct": 0.0,
+    "lroc_3x3_pct": [
+     0.0,
+     0.0
+    ]
+   }
+  },
+  "area": {
+   "connecting-ridge": {
+    "points": 121,
+    "grid": "11x11 at 400 m",
+    "pearson_r": 0.682,
+    "mean_bias_pct": -3.9,
+    "mean_abs_diff_pct": 5.9,
+    "lroc_mean_pct": 25.4
+   },
+   "peak-near-shackleton": {
+    "points": 121,
+    "grid": "11x11 at 400 m",
+    "pearson_r": 0.66,
+    "mean_bias_pct": -0.5,
+    "mean_abs_diff_pct": 5.1,
+    "lroc_mean_pct": 11.2
+   },
+   "de-gerlache-rim": {
+    "points": 121,
+    "grid": "11x11 at 400 m",
+    "pearson_r": 0.88,
+    "mean_bias_pct": 0.7,
+    "mean_abs_diff_pct": 1.9,
+    "lroc_mean_pct": 14.3
+   },
+   "shackleton-floor": {
+    "points": 121,
+    "grid": "11x11 at 400 m",
+    "pearson_r": null,
+    "mean_bias_pct": 0.0,
+    "mean_abs_diff_pct": 0.0,
+    "lroc_mean_pct": 0.0
+   }
+  },
+  "largest_point_difference": {
+   "site": "connecting-ridge",
+   "points_pct": 34.1
+  },
+  "limitation": "Yearly totals from 2010-11, not the mission dates; a 100 m camera pixel vs a point model. On sharp light/dark edges single points can differ by tens of percentage points; these are observed discrepancies, not a confidence interval."
+ }
+}
