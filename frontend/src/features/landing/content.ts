@@ -4,14 +4,15 @@
 export const REPO_URL = 'https://github.com/Apex-Predators-2026/Nasa-Space-Apps-Challenge'
 
 /** The hero headline, one entry per line: each line rises from behind its own mask on load. */
-const HEADLINE_LINES = ['Land in sunlight,', 'in sight of Earth']
+const HEADLINE_LINES = ['Finding the Right Place.', 'At the Right Time.']
 
 export const HERO = {
   headlineLines: HEADLINE_LINES,
   headline: HEADLINE_LINES.join(' '),
   lead:
-    'Lunar Landing Site Navigator checks Artemis III south-pole sites hour by hour from 2026 to 2031, using JPL Horizons ' +
-    'and NASA LOLA terrain, explains why each plan passes or fails, and re-plans when a launch slips.',
+    'Lunar Landing Site Navigator helps plan safer, smarter Artemis III landings at the lunar south pole. By analyzing ' +
+    'sunlight, Earth visibility, and lunar terrain across 2026–2031 using NASA data and JPL Horizons, it evaluates ' +
+    'landing opportunities hour by hour, explains mission constraints, and dynamically adapts plans when launch dates shift.',
 }
 
 export interface Beat {
