@@ -440,10 +440,10 @@ export function AtlasView() {
         </div>
 
         {result && (
-          <Disclosure className="mt-4" card level={2} title="How the Atlas works, and what it doesn't do yet" summary={`Engine ${result.engine_version}`}>
-            <div className="text-xs text-slate-300">
-              <p>{result.method}</p>
-              <p className="mt-1"><b>Not implemented yet:</b> automatic refinement around a boundary (finer sampling where the result changes), capability studies (e.g. the battery a failing date would need) and sensitivity checks per cell. Engine {result.engine_version}.</p>
+          <Disclosure className="mt-4" card level={2} title="How the Atlas works" summary={`Engine ${result.engine_version}`}>
+            <div className="space-y-1 text-xs text-slate-300">
+              <p>Each cell is one mission, judged by the viability engine on JPL Horizons + LOLA data. Only the dates and durations shown are tested; nothing is interpolated. Times are rounded to whole UTC hours.</p>
+              <p><b>Not yet:</b> finer sampling near boundaries, capability studies, per-cell sensitivity.</p>
             </div>
           </Disclosure>
         )}
