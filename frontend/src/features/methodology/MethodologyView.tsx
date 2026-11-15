@@ -265,9 +265,12 @@ export function MethodologyView() {
           <Section title="4. A mission you can reproduce">
             <div className="max-w-3xl text-sm text-ink-2">
               <p>
-                Connecting Ridge, landing 2027-02-08 00:00 UTC, 7 days, default requirements. As planned it passes (score 100).
+                Connecting Ridge, landing 2027-02-08 00:00 UTC, 7 days, with the default requirements written out in
+                backend/app/rescue/demo_scenario.json (battery darkness ≤ 50 h, Earth blackout ≤ 96 h, sunlight ≥ 50%, Earth in
+                view ≥ 40%). As planned it passes (score 100).
                 After a 5-day launch delay it fails: the longest power gap is 63 h against a 50 h battery limit. Mission Rescue
-                then finds passing alternatives; the top one lands at Malapert Massif on 2027-02-16 12:00 UTC (score 100).
+                then finds passing alternatives; the top one lands at Malapert Massif on 2027-02-16 12:00 UTC, 84 h after the
+                delayed date (score 100).
               </p>
               <p className="mt-2 text-ink-3">
                 Reproduce it: in the Mission Planner create that plan, press Run, set Launch delay to 5 days and press Find alternatives.
