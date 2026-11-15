@@ -67,8 +67,9 @@ function EvidenceRow({ w, siteId, missionStart, onShown, origin }: { w: WireWind
           className="ml-auto rounded-full border border-sky-700/60 px-2 py-0.5 text-[11px] text-sky-300 hover:bg-sky-900/30"
           title="Jump the 3D view to this moment, looking at the body concerned from the lander"
           onClick={() => {
-            // From the comparison page the 3D view opens itself and its way back leads to that section.
-            if (origin) openEvidence(ev)
+            // From the comparison page the 3D view opens itself and its way back leads to that section; elsewhere (a
+            // plan's dialog) the view is already on this page and the dialog closes (its Back button can reopen it).
+            if (origin?.kind === 'comparison') openEvidence(ev)
             else {
               showEvidence(ev)
               onShown?.()
@@ -169,10 +170,10 @@ function Provenance({ r }: { r: AssessResponse }) {
         </p>
       )}
       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-        <Field k="Ephemeris" v={p.ephemeris_source ?? '—'} />
-        <Field k="Terrain" v={p.terrain_source ?? '—'} />
+        <Field k="Ephemeris" v={p.ephemeris_source ?? '-'} />
+        <Field k="Terrain" v={p.terrain_source ?? '-'} />
         {p.horizon_azimuth_step_deg !== null && <Field k="Horizon mask" v={`every ${p.horizon_azimuth_step_deg}° of azimuth`} />}
-        <Field k="Frame" v={p.coordinate_frame ?? '—'} />
+        <Field k="Frame" v={p.coordinate_frame ?? '-'} />
         <Field k="Criteria" v={`Sun: ${ds.sun_criterion.replace(/_/g, ' ')} · Earth: ${ds.earth_criterion.replace(/_/g, ' ')} · ${ds.calculation_basis.replace(/_/g, ' ')}`} />
         {ds.observer_height_m !== null && <Field k="Observer" v={`${ds.observer_height_m} m above the ground`} />}
         <Field k="Dataset" v={ds.dataset_id} />
@@ -318,9 +319,13 @@ export function AssessmentPanel({ state, onShown, origin, part = 'all' }: {
   )
 }
 
-/** "Details" for a plan card: the full assessment in a dialog. */
-export function AssessmentDialog({ title, scenario, onClose }: { title: string; scenario: Scenario; onClose: () => void }) {
+/**
+ * "Details" for a plan card: the full assessment in a dialog. "Show in 3D" closes it and opens the evidence; when
+ * `onReopen` is given, the evidence banner's Back button brings this same dialog back (not the running plan's panel).
+ */
+export function AssessmentDialog({ title, scenario, onClose, onReopen }: { title: string; scenario: Scenario; onClose: () => void; onReopen?: () => void }) {
   const state = useAssessment(scenario)
+  const origin: EvidenceOrigin | undefined = onReopen ? { kind: 'assessment', label: `${title} assessment`, returnTo: onReopen } : undefined
   const [closing, setClosing] = useState(false)
   const close = () => setClosing(true)
   return createPortal(
@@ -348,7 +353,7 @@ export function AssessmentDialog({ title, scenario, onClose }: { title: string; 
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-          <AssessmentPanel state={state} onShown={close} />
+          <AssessmentPanel state={state} onShown={close} origin={origin} />
         </div>
       </div>
     </div>,

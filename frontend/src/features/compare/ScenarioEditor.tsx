@@ -58,7 +58,7 @@ export function ScenarioEditor({ s }: { s: ComparisonScenario }) {
             }}>
             {!sites.some((x) => x.id === s.site.id) && <option value={s.site.id}>{s.site.name} (imported)</option>}
             {sites.map((x) => (
-              <option key={x.id} value={x.id}>{x.name}{x.isControl ? ' — validation control' : ''}</option>
+              <option key={x.id} value={x.id}>{x.name}{x.isControl ? ' (validation control)' : ''}</option>
             ))}
           </select>
         </Field>
@@ -93,7 +93,7 @@ export function ScenarioEditor({ s }: { s: ComparisonScenario }) {
       </fieldset>
 
       <fieldset className="space-y-2">
-        <legend className="mb-1 text-xs font-medium text-slate-200">Spacecraft (example values — edit)</legend>
+        <legend className="mb-1 text-xs font-medium text-slate-200">Spacecraft (example values - edit)</legend>
         <Field label="Solar panel configuration">
           <select className={input} value={s.spacecraft.panel_mode} onChange={(e) => craft({ panel_mode: e.target.value as PanelMode })}>
             {Object.entries(PANEL_MODE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}

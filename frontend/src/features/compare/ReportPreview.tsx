@@ -7,13 +7,14 @@ import { createPortal } from 'react-dom'
 import { downloadText, type ExportedMetric, type ExportedMissionTime, type ExportedRequirement, type ExportedScenario } from './export'
 import { cannotGenerate, selectionKeyOf, useReportStore, type ReportSnapshot } from './report'
 import { useCompareStore } from './useCompareStore'
+import { MissionReportBody, SnapshotPdfButton } from './MissionReportBody'
 import './report.css'
 
 const TEAM = 'Team B.A.J.A.N · NASA Space Apps 2026'
 const PRODUCT = 'Lunar Landing Site Navigator'
 
 const utc = (iso: string | null | undefined) => {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? iso : `${d.toISOString().slice(0, 10)} ${d.toISOString().slice(11, 16)} UTC`
 }
@@ -51,7 +52,7 @@ function metricText(m: ExportedMetric): string {
 }
 
 function limitOf(r: ExportedRequirement): string {
-  if (r.threshold === null) return '—'
+  if (r.threshold === null) return '-'
   const u = r.measured.unit
   const v = u === 'fraction' ? `${(r.threshold * 100).toFixed(0)}%` : u === '%' ? `${r.threshold}%` : u === 'h' ? `${r.threshold} h` : `${r.threshold}`
   return `${r.comparison === 'at_most' ? '≤' : '≥'} ${v}`
@@ -59,7 +60,7 @@ function limitOf(r: ExportedRequirement): string {
 
 function marginOf(r: ExportedRequirement): string {
   const m = r.measured
-  if (r.threshold === null || m.status !== 'known' || m.value === null) return m.status === 'bounded' ? 'bounded' : '—'
+  if (r.threshold === null || m.status !== 'known' || m.value === null) return m.status === 'bounded' ? 'bounded' : '-'
   const k = m.unit === 'fraction' ? 100 : 1
   const d = (r.comparison === 'at_most' ? r.threshold - m.value : m.value - r.threshold) * k
   const unit = m.unit === 'h' ? ' h' : m.unit === 'fraction' || m.unit === '%' ? ' pp' : ''
@@ -123,7 +124,7 @@ export function ReportDocument({ s }: { s: ReportSnapshot }) {
                 <td className="rpt-wrap">{r.site}<span className="rpt-small"> · {windowText(r.mission_time)}</span></td>
                 <td className="rpt-nowrap"><b>{verdictText(r.verdict)}</b>{r.verdict === null && <><br /><span className="rpt-small">{r.status_text}</span></>}</td>
                 <td>{r.rank}</td>
-                <td className="rpt-wrap rpt-small">{r.key ?? '—'}</td>
+                <td className="rpt-wrap rpt-small">{r.key ?? '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -176,7 +177,7 @@ export function ReportDocument({ s }: { s: ReportSnapshot }) {
                 <tr><th>Requested</th><td>{utc(sc.mission_time.requested_landing_utc)} · {sc.mission_time.requested_duration_days} days (the request, as entered)</td></tr>
                 <tr><th>Evaluated</th><td>{sc.mission_time.evaluated_landing_utc ? `${utc(sc.mission_time.evaluated_landing_utc)} → ${utc(sc.mission_time.evaluated_end_utc)} (${Math.round((sc.mission_time.evaluated_duration_hours ?? 0) * 10) / 10} h, hourly evaluation grid)` : `not evaluated (${sc.mission_time.evaluation_status.replace(/_/g, ' ')}): no evaluated window exists, none is substituted from the request`}{sc.mission_time.time_note ? <><br /><span className="rpt-small">{sc.mission_time.time_note}</span></> : null}</td></tr>
                 <tr><th>Verdict</th><td><b>{verdictText(sc.eligibility)}</b>{sc.canonical_rank !== null ? ` · canonical rank ${sc.canonical_rank} in group ${sc.ranking_group}` : ''}{sc.recommended ? ' · recommended' : ''} · score {sc.score.status === 'known' && sc.score.exact !== null ? sc.score.exact.toFixed(1) : sc.score.status === 'bounded' ? `${sc.score.lower?.toFixed(1)} – ${sc.score.upper?.toFixed(1)} (bounds)` : `not scored${sc.score.status ? ` (${sc.score.status.replace(/_/g, ' ')})` : ''}`}{sc.overall_risk ? ` · screening risk ${sc.overall_risk}` : ''}</td></tr>
-                <tr><th>Data</th><td className="rpt-wrap">{sc.data.kind ?? 'not loaded'}{sc.data.kind === 'demonstration' ? ' (synthetic: illustrative only)' : ''} · {sc.data.source ?? '—'} · coverage Sun {sc.data.sun_coverage_percent?.toFixed(1) ?? '—'}% / Earth {sc.data.earth_coverage_percent?.toFixed(1) ?? '—'}%{sc.data.dataset_id ? <><br /><span className="rpt-small">Dataset {sc.data.dataset_id}{sc.data.dataset_file ? ` · file ${sc.data.dataset_file}` : ''}{sc.data.dataset_sha256 ? ` · SHA-256 ${sc.data.dataset_sha256}` : ' · SHA-256 unavailable'}</span></> : null}</td></tr>
+                <tr><th>Data</th><td className="rpt-wrap">{sc.data.kind ?? 'not loaded'}{sc.data.kind === 'demonstration' ? ' (synthetic: illustrative only)' : ''} · {sc.data.source ?? '-'} · coverage Sun {sc.data.sun_coverage_percent?.toFixed(1) ?? '-'}% / Earth {sc.data.earth_coverage_percent?.toFixed(1) ?? '-'}%{sc.data.dataset_id ? <><br /><span className="rpt-small">Dataset {sc.data.dataset_id}{sc.data.dataset_file ? ` · file ${sc.data.dataset_file}` : ''}{sc.data.dataset_sha256 ? ` · SHA-256 ${sc.data.dataset_sha256}` : ' · SHA-256 unavailable'}</span></> : null}</td></tr>
                 <tr><th>Spacecraft (example)</th><td>{sc.spacecraft.panel_mode.replace(/_/g, ' ')} panel · {sc.spacecraft.panel_rated_power_w} W rated · {sc.spacecraft.average_load_w} W load · {sc.spacecraft.battery_capacity_wh} Wh battery</td></tr>
                 {!s.same_requirements && <tr><th>Requirements</th><td>{requirementList(sc.requirements).join(' · ')}</td></tr>}
                 {sc.notes && <tr><th>Notes</th><td className="rpt-wrap">{sc.notes}</td></tr>}
@@ -223,7 +224,7 @@ export function ReportDocument({ s }: { s: ReportSnapshot }) {
         </table>
 
         <h2>Ranking method and comparability</h2>
-        <p className="rpt-small">Only plans that pass every requirement are ranked, and only against plans with the same requirements, mission duration and data basis (one comparable group). Ranking method {x.ranking_method ?? '—'}; scoring {x.reproduction.versions.scoring_method.join(', ') || '—'}.</p>
+        <p className="rpt-small">Only plans that pass every requirement are ranked, and only against plans with the same requirements, mission duration and data basis (one comparable group). Ranking method {x.ranking_method ?? '-'}; scoring {x.reproduction.versions.scoring_method.join(', ') || '-'}.</p>
         <table className="rpt-table">
           <thead><tr><th>Group</th><th>Members</th><th>Ranked (PASS, in order)</th><th>Note</th></tr></thead>
           <tbody>
@@ -239,7 +240,7 @@ export function ReportDocument({ s }: { s: ReportSnapshot }) {
             <h2>Pairwise evidence behind the order</h2>
             {s.decisions.map((d) => d.pairs.map((p) => (
               <div key={`${d.id}-${p.a}-${p.b}`} className="rpt-keep rpt-pair">
-                <p><b>{p.a} vs {p.b}</b> · deciding criterion: {p.deciding?.replace(/_/g, ' ') ?? '—'}{p.tie_break ? ' (policy tie-break, not a measured difference)' : ''} · score difference: {p.score_difference}</p>
+                <p><b>{p.a} vs {p.b}</b> · deciding criterion: {p.deciding?.replace(/_/g, ' ') ?? '-'}{p.tie_break ? ' (policy tie-break, not a measured difference)' : ''} · score difference: {p.score_difference}</p>
                 {p.components.length > 0 && <p className="rpt-small">Components: {p.components.map((c) => `${c.label} favours ${c.favours}`).join('; ')}.</p>}
                 <p className="rpt-small">{p.statement}</p>
               </div>
@@ -276,9 +277,9 @@ export function ReportDocument({ s }: { s: ReportSnapshot }) {
         <ul className="rpt-list">
           <li>NASA JPL Horizons System: apparent Sun and Earth azimuth / elevation from each site (CENTER=coord@301, DE441), precomputed hourly.</li>
           <li>NASA Moon Trek / LRO LOLA digital elevation models: terrain horizons in 720 directions with lunar curvature (5 m to 200 m resolution, out to 300 km).</li>
-          <li>NASA LROC Quickmap WAC_POLE_ILL_TWI_SOUTH: empirical illumination used to validate the sunlight model (see Validation &amp; methodology).</li>
-          <li>Validation reference: Gracy &amp; Lee, LPSC 2024 (south-polar illumination of Connecting Ridge and Peak Near Shackleton).</li>
-          {x.reproduction.datasets.map((d) => <li key={d.file ?? d.dataset_id ?? ''} className="rpt-wrap">Site file {d.file ? `data/sites/${d.file}` : d.dataset_id ?? '—'}{d.sha256 ? ` · SHA-256 ${d.sha256}` : ' · hash not reported by the backend'}</li>)}
+          <li>NASA LROC Quickmap WAC_POLE_ILL_TWI_SOUTH: orbital illumination map the sunlight model is compared with, site by site (agreement and its limits: Validation &amp; methodology).</li>
+          <li>Gracy &amp; Lee, LPSC 2024: source of the Connecting Ridge and Peak Near Shackleton coordinates. It locates those two sites; it is not a validation of this model.</li>
+          {x.reproduction.datasets.map((d) => <li key={d.file ?? d.dataset_id ?? ''} className="rpt-wrap">Site file {d.file ? `data/sites/${d.file}` : d.dataset_id ?? '-'}{d.sha256 ? ` · SHA-256 ${d.sha256}` : ' · hash not reported by the backend'}</li>)}
         </ul>
         <h2>Assumptions and limitations</h2>
         <ul className="rpt-list">
@@ -292,8 +293,8 @@ export function ReportDocument({ s }: { s: ReportSnapshot }) {
         <table className="rpt-table rpt-kv">
           <tbody>
             <tr><th>Rerun</th><td className="rpt-wrap">{x.reproduction.endpoint}; the inputs are in the JSON export of this report (reproduction.inputs).</td></tr>
-            <tr><th>Engine</th><td>{x.reproduction.versions.engine.join(', ') || '—'}</td></tr>
-            <tr><th>Scoring / ranking</th><td>{x.reproduction.versions.scoring_method.join(', ') || '—'} / {x.reproduction.versions.ranking_method ?? '—'}</td></tr>
+            <tr><th>Engine</th><td>{x.reproduction.versions.engine.join(', ') || '-'}</td></tr>
+            <tr><th>Scoring / ranking</th><td>{x.reproduction.versions.scoring_method.join(', ') || '-'} / {x.reproduction.versions.ranking_method ?? '-'}</td></tr>
             <tr><th>Mission time</th><td className="rpt-wrap rpt-small">{x.reproduction.time_policy ?? 'not reported'}</td></tr>
             <tr><th>Format</th><td>{s.report_format} · {x.reproduction.versions.export_format} · snapshot {s.snapshot_id}</td></tr>
           </tbody>
@@ -309,6 +310,7 @@ export function ReportPreview() {
   const blocker = useCompareStore((s) => cannotGenerate(s))
   const headRef = useRef<HTMLHeadingElement>(null)
   const opener = useRef<Element | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -331,11 +333,12 @@ export function ReportPreview() {
     <div className="report-portal" role="dialog" aria-modal="true" aria-labelledby="rpt-dialog-title" data-testid="report-preview" data-snapshot={snapshot.snapshot_id}>
       <div className="report-toolbar">
         <div className="report-toolbar-text">
-          <h2 id="rpt-dialog-title" ref={headRef} tabIndex={-1}>Summary report preview</h2>
+          <h2 id="rpt-dialog-title" ref={headRef} tabIndex={-1}>Mission Report preview</h2>
           <p>Scenarios {snapshot.selection.labels.join(', ')} as evaluated at {utc(snapshot.generated_at)} · snapshot {snapshot.snapshot_id}</p>
         </div>
         <div className="report-toolbar-actions">
-          <button type="button" className="report-btn report-btn-primary" onClick={() => window.print()}>Print / Save as PDF</button>
+          <SnapshotPdfButton snapshot={snapshot} />
+          <button type="button" className="report-btn" onClick={() => window.print()}>Print</button>
           <button type="button" className="report-btn" onClick={download}>Download JSON</button>
           <button type="button" className="report-btn" onClick={close} aria-label="Close the report preview">Close</button>
         </div>
@@ -349,8 +352,8 @@ export function ReportPreview() {
           </div>
         )}
       </div>
-      <div className="report-scroll">
-        <ReportDocument s={snapshot} />
+      <div className="report-scroll" ref={scrollRef}>
+        <MissionReportBody snapshot={snapshot} scrollRef={scrollRef} />
       </div>
     </div>,
     document.body,
