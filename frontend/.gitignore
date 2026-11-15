@@ -26,3 +26,4 @@ dist-ssr
 # demo tour screenshots and report (scripts/demo-tour.mjs)
 tour-output/
 smoke-output/
+e2e-output/

@@ -1,0 +1,1487 @@
+{
+ "status": "rescued",
+ "summary": "The changed plan fails: Longest comms blackout 118 h (allows at most 96 h). Best rescue: Land at Malapert Massif on 2027-10-14 00:00 UTC (142.9 km from the original site) \u2014 passes all requirements, score 100 (delayed plan: 62).",
+ "original": {
+  "scenario": {
+   "site": {
+    "id": "peak-near-shackleton",
+    "name": "Peak Near Shackleton",
+    "lat": -89.01701,
+    "lon": 126.27302
+   },
+   "landing_utc": "2027-10-10T00:00:00Z",
+   "duration_days": 14.0,
+   "requirements": {
+    "min_sunlight_fraction": 0.5,
+    "battery_hours": 50.0,
+    "panel_threshold": 0.25,
+    "min_earth_visibility_fraction": 0.4,
+    "max_comms_gap_hours": 96.0,
+    "min_initial_sun_hours": 24.0,
+    "min_initial_comms_hours": 12.0
+   }
+  },
+  "passes": true,
+  "eligibility": "pass",
+  "score": 88.201064,
+  "metrics": {
+   "sunlight_fraction": 0.882685431547619,
+   "equivalent_sun_hours": 296.582305,
+   "longest_dark_gap_hours": 3.0,
+   "earth_visibility_fraction": 0.9345238095238095,
+   "longest_comms_gap_hours": 22.0,
+   "initial_sun_hours": 218.0,
+   "initial_comms_hours": 314.0,
+   "hours_to_first_sunset": 218.0,
+   "hours_to_first_earthset": 314.0,
+   "mean_sun_clearance_deg": 0.8076160714285714,
+   "mean_earth_clearance_deg": 3.897184713375796,
+   "mean_solar_elevation_deg": 0.9382113095238095
+  },
+  "violations": [],
+  "source": "viability-engine/0.6.0-phase6",
+  "data_source": "precomputed:peak-near-shackleton.json",
+  "score_status": "known",
+  "score_bounds": {
+   "lower": 88.201064,
+   "upper": 88.201064
+  },
+  "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+ },
+ "changed": {
+  "scenario": {
+   "site": {
+    "id": "peak-near-shackleton",
+    "name": "Peak Near Shackleton",
+    "lat": -89.01701,
+    "lon": 126.27302
+   },
+   "landing_utc": "2027-10-14T00:00:00Z",
+   "duration_days": 14.0,
+   "requirements": {
+    "min_sunlight_fraction": 0.5,
+    "battery_hours": 50.0,
+    "panel_threshold": 0.25,
+    "min_earth_visibility_fraction": 0.4,
+    "max_comms_gap_hours": 96.0,
+    "min_initial_sun_hours": 24.0,
+    "min_initial_comms_hours": 12.0
+   }
+  },
+  "passes": false,
+  "eligibility": "fail",
+  "score": 61.787374,
+  "metrics": {
+   "sunlight_fraction": 0.882685431547619,
+   "equivalent_sun_hours": 296.582305,
+   "longest_dark_gap_hours": 3.0,
+   "earth_visibility_fraction": 0.6488095238095238,
+   "longest_comms_gap_hours": 118.0,
+   "initial_sun_hours": 122.0,
+   "initial_comms_hours": 218.0,
+   "hours_to_first_sunset": 122.0,
+   "hours_to_first_earthset": 218.0,
+   "mean_sun_clearance_deg": 1.1818214285714286,
+   "mean_earth_clearance_deg": 4.44955504587156,
+   "mean_solar_elevation_deg": 0.8754166666666666
+  },
+  "violations": [
+   {
+    "constraint": "max_comms_gap_hours",
+    "required": 96.0,
+    "actual": 118.0,
+    "unit": "h",
+    "shortfall": 22.0,
+    "relative_shortfall": 0.22916666666666666,
+    "message": "Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 118 h; required <= 96 h. Requirement violated.",
+    "is_unknown": false
+   }
+  ],
+  "source": "viability-engine/0.6.0-phase6",
+  "data_source": "precomputed:peak-near-shackleton.json",
+  "score_status": "known",
+  "score_bounds": {
+   "lower": 61.787374,
+   "upper": 61.787374
+  },
+  "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+ },
+ "alternatives": [
+  {
+   "rank": 1,
+   "kind": "site_change",
+   "is_catalog_site": true,
+   "scenario": {
+    "site": {
+     "id": "malapert-massif",
+     "name": "Malapert Massif",
+     "lat": -85.9635,
+     "lon": 357.6326
+    },
+    "landing_utc": "2027-10-14T00:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "malapert-massif",
+      "name": "Malapert Massif",
+      "lat": -85.9635,
+      "lon": 357.6326
+     },
+     "landing_utc": "2027-10-14T00:00:00Z",
+     "duration_days": 14.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": true,
+    "eligibility": "pass",
+    "score": 100.0,
+    "metrics": {
+     "sunlight_fraction": 1.0,
+     "equivalent_sun_hours": 336.0,
+     "longest_dark_gap_hours": 0.0,
+     "earth_visibility_fraction": 1.0,
+     "longest_comms_gap_hours": 0.0,
+     "initial_sun_hours": 336.0,
+     "initial_comms_hours": 336.0,
+     "hours_to_first_sunset": null,
+     "hours_to_first_earthset": null,
+     "mean_sun_clearance_deg": 4.837458333333333,
+     "mean_earth_clearance_deg": 9.086252976190476,
+     "mean_solar_elevation_deg": 2.520672619047619
+    },
+    "violations": [],
+    "source": "viability-engine/0.6.0-phase6",
+    "data_source": "precomputed:malapert-massif.json",
+    "score_status": "known",
+    "score_bounds": {
+     "lower": 100.0,
+     "upper": 100.0
+    },
+    "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+   },
+   "rank_score": 95.85,
+   "date_shift_hours": 0.0,
+   "distance_km": 142.919,
+   "improvements": [
+    {
+     "metric": "sunlight_fraction",
+     "label": "Average sunlight",
+     "unit": "fraction",
+     "before": 0.882685431547619,
+     "after": 1.0,
+     "delta": 0.11731456845238097,
+     "better": true
+    },
+    {
+     "metric": "longest_dark_gap_hours",
+     "label": "Longest power gap",
+     "unit": "h",
+     "before": 3.0,
+     "after": 0.0,
+     "delta": -3.0,
+     "better": true
+    },
+    {
+     "metric": "earth_visibility_fraction",
+     "label": "Earth visibility",
+     "unit": "fraction",
+     "before": 0.6488095238095238,
+     "after": 1.0,
+     "delta": 0.35119047619047616,
+     "better": true
+    },
+    {
+     "metric": "longest_comms_gap_hours",
+     "label": "Longest comms blackout",
+     "unit": "h",
+     "before": 118.0,
+     "after": 0.0,
+     "delta": -118.0,
+     "better": true
+    },
+    {
+     "metric": "initial_sun_hours",
+     "label": "Sunlight after landing",
+     "unit": "h",
+     "before": 122.0,
+     "after": 336.0,
+     "delta": 214.0,
+     "better": true
+    },
+    {
+     "metric": "initial_comms_hours",
+     "label": "Earth contact after landing",
+     "unit": "h",
+     "before": 218.0,
+     "after": 336.0,
+     "delta": 118.0,
+     "better": true
+    },
+    {
+     "metric": "score",
+     "label": "Viability score",
+     "unit": "points",
+     "before": 61.787374,
+     "after": 100.0,
+     "delta": 38.212626,
+     "better": true
+    }
+   ],
+   "robustness": {
+    "checked_points": 4,
+    "passing_points": 4,
+    "pass_rate": 1.0,
+    "worst_score": 100.0,
+    "verdict": "robust",
+    "note": "Still passes at the tested date slips of \u221224 h, \u221212 h, +12 h, +24 h. (Landing-position error not checked: no real data around the site.)"
+   },
+   "headline": "Land at Malapert Massif on 2027-10-14 00:00 UTC (142.9 km from the original site) \u2014 passes all requirements, score 100 (delayed plan: 62).",
+   "reasons": [
+    "Fixes: longest comms blackout.",
+    "Sunlight after landing: 122 h \u2192 336 h (+214 h)",
+    "Longest comms blackout: 118 h \u2192 0 h (\u2212118 h)",
+    "Earth contact after landing: 218 h \u2192 336 h (+118 h)",
+    "Sun stays up for the whole mission."
+   ]
+  },
+  {
+   "rank": 2,
+   "kind": "site_and_date",
+   "is_catalog_site": true,
+   "scenario": {
+    "site": {
+     "id": "malapert-massif",
+     "name": "Malapert Massif",
+     "lat": -85.9635,
+     "lon": 357.6326
+    },
+    "landing_utc": "2027-10-16T00:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "malapert-massif",
+      "name": "Malapert Massif",
+      "lat": -85.9635,
+      "lon": 357.6326
+     },
+     "landing_utc": "2027-10-16T00:00:00Z",
+     "duration_days": 14.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": true,
+    "eligibility": "pass",
+    "score": 100.0,
+    "metrics": {
+     "sunlight_fraction": 1.0,
+     "equivalent_sun_hours": 336.0,
+     "longest_dark_gap_hours": 0.0,
+     "earth_visibility_fraction": 1.0,
+     "longest_comms_gap_hours": 0.0,
+     "initial_sun_hours": 336.0,
+     "initial_comms_hours": 336.0,
+     "hours_to_first_sunset": null,
+     "hours_to_first_earthset": null,
+     "mean_sun_clearance_deg": 3.7834285714285714,
+     "mean_earth_clearance_deg": 7.342732142857143,
+     "mean_solar_elevation_deg": 1.3997708333333334
+    },
+    "violations": [],
+    "source": "viability-engine/0.6.0-phase6",
+    "data_source": "precomputed:malapert-massif.json",
+    "score_status": "known",
+    "score_bounds": {
+     "lower": 100.0,
+     "upper": 100.0
+    },
+    "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+   },
+   "rank_score": 94.85,
+   "date_shift_hours": 48.0,
+   "distance_km": 142.919,
+   "improvements": [
+    {
+     "metric": "sunlight_fraction",
+     "label": "Average sunlight",
+     "unit": "fraction",
+     "before": 0.882685431547619,
+     "after": 1.0,
+     "delta": 0.11731456845238097,
+     "better": true
+    },
+    {
+     "metric": "longest_dark_gap_hours",
+     "label": "Longest power gap",
+     "unit": "h",
+     "before": 3.0,
+     "after": 0.0,
+     "delta": -3.0,
+     "better": true
+    },
+    {
+     "metric": "earth_visibility_fraction",
+     "label": "Earth visibility",
+     "unit": "fraction",
+     "before": 0.6488095238095238,
+     "after": 1.0,
+     "delta": 0.35119047619047616,
+     "better": true
+    },
+    {
+     "metric": "longest_comms_gap_hours",
+     "label": "Longest comms blackout",
+     "unit": "h",
+     "before": 118.0,
+     "after": 0.0,
+     "delta": -118.0,
+     "better": true
+    },
+    {
+     "metric": "initial_sun_hours",
+     "label": "Sunlight after landing",
+     "unit": "h",
+     "before": 122.0,
+     "after": 336.0,
+     "delta": 214.0,
+     "better": true
+    },
+    {
+     "metric": "initial_comms_hours",
+     "label": "Earth contact after landing",
+     "unit": "h",
+     "before": 218.0,
+     "after": 336.0,
+     "delta": 118.0,
+     "better": true
+    },
+    {
+     "metric": "score",
+     "label": "Viability score",
+     "unit": "points",
+     "before": 61.787374,
+     "after": 100.0,
+     "delta": 38.212626,
+     "better": true
+    }
+   ],
+   "robustness": {
+    "checked_points": 4,
+    "passing_points": 4,
+    "pass_rate": 1.0,
+    "worst_score": 100.0,
+    "verdict": "robust",
+    "note": "Still passes at the tested date slips of \u221224 h, \u221212 h, +12 h, +24 h. (Landing-position error not checked: no real data around the site.)"
+   },
+   "headline": "Land at Malapert Massif on 2027-10-16 00:00 UTC (2.0 days later than the delayed date; 142.9 km from the original site) \u2014 passes all requirements, score 100 (delayed plan: 62).",
+   "reasons": [
+    "Fixes: longest comms blackout.",
+    "Sunlight after landing: 122 h \u2192 336 h (+214 h)",
+    "Longest comms blackout: 118 h \u2192 0 h (\u2212118 h)",
+    "Earth contact after landing: 218 h \u2192 336 h (+118 h)",
+    "Sun stays up for the whole mission."
+   ]
+  },
+  {
+   "rank": 3,
+   "kind": "site_and_date",
+   "is_catalog_site": true,
+   "scenario": {
+    "site": {
+     "id": "malapert-massif",
+     "name": "Malapert Massif",
+     "lat": -85.9635,
+     "lon": 357.6326
+    },
+    "landing_utc": "2027-10-18T00:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "malapert-massif",
+      "name": "Malapert Massif",
+      "lat": -85.9635,
+      "lon": 357.6326
+     },
+     "landing_utc": "2027-10-18T00:00:00Z",
+     "duration_days": 14.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": true,
+    "eligibility": "pass",
+    "score": 100.0,
+    "metrics": {
+     "sunlight_fraction": 1.0,
+     "equivalent_sun_hours": 336.0,
+     "longest_dark_gap_hours": 0.0,
+     "earth_visibility_fraction": 1.0,
+     "longest_comms_gap_hours": 0.0,
+     "initial_sun_hours": 336.0,
+     "initial_comms_hours": 336.0,
+     "hours_to_first_sunset": null,
+     "hours_to_first_earthset": null,
+     "mean_sun_clearance_deg": 2.860050595238095,
+     "mean_earth_clearance_deg": 5.560252976190476,
+     "mean_solar_elevation_deg": 0.2992619047619048
+    },
+    "violations": [],
+    "source": "viability-engine/0.6.0-phase6",
+    "data_source": "precomputed:malapert-massif.json",
+    "score_status": "known",
+    "score_bounds": {
+     "lower": 100.0,
+     "upper": 100.0
+    },
+    "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+   },
+   "rank_score": 93.78,
+   "date_shift_hours": 96.0,
+   "distance_km": 142.919,
+   "improvements": [
+    {
+     "metric": "sunlight_fraction",
+     "label": "Average sunlight",
+     "unit": "fraction",
+     "before": 0.882685431547619,
+     "after": 1.0,
+     "delta": 0.11731456845238097,
+     "better": true
+    },
+    {
+     "metric": "longest_dark_gap_hours",
+     "label": "Longest power gap",
+     "unit": "h",
+     "before": 3.0,
+     "after": 0.0,
+     "delta": -3.0,
+     "better": true
+    },
+    {
+     "metric": "earth_visibility_fraction",
+     "label": "Earth visibility",
+     "unit": "fraction",
+     "before": 0.6488095238095238,
+     "after": 1.0,
+     "delta": 0.35119047619047616,
+     "better": true
+    },
+    {
+     "metric": "longest_comms_gap_hours",
+     "label": "Longest comms blackout",
+     "unit": "h",
+     "before": 118.0,
+     "after": 0.0,
+     "delta": -118.0,
+     "better": true
+    },
+    {
+     "metric": "initial_sun_hours",
+     "label": "Sunlight after landing",
+     "unit": "h",
+     "before": 122.0,
+     "after": 336.0,
+     "delta": 214.0,
+     "better": true
+    },
+    {
+     "metric": "initial_comms_hours",
+     "label": "Earth contact after landing",
+     "unit": "h",
+     "before": 218.0,
+     "after": 336.0,
+     "delta": 118.0,
+     "better": true
+    },
+    {
+     "metric": "score",
+     "label": "Viability score",
+     "unit": "points",
+     "before": 61.787374,
+     "after": 100.0,
+     "delta": 38.212626,
+     "better": true
+    }
+   ],
+   "robustness": {
+    "checked_points": 4,
+    "passing_points": 4,
+    "pass_rate": 1.0,
+    "worst_score": 100.0,
+    "verdict": "robust",
+    "note": "Still passes at the tested date slips of \u221224 h, \u221212 h, +12 h, +24 h. (Landing-position error not checked: no real data around the site.)"
+   },
+   "headline": "Land at Malapert Massif on 2027-10-18 00:00 UTC (4.0 days later than the delayed date; 142.9 km from the original site) \u2014 passes all requirements, score 100 (delayed plan: 62).",
+   "reasons": [
+    "Fixes: longest comms blackout.",
+    "Sunlight after landing: 122 h \u2192 336 h (+214 h)",
+    "Longest comms blackout: 118 h \u2192 0 h (\u2212118 h)",
+    "Earth contact after landing: 218 h \u2192 336 h (+118 h)",
+    "Sun stays up for the whole mission."
+   ]
+  },
+  {
+   "rank": 4,
+   "kind": "site_and_date",
+   "is_catalog_site": true,
+   "scenario": {
+    "site": {
+     "id": "malapert-massif",
+     "name": "Malapert Massif",
+     "lat": -85.9635,
+     "lon": 357.6326
+    },
+    "landing_utc": "2027-10-20T00:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "malapert-massif",
+      "name": "Malapert Massif",
+      "lat": -85.9635,
+      "lon": 357.6326
+     },
+     "landing_utc": "2027-10-20T00:00:00Z",
+     "duration_days": 14.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": true,
+    "eligibility": "pass",
+    "score": 100.0,
+    "metrics": {
+     "sunlight_fraction": 1.0,
+     "equivalent_sun_hours": 336.0,
+     "longest_dark_gap_hours": 0.0,
+     "earth_visibility_fraction": 1.0,
+     "longest_comms_gap_hours": 0.0,
+     "initial_sun_hours": 336.0,
+     "initial_comms_hours": 336.0,
+     "hours_to_first_sunset": null,
+     "hours_to_first_earthset": null,
+     "mean_sun_clearance_deg": 2.123747023809524,
+     "mean_earth_clearance_deg": 4.110077380952381,
+     "mean_solar_elevation_deg": -0.5833244047619047
+    },
+    "violations": [],
+    "source": "viability-engine/0.6.0-phase6",
+    "data_source": "precomputed:malapert-massif.json",
+    "score_status": "known",
+    "score_bounds": {
+     "lower": 100.0,
+     "upper": 100.0
+    },
+    "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+   },
+   "rank_score": 92.42,
+   "date_shift_hours": 144.0,
+   "distance_km": 142.919,
+   "improvements": [
+    {
+     "metric": "sunlight_fraction",
+     "label": "Average sunlight",
+     "unit": "fraction",
+     "before": 0.882685431547619,
+     "after": 1.0,
+     "delta": 0.11731456845238097,
+     "better": true
+    },
+    {
+     "metric": "longest_dark_gap_hours",
+     "label": "Longest power gap",
+     "unit": "h",
+     "before": 3.0,
+     "after": 0.0,
+     "delta": -3.0,
+     "better": true
+    },
+    {
+     "metric": "earth_visibility_fraction",
+     "label": "Earth visibility",
+     "unit": "fraction",
+     "before": 0.6488095238095238,
+     "after": 1.0,
+     "delta": 0.35119047619047616,
+     "better": true
+    },
+    {
+     "metric": "longest_comms_gap_hours",
+     "label": "Longest comms blackout",
+     "unit": "h",
+     "before": 118.0,
+     "after": 0.0,
+     "delta": -118.0,
+     "better": true
+    },
+    {
+     "metric": "initial_sun_hours",
+     "label": "Sunlight after landing",
+     "unit": "h",
+     "before": 122.0,
+     "after": 336.0,
+     "delta": 214.0,
+     "better": true
+    },
+    {
+     "metric": "initial_comms_hours",
+     "label": "Earth contact after landing",
+     "unit": "h",
+     "before": 218.0,
+     "after": 336.0,
+     "delta": 118.0,
+     "better": true
+    },
+    {
+     "metric": "score",
+     "label": "Viability score",
+     "unit": "points",
+     "before": 61.787374,
+     "after": 100.0,
+     "delta": 38.212626,
+     "better": true
+    }
+   ],
+   "robustness": {
+    "checked_points": 4,
+    "passing_points": 4,
+    "pass_rate": 1.0,
+    "worst_score": 100.0,
+    "verdict": "robust",
+    "note": "Still passes at the tested date slips of \u221224 h, \u221212 h, +12 h, +24 h. (Landing-position error not checked: no real data around the site.)"
+   },
+   "headline": "Land at Malapert Massif on 2027-10-20 00:00 UTC (6.0 days later than the delayed date; 142.9 km from the original site) \u2014 passes all requirements, score 100 (delayed plan: 62).",
+   "reasons": [
+    "Fixes: longest comms blackout.",
+    "Sunlight after landing: 122 h \u2192 336 h (+214 h)",
+    "Longest comms blackout: 118 h \u2192 0 h (\u2212118 h)",
+    "Earth contact after landing: 218 h \u2192 336 h (+118 h)",
+    "Sun stays up for the whole mission."
+   ]
+  },
+  {
+   "rank": 5,
+   "kind": "site_and_date",
+   "is_catalog_site": true,
+   "scenario": {
+    "site": {
+     "id": "malapert-massif",
+     "name": "Malapert Massif",
+     "lat": -85.9635,
+     "lon": 357.6326
+    },
+    "landing_utc": "2027-10-22T00:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "malapert-massif",
+      "name": "Malapert Massif",
+      "lat": -85.9635,
+      "lon": 357.6326
+     },
+     "landing_utc": "2027-10-22T00:00:00Z",
+     "duration_days": 14.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": true,
+    "eligibility": "pass",
+    "score": 100.0,
+    "metrics": {
+     "sunlight_fraction": 1.0,
+     "equivalent_sun_hours": 336.0,
+     "longest_dark_gap_hours": 0.0,
+     "earth_visibility_fraction": 1.0,
+     "longest_comms_gap_hours": 0.0,
+     "initial_sun_hours": 336.0,
+     "initial_comms_hours": 336.0,
+     "hours_to_first_sunset": null,
+     "hours_to_first_earthset": null,
+     "mean_sun_clearance_deg": 1.6545,
+     "mean_earth_clearance_deg": 3.2751220238095238,
+     "mean_solar_elevation_deg": -1.089967261904762
+    },
+    "violations": [],
+    "source": "viability-engine/0.6.0-phase6",
+    "data_source": "precomputed:malapert-massif.json",
+    "score_status": "known",
+    "score_bounds": {
+     "lower": 100.0,
+     "upper": 100.0
+    },
+    "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+   },
+   "rank_score": 91.18,
+   "date_shift_hours": 192.0,
+   "distance_km": 142.919,
+   "improvements": [
+    {
+     "metric": "sunlight_fraction",
+     "label": "Average sunlight",
+     "unit": "fraction",
+     "before": 0.882685431547619,
+     "after": 1.0,
+     "delta": 0.11731456845238097,
+     "better": true
+    },
+    {
+     "metric": "longest_dark_gap_hours",
+     "label": "Longest power gap",
+     "unit": "h",
+     "before": 3.0,
+     "after": 0.0,
+     "delta": -3.0,
+     "better": true
+    },
+    {
+     "metric": "earth_visibility_fraction",
+     "label": "Earth visibility",
+     "unit": "fraction",
+     "before": 0.6488095238095238,
+     "after": 1.0,
+     "delta": 0.35119047619047616,
+     "better": true
+    },
+    {
+     "metric": "longest_comms_gap_hours",
+     "label": "Longest comms blackout",
+     "unit": "h",
+     "before": 118.0,
+     "after": 0.0,
+     "delta": -118.0,
+     "better": true
+    },
+    {
+     "metric": "initial_sun_hours",
+     "label": "Sunlight after landing",
+     "unit": "h",
+     "before": 122.0,
+     "after": 336.0,
+     "delta": 214.0,
+     "better": true
+    },
+    {
+     "metric": "initial_comms_hours",
+     "label": "Earth contact after landing",
+     "unit": "h",
+     "before": 218.0,
+     "after": 336.0,
+     "delta": 118.0,
+     "better": true
+    },
+    {
+     "metric": "score",
+     "label": "Viability score",
+     "unit": "points",
+     "before": 61.787374,
+     "after": 100.0,
+     "delta": 38.212626,
+     "better": true
+    }
+   ],
+   "robustness": {
+    "checked_points": 4,
+    "passing_points": 4,
+    "pass_rate": 1.0,
+    "worst_score": 99.814417,
+    "verdict": "robust",
+    "note": "Still passes at the tested date slips of \u221224 h, \u221212 h, +12 h, +24 h. (Landing-position error not checked: no real data around the site.)"
+   },
+   "headline": "Land at Malapert Massif on 2027-10-22 00:00 UTC (8.0 days later than the delayed date; 142.9 km from the original site) \u2014 passes all requirements, score 100 (delayed plan: 62).",
+   "reasons": [
+    "Fixes: longest comms blackout.",
+    "Sunlight after landing: 122 h \u2192 336 h (+214 h)",
+    "Longest comms blackout: 118 h \u2192 0 h (\u2212118 h)",
+    "Earth contact after landing: 218 h \u2192 336 h (+118 h)",
+    "Sun stays up for the whole mission."
+   ]
+  }
+ ],
+ "near_misses": [
+  {
+   "kind": "date_shift",
+   "scenario": {
+    "site": {
+     "id": "peak-near-shackleton",
+     "name": "Peak Near Shackleton",
+     "lat": -89.01701,
+     "lon": 126.27302
+    },
+    "landing_utc": "2027-11-09T12:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "peak-near-shackleton",
+      "name": "Peak Near Shackleton",
+      "lat": -89.01701,
+      "lon": 126.27302
+     },
+     "landing_utc": "2027-11-09T12:00:00Z",
+     "duration_days": 14.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": false,
+    "eligibility": "fail",
+    "score": 49.723843,
+    "metrics": {
+     "sunlight_fraction": 0.8384775476190476,
+     "equivalent_sun_hours": 281.728456,
+     "longest_dark_gap_hours": 27.0,
+     "earth_visibility_fraction": 0.6904761904761905,
+     "longest_comms_gap_hours": 104.0,
+     "initial_sun_hours": 195.0,
+     "initial_comms_hours": 232.0,
+     "hours_to_first_sunset": 195.0,
+     "hours_to_first_earthset": 232.0,
+     "mean_sun_clearance_deg": 0.879976119402985,
+     "mean_earth_clearance_deg": 4.460379310344828,
+     "mean_solar_elevation_deg": 0.8478988095238095
+    },
+    "violations": [
+     {
+      "constraint": "max_comms_gap_hours",
+      "required": 96.0,
+      "actual": 104.0,
+      "unit": "h",
+      "shortfall": 8.0,
+      "relative_shortfall": 0.08333333333333333,
+      "message": "Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 104 h; required <= 96 h. Requirement violated.",
+      "is_unknown": false
+     }
+    ],
+    "source": "viability-engine/0.6.0-phase6",
+    "data_source": "precomputed:peak-near-shackleton.json",
+    "score_status": "known",
+    "score_bounds": {
+     "lower": 49.723843,
+     "upper": 49.723843
+    },
+    "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+   },
+   "closeness": 0.0833,
+   "date_shift_hours": 636.0,
+   "distance_km": 0.0,
+   "why_it_fails": [
+    "Longest comms blackout 104 h (allows at most 96 h)"
+   ]
+  },
+  {
+   "kind": "site_and_date",
+   "scenario": {
+    "site": {
+     "id": "mons-mouton",
+     "name": "Mons Mouton (approx.)",
+     "lat": -84.6,
+     "lon": 31.0
+    },
+    "landing_utc": "2027-11-07T12:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "mons-mouton",
+      "name": "Mons Mouton (approx.)",
+      "lat": -84.6,
+      "lon": 31.0
+     },
+     "landing_utc": "2027-11-07T12:00:00Z",
+     "duration_days": 14.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": false,
+    "eligibility": "fail",
+    "score": 61.486259,
+    "metrics": {
+     "sunlight_fraction": 0.821057511904762,
+     "equivalent_sun_hours": 275.87532400000003,
+     "longest_dark_gap_hours": 59.0,
+     "earth_visibility_fraction": 0.9196428571428571,
+     "longest_comms_gap_hours": 27.0,
+     "initial_sun_hours": 277.0,
+     "initial_comms_hours": 309.0,
+     "hours_to_first_sunset": 277.0,
+     "hours_to_first_earthset": 309.0,
+     "mean_sun_clearance_deg": 2.5076021505376342,
+     "mean_earth_clearance_deg": 5.4867702265372165,
+     "mean_solar_elevation_deg": 4.276110119047619
+    },
+    "violations": [
+     {
+      "constraint": "battery_hours",
+      "required": 50.0,
+      "actual": 59.0,
+      "unit": "h",
+      "shortfall": 9.0,
+      "relative_shortfall": 0.18,
+      "message": "Maximum continuous power-darkness: longest continuous power-dark period is 59 h; required <= 50 h. Requirement violated.",
+      "is_unknown": false
+     }
+    ],
+    "source": "viability-engine/0.6.0-phase6",
+    "data_source": "precomputed:mons-mouton.json",
+    "score_status": "known",
+    "score_bounds": {
+     "lower": 61.486259,
+     "upper": 61.486259
+    },
+    "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+   },
+   "closeness": 0.18,
+   "date_shift_hours": 588.0,
+   "distance_km": 169.103,
+   "why_it_fails": [
+    "Longest power gap (battery limit) 59 h (allows at most 50 h)"
+   ]
+  },
+  {
+   "kind": "unchanged",
+   "scenario": {
+    "site": {
+     "id": "peak-near-shackleton",
+     "name": "Peak Near Shackleton",
+     "lat": -89.01701,
+     "lon": 126.27302
+    },
+    "landing_utc": "2027-10-14T00:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "peak-near-shackleton",
+      "name": "Peak Near Shackleton",
+      "lat": -89.01701,
+      "lon": 126.27302
+     },
+     "landing_utc": "2027-10-14T00:00:00Z",
+     "duration_days": 14.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": false,
+    "eligibility": "fail",
+    "score": 61.787374,
+    "metrics": {
+     "sunlight_fraction": 0.882685431547619,
+     "equivalent_sun_hours": 296.582305,
+     "longest_dark_gap_hours": 3.0,
+     "earth_visibility_fraction": 0.6488095238095238,
+     "longest_comms_gap_hours": 118.0,
+     "initial_sun_hours": 122.0,
+     "initial_comms_hours": 218.0,
+     "hours_to_first_sunset": 122.0,
+     "hours_to_first_earthset": 218.0,
+     "mean_sun_clearance_deg": 1.1818214285714286,
+     "mean_earth_clearance_deg": 4.44955504587156,
+     "mean_solar_elevation_deg": 0.8754166666666666
+    },
+    "violations": [
+     {
+      "constraint": "max_comms_gap_hours",
+      "required": 96.0,
+      "actual": 118.0,
+      "unit": "h",
+      "shortfall": 22.0,
+      "relative_shortfall": 0.22916666666666666,
+      "message": "Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 118 h; required <= 96 h. Requirement violated.",
+      "is_unknown": false
+     }
+    ],
+    "source": "viability-engine/0.6.0-phase6",
+    "data_source": "precomputed:peak-near-shackleton.json",
+    "score_status": "known",
+    "score_bounds": {
+     "lower": 61.787374,
+     "upper": 61.787374
+    },
+    "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+   },
+   "closeness": 0.2292,
+   "date_shift_hours": 0.0,
+   "distance_km": 0.0,
+   "why_it_fails": [
+    "Longest comms blackout 118 h (allows at most 96 h)"
+   ]
+  },
+  {
+   "kind": "site_and_date",
+   "scenario": {
+    "site": {
+     "id": "connecting-ridge",
+     "name": "Connecting Ridge",
+     "lat": -89.53432,
+     "lon": 209.94767
+    },
+    "landing_utc": "2027-11-06T00:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "connecting-ridge",
+      "name": "Connecting Ridge",
+      "lat": -89.53432,
+      "lon": 209.94767
+     },
+     "landing_utc": "2027-11-06T00:00:00Z",
+     "duration_days": 14.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": false,
+    "eligibility": "fail",
+    "score": 62.353504,
+    "metrics": {
+     "sunlight_fraction": 0.7486044553571428,
+     "equivalent_sun_hours": 251.531097,
+     "longest_dark_gap_hours": 64.0,
+     "earth_visibility_fraction": 0.943452380952381,
+     "longest_comms_gap_hours": 19.0,
+     "initial_sun_hours": 228.0,
+     "initial_comms_hours": 317.0,
+     "hours_to_first_sunset": 228.0,
+     "hours_to_first_earthset": 317.0,
+     "mean_sun_clearance_deg": 1.363094890510949,
+     "mean_earth_clearance_deg": 3.6355394321766563,
+     "mean_solar_elevation_deg": 1.2139880952380953
+    },
+    "violations": [
+     {
+      "constraint": "battery_hours",
+      "required": 50.0,
+      "actual": 64.0,
+      "unit": "h",
+      "shortfall": 14.0,
+      "relative_shortfall": 0.28,
+      "message": "Maximum continuous power-darkness: longest continuous power-dark period is 64 h; required <= 50 h. Requirement violated.",
+      "is_unknown": false
+     }
+    ],
+    "source": "viability-engine/0.6.0-phase6",
+    "data_source": "precomputed:connecting-ridge.json",
+    "score_status": "known",
+    "score_bounds": {
+     "lower": 62.353504,
+     "upper": 62.353504
+    },
+    "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+   },
+   "closeness": 0.28,
+   "date_shift_hours": 552.0,
+   "distance_km": 31.546,
+   "why_it_fails": [
+    "Longest power gap (battery limit) 64 h (allows at most 50 h)"
+   ]
+  },
+  {
+   "kind": "date_shift",
+   "scenario": {
+    "site": {
+     "id": "peak-near-shackleton",
+     "name": "Peak Near Shackleton",
+     "lat": -89.01701,
+     "lon": 126.27302
+    },
+    "landing_utc": "2027-11-11T12:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "viability": {
+    "scenario": {
+     "site": {
+      "id": "peak-near-shackleton",
+      "name": "Peak Near Shackleton",
+      "lat": -89.01701,
+      "lon": 126.27302
+     },
+     "landing_utc": "2027-11-11T12:00:00Z",
+     "duration_days": 14.0,
+     "requirements": {
+      "min_sunlight_fraction": 0.5,
+      "battery_hours": 50.0,
+      "panel_threshold": 0.25,
+      "min_earth_visibility_fraction": 0.4,
+      "max_comms_gap_hours": 96.0,
+      "min_initial_sun_hours": 24.0,
+      "min_initial_comms_hours": 12.0
+     }
+    },
+    "passes": false,
+    "eligibility": "fail",
+    "score": 46.152415,
+    "metrics": {
+     "sunlight_fraction": 0.8384775476190476,
+     "equivalent_sun_hours": 281.728456,
+     "longest_dark_gap_hours": 27.0,
+     "earth_visibility_fraction": 0.5476190476190476,
+     "longest_comms_gap_hours": 152.0,
+     "initial_sun_hours": 147.0,
+     "initial_comms_hours": 184.0,
+     "hours_to_first_sunset": 147.0,
+     "hours_to_first_earthset": 184.0,
+     "mean_sun_clearance_deg": 1.0153611940298508,
+     "mean_earth_clearance_deg": 4.312315217391304,
+     "mean_solar_elevation_deg": 0.7790208333333334
+    },
+    "violations": [
+     {
+      "constraint": "max_comms_gap_hours",
+      "required": 96.0,
+      "actual": 152.0,
+      "unit": "h",
+      "shortfall": 56.0,
+      "relative_shortfall": 0.5833333333333334,
+      "message": "Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 152 h; required <= 96 h. Requirement violated.",
+      "is_unknown": false
+     }
+    ],
+    "source": "viability-engine/0.6.0-phase6",
+    "data_source": "precomputed:peak-near-shackleton.json",
+    "score_status": "known",
+    "score_bounds": {
+     "lower": 46.152415,
+     "upper": 46.152415
+    },
+    "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+   },
+   "closeness": 0.5833,
+   "date_shift_hours": 684.0,
+   "distance_km": 0.0,
+   "why_it_fails": [
+    "Longest comms blackout 152 h (allows at most 96 h)"
+   ]
+  }
+ ],
+ "loosening": [
+  {
+   "changes": [
+    {
+     "constraint": "max_comms_gap_hours",
+     "label": "longest comms blackout",
+     "unit": "h",
+     "current": 96.0,
+     "suggested": 118.0,
+     "change_percent": 22.9
+    }
+   ],
+   "total_relative_change": 0.229,
+   "keeps_original_plan": true,
+   "unlocks": {
+    "site": {
+     "id": "peak-near-shackleton",
+     "name": "Peak Near Shackleton",
+     "lat": -89.01701,
+     "lon": 126.27302
+    },
+    "landing_utc": "2027-10-14T00:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "unlocks_score": 61.787374,
+   "message": "Raise the longest comms blackout requirement from 96 h to 118 h (+23%) \u2192 your delayed plan passes as-is."
+  },
+  {
+   "changes": [
+    {
+     "constraint": "battery_hours",
+     "label": "longest power gap (battery limit)",
+     "unit": "h",
+     "current": 50.0,
+     "suggested": 64.0,
+     "change_percent": 28.0
+    }
+   ],
+   "total_relative_change": 0.28,
+   "keeps_original_plan": false,
+   "unlocks": {
+    "site": {
+     "id": "connecting-ridge",
+     "name": "Connecting Ridge",
+     "lat": -89.53432,
+     "lon": 209.94767
+    },
+    "landing_utc": "2027-11-06T00:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "unlocks_score": 62.353504,
+   "message": "Raise the longest power gap (battery limit) requirement from 50 h to 64 h (+28%) \u2192 Connecting Ridge on 2027-11-06 00:00 UTC passes."
+  },
+  {
+   "changes": [
+    {
+     "constraint": "battery_hours",
+     "label": "longest power gap (battery limit)",
+     "unit": "h",
+     "current": 50.0,
+     "suggested": 59.0,
+     "change_percent": 18.0
+    }
+   ],
+   "total_relative_change": 0.18,
+   "keeps_original_plan": false,
+   "unlocks": {
+    "site": {
+     "id": "mons-mouton",
+     "name": "Mons Mouton (approx.)",
+     "lat": -84.6,
+     "lon": 31.0
+    },
+    "landing_utc": "2027-11-07T12:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "unlocks_score": 61.486259,
+   "message": "Raise the longest power gap (battery limit) requirement from 50 h to 59 h (+18%) \u2192 Mons Mouton (approx.) on 2027-11-07 12:00 UTC passes."
+  },
+  {
+   "changes": [
+    {
+     "constraint": "min_earth_visibility_fraction",
+     "label": "Earth visibility",
+     "unit": "fraction",
+     "current": 0.4,
+     "suggested": 0.39,
+     "change_percent": -2.5
+    },
+    {
+     "constraint": "max_comms_gap_hours",
+     "label": "longest comms blackout",
+     "unit": "h",
+     "current": 96.0,
+     "suggested": 202.0,
+     "change_percent": 110.4
+    }
+   ],
+   "total_relative_change": 1.129,
+   "keeps_original_plan": false,
+   "unlocks": {
+    "site": {
+     "id": "peak-near-shackleton",
+     "name": "Peak Near Shackleton",
+     "lat": -89.01701,
+     "lon": 126.27302
+    },
+    "landing_utc": "2027-10-17T12:00:00Z",
+    "duration_days": 14.0,
+    "requirements": {
+     "min_sunlight_fraction": 0.5,
+     "battery_hours": 50.0,
+     "panel_threshold": 0.25,
+     "min_earth_visibility_fraction": 0.4,
+     "max_comms_gap_hours": 96.0,
+     "min_initial_sun_hours": 24.0,
+     "min_initial_comms_hours": 12.0
+    }
+   },
+   "unlocks_score": 51.022397,
+   "message": "Lower the Earth visibility requirement from 40% to 39% (-2%) and raise the longest comms blackout requirement from 96 h to 202 h (+110%) \u2192 Peak Near Shackleton on 2027-10-17 12:00 UTC passes."
+  }
+ ],
+ "stats": {
+  "candidates_evaluated": 488,
+  "locations_considered": 8,
+  "passing": 68,
+  "synthetic_candidates_excluded": 976,
+  "undecided": 0,
+  "date_range_start": "2027-10-14T00:00:00Z",
+  "date_range_end": "2027-11-13T00:00:00Z"
+ },
+ "data_source": "precomputed:connecting-ridge.json, precomputed:de-gerlache-rim.json, precomputed:faustini-rim-a.json, precomputed:haworth-rim.json, precomputed:malapert-massif.json, precomputed:mons-mouton.json, precomputed:nobile-rim-1.json, precomputed:peak-near-shackleton.json",
+ "assumptions": [
+  "Real data: Sun/Earth positions from JPL Horizons and terrain horizons from Moon Trek LOLA, precomputed by the data engine (data/sites/).",
+  "Viability numbers come from the team's viability evaluator; rescue only searches and ranks.",
+  "Only landing times inside the search window and the listed candidate locations are considered.",
+  "Ranking = viability score + horizon-clearance bonus \u2212 date-shift penalty \u2212 distance penalty \u2212 fragility penalty (all configurable in SearchOptions).",
+  "Requirement relaxations are exact for the evaluated metrics but are not engineering approvals.",
+  "976 candidates were left out because there is no real data for them (custom nearby points, approximate sites). Simulation mode (include_synthetic=true) would use synthetic placeholder data for them.",
+  "Change reason given: Launch slipped 4 days"
+ ]
+}

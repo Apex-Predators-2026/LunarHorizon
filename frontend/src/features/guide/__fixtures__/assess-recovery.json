@@ -1,0 +1,1639 @@
+{
+ "api_version": "viability-api/1.0.0",
+ "assessment": {
+  "schema_version": "0.1.0-draft",
+  "engine_version": "0.6.0-phase6",
+  "scenario_id": "malapert-massif_20271014T000000Z",
+  "site": {
+   "id": "malapert-massif",
+   "name": "Malapert Massif",
+   "lat": -85.9635,
+   "lon": -2.367399999999975,
+   "surface_height_m": 4992.7
+  },
+  "evaluated_start_utc": "2027-10-14T00:00:00Z",
+  "evaluated_end_utc": "2027-10-28T00:00:00Z",
+  "eligibility": "pass",
+  "constraints": [
+   {
+    "constraint_id": "max_continuous_darkness",
+    "status": "pass",
+    "threshold": 180000.0,
+    "unit": "s",
+    "measured": {
+     "status": "known",
+     "unit": "s",
+     "value": 0.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Maximum continuous power-darkness: longest continuous power-dark period is 0 h; required <= 50 h. Requirement met.",
+    "name": "Maximum continuous power-darkness",
+    "comparison": "at_most",
+    "requirement_field": "spacecraft.max_continuous_darkness_s",
+    "metric_field": "longest_continuous_darkness",
+    "condition": "power_eligible",
+    "condition_unknown_duration_s": 0.0,
+    "unknown_reason": null,
+    "evidence_windows": []
+   },
+   {
+    "constraint_id": "max_communication_blackout",
+    "status": "pass",
+    "threshold": 345600.0,
+    "unit": "s",
+    "measured": {
+     "status": "known",
+     "unit": "s",
+     "value": 0.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 0 h; required <= 96 h. Requirement met.",
+    "name": "Maximum direct-to-Earth line-of-sight blackout",
+    "comparison": "at_most",
+    "requirement_field": "spacecraft.max_communication_blackout_s",
+    "metric_field": "longest_communication_blackout",
+    "condition": "earth_visible",
+    "condition_unknown_duration_s": 0.0,
+    "unknown_reason": null,
+    "evidence_windows": []
+   },
+   {
+    "constraint_id": "min_sunlight_percent",
+    "status": "not_applicable",
+    "threshold": null,
+    "unit": "percent",
+    "measured": {
+     "status": "known",
+     "unit": "percent",
+     "value": 100.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Minimum direct-sunlight time: not configured (requirements.min_sunlight_percent is null); not evaluated.",
+    "name": "Minimum direct-sunlight time",
+    "comparison": "at_least",
+    "requirement_field": "requirements.min_sunlight_percent",
+    "metric_field": "sunlight_percent",
+    "condition": "direct_sunlight",
+    "condition_unknown_duration_s": 0.0,
+    "unknown_reason": null,
+    "evidence_windows": []
+   },
+   {
+    "constraint_id": "min_earth_visibility_percent",
+    "status": "pass",
+    "threshold": 40.0,
+    "unit": "percent",
+    "measured": {
+     "status": "known",
+     "unit": "percent",
+     "value": 100.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Minimum Earth line-of-sight time: share of mission time with Earth line of sight is 100 %; required >= 40 %. Requirement met.",
+    "name": "Minimum Earth line-of-sight time",
+    "comparison": "at_least",
+    "requirement_field": "requirements.min_earth_visibility_percent",
+    "metric_field": "earth_visible_percent",
+    "condition": "earth_visible",
+    "condition_unknown_duration_s": 0.0,
+    "unknown_reason": null,
+    "evidence_windows": []
+   },
+   {
+    "constraint_id": "min_simultaneous_percent",
+    "status": "not_applicable",
+    "threshold": null,
+    "unit": "percent",
+    "measured": {
+     "status": "known",
+     "unit": "percent",
+     "value": 100.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Minimum simultaneous power-lit and Earth line-of-sight time: not configured (requirements.min_simultaneous_percent is null); not evaluated.",
+    "name": "Minimum simultaneous power-lit and Earth line-of-sight time",
+    "comparison": "at_least",
+    "requirement_field": "requirements.min_simultaneous_percent",
+    "metric_field": "simultaneous_percent",
+    "condition": "simultaneous",
+    "condition_unknown_duration_s": 0.0,
+    "unknown_reason": null,
+    "evidence_windows": []
+   },
+   {
+    "constraint_id": "min_sun_clearance",
+    "status": "not_applicable",
+    "threshold": null,
+    "unit": "deg",
+    "measured": {
+     "status": "unavailable",
+     "unit": "deg",
+     "value": null,
+     "lower": null,
+     "upper": null,
+     "reason": "not evaluated by this engine version: Phase 2 provides only the time-mean clearance, which cannot establish a per-instant minimum, and whether the value redefines visibility (a mask angle) or must hold whenever the body is visible is not yet agreed"
+    },
+    "message": "Minimum Sun clearance above the horizon: not configured (requirements.min_sun_clearance_deg is null); not evaluated.",
+    "name": "Minimum Sun clearance above the horizon",
+    "comparison": "at_least",
+    "requirement_field": "requirements.min_sun_clearance_deg",
+    "metric_field": null,
+    "condition": "direct_sunlight",
+    "condition_unknown_duration_s": 0.0,
+    "unknown_reason": null,
+    "evidence_windows": []
+   },
+   {
+    "constraint_id": "min_earth_clearance",
+    "status": "not_applicable",
+    "threshold": null,
+    "unit": "deg",
+    "measured": {
+     "status": "unavailable",
+     "unit": "deg",
+     "value": null,
+     "lower": null,
+     "upper": null,
+     "reason": "not evaluated by this engine version: Phase 2 provides only the time-mean clearance, which cannot establish a per-instant minimum, and whether the value redefines visibility (a mask angle) or must hold whenever the body is visible is not yet agreed"
+    },
+    "message": "Minimum Earth clearance above the horizon: not configured (requirements.min_earth_clearance_deg is null); not evaluated.",
+    "name": "Minimum Earth clearance above the horizon",
+    "comparison": "at_least",
+    "requirement_field": "requirements.min_earth_clearance_deg",
+    "metric_field": null,
+    "condition": "earth_visible",
+    "condition_unknown_duration_s": 0.0,
+    "unknown_reason": null,
+    "evidence_windows": []
+   },
+   {
+    "constraint_id": "min_mean_solar_disk_fraction",
+    "status": "pass",
+    "threshold": 0.5,
+    "unit": "fraction",
+    "measured": {
+     "status": "known",
+     "unit": "fraction",
+     "value": 1.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Minimum mean visible solar-disk fraction: time-mean visible solar-disk fraction is 1; required >= 0.5. Requirement met.",
+    "name": "Minimum mean visible solar-disk fraction",
+    "comparison": "at_least",
+    "requirement_field": "requirements.min_mean_solar_disk_fraction",
+    "metric_field": "mean_solar_disk_fraction",
+    "condition": null,
+    "condition_unknown_duration_s": null,
+    "unknown_reason": null,
+    "evidence_windows": []
+   },
+   {
+    "constraint_id": "min_initial_sunlight",
+    "status": "pass",
+    "threshold": 86400.0,
+    "unit": "s",
+    "measured": {
+     "status": "known",
+     "unit": "s",
+     "value": 1209600.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Minimum continuous power-lit time after landing: continuous power-lit time from mission start is 336 h; required >= 24 h. Requirement met.",
+    "name": "Minimum continuous power-lit time after landing",
+    "comparison": "at_least",
+    "requirement_field": "requirements.min_initial_sunlight_s",
+    "metric_field": "initial_sunlight_duration",
+    "condition": "power_eligible",
+    "condition_unknown_duration_s": 0.0,
+    "unknown_reason": null,
+    "evidence_windows": [
+     {
+      "kind": "power_lit",
+      "start_utc": "2027-10-14T00:00:00Z",
+      "end_utc": "2027-10-28T00:00:00Z",
+      "duration_s": 1209600.0,
+      "clipped_at_start": true,
+      "clipped_at_end": true
+     }
+    ]
+   },
+   {
+    "constraint_id": "min_initial_earth_visibility",
+    "status": "pass",
+    "threshold": 43200.0,
+    "unit": "s",
+    "measured": {
+     "status": "known",
+     "unit": "s",
+     "value": 1209600.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Minimum continuous Earth line of sight after landing: continuous Earth line-of-sight time from mission start is 336 h; required >= 12 h. Requirement met.",
+    "name": "Minimum continuous Earth line of sight after landing",
+    "comparison": "at_least",
+    "requirement_field": "requirements.min_initial_earth_visibility_s",
+    "metric_field": "initial_earth_visibility_duration",
+    "condition": "earth_visible",
+    "condition_unknown_duration_s": 0.0,
+    "unknown_reason": null,
+    "evidence_windows": [
+     {
+      "kind": "earth_visible",
+      "start_utc": "2027-10-14T00:00:00Z",
+      "end_utc": "2027-10-28T00:00:00Z",
+      "duration_s": 1209600.0,
+      "clipped_at_start": true,
+      "clipped_at_end": true
+     }
+    ]
+   }
+  ],
+  "metrics": {
+   "sunlight_duration": {
+    "status": "known",
+    "unit": "s",
+    "value": 1209600.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "sunlight_percent": {
+    "status": "known",
+    "unit": "percent",
+    "value": 100.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "full_sunlight_duration": {
+    "status": "known",
+    "unit": "s",
+    "value": 1209600.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "full_sunlight_percent": {
+    "status": "known",
+    "unit": "percent",
+    "value": 100.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "partial_sunlight_duration": {
+    "status": "known",
+    "unit": "s",
+    "value": 0.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "partial_sunlight_percent": {
+    "status": "known",
+    "unit": "percent",
+    "value": 0.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "power_lit_duration": {
+    "status": "known",
+    "unit": "s",
+    "value": 1209600.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "power_lit_percent": {
+    "status": "known",
+    "unit": "percent",
+    "value": 100.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "earth_visible_duration": {
+    "status": "known",
+    "unit": "s",
+    "value": 1209600.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "earth_visible_percent": {
+    "status": "known",
+    "unit": "percent",
+    "value": 100.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "simultaneous_duration": {
+    "status": "known",
+    "unit": "s",
+    "value": 1209600.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "simultaneous_percent": {
+    "status": "known",
+    "unit": "percent",
+    "value": 100.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "longest_simultaneous_window": {
+    "status": "known",
+    "unit": "s",
+    "value": 1209600.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "longest_continuous_darkness": {
+    "status": "known",
+    "unit": "s",
+    "value": 0.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "longest_without_direct_sunlight": {
+    "status": "known",
+    "unit": "s",
+    "value": 0.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "longest_communication_blackout": {
+    "status": "known",
+    "unit": "s",
+    "value": 0.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "mean_solar_disk_fraction": {
+    "status": "known",
+    "unit": "fraction",
+    "value": 1.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "initial_sunlight_duration": {
+    "status": "known",
+    "unit": "s",
+    "value": 1209600.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "initial_earth_visibility_duration": {
+    "status": "known",
+    "unit": "s",
+    "value": 1209600.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "time_to_first_sunset": {
+    "status": "not_applicable",
+    "unit": "s",
+    "value": null,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "time_to_first_earthset": {
+    "status": "not_applicable",
+    "unit": "s",
+    "value": null,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "mean_sun_clearance": {
+    "status": "known",
+    "unit": "deg",
+    "value": 4.837458333333333,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "mean_earth_clearance": {
+    "status": "known",
+    "unit": "deg",
+    "value": 9.086252976190476,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "mean_solar_elevation": {
+    "status": "known",
+    "unit": "deg",
+    "value": 2.520672619047619,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   }
+  },
+  "windows": [
+   {
+    "kind": "sunlight",
+    "start_utc": "2027-10-14T00:00:00Z",
+    "end_utc": "2027-10-28T00:00:00Z",
+    "duration_s": 1209600.0,
+    "clipped_at_start": true,
+    "clipped_at_end": true
+   },
+   {
+    "kind": "full_sunlight",
+    "start_utc": "2027-10-14T00:00:00Z",
+    "end_utc": "2027-10-28T00:00:00Z",
+    "duration_s": 1209600.0,
+    "clipped_at_start": true,
+    "clipped_at_end": true
+   },
+   {
+    "kind": "power_lit",
+    "start_utc": "2027-10-14T00:00:00Z",
+    "end_utc": "2027-10-28T00:00:00Z",
+    "duration_s": 1209600.0,
+    "clipped_at_start": true,
+    "clipped_at_end": true
+   },
+   {
+    "kind": "earth_visible",
+    "start_utc": "2027-10-14T00:00:00Z",
+    "end_utc": "2027-10-28T00:00:00Z",
+    "duration_s": 1209600.0,
+    "clipped_at_start": true,
+    "clipped_at_end": true
+   },
+   {
+    "kind": "simultaneous_sun_earth",
+    "start_utc": "2027-10-14T00:00:00Z",
+    "end_utc": "2027-10-28T00:00:00Z",
+    "duration_s": 1209600.0,
+    "clipped_at_start": true,
+    "clipped_at_end": true
+   }
+  ],
+  "margins": [
+   {
+    "margin_id": "max_continuous_darkness",
+    "related_constraint": "max_continuous_darkness",
+    "reference": 180000.0,
+    "value": {
+     "status": "known",
+     "unit": "s",
+     "value": 180000.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "description": "Maximum continuous power-darkness: margin = limit - measured = 50 h - 0 h = +50 h."
+   },
+   {
+    "margin_id": "max_communication_blackout",
+    "related_constraint": "max_communication_blackout",
+    "reference": 345600.0,
+    "value": {
+     "status": "known",
+     "unit": "s",
+     "value": 345600.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "description": "Maximum direct-to-Earth line-of-sight blackout: margin = limit - measured = 96 h - 0 h = +96 h."
+   },
+   {
+    "margin_id": "min_sunlight_percent",
+    "related_constraint": "min_sunlight_percent",
+    "reference": null,
+    "value": {
+     "status": "not_applicable",
+     "unit": "percent",
+     "value": null,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "description": "Minimum direct-sunlight time: not configured; no margin."
+   },
+   {
+    "margin_id": "min_earth_visibility_percent",
+    "related_constraint": "min_earth_visibility_percent",
+    "reference": 40.0,
+    "value": {
+     "status": "known",
+     "unit": "percent",
+     "value": 60.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "description": "Minimum Earth line-of-sight time: margin = measured - required = 100 % - 40 % = +60 pp."
+   },
+   {
+    "margin_id": "min_simultaneous_percent",
+    "related_constraint": "min_simultaneous_percent",
+    "reference": null,
+    "value": {
+     "status": "not_applicable",
+     "unit": "percent",
+     "value": null,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "description": "Minimum simultaneous power-lit and Earth line-of-sight time: not configured; no margin."
+   },
+   {
+    "margin_id": "min_sun_clearance",
+    "related_constraint": "min_sun_clearance",
+    "reference": null,
+    "value": {
+     "status": "not_applicable",
+     "unit": "deg",
+     "value": null,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "description": "Minimum Sun clearance above the horizon: not configured; no margin."
+   },
+   {
+    "margin_id": "min_earth_clearance",
+    "related_constraint": "min_earth_clearance",
+    "reference": null,
+    "value": {
+     "status": "not_applicable",
+     "unit": "deg",
+     "value": null,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "description": "Minimum Earth clearance above the horizon: not configured; no margin."
+   },
+   {
+    "margin_id": "min_mean_solar_disk_fraction",
+    "related_constraint": "min_mean_solar_disk_fraction",
+    "reference": 0.5,
+    "value": {
+     "status": "known",
+     "unit": "fraction",
+     "value": 0.5,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "description": "Minimum mean visible solar-disk fraction: margin = measured - required = 1 - 0.5 = +0.5."
+   },
+   {
+    "margin_id": "min_initial_sunlight",
+    "related_constraint": "min_initial_sunlight",
+    "reference": 86400.0,
+    "value": {
+     "status": "known",
+     "unit": "s",
+     "value": 1123200.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "description": "Minimum continuous power-lit time after landing: margin = measured - required = 336 h - 24 h = +312 h."
+   },
+   {
+    "margin_id": "min_initial_earth_visibility",
+    "related_constraint": "min_initial_earth_visibility",
+    "reference": 43200.0,
+    "value": {
+     "status": "known",
+     "unit": "s",
+     "value": 1166400.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "description": "Minimum continuous Earth line of sight after landing: margin = measured - required = 336 h - 12 h = +324 h."
+   }
+  ],
+  "risks": [
+   {
+    "code": "sun_data_coverage",
+    "level": "low",
+    "rule": "Sun state unknown time in the mission: 0 -> LOW; the entire mission -> UNKNOWN (not assessed); otherwise MODERATE (outages and short events can hide in unknown time). Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "evidence": {
+     "status": "known",
+     "unit": "s",
+     "value": 0.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Sun state is known for the whole mission (336 h)."
+   },
+   {
+    "code": "earth_data_coverage",
+    "level": "low",
+    "rule": "Earth state unknown time in the mission: 0 -> LOW; the entire mission -> UNKNOWN (not assessed); otherwise MODERATE (outages and short events can hide in unknown time). Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "evidence": {
+     "status": "known",
+     "unit": "s",
+     "value": 0.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Earth state is known for the whole mission (336 h)."
+   },
+   {
+    "code": "landing_in_darkness",
+    "level": "low",
+    "rule": "State at mission start (landing): power-lit -> LOW; unknown -> UNKNOWN; otherwise MODERATE, HIGH if the power-dark period in progress at landing lasts the whole mission or leaves <= 10 % headroom to the 50 h limit; levels from proven bounds. Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "evidence": {
+     "status": "known",
+     "unit": "s",
+     "value": 1209600.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Mission starts power-lit."
+   },
+   {
+    "code": "landing_without_earth_visibility",
+    "level": "low",
+    "rule": "State at mission start (landing): in Earth line of sight -> LOW; unknown -> UNKNOWN; otherwise MODERATE, HIGH if the Earth line-of-sight blackout (geometry, not a radio link) in progress at landing lasts the whole mission or leaves <= 10 % headroom to the 96 h limit; levels from proven bounds. Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "evidence": {
+     "status": "known",
+     "unit": "s",
+     "value": 1209600.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Mission starts in Earth line of sight."
+   },
+   {
+    "code": "darkness_exposure",
+    "level": "low",
+    "rule": "Longest power-dark period vs spacecraft.max_continuous_darkness_s (headroom = operational margin / limit = 1 - longest/limit): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Never LOW below the 1 h sample spacing (unresolved). Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "evidence": {
+     "status": "known",
+     "unit": "s",
+     "value": 0.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Longest power-dark period is 0 h (0 % of the 50 h limit); constraint verdict pass (unchanged)."
+   },
+   {
+    "code": "communication_exposure",
+    "level": "low",
+    "rule": "Longest Earth line-of-sight blackout (geometry, not a radio link) vs spacecraft.max_communication_blackout_s (headroom = operational margin / limit = 1 - longest/limit): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Never LOW below the 1 h sample spacing (unresolved). Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "evidence": {
+     "status": "known",
+     "unit": "s",
+     "value": 0.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Longest Earth line-of-sight blackout (geometry, not a radio link) is 0 h (0 % of the 96 h limit); constraint verdict pass (unchanged)."
+   },
+   {
+    "code": "margin_headroom.min_earth_visibility_percent",
+    "level": "low",
+    "rule": "Operational margin of requirements.min_earth_visibility_percent (headroom = margin / required value; no margin supplied -> UNKNOWN, or HIGH if the constraint fails): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "evidence": {
+     "status": "known",
+     "unit": "percent",
+     "value": 60.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Minimum Earth line-of-sight time: margin 60 % against required 40 % (headroom 150 %); constraint verdict pass (unchanged)."
+   },
+   {
+    "code": "margin_headroom.min_mean_solar_disk_fraction",
+    "level": "low",
+    "rule": "Operational margin of requirements.min_mean_solar_disk_fraction (headroom = margin / required value; no margin supplied -> UNKNOWN, or HIGH if the constraint fails): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "evidence": {
+     "status": "known",
+     "unit": "fraction",
+     "value": 0.5,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Minimum mean visible solar-disk fraction: margin 0.5 against required 0.5 (headroom 100 %); constraint verdict pass (unchanged)."
+   },
+   {
+    "code": "margin_headroom.min_initial_sunlight",
+    "level": "low",
+    "rule": "Operational margin of requirements.min_initial_sunlight_s (headroom = margin / required value; no margin supplied -> UNKNOWN, or HIGH if the constraint fails): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Never LOW below the 1 h sample spacing (unresolved). Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "evidence": {
+     "status": "known",
+     "unit": "s",
+     "value": 1123200.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Minimum continuous power-lit time after landing: margin 312 h against required 24 h (headroom 1300 %); constraint verdict pass (unchanged)."
+   },
+   {
+    "code": "margin_headroom.min_initial_earth_visibility",
+    "level": "low",
+    "rule": "Operational margin of requirements.min_initial_earth_visibility_s (headroom = margin / required value; no margin supplied -> UNKNOWN, or HIGH if the constraint fails): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Never LOW below the 1 h sample spacing (unresolved). Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "evidence": {
+     "status": "known",
+     "unit": "s",
+     "value": 1166400.0,
+     "lower": null,
+     "upper": null,
+     "reason": null
+    },
+    "message": "Minimum continuous Earth line of sight after landing: margin 324 h against required 12 h (headroom 2700 %); constraint verdict pass (unchanged)."
+   }
+  ],
+  "overall_risk": "low",
+  "score": {
+   "method_version": "desirability-v1",
+   "score": 100.0,
+   "rank_eligible": true,
+   "components": [
+    {
+     "component": "sunlight",
+     "weight": 0.25,
+     "normalized_value": 1.0,
+     "contribution": 25.0,
+     "note": "Sunlight is an illumination proxy: time-mean visible solar-disk fraction, not solar energy or power output.",
+     "status": "active",
+     "declared_weight": 1.0,
+     "normalized": {
+      "status": "known",
+      "unit": "fraction",
+      "value": 1.0,
+      "lower": null,
+      "upper": null,
+      "reason": null
+     }
+    },
+    {
+     "component": "earth_visibility",
+     "weight": 0.25,
+     "normalized_value": 1.0,
+     "contribution": 25.0,
+     "note": "Share of mission time with direct-to-Earth line of sight (geometric).",
+     "status": "active",
+     "declared_weight": 1.0,
+     "normalized": {
+      "status": "known",
+      "unit": "fraction",
+      "value": 1.0,
+      "lower": null,
+      "upper": null,
+      "reason": null
+     }
+    },
+    {
+     "component": "simultaneous",
+     "weight": 0.0,
+     "normalized_value": null,
+     "contribution": null,
+     "note": "Not scored: its preference weight is 0.",
+     "status": "zero_weight",
+     "declared_weight": 0.0,
+     "normalized": null
+    },
+    {
+     "component": "darkness_margin",
+     "weight": 0.25,
+     "normalized_value": 1.0,
+     "contribution": 25.0,
+     "note": "Unused share of the darkness limit: clamp(margin / limit, 0, 1).",
+     "status": "active",
+     "declared_weight": 1.0,
+     "normalized": {
+      "status": "known",
+      "unit": "fraction",
+      "value": 1.0,
+      "lower": null,
+      "upper": null,
+      "reason": null
+     }
+    },
+    {
+     "component": "blackout_margin",
+     "weight": 0.25,
+     "normalized_value": 1.0,
+     "contribution": 25.0,
+     "note": "Unused share of the blackout limit: clamp(margin / limit, 0, 1).",
+     "status": "active",
+     "declared_weight": 1.0,
+     "normalized": {
+      "status": "known",
+      "unit": "fraction",
+      "value": 1.0,
+      "lower": null,
+      "upper": null,
+      "reason": null
+     }
+    },
+    {
+     "component": "clearance_margin",
+     "weight": 0.0,
+     "normalized_value": null,
+     "contribution": null,
+     "note": "Not scored: clearance requirements are unsupported and the mean clearance is never used as a stand-in.",
+     "status": "unsupported",
+     "declared_weight": 0.0,
+     "normalized": null
+    }
+   ],
+   "note": "Relative desirability index (0-100) of illumination and line-of-sight geometry under the stated weights. The sunlight component is an illumination proxy (mean visible solar-disk fraction), not solar power or energy; the score is not a link, power or landing-safety estimate and never changes eligibility.",
+   "status": "known",
+   "score_bounds": {
+    "status": "known",
+    "unit": "percent",
+    "value": 100.0,
+    "lower": null,
+    "upper": null,
+    "reason": null
+   },
+   "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+  },
+  "explanations": [
+   {
+    "category": "summary",
+    "severity": "info",
+    "message": "Eligibility PASS: all 6 configured hard constraint(s) are met. It covers illumination and Earth line-of-sight requirements only, not landing safety or mission success.",
+    "related_constraint": null
+   },
+   {
+    "category": "summary",
+    "severity": "info",
+    "message": "Overall screening risk LOW: every indicator is LOW. Risk levels are rule-based screening categories, not probabilities; LOW does not mean safe.",
+    "related_constraint": null
+   },
+   {
+    "category": "summary",
+    "severity": "info",
+    "message": "Desirability score 100.00 / 100 (exact). It is rank-eligible because eligibility is PASS. The score is a relative index of illumination and Earth line-of-sight geometry under the chosen weights, not a probability of mission success, a power or link estimate, or a safety rating.",
+    "related_constraint": null
+   },
+   {
+    "category": "summary",
+    "severity": "info",
+    "message": "Score = 100 x sum of effective weight x component value (0-1): sunlight (mean solar-disk fraction) 25 % x 1 = 25; Earth line of sight 25 % x 1 = 25; darkness margin 25 % x 1 = 25; blackout margin 25 % x 1 = 25. Effective weights are the declared weights (1:1:1:1) divided by their sum over active components; they depend on configuration only, never on measurements.",
+    "related_constraint": null
+   },
+   {
+    "category": "summary",
+    "severity": "info",
+    "message": "Not part of the score: simultaneous power-lit and Earth line of sight: weight 0; clearance margin: not evaluable by this engine version.",
+    "related_constraint": null
+   },
+   {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Maximum continuous power-darkness: PASS. Longest continuous power-dark period: 0 h; required at most 50 h.",
+    "related_constraint": "max_continuous_darkness"
+   },
+   {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Maximum direct-to-Earth line-of-sight blackout: PASS. Longest Earth line-of-sight blackout: 0 h; required at most 96 h.",
+    "related_constraint": "max_communication_blackout"
+   },
+   {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Minimum Earth line-of-sight time: PASS. Share of mission time with Earth line of sight: 100 %; required at least 40 %.",
+    "related_constraint": "min_earth_visibility_percent"
+   },
+   {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Minimum mean visible solar-disk fraction: PASS. Time-mean visible solar-disk fraction: 1; required at least 0.5.",
+    "related_constraint": "min_mean_solar_disk_fraction"
+   },
+   {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Minimum continuous power-lit time after landing: PASS. Continuous power-lit time from mission start: 336 h; required at least 24 h. Mission starts power-lit for the whole mission.",
+    "related_constraint": "min_initial_sunlight"
+   },
+   {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Minimum continuous Earth line of sight after landing: PASS. Continuous Earth line-of-sight time from mission start: 336 h; required at least 12 h. Mission starts in Earth line of sight for the whole mission.",
+    "related_constraint": "min_initial_earth_visibility"
+   },
+   {
+    "category": "margin",
+    "severity": "info",
+    "message": "Maximum continuous power-darkness: headroom +50 h (100 % of the limit unused), above the 10 % narrow band and at least one 1 h sample spacing. Screening risk LOW (power-darkness exposure).",
+    "related_constraint": "max_continuous_darkness"
+   },
+   {
+    "category": "margin",
+    "severity": "info",
+    "message": "Maximum direct-to-Earth line-of-sight blackout: headroom +96 h (100 % of the limit unused), above the 10 % narrow band and at least one 1 h sample spacing. Screening risk LOW (Earth line-of-sight blackout exposure).",
+    "related_constraint": "max_communication_blackout"
+   },
+   {
+    "category": "margin",
+    "severity": "info",
+    "message": "Minimum Earth line-of-sight time: headroom +60 pp (150 % of the requirement), above the 10 % narrow band. Screening risk LOW (minimum Earth line of sight headroom).",
+    "related_constraint": "min_earth_visibility_percent"
+   },
+   {
+    "category": "margin",
+    "severity": "info",
+    "message": "Minimum mean visible solar-disk fraction: headroom +0.5 (100 % of the requirement), above the 10 % narrow band. Screening risk LOW (minimum mean solar-disk fraction headroom).",
+    "related_constraint": "min_mean_solar_disk_fraction"
+   },
+   {
+    "category": "margin",
+    "severity": "info",
+    "message": "Minimum continuous power-lit time after landing: headroom +312 h (1300 % of the requirement), above the 10 % narrow band and at least one 1 h sample spacing. Screening risk LOW (minimum initial power-lit time headroom).",
+    "related_constraint": "min_initial_sunlight"
+   },
+   {
+    "category": "margin",
+    "severity": "info",
+    "message": "Minimum continuous Earth line of sight after landing: headroom +324 h (2700 % of the requirement), above the 10 % narrow band and at least one 1 h sample spacing. Screening risk LOW (minimum initial Earth line of sight headroom).",
+    "related_constraint": "min_initial_earth_visibility"
+   },
+   {
+    "category": "risk",
+    "severity": "info",
+    "message": "Landing power-lit (screening risk LOW): the mission starts power-lit and stays so for 336 h.",
+    "related_constraint": "max_continuous_darkness"
+   },
+   {
+    "category": "risk",
+    "severity": "info",
+    "message": "Landing in Earth line of sight (screening risk LOW): the mission starts in Earth line of sight and stays so for 336 h.",
+    "related_constraint": "max_communication_blackout"
+   },
+   {
+    "category": "data_quality",
+    "severity": "info",
+    "message": "Real NASA-derived geometry with terrain horizons: dataset 'malapert-massif_2026-01-01_2031-01-01', generator 'Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2'. Results inherit the accuracy and resolution of the ephemeris and elevation data and change when the data are regenerated; keep the dataset id and generator with any stored result.",
+    "related_constraint": null
+   },
+   {
+    "category": "data_quality",
+    "severity": "info",
+    "message": "Sun and Earth states are known for the whole 336 h evaluated range (336 samples); no result depends on missing data.",
+    "related_constraint": null
+   },
+   {
+    "category": "limitation",
+    "severity": "info",
+    "message": "Time resolution: samples are up to 1 h apart (sample-hold, no interpolation). Transition times are resolved only to that spacing, shorter events can be missed, and smaller duration margins are not resolved.",
+    "related_constraint": null
+   },
+   {
+    "category": "limitation",
+    "severity": "info",
+    "message": "Sunlight here is geometric visibility of the solar disk, not electrical power: array orientation, efficiency, temperature, dust, batteries and the power system are not modelled. 'Power-lit' only means the visible disk fraction meets the configured panel threshold.",
+    "related_constraint": null
+   },
+   {
+    "category": "limitation",
+    "severity": "info",
+    "message": "Earth line of sight is a geometric opportunity, not guaranteed communication: antenna pointing, link budget, ground-station availability, relays and interference are not modelled.",
+    "related_constraint": null
+   },
+   {
+    "category": "limitation",
+    "severity": "info",
+    "message": "Spacecraft limits (maximum darkness and blackout durations, panel threshold) are used as configured and are not verified: battery capacity, thermal survival and radio hardware are not modelled. Nothing here assesses landing safety (slopes, hazards).",
+    "related_constraint": null
+   },
+   {
+    "category": "limitation",
+    "severity": "info",
+    "message": "Risk headroom bands (10 % HIGH, 25 % MODERATE by default) are product-defined screening heuristics, not NASA-certified safety thresholds, and no probability of mission failure is computed.",
+    "related_constraint": null
+   }
+  ],
+  "data_quality": {
+   "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+   "provenance": {
+    "is_synthetic": false,
+    "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+    "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)",
+    "terrain_resolution_m": null,
+    "horizon_azimuth_step_deg": 0.5,
+    "generated_at_utc": "2026-11-14T17:34:57Z",
+    "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+    "references": [
+     "Local summit (4993 m) found in the Moon Trek 30 m LOLA DEM within 4 km of the commonly quoted Malapert Mountain point (-85.99, 357.07). That point sits on the flank: a ridge 100 m north blocks Earth 100% of the time; the summit sees Earth 99.9%."
+    ],
+    "coordinate_frame": "Moon MEAN_ME (Mean-Earth/polar axis): Horizons site and LOLA terrain",
+    "notes": "Converted by site-file-adapter/0.2.0 from malapert-massif.json. Original site.lon = 357.6326 deg E (0-360 convention); normalized to -2.367399999999975 deg. meta: start_utc='2026-01-01', stop_utc='2031-01-01', step='1h'. Projected x_m=-5058.1, y_m=122346.3 (Moon Trek south polar stereographic). Sun visibility = fraction of solar disk above terrain; Earth visibility = centre above terrain. Coordinate frame as stated by the producer (meta.frame): 'Moon MEAN_ME (Mean-Earth/polar axis): Horizons site and LOLA terrain'; recorded, not independently verified by the viability engine. generator_version='1.2'. meta.angle_decimals=3 (recorded; not part of the input contract)."
+   },
+   "calculation_basis": "terrain_aware",
+   "angle_type": "apparent",
+   "sun_criterion": "apparent_disk",
+   "earth_criterion": "center",
+   "sampling_policy": "sample_hold",
+   "evaluated_duration_s": 1209600.0,
+   "sample_count": 336,
+   "largest_sample_gap_s": 3600.0,
+   "uncovered_duration_s": 0.0,
+   "coverage_gap_count": 0,
+   "sun_unknown_duration_s": 0.0,
+   "earth_unknown_duration_s": 0.0,
+   "sun_coverage_percent": 100.0,
+   "earth_coverage_percent": 100.0,
+   "assumptions": [
+    "Sample-and-hold: each instantaneous sample represents [t_i, t_(i+1)) when the next sample is within sampling.max_gap_s (5400 s); before a coverage gap and at the last sample it represents one nominal interval (3600 s), never beyond coverage_end_utc. Modeled transitions fall on sample times and can be up to one sample spacing later than the true geometric event.",
+    "No interpolation between samples; events shorter than the sample spacing can be missed.",
+    "Unknown states and time no sample represents are never treated as darkness or blackout; affected durations, percentages and outages are reported as bounds.",
+    "Percentages use the whole evaluated range as denominator; means are time-weighted."
+   ],
+   "warnings": []
+  },
+  "limitations": [
+   "Solar illumination is not electrical power generation; array orientation, efficiency, temperature, dust and power-system design are not modelled.",
+   "Earth line of sight is not guaranteed radio connectivity; antenna pointing, link budget, ground-station availability and interference are not modelled.",
+   "Viability covers illumination and direct-to-Earth line of sight under the stated constraints only; it is not an assessment of landing safety (slopes, hazards, terrain).",
+   "Terrain-aware results inherit the resolution and accuracy of the elevation model and horizon calculation; geometric-only results ignore terrain entirely.",
+   "Sampled time series can miss events shorter than the sampling interval."
+  ]
+ },
+ "ranking_status": {
+  "eligibility": "pass",
+  "rank_eligible": true,
+  "score_status": "known",
+  "score": 100.0,
+  "score_bounds": {
+   "status": "known",
+   "unit": "percent",
+   "value": 100.0,
+   "lower": null,
+   "upper": null,
+   "reason": null
+  },
+  "score_lower_bound": 100.0,
+  "overall_risk": "low",
+  "comparability": {
+   "data_basis": "real_terrain_aware",
+   "scoring_method_version": "desirability-v1",
+   "effective_weights": {
+    "sunlight": "1/4",
+    "earth_visibility": "1/4",
+    "simultaneous": "0",
+    "darkness_margin": "1/4",
+    "blackout_margin": "1/4",
+    "clearance_margin": "0"
+   },
+   "configuration_key": "sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0"
+  },
+  "rule": "Only rank_eligible assessments (eligibility PASS) receive a rank. UNKNOWN is neither scored nor ranked; FAIL keeps a descriptive score but is never ranked against viable scenarios. A bounded score is an interval, never a point value, and a missing score is never zero. Assessments may share one ranking only if their comparability fields are all equal (data_basis, scoring_method_version, effective_weights and, under the strict policy, configuration_key)."
+ },
+ "explanation_details": [
+  {
+   "key": "summary.eligibility",
+   "explanation": {
+    "category": "summary",
+    "severity": "info",
+    "message": "Eligibility PASS: all 6 configured hard constraint(s) are met. It covers illumination and Earth line-of-sight requirements only, not landing safety or mission success.",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "max_continuous_darkness: pass",
+    "max_communication_blackout: pass",
+    "min_earth_visibility_percent: pass",
+    "min_mean_solar_disk_fraction: pass",
+    "min_initial_sunlight: pass",
+    "min_initial_earth_visibility: pass"
+   ]
+  },
+  {
+   "key": "summary.risk",
+   "explanation": {
+    "category": "summary",
+    "severity": "info",
+    "message": "Overall screening risk LOW: every indicator is LOW. Risk levels are rule-based screening categories, not probabilities; LOW does not mean safe.",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "sun_data_coverage: low",
+    "earth_data_coverage: low",
+    "landing_in_darkness: low",
+    "landing_without_earth_visibility: low",
+    "darkness_exposure: low",
+    "communication_exposure: low",
+    "margin_headroom.min_earth_visibility_percent: low",
+    "margin_headroom.min_mean_solar_disk_fraction: low",
+    "margin_headroom.min_initial_sunlight: low",
+    "margin_headroom.min_initial_earth_visibility: low"
+   ]
+  },
+  {
+   "key": "summary.score",
+   "explanation": {
+    "category": "summary",
+    "severity": "info",
+    "message": "Desirability score 100.00 / 100 (exact). It is rank-eligible because eligibility is PASS. The score is a relative index of illumination and Earth line-of-sight geometry under the chosen weights, not a probability of mission success, a power or link estimate, or a safety rating.",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "method_version: desirability-v1",
+    "status: known",
+    "configuration_key: sha256:336b0090b1d14ca04c0091f4f3a5f84dbea0ddbb03064fab82db06adf907eac0",
+    "score_bounds: known 100.0 percent",
+    "note: Relative desirability index (0-100) of illumination and line-of-sight geometry under the stated weights. The sunlight component is an illumination proxy (mean visible solar-disk fraction), not solar power or energy; the score is not a link, power or landing-safety estimate and never changes eligibility."
+   ]
+  },
+  {
+   "key": "summary.score_components",
+   "explanation": {
+    "category": "summary",
+    "severity": "info",
+    "message": "Score = 100 x sum of effective weight x component value (0-1): sunlight (mean solar-disk fraction) 25 % x 1 = 25; Earth line of sight 25 % x 1 = 25; darkness margin 25 % x 1 = 25; blackout margin 25 % x 1 = 25. Effective weights are the declared weights (1:1:1:1) divided by their sum over active components; they depend on configuration only, never on measurements.",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "sunlight: declared_weight=1.0, weight=0.25, normalized=known 1.0 fraction, contribution=25.0; Sunlight is an illumination proxy: time-mean visible solar-disk fraction, not solar energy or power output.",
+    "earth_visibility: declared_weight=1.0, weight=0.25, normalized=known 1.0 fraction, contribution=25.0; Share of mission time with direct-to-Earth line of sight (geometric).",
+    "darkness_margin: declared_weight=1.0, weight=0.25, normalized=known 1.0 fraction, contribution=25.0; Unused share of the darkness limit: clamp(margin / limit, 0, 1).",
+    "blackout_margin: declared_weight=1.0, weight=0.25, normalized=known 1.0 fraction, contribution=25.0; Unused share of the blackout limit: clamp(margin / limit, 0, 1)."
+   ]
+  },
+  {
+   "key": "summary.score_excluded",
+   "explanation": {
+    "category": "summary",
+    "severity": "info",
+    "message": "Not part of the score: simultaneous power-lit and Earth line of sight: weight 0; clearance margin: not evaluable by this engine version.",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "sunlight: active",
+    "earth_visibility: active",
+    "simultaneous: zero_weight",
+    "darkness_margin: active",
+    "blackout_margin: active",
+    "clearance_margin: unsupported"
+   ]
+  },
+  {
+   "key": "constraint.max_continuous_darkness",
+   "explanation": {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Maximum continuous power-darkness: PASS. Longest continuous power-dark period: 0 h; required at most 50 h.",
+    "related_constraint": "max_continuous_darkness"
+   },
+   "risk_codes": [],
+   "details": [
+    "constraint_id: max_continuous_darkness",
+    "requirement_field: spacecraft.max_continuous_darkness_s = 180000.0 s (at_most, inclusive)",
+    "metric_field: longest_continuous_darkness; measured: known 0.0 s",
+    "condition: power_eligible; unknown time in range: 0.0 s",
+    "unknown_reason: None",
+    "engine message: Maximum continuous power-darkness: longest continuous power-dark period is 0 h; required <= 50 h. Requirement met."
+   ]
+  },
+  {
+   "key": "constraint.max_communication_blackout",
+   "explanation": {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Maximum direct-to-Earth line-of-sight blackout: PASS. Longest Earth line-of-sight blackout: 0 h; required at most 96 h.",
+    "related_constraint": "max_communication_blackout"
+   },
+   "risk_codes": [],
+   "details": [
+    "constraint_id: max_communication_blackout",
+    "requirement_field: spacecraft.max_communication_blackout_s = 345600.0 s (at_most, inclusive)",
+    "metric_field: longest_communication_blackout; measured: known 0.0 s",
+    "condition: earth_visible; unknown time in range: 0.0 s",
+    "unknown_reason: None",
+    "engine message: Maximum direct-to-Earth line-of-sight blackout: longest Earth line-of-sight blackout is 0 h; required <= 96 h. Requirement met."
+   ]
+  },
+  {
+   "key": "constraint.min_earth_visibility_percent",
+   "explanation": {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Minimum Earth line-of-sight time: PASS. Share of mission time with Earth line of sight: 100 %; required at least 40 %.",
+    "related_constraint": "min_earth_visibility_percent"
+   },
+   "risk_codes": [],
+   "details": [
+    "constraint_id: min_earth_visibility_percent",
+    "requirement_field: requirements.min_earth_visibility_percent = 40.0 percent (at_least, inclusive)",
+    "metric_field: earth_visible_percent; measured: known 100.0 percent",
+    "condition: earth_visible; unknown time in range: 0.0 s",
+    "unknown_reason: None",
+    "engine message: Minimum Earth line-of-sight time: share of mission time with Earth line of sight is 100 %; required >= 40 %. Requirement met."
+   ]
+  },
+  {
+   "key": "constraint.min_mean_solar_disk_fraction",
+   "explanation": {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Minimum mean visible solar-disk fraction: PASS. Time-mean visible solar-disk fraction: 1; required at least 0.5.",
+    "related_constraint": "min_mean_solar_disk_fraction"
+   },
+   "risk_codes": [],
+   "details": [
+    "constraint_id: min_mean_solar_disk_fraction",
+    "requirement_field: requirements.min_mean_solar_disk_fraction = 0.5 fraction (at_least, inclusive)",
+    "metric_field: mean_solar_disk_fraction; measured: known 1.0 fraction",
+    "condition: None; unknown time in range: None s",
+    "unknown_reason: None",
+    "engine message: Minimum mean visible solar-disk fraction: time-mean visible solar-disk fraction is 1; required >= 0.5. Requirement met."
+   ]
+  },
+  {
+   "key": "constraint.min_initial_sunlight",
+   "explanation": {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Minimum continuous power-lit time after landing: PASS. Continuous power-lit time from mission start: 336 h; required at least 24 h. Mission starts power-lit for the whole mission.",
+    "related_constraint": "min_initial_sunlight"
+   },
+   "risk_codes": [],
+   "details": [
+    "constraint_id: min_initial_sunlight",
+    "requirement_field: requirements.min_initial_sunlight_s = 86400.0 s (at_least, inclusive)",
+    "metric_field: initial_sunlight_duration; measured: known 1209600.0 s",
+    "condition: power_eligible; unknown time in range: 0.0 s",
+    "unknown_reason: None",
+    "engine message: Minimum continuous power-lit time after landing: continuous power-lit time from mission start is 336 h; required >= 24 h. Requirement met.",
+    "window power_lit 2027-10-14T00:00:00+00:00 -> 2027-10-28T00:00:00+00:00 (1209600.0 s, clipped_at_start=True, clipped_at_end=True)"
+   ]
+  },
+  {
+   "key": "constraint.min_initial_earth_visibility",
+   "explanation": {
+    "category": "constraint",
+    "severity": "info",
+    "message": "Minimum continuous Earth line of sight after landing: PASS. Continuous Earth line-of-sight time from mission start: 336 h; required at least 12 h. Mission starts in Earth line of sight for the whole mission.",
+    "related_constraint": "min_initial_earth_visibility"
+   },
+   "risk_codes": [],
+   "details": [
+    "constraint_id: min_initial_earth_visibility",
+    "requirement_field: requirements.min_initial_earth_visibility_s = 43200.0 s (at_least, inclusive)",
+    "metric_field: initial_earth_visibility_duration; measured: known 1209600.0 s",
+    "condition: earth_visible; unknown time in range: 0.0 s",
+    "unknown_reason: None",
+    "engine message: Minimum continuous Earth line of sight after landing: continuous Earth line-of-sight time from mission start is 336 h; required >= 12 h. Requirement met.",
+    "window earth_visible 2027-10-14T00:00:00+00:00 -> 2027-10-28T00:00:00+00:00 (1209600.0 s, clipped_at_start=True, clipped_at_end=True)"
+   ]
+  },
+  {
+   "key": "margin.max_continuous_darkness",
+   "explanation": {
+    "category": "margin",
+    "severity": "info",
+    "message": "Maximum continuous power-darkness: headroom +50 h (100 % of the limit unused), above the 10 % narrow band and at least one 1 h sample spacing. Screening risk LOW (power-darkness exposure).",
+    "related_constraint": "max_continuous_darkness"
+   },
+   "risk_codes": [
+    "darkness_exposure"
+   ],
+   "details": [
+    "margin: Maximum continuous power-darkness: margin = limit - measured = 50 h - 0 h = +50 h.",
+    "class: comfortable",
+    "value: known 180000.0 s",
+    "relative: known 1.0 fraction",
+    "risk rule: Longest power-dark period vs spacecraft.max_continuous_darkness_s (headroom = operational margin / limit = 1 - longest/limit): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Never LOW below the 1 h sample spacing (unresolved). Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "risk message: Longest power-dark period is 0 h (0 % of the 50 h limit); constraint verdict pass (unchanged)."
+   ]
+  },
+  {
+   "key": "margin.max_communication_blackout",
+   "explanation": {
+    "category": "margin",
+    "severity": "info",
+    "message": "Maximum direct-to-Earth line-of-sight blackout: headroom +96 h (100 % of the limit unused), above the 10 % narrow band and at least one 1 h sample spacing. Screening risk LOW (Earth line-of-sight blackout exposure).",
+    "related_constraint": "max_communication_blackout"
+   },
+   "risk_codes": [
+    "communication_exposure"
+   ],
+   "details": [
+    "margin: Maximum direct-to-Earth line-of-sight blackout: margin = limit - measured = 96 h - 0 h = +96 h.",
+    "class: comfortable",
+    "value: known 345600.0 s",
+    "relative: known 1.0 fraction",
+    "risk rule: Longest Earth line-of-sight blackout (geometry, not a radio link) vs spacecraft.max_communication_blackout_s (headroom = operational margin / limit = 1 - longest/limit): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Never LOW below the 1 h sample spacing (unresolved). Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "risk message: Longest Earth line-of-sight blackout (geometry, not a radio link) is 0 h (0 % of the 96 h limit); constraint verdict pass (unchanged)."
+   ]
+  },
+  {
+   "key": "margin.min_earth_visibility_percent",
+   "explanation": {
+    "category": "margin",
+    "severity": "info",
+    "message": "Minimum Earth line-of-sight time: headroom +60 pp (150 % of the requirement), above the 10 % narrow band. Screening risk LOW (minimum Earth line of sight headroom).",
+    "related_constraint": "min_earth_visibility_percent"
+   },
+   "risk_codes": [
+    "margin_headroom.min_earth_visibility_percent"
+   ],
+   "details": [
+    "margin: Minimum Earth line-of-sight time: margin = measured - required = 100 % - 40 % = +60 pp.",
+    "class: comfortable",
+    "value: known 60.0 percent",
+    "relative: known 1.5 fraction",
+    "risk rule: Operational margin of requirements.min_earth_visibility_percent (headroom = margin / required value; no margin supplied -> UNKNOWN, or HIGH if the constraint fails): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "risk message: Minimum Earth line-of-sight time: margin 60 % against required 40 % (headroom 150 %); constraint verdict pass (unchanged)."
+   ]
+  },
+  {
+   "key": "margin.min_mean_solar_disk_fraction",
+   "explanation": {
+    "category": "margin",
+    "severity": "info",
+    "message": "Minimum mean visible solar-disk fraction: headroom +0.5 (100 % of the requirement), above the 10 % narrow band. Screening risk LOW (minimum mean solar-disk fraction headroom).",
+    "related_constraint": "min_mean_solar_disk_fraction"
+   },
+   "risk_codes": [
+    "margin_headroom.min_mean_solar_disk_fraction"
+   ],
+   "details": [
+    "margin: Minimum mean visible solar-disk fraction: margin = measured - required = 1 - 0.5 = +0.5.",
+    "class: comfortable",
+    "value: known 0.5 fraction",
+    "relative: known 1.0 fraction",
+    "risk rule: Operational margin of requirements.min_mean_solar_disk_fraction (headroom = margin / required value; no margin supplied -> UNKNOWN, or HIGH if the constraint fails): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "risk message: Minimum mean visible solar-disk fraction: margin 0.5 against required 0.5 (headroom 100 %); constraint verdict pass (unchanged)."
+   ]
+  },
+  {
+   "key": "margin.min_initial_sunlight",
+   "explanation": {
+    "category": "margin",
+    "severity": "info",
+    "message": "Minimum continuous power-lit time after landing: headroom +312 h (1300 % of the requirement), above the 10 % narrow band and at least one 1 h sample spacing. Screening risk LOW (minimum initial power-lit time headroom).",
+    "related_constraint": "min_initial_sunlight"
+   },
+   "risk_codes": [
+    "margin_headroom.min_initial_sunlight"
+   ],
+   "details": [
+    "margin: Minimum continuous power-lit time after landing: margin = measured - required = 336 h - 24 h = +312 h.",
+    "class: comfortable",
+    "value: known 1123200.0 s",
+    "relative: known 13.0 fraction",
+    "risk rule: Operational margin of requirements.min_initial_sunlight_s (headroom = margin / required value; no margin supplied -> UNKNOWN, or HIGH if the constraint fails): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Never LOW below the 1 h sample spacing (unresolved). Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "risk message: Minimum continuous power-lit time after landing: margin 312 h against required 24 h (headroom 1300 %); constraint verdict pass (unchanged)."
+   ]
+  },
+  {
+   "key": "margin.min_initial_earth_visibility",
+   "explanation": {
+    "category": "margin",
+    "severity": "info",
+    "message": "Minimum continuous Earth line of sight after landing: headroom +324 h (2700 % of the requirement), above the 10 % narrow band and at least one 1 h sample spacing. Screening risk LOW (minimum initial Earth line of sight headroom).",
+    "related_constraint": "min_initial_earth_visibility"
+   },
+   "risk_codes": [
+    "margin_headroom.min_initial_earth_visibility"
+   ],
+   "details": [
+    "margin: Minimum continuous Earth line of sight after landing: margin = measured - required = 336 h - 12 h = +324 h.",
+    "class: comfortable",
+    "value: known 1166400.0 s",
+    "relative: known 27.0 fraction",
+    "risk rule: Operational margin of requirements.min_initial_earth_visibility_s (headroom = margin / required value; no margin supplied -> UNKNOWN, or HIGH if the constraint fails): HIGH if headroom <= 10 % of the reference (incl. 0 and violations), MODERATE if <= 25 %, else LOW; bounded evidence gets a level only when both bounds agree, otherwise UNKNOWN. Never LOW below the 1 h sample spacing (unresolved). Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "risk message: Minimum continuous Earth line of sight after landing: margin 324 h against required 12 h (headroom 2700 %); constraint verdict pass (unchanged)."
+   ]
+  },
+  {
+   "key": "risk.landing_in_darkness",
+   "explanation": {
+    "category": "risk",
+    "severity": "info",
+    "message": "Landing power-lit (screening risk LOW): the mission starts power-lit and stays so for 336 h.",
+    "related_constraint": "max_continuous_darkness"
+   },
+   "risk_codes": [
+    "landing_in_darkness"
+   ],
+   "details": [
+    "rule: State at mission start (landing): power-lit -> LOW; unknown -> UNKNOWN; otherwise MODERATE, HIGH if the power-dark period in progress at landing lasts the whole mission or leaves <= 10 % headroom to the 50 h limit; levels from proven bounds. Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "risk message: Mission starts power-lit.",
+    "evidence: known 1209600.0 s"
+   ]
+  },
+  {
+   "key": "risk.landing_without_earth_visibility",
+   "explanation": {
+    "category": "risk",
+    "severity": "info",
+    "message": "Landing in Earth line of sight (screening risk LOW): the mission starts in Earth line of sight and stays so for 336 h.",
+    "related_constraint": "max_communication_blackout"
+   },
+   "risk_codes": [
+    "landing_without_earth_visibility"
+   ],
+   "details": [
+    "rule: State at mission start (landing): in Earth line of sight -> LOW; unknown -> UNKNOWN; otherwise MODERATE, HIGH if the Earth line-of-sight blackout (geometry, not a radio link) in progress at landing lasts the whole mission or leaves <= 10 % headroom to the 96 h limit; levels from proven bounds. Product-defined screening heuristic, not a probability; LOW does not mean safe.",
+    "risk message: Mission starts in Earth line of sight.",
+    "evidence: known 1209600.0 s"
+   ]
+  },
+  {
+   "key": "data.provenance",
+   "explanation": {
+    "category": "data_quality",
+    "severity": "info",
+    "message": "Real NASA-derived geometry with terrain horizons: dataset 'malapert-massif_2026-01-01_2031-01-01', generator 'Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2'. Results inherit the accuracy and resolution of the ephemeris and elevation data and change when the data are regenerated; keep the dataset id and generator with any stored result.",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "dataset_id: malapert-massif_2026-01-01_2031-01-01",
+    "generator: Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+    "generated_at_utc: 2026-11-14T17:34:57+00:00",
+    "ephemeris_source: JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+    "terrain_source: Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m); terrain_resolution_m: None; horizon_azimuth_step_deg: 0.5",
+    "calculation_basis: terrain_aware; angle_type: apparent; sun_criterion: apparent_disk; earth_criterion: center",
+    "coordinate_frame: Moon MEAN_ME (Mean-Earth/polar axis): Horizons site and LOLA terrain",
+    "reference: Local summit (4993 m) found in the Moon Trek 30 m LOLA DEM within 4 km of the commonly quoted Malapert Mountain point (-85.99, 357.07). That point sits on the flank: a ridge 100 m north blocks Earth 100% of the time; the summit sees Earth 99.9%.",
+    "notes: Converted by site-file-adapter/0.2.0 from malapert-massif.json. Original site.lon = 357.6326 deg E (0-360 convention); normalized to -2.367399999999975 deg. meta: start_utc='2026-01-01', stop_utc='2031-01-01', step='1h'. Projected x_m=-5058.1, y_m=122346.3 (Moon Trek south polar stereographic). Sun visibility = fraction of solar disk above terrain; Earth visibility = centre above terrain. Coordinate frame as stated by the producer (meta.frame): 'Moon MEAN_ME (Mean-Earth/polar axis): Horizons site and LOLA terrain'; recorded, not independently verified by the viability engine. generator_version='1.2'. meta.angle_decimals=3 (recorded; not part of the input contract)."
+   ]
+  },
+  {
+   "key": "data.coverage",
+   "explanation": {
+    "category": "data_quality",
+    "severity": "info",
+    "message": "Sun and Earth states are known for the whole 336 h evaluated range (336 samples); no result depends on missing data.",
+    "related_constraint": null
+   },
+   "risk_codes": [
+    "sun_data_coverage",
+    "earth_data_coverage"
+   ],
+   "details": [
+    "evaluated_duration_s: 1209600.0; sample_count: 336",
+    "sun_unknown_duration_s: 0.0 (incl. power-lit state: 0.0); earth_unknown_duration_s: 0.0",
+    "sun_coverage_percent: 100.0; earth_coverage_percent: 100.0",
+    "uncovered_duration_s: 0.0 in 0 interval(s)",
+    "sun_data_coverage (low): Sun state is known for the whole mission (336 h).",
+    "earth_data_coverage (low): Earth state is known for the whole mission (336 h)."
+   ]
+  },
+  {
+   "key": "limitation.sampling",
+   "explanation": {
+    "category": "limitation",
+    "severity": "info",
+    "message": "Time resolution: samples are up to 1 h apart (sample-hold, no interpolation). Transition times are resolved only to that spacing, shorter events can be missed, and smaller duration margins are not resolved.",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "sampling_policy: sample_hold; largest_sample_gap_s: 3600.0",
+    "assumption: Sample-and-hold: each instantaneous sample represents [t_i, t_(i+1)) when the next sample is within sampling.max_gap_s (5400 s); before a coverage gap and at the last sample it represents one nominal interval (3600 s), never beyond coverage_end_utc. Modeled transitions fall on sample times and can be up to one sample spacing later than the true geometric event.",
+    "assumption: No interpolation between samples; events shorter than the sample spacing can be missed.",
+    "assumption: Unknown states and time no sample represents are never treated as darkness or blackout; affected durations, percentages and outages are reported as bounds.",
+    "assumption: Percentages use the whole evaluated range as denominator; means are time-weighted."
+   ]
+  },
+  {
+   "key": "limitation.illumination_power",
+   "explanation": {
+    "category": "limitation",
+    "severity": "info",
+    "message": "Sunlight here is geometric visibility of the solar disk, not electrical power: array orientation, efficiency, temperature, dust, batteries and the power system are not modelled. 'Power-lit' only means the visible disk fraction meets the configured panel threshold.",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "Solar illumination is not electrical power generation; array orientation, efficiency, temperature, dust and power-system design are not modelled."
+   ]
+  },
+  {
+   "key": "limitation.line_of_sight",
+   "explanation": {
+    "category": "limitation",
+    "severity": "info",
+    "message": "Earth line of sight is a geometric opportunity, not guaranteed communication: antenna pointing, link budget, ground-station availability, relays and interference are not modelled.",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "Earth line of sight is not guaranteed radio connectivity; antenna pointing, link budget, ground-station availability and interference are not modelled."
+   ]
+  },
+  {
+   "key": "limitation.spacecraft",
+   "explanation": {
+    "category": "limitation",
+    "severity": "info",
+    "message": "Spacecraft limits (maximum darkness and blackout durations, panel threshold) are used as configured and are not verified: battery capacity, thermal survival and radio hardware are not modelled. Nothing here assesses landing safety (slopes, hazards).",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "Viability covers illumination and direct-to-Earth line of sight under the stated constraints only; it is not an assessment of landing safety (slopes, hazards, terrain).",
+    "Terrain-aware results inherit the resolution and accuracy of the elevation model and horizon calculation; geometric-only results ignore terrain entirely.",
+    "Sampled time series can miss events shorter than the sampling interval."
+   ]
+  },
+  {
+   "key": "limitation.risk_bands",
+   "explanation": {
+    "category": "limitation",
+    "severity": "info",
+    "message": "Risk headroom bands (10 % HIGH, 25 % MODERATE by default) are product-defined screening heuristics, not NASA-certified safety thresholds, and no probability of mission failure is computed.",
+    "related_constraint": null
+   },
+   "risk_codes": [],
+   "details": [
+    "Bands apply to headroom = margin / reference; see each indicator's rule for the policy used."
+   ]
+  }
+ ],
+ "input_dataset": {
+  "site_file": "data/sites/malapert-massif.json",
+  "sha256": "9ebfa3157cc934ccce2778729e3dae82a07c0c1a37f2ee9323ddd757ac192d4a",
+  "dataset_id": "malapert-massif_2026-01-01_2031-01-01",
+  "coverage_start_utc": "2026-01-01T00:00:00Z",
+  "coverage_end_utc": "2031-01-01T00:00:00Z",
+  "mission_within_coverage": true,
+  "sample_count": 43825,
+  "sampling": {
+   "nominal_interval_s": 3600.0,
+   "max_gap_s": 5400.0
+  },
+  "calculation_basis": "terrain_aware",
+  "angle_type": "apparent",
+  "sun_criterion": "apparent_disk",
+  "earth_criterion": "center",
+  "fraction_decimals": 6,
+  "observer_height_m": 2.0,
+  "provenance": {
+   "is_synthetic": false,
+   "ephemeris_source": "JPL Horizons API (DE441), apparent az/el (quantities 4,13), CENTER=coord@301",
+   "terrain_source": "Moon Trek LRO_LOLA_DEM_SPole875_5mp_v04 (5 m); Moon Trek ldem_85s_20m_Spole_float_SP (20 m); Moon Trek LRO_LOLA_DEM_SPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_SPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_NPole875_5mp_v04 (5 m); Moon Trek LRO_LOLA_DEM_NPole75_30mp_v04 (30 m); Moon Trek LRO_LOLA_DEM_NPole45_100mp_v04 (100 m); Moon Trek LRO_LOLA_DEM_Global_256ppd_v06 (118 m)",
+   "terrain_resolution_m": null,
+   "horizon_azimuth_step_deg": 0.5,
+   "generated_at_utc": "2026-11-14T17:34:57Z",
+   "generator": "Member 1 precompute (backend/scripts/precompute.py), generator_version 1.2",
+   "references": [
+    "Local summit (4993 m) found in the Moon Trek 30 m LOLA DEM within 4 km of the commonly quoted Malapert Mountain point (-85.99, 357.07). That point sits on the flank: a ridge 100 m north blocks Earth 100% of the time; the summit sees Earth 99.9%."
+   ],
+   "coordinate_frame": "Moon MEAN_ME (Mean-Earth/polar axis): Horizons site and LOLA terrain",
+   "notes": "Converted by site-file-adapter/0.2.0 from malapert-massif.json. Original site.lon = 357.6326 deg E (0-360 convention); normalized to -2.367399999999975 deg. meta: start_utc='2026-01-01', stop_utc='2031-01-01', step='1h'. Projected x_m=-5058.1, y_m=122346.3 (Moon Trek south polar stereographic). Sun visibility = fraction of solar disk above terrain; Earth visibility = centre above terrain. Coordinate frame as stated by the producer (meta.frame): 'Moon MEAN_ME (Mean-Earth/polar axis): Horizons site and LOLA terrain'; recorded, not independently verified by the viability engine. generator_version='1.2'. meta.angle_decimals=3 (recorded; not part of the input contract)."
+  }
+ },
+ "methods": {
+  "api": "viability-api/1.0.0",
+  "schema_version": "0.1.0-draft",
+  "engine": "0.6.0-phase6",
+  "scoring": "desirability-v1",
+  "ranking": "ranking-phase5b-v1",
+  "explanations": "explanations-v1"
+ }
+}
