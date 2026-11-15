@@ -12,6 +12,7 @@ import type { MeasureAnalysis, MeasureWaypoint, ProfileSample } from './globe/me
 import { ARTEMIS_FORMER_COLOR, KIND_COLOR } from './globe/overlays'
 import { parseCoordinates } from './coordinates'
 import { GRAPHICS, type GraphicsQuality } from './graphics'
+import { JplHorizonsCard } from './JplHorizonsCard'
 import { toggleTopDown, useCameraTilt } from './cameraTilt'
 import { MeasureCard, type MeasureDrawer } from './MeasureCard'
 import { useTutorialStore } from '../features/tutorial'
@@ -651,52 +652,11 @@ export function MapTools({
       )}
 
       {verify && !verify.loading && (
-        <div className="md-reveal pointer-events-auto w-[30rem] max-w-full rounded-xl border border-opal-300 bg-opal-50 p-2 text-xs text-slate-200">
-          <div className="mb-1 flex items-center justify-between">
-            <span className="font-medium">Live check against JPL Horizons</span>
-            <button type="button" className="text-slate-400 hover:text-slate-100" onClick={() => setVerify(null)} aria-label="Close">
-              ✕
-            </button>
-          </div>
-          {verify.error && <p className="text-red-300">{verify.error}</p>}
-          {verify.result && (
-            <>
-              <table className="w-full tabular-nums">
-                <thead className="text-slate-400">
-                  <tr>
-                    <th className="text-left font-normal">{verify.result.time_utc.replace('T', ' ')}</th>
-                    <th className="text-right font-normal">Ours (az / el)</th>
-                    <th className="text-right font-normal">JPL Horizons</th>
-                    <th className="text-right font-normal">Difference</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(['sun', 'earth'] as const).map((b) => {
-                    const r = verify.result!.bodies[b]
-                    return (
-                      <tr key={b}>
-                        <td className="capitalize">{b}</td>
-                        <td className="text-right">{r.stored.azimuth_deg.toFixed(3)}° / {r.stored.elevation_deg.toFixed(3)}°</td>
-                        <td className="text-right">{r.horizons.azimuth_deg.toFixed(3)}° / {r.horizons.elevation_deg.toFixed(3)}°</td>
-                        <td className={`text-right ${r.stored_vs_horizons_deg < 0.001 ? 'text-emerald-300' : 'text-amber-300'}`}>
-                          {r.stored_vs_horizons_deg.toFixed(4)}°
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-              <p className="mt-1 text-[10px] text-slate-400">
-                {verify.result.note} Independent check (Skyfield + DE421) vs JPL: Sun{' '}
-                {verify.result.bodies.sun.skyfield_vs_horizons_deg.toFixed(5)}°, Earth{' '}
-                {verify.result.bodies.earth.skyfield_vs_horizons_deg.toFixed(5)}°.{' '}
-                <a className="text-sky-300 underline" href={verify.result.horizons_example_query} target="_blank" rel="noreferrer">
-                  Open the Horizons query
-                </a>
-              </p>
-            </>
-          )}
-        </div>
+        <JplHorizonsCard
+          result={verify.result}
+          error={verify.error}
+          onClose={() => setVerify(null)}
+        />
       )}
     </div>
   )
