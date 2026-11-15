@@ -35,6 +35,9 @@ class Timeline:
     earth_horizon: np.ndarray
     earth_visible: np.ndarray  # bool
     source: str
+    # Authoritative any-disk-visible flag from the site file (1.0 / 0.0 / NaN = unknown), when the source has one. A
+    # sliver whose fraction was written as 0.0 can still be visible; None = no flag (state comes from the fraction).
+    sun_visible: np.ndarray | None = None
 
     def __len__(self) -> int:
         return len(self.times)
@@ -51,6 +54,7 @@ class Timeline:
             sun_visible_fraction=self.sun_visible_fraction[s],
             earth_az=self.earth_az[s], earth_el=self.earth_el[s], earth_horizon=self.earth_horizon[s],
             earth_visible=self.earth_visible[s], source=self.source,
+            sun_visible=None if self.sun_visible is None else self.sun_visible[s],
         )
 
     @property
