@@ -26,15 +26,14 @@ import './compare.css'
 import { Empty, Explain, Icon, Section } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { useView } from './useTimeAxis'
+import { COMPARE_SECTIONS } from './sections'
+import { MissionAssistant } from './assistant/MissionAssistant'
+import { useAssistant } from './assistant/useAssistant'
 import { CompareTour } from './tour/CompareTour'
 import { TourButton, TourOffer } from './tour/TourButton'
 
 // Reading order: choose plans -> the answer -> the evidence -> when it happens -> ranking -> deeper analysis.
-const NAV = [
-  ['cmp-scenarios', 'Scenarios'], ['cmp-overview', 'At a glance'], ['cmp-metrics', 'Key metrics'], ['cmp-summary', 'Decision'],
-  ['cmp-timeline', 'Timeline'], ['cmp-performance', 'Ranking'], ['cmp-charts', 'Elevation'], ['cmp-terrain', 'Terrain'],
-  ['cmp-tradeoff', 'Trade-off'],
-] as const
+const NAV = COMPARE_SECTIONS
 
 /** An M3 switch row, the same markup as the planner's layer switches (md-row + md-switch). */
 function Toggle({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint: string }) {
@@ -70,6 +69,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   const notes = useCompareStore((s) => s.notes)
   const sitesStatus = useCompareStore((s) => s.sitesStatus)
   const { setAllowDemo, setEducational, setAlign, loadSites, refresh } = useCompareStore.getState()
+  const assistantOpen = useAssistant((s) => s.open)
 
   useEffect(() => {
     if (sitesStatus === 'idle') loadSites()
@@ -161,7 +161,8 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
 
   return (
     <div ref={pageRef} data-tour="compare-dashboard" className="cmp-page lp-light md-host min-h-full">
-      <div className="mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8">
+      {/* With the Mission Assistant open on a wide screen, the page makes room for it instead of being covered. */}
+      <div className={`mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8 ${assistantOpen ? 'min-[1100px]:mr-[416px]' : ''}`}>
         <header className="mb-6 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
             <h1 className="text-[28px] font-medium leading-tight text-ink">Scenario comparison</h1>
@@ -291,6 +292,8 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
           )}
         </div>
       </div>
+      <MissionAssistant entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
+        notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} />
       <CompareTour />
     </div>
   )
