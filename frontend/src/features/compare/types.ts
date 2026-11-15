@@ -173,6 +173,7 @@ export interface ConstraintItem {
 
 export interface EvidenceWindow {
   kind: string // power_dark, communication_blackout, earth_visible, ...
+  duration_s: number // exact duration in seconds, as the engine reports it
   start_hour: number // hours after mission start
   end_hour: number
   duration_hours: number
@@ -200,6 +201,9 @@ export interface AssessmentInfo {
   headroom?: OperationalHeadroom | null
   explanations: string[]
   limitations: string[]
+  evaluated_start_utc?: string | null // the mission interval the engine evaluated (UTC, hourly grid)
+  evaluated_end_utc?: string | null
+  windows?: EvidenceWindow[] // every canonical window of the mission, unknown-data windows included
 }
 
 /**

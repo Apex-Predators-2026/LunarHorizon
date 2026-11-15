@@ -15,6 +15,7 @@ import {
   type ReqStatus,
 } from './analysis'
 import { missionTime, missionTimeLines, type MissionTimeSnapshot } from './missionTime'
+import { ShowWhy } from './PerformancePanels'
 import { seriesColor } from './palette'
 import { PANEL_MODE_LABEL } from './scenario'
 import type { CompareResult } from './types'
@@ -121,7 +122,7 @@ export function OverviewCards({ entries }: { entries: Entry[] }) {
                       {req.undecided.length > 0 && <> · <span className="text-slate-200">{req.undecided.length} cannot be decided</span></>}
                     </div>
                     {[...req.failed.map((x) => ({ ...x, st: 'fail' as const })), ...req.undecided.map((x) => ({ ...x, st: 'unknown' as const }))].map((x) => (
-                      <div key={x.id} className="mt-0.5 flex items-start gap-1 text-slate-400"><ReqIcon status={x.st} />{x.name}</div>
+                      <div key={x.id} className="mt-0.5 flex flex-wrap items-start gap-1 text-slate-400"><ReqIcon status={x.st} />{x.name}<ShowWhy e={e} c={r.assessment?.constraints.find((c) => c.id === x.id)} section="cmp-overview" /></div>
                     ))}
                   </div>
                 )}
