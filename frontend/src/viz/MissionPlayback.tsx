@@ -25,7 +25,7 @@ export function MissionPanel({ mission }: { mission: MissionPlayback }) {
   const t = parseUtc(timeUtc)
 
   const box = 'recede-behind-menu md-reveal lp-light pointer-events-auto w-[30rem] max-w-full rounded-xl bg-opal-50 p-2.5 text-xs text-slate-300 shadow-lg shadow-black/30'
-  const button = 'rounded-lg border border-opal-300 bg-white px-2 py-0.5 transition-colors hover:bg-calcite-peach/40'
+  const button = 'rounded-lg border border-opal-300 bg-panel-fill px-2 py-0.5 transition-colors hover:bg-calcite-peach/40'
   const header = (
     <div className="mb-1 flex items-center justify-between gap-2">
       <span className="font-medium text-calcite-ink">

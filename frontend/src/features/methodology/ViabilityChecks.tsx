@@ -20,7 +20,7 @@ function Banner({ s }: { s: ViabilityValidationSummary }) {
     const failedCases = s.cases.filter((c) => !c.passed)
     const failedInv = s.invariants.filter((i) => !i.passed)
     return (
-      <div role="status" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+      <div role="status" className="rounded-xl border border-red-800 bg-red-950 p-4 text-sm text-red-200">
         <p className="font-medium">
           The stored report records failures: {int(s.totals.failed)} of {int(s.totals.checks)} checks failed ({when}).
         </p>
@@ -33,7 +33,7 @@ function Banner({ s }: { s: ViabilityValidationSummary }) {
   if (v === 'stale_pass') {
     const c = s.currency
     return (
-      <div role="status" className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+      <div role="status" className="rounded-xl border border-amber-800 bg-amber-950 p-4 text-sm text-amber-200">
         <p className="font-medium">
           Out of date: these {int(s.totals.checks)} checks passed when the report was {when}, but it no longer matches the
           running engine or data, so it does not verify the current version.
@@ -49,7 +49,7 @@ function Banner({ s }: { s: ViabilityValidationSummary }) {
     )
   }
   return (
-    <div role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-900">
+    <div role="status" className="rounded-xl border border-emerald-800 bg-emerald-950 p-4 text-sm text-emerald-200">
       <p className="font-medium">
         All {int(s.totals.checks)} recorded checks passed ({when}), and the report is current: {s.currency.note}
       </p>
@@ -113,7 +113,7 @@ export function ViabilityChecks({ state }: { state: ViabilityValidationState }) 
                 <td className="py-1">{c.category}</td>
                 <td>{c.synthetic ? 'synthetic fixture' : typeof c.inputs.site === 'string' ? siteName(c.inputs.site) : 'real site files'}</td>
                 <td className="tabular-nums">{c.check_count}</td>
-                <td>{c.passed ? 'passed' : <span className="text-red-700">failed: {c.failed_checks.join('; ')}</span>}</td>
+                <td>{c.passed ? 'passed' : <span className="text-red-300">failed: {c.failed_checks.join('; ')}</span>}</td>
               </tr>
             ))}
           </tbody>
@@ -124,7 +124,7 @@ export function ViabilityChecks({ state }: { state: ViabilityValidationState }) 
         <ul className="space-y-1 text-xs text-ink-2">
           {s.invariants.map((i) => (
             <li key={i.name}>
-              <span className={i.passed ? 'text-emerald-700' : 'text-red-700'}>{i.passed ? 'Held' : 'Violated'}:</span> {i.name}
+              <span className={i.passed ? 'text-emerald-300' : 'text-red-300'}>{i.passed ? 'Held' : 'Violated'}:</span> {i.name}
               <span className="text-ink-3"> ({i.detail})</span>
             </li>
           ))}

@@ -25,7 +25,6 @@ import { sendToComparison, useCompareStore } from '../compare/useCompareStore'
 import { openScenarioInPlanner } from './openPlan'
 import type { RescueResponse } from '../rescue/types'
 import { useRescueStore } from '../rescue/useRescueStore'
-import { useTutorialStore } from '../tutorial/useTutorialStore'
 import {
   checkDisrupted,
   checkOriginal,
@@ -82,11 +81,18 @@ interface GuideState {
   evidenceShown: boolean
   /** Set when the report / export stage has been reached for the imported selection. */
   reportOpened: boolean
+  /** Activate the story (fresh state, new run) without entering a stage or navigating: the guided tour drives `go`. */
+  begin: () => void
+  /** begin() then go(0). */
   start: () => void
-  go: (i: number) => void
+  /** Enter stage `i`; resolves once the stage's entry has settled (failures are already caught into `error`). */
+  go: (i: number) => Promise<void>
   next: () => void
   back: () => void
-  retry: () => void
+  /** Re-run the current stage's failed request; resolves like go(). */
+  retry: () => Promise<void>
+  /** Stop the stage that is entering (it no longer writes or navigates) but stay active. */
+  pause: () => void
   exit: () => void
   restart: () => void
 }
@@ -317,25 +323,26 @@ const ENTER: Record<StageId, Enter> = {
 
 export const useGuide = create<GuideState>((set, get) => ({
   ...initial,
-  start: () => {
-    // The feature tutorial and the story never compete for focus or navigation.
-    const tut = useTutorialStore.getState()
-    if (tut.open) tut.skipTour()
-    tut.dismissOffer()
+  begin: () => {
+    // A fresh run: the comparison plans an earlier run imported are removed first, so they are never duplicated.
+    removeOwnedComparison(get().compareIds)
     set({ ...initial, active: true, run: get().run + 1 })
-    get().go(0)
+  },
+  start: () => {
+    get().begin()
+    void get().go(0)
   },
   go: (i) => {
     const stage = Math.max(0, Math.min(STAGES.length - 1, i))
     const run = get().run + 1
     set({ stage, run, error: null })
     const id = STAGES[stage].id
-    Promise.resolve(ENTER[id](run)).catch((e: unknown) => {
+    return Promise.resolve(ENTER[id](run)).catch((e: unknown) => {
       if (live(run)) set({ error: e instanceof Error ? e.message : String(e) })
     })
   },
-  next: () => get().go(get().stage + 1),
-  back: () => get().go(get().stage - 1),
+  next: () => void get().go(get().stage + 1),
+  back: () => void get().go(get().stage - 1),
   retry: () => {
     const id = STAGES[get().stage].id
     // Re-run the failed request of this stage, then the stage itself.
@@ -347,8 +354,9 @@ export const useGuide = create<GuideState>((set, get) => ({
       if (r) useAssessmentStore.setState((s) => ({ results: dropKey(s.results, scenarioKey(r)) }))
     }
     if (id === 'compare') void useCompareStore.getState().refresh()
-    get().go(get().stage)
+    return get().go(get().stage)
   },
+  pause: () => set({ run: get().run + 1 }),
   exit: () => {
     // Stop orchestrating; everything the user can see stays as it is for normal exploration.
     if (useEvidence.getState().request?.origin?.label === EVIDENCE_ORIGIN) clearEvidence()
@@ -369,11 +377,6 @@ export const useGuide = create<GuideState>((set, get) => ({
     get().start()
   },
 }))
-
-// The feature tutorial takes over when it opens: the story stops, so the two never issue conflicting navigation.
-useTutorialStore.subscribe((t, prev) => {
-  if (t.open && !prev.open && useGuide.getState().active) useGuide.getState().exit()
-})
 
 function dropKey<T>(o: Record<string, T>, k: string): Record<string, T> {
   const { [k]: _, ...rest } = o

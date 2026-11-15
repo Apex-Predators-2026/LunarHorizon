@@ -58,7 +58,7 @@ export function SiteMenuRows({ sites, error, loading, onPicked }: {
   const { siteId, setSite } = useAppStore()
   return (
     <div className="max-h-[min(60vh,30rem)] w-72 max-w-[calc(100vw-2rem)] overflow-y-auto text-sm">
-      {error && <p className="px-4 py-2 text-xs text-red-500">{error}. Is the backend running on port 8000?</p>}
+      {error && <p className="px-4 py-2 text-xs text-field-error">{error}. Is the backend running on port 8000?</p>}
       {!error && loading && (
         <p className="flex items-center gap-2 px-4 py-2 text-xs text-slate-400">
           <LoadingIndicator size={20} contained={false} label="Loading" />

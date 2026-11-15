@@ -134,7 +134,7 @@ export function SkyPlot({
       </div>
       <figcaption
         role="tooltip"
-        className={`pointer-events-none fixed z-50 w-60 rounded-xl bg-calcite-ink/95 px-3 py-2 text-[11px] leading-snug origin-top-left text-opal-50 transition-[opacity,transform] duration-150 ${
+        className={`pointer-events-none fixed z-50 w-60 rounded-xl bg-[var(--ui-inverse-surface)]/95 px-3 py-2 text-[11px] leading-snug origin-top-left text-white transition-[opacity,transform] duration-150 ${
           !suppressTip && (tip || focused) ? 'scale-100 opacity-100' : 'scale-90 opacity-0'
         }`}
         style={

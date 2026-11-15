@@ -65,11 +65,11 @@ export function ScenarioChip({ s, size = 'md' }: { s: Pick<ComparisonScenario, '
 }
 
 const KIND_STYLE: Record<DataKind, { text: string; dot: string; title: string }> = {
-  real: { text: 'JPL Horizons + LOLA', dot: '#3c4044',
+  real: { text: 'JPL Horizons + LOLA', dot: 'var(--color-ink-2)',
     title: 'Sun/Earth positions from JPL Horizons, terrain horizon from Moon Trek LOLA DEMs (precomputed by the data engine).' },
   demonstration: { text: 'Demonstration data', dot: '#c98500',
     title: 'Synthetic placeholder timeline. Illustrates the tool only; not real lunar conditions.' },
-  unavailable: { text: 'No data', dot: '#b9babd',
+  unavailable: { text: 'No data', dot: 'var(--color-ink-4)',
     title: 'No scientific data exists for this site and date range.' },
 }
 

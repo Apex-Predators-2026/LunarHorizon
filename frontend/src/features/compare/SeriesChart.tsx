@@ -50,13 +50,13 @@ function ChartInner({ entries, view, align, originMs, value, unit, yLabel, forma
             tickFormatter={(v: number) => `${Number(v.toFixed(2))}${unit}`}
             label={{ value: yLabel, angle: -90, position: 'insideLeft', fill: STATE.muted, fontSize: 10, dy: 40 }} />
           {refLines.map((r) => (
-            <ReferenceLine key={r.label} y={r.y} stroke={r.color ?? '#64748b'} strokeDasharray="4 4"
+            <ReferenceLine key={r.label} y={r.y} stroke={r.color ?? STATE.axis} strokeDasharray="4 4"
               label={{ value: r.label, position: 'insideTopRight', fill: STATE.muted, fontSize: 10 }} />
           ))}
-          {cursor !== null && <ReferenceLine x={cursor} stroke="#d9472f" strokeWidth={1.5} />}
+          {cursor !== null && <ReferenceLine x={cursor} stroke="var(--color-accent)" strokeWidth={1.5} />}
           <Tooltip
             isAnimationActive={false}
-            cursor={{ stroke: '#6b7076', strokeDasharray: '2 3' }}
+            cursor={{ stroke: STATE.muted, strokeDasharray: '2 3' }}
             content={({ active, payload, label }) =>
               active && payload?.length ? (
                 <TooltipBox
