@@ -236,7 +236,9 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
       <p className="mt-2 text-[11px] text-slate-500">
         Tags: <b>ephemeris</b> = JPL Horizons Sun/Earth positions · <b>derived</b> = computed from the Horizons + LOLA timeline ·{' '}
         <b>idealised</b> = geometric upper bound · <b>viability</b> = team viability evaluator · <b>config</b> = your inputs.
-        {' '}↑ / ↓ = which direction is better. “best” is only shown when the lead is meaningful (e.g. ≥ 1 percentage point, ≥ 2 h); ≈ marks a negligible difference.
+        {' '}↑ / ↓ = which direction is better. “best” is only shown when the lead is meaningful (e.g. ≥ 1 percentage point, ≥ 2 h)
+        over every compared scenario of the same data kind, and never while one of them is unavailable, withheld or only bounded
+        in a way that could be ahead; ≈ marks a negligible difference.
         {!base && ' Set a baseline scenario to see improvements (▲) and regressions (▼).'}
       </p>
       <Explain title="What do these metrics mean?">
