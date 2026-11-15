@@ -202,9 +202,16 @@ export function MetricsTable({ entries }: { entries: Entry[] }) {
                         const v = e.result ? m.get(e.result, e.scenario) : null
                         const d = deltaVsBaseline(m, e, base)
                         const isBest = best.has(e.scenario.id)
+                        const shown = (e.result && m.text?.(e.result, e.scenario)) ?? null
+                        // A statistic the backend withheld (part of the mission has no data) says so, with why.
+                        const withheldWhy = v === null && shown === null ? e.result?.withheld?.[m.group] : undefined
                         return (
                           <td key={e.scenario.id} className="py-1 pl-3 align-top tabular-nums">
-                            <span className={isBest ? 'font-medium text-slate-50' : 'text-slate-300'}>{(e.result && m.text?.(e.result, e.scenario)) ?? fmtMetric(v, m.unit)}</span>
+                            {withheldWhy ? (
+                              <span className="cursor-help text-amber-500 underline decoration-dotted" title={withheldWhy}>withheld</span>
+                            ) : (
+                              <span className={isBest ? 'font-medium text-slate-50' : 'text-slate-300'}>{shown ?? fmtMetric(v, m.unit)}</span>
+                            )}
                             {isBest && <span className="ml-1 text-xs text-emerald-300" title="Best among compared real-data scenarios, ahead by a meaningful margin">best</span>}
                             {d && (
                               <span className={`block text-[11px] ${d.better === null ? 'text-slate-500' : d.better ? 'text-emerald-400' : 'text-red-400'}`}>
