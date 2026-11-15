@@ -1,0 +1,3 @@
+# Browser-run artefacts (screenshots, downloads) are reproducible: keep only the gate records.
+smoke-production/
+smoke-offline/
