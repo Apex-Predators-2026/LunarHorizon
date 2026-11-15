@@ -106,7 +106,9 @@ def test_rescue_simulation_mode_is_opt_in(ev):
 def test_sensitivity_of_unknown_plan_says_unknown(ev):
     s = sensitivity(SensitivityRequest(scenario=plan(DATA_END + timedelta(days=60))), ev)
     assert s.verdict == "unknown"
-    assert s.points == [] and s.skipped_points > 0
+    assert s.skipped_points > 0 and s.points  # every requested point is listed, none evaluated
+    assert all(p.status == "not_evaluated" for p in s.points)
+    assert s.counts.requested == len(s.points) == s.counts.skipped
     assert "no real data" in s.explanation.lower()
 
 
@@ -114,8 +116,10 @@ def test_sensitivity_near_the_end_skips_slips_past_the_data(ev):
     # A 7-day mission must end by the last sample, so starts up to DATA_END - 7 days fit.
     s = sensitivity(SensitivityRequest(scenario=plan(DATA_END - timedelta(days=8)),
                                        date_offsets_hours=[-24, 24, 48, 72], position_offsets_km=[]), ev)
-    assert [p.date_offset_hours for p in s.points] == [-24, 24]
-    assert s.skipped_points == 2
+    assert [p.date_offset_hours for p in s.points] == [-24, 24, 48, 72]  # slips past the data stay listed
+    assert [p.status for p in s.points][2:] == ["unknown", "unknown"]
+    assert all(p.status in ("pass", "fail") for p in s.points[:2])
+    assert s.skipped_points == 2 and s.counts.unknown == 2
 
 
 def test_compromise_without_real_data_is_tradeoff_with_no_synthetic_options(ev):

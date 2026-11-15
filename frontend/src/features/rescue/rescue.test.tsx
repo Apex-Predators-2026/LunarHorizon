@@ -15,7 +15,8 @@ import sensitivityRes from './__fixtures__/sensitivity-response.json'
 import { ApiError, errorMessage, runRescue } from './api'
 import { AlternativeCard, DataBadge } from './AlternativeCard'
 import { CompromiseResults } from './CompromisePanel'
-import { fmtDelta, fmtShift, fmtUtc, fmtValue, fromUtcInput, planInfo, toUtcInput } from './format'
+import { evaluatedTimeNote, fmtDelta, fmtShift, fmtUtc, fmtValue, fromUtcInput, headroom, headroomSummary, planInfo, toUtcInput } from './format'
+import { DEFAULT_REQUIREMENTS } from '../../types'
 import { usePlansStore } from '../plans/usePlansStore'
 import { RescueResults, RescuingLine } from './RescuePanel'
 import { buildWalkthrough, GLOSSARY } from './walkthrough'
@@ -235,7 +236,7 @@ describe('components render real backend responses', () => {
     expect(html).toContain('could not be checked (missing data)')
     expect(html).not.toContain('SYNTHETIC DATA')
     expect(html).toContain('unknown')
-    expect(sensUnknown.points).toHaveLength(0)
+    expect(sensUnknown.points.every((p) => p.status === 'not_evaluated')).toBe(true) // listed, none evaluated
   })
 
   it('RescuingLine names the plan, site, landing date and length', () => {
@@ -526,8 +527,39 @@ describe('buildWalkthrough', () => {
   })
 
   it('defines the five terms briefly', () => {
-    expect(GLOSSARY.map((g) => g.term.toLowerCase()).join('|')).toMatch(/sunlit fraction.*darkness.*earth contact.*robustness.*unknown/)
+    expect(GLOSSARY.map((g) => g.term.toLowerCase()).join('|')).toMatch(/sunlit fraction.*power gap.*earth contact.*robustness.*unknown/)
     for (const g of GLOSSARY) expect(g.definition.split('. ').length).toBeLessThanOrEqual(2)
+  })
+
+  it('uses the engine’s real meanings, not looser ones', () => {
+    const def = (t: string) => GLOSSARY.find((g) => g.term.toLowerCase().startsWith(t))!.definition
+    expect(def('sunlit')).toMatch(/disk/)
+    expect(def('sunlit')).not.toMatch(/share of the mission time the Sun is above the horizon/)
+    expect(def('longest power gap')).toMatch(/panel threshold/)
+    expect(def('longest power gap')).toMatch(/no battery charge is simulated/)
+    expect(def('earth contact')).toMatch(/line of sight/)
+    expect(def('earth contact')).toMatch(/not modelled/)
+    expect(def('unknown')).toMatch(/outside the dates.*incomplete/)
+  })
+
+  it('explains an unknown that is not about coverage hours in its own terms', () => {
+    const res = structuredClone(rescue)
+    res.changed.eligibility = 'unknown'
+    res.changed.passes = false
+    res.changed.violations = [{ ...res.changed.violations[0], constraint: 'min_sunlight_fraction', unit: 'fraction', is_unknown: true, actual: 0.3, required: 0.5 }]
+    const t = buildWalkthrough(res)[1].text
+    expect(t).toMatch(/incomplete for sunlit fraction/)
+    expect(t).toMatch(/unknown \(not a fail\)/)
+    expect(t).not.toMatch(/ h /)
+  })
+
+  it('formats a fraction-type broken rule in %, not hours', () => {
+    const res = structuredClone(rescue)
+    res.changed.eligibility = 'fail'
+    res.changed.passes = false
+    res.changed.violations = [{ ...res.changed.violations[0], constraint: 'min_earth_visibility_fraction', unit: 'fraction', is_unknown: false, actual: 0.12, required: 0.4, relative_shortfall: 0.7 }]
+    const t = buildWalkthrough(res)[1].text
+    expect(t).toMatch(/12%.*at least 40%/)
   })
 })
 
@@ -549,5 +581,64 @@ describe('Explain switch', () => {
     useRescueStore.getState().setExplain(true)
     expect(useRescueStore.getState().explain).toBe(true)
     useRescueStore.setState({ explain: false })
+  })
+})
+
+describe('SensitivityView statuses and counts', () => {
+  it('shows every point with its status, the counts and the tested-window wording', () => {
+    const html = renderToString(<SensitivityView data={sensitivity} />)
+    expect(sensitivity.points.length).toBe(sensitivity.counts?.requested)
+    expect(sensitivity.points.some((p) => p.status === 'not_evaluated')).toBe(true)
+    expect(html).toContain('8 points requested: 4 evaluated (4 pass, 0 fail, 0 unknown), 4 not evaluated')
+    expect(html).toContain('not evaluated')
+    expect(html).toContain('tested slip from')
+    expect(html).toContain('not a guarantee')
+    expect(html).toContain('does not show robustness to landing-position error')
+  })
+
+  it('says "not assessed" and never "robust" when nothing could be evaluated', () => {
+    const none = {
+      ...sensitivity,
+      verdict: 'not_assessed',
+      counts: { requested: 2, evaluated: 0, skipped: 2, passed: 0, failed: 0, unknown: 0 },
+      points: sensitivity.points.slice(0, 2).map((p) => ({ ...p, passes: false, score: null, status: 'unknown' as const })),
+    } as unknown as SensitivityResponse
+    const html = renderToString(<SensitivityView data={none} />)
+    expect(html).toContain('not assessed')
+    expect(html).not.toContain('>robust<')
+  })
+})
+
+describe('operational headroom and evaluated time', () => {
+  const req = { ...DEFAULT_REQUIREMENTS }
+  const base = rescue.alternatives[0].viability.metrics
+
+  it('computes darkness and blackout headroom from the metrics and requirements', () => {
+    const items = headroom(base, rescue.alternatives[0].scenario.requirements)
+    const r = rescue.alternatives[0].scenario.requirements
+    const dark = items.find((h) => h.key === 'battery_hours')!
+    expect(dark.amount).toBeCloseTo(r.battery_hours - base.longest_dark_gap_hours)
+    const comms = items.find((h) => h.key === 'max_comms_gap_hours')!
+    expect(comms.amount).toBeCloseTo(r.max_comms_gap_hours - base.longest_comms_gap_hours)
+  })
+
+  it('calls headroom limited under 6 h or under 10% of the limit, and names the closest requirement', () => {
+    const tight = { ...base, longest_dark_gap_hours: 49, longest_comms_gap_hours: 10 }
+    const s = headroomSummary(headroom(tight, req))
+    expect(s.headline).toMatch(/limited darkness headroom \(1 h, limit 50 h\)/)
+    expect(s.closest).toMatch(/^Closest to its limit: darkness/)
+    const roomy = headroomSummary(headroom({ ...base, longest_dark_gap_hours: 15, longest_comms_gap_hours: 48 }, req))
+    expect(roomy.headline).toBe('Passes with 35 h darkness and 48 h comms blackout headroom')
+  })
+
+  it('skips requirements that do not bind (a minimum of zero)', () => {
+    const items = headroom(base, { ...req, min_initial_sun_hours: 0 })
+    expect(items.some((h) => h.key === 'min_initial_sun_hours')).toBe(false)
+  })
+
+  it('notes the evaluated time only when it differs from the time entered', () => {
+    expect(evaluatedTimeNote('2027-04-17T00:30:00Z', '2027-04-17T01:00:00Z')).toMatch(/^Evaluated at .*hourly data grid/)
+    expect(evaluatedTimeNote('2027-04-17T01:00:00.000Z', '2027-04-17T01:00:00Z')).toBeNull()
+    expect(evaluatedTimeNote(undefined, '2027-04-17T01:00:00Z')).toBeNull()
   })
 })
