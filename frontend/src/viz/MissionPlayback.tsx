@@ -1,7 +1,8 @@
 // Panel above the map toolbar while a mission plays (state: useMissionPlayback.ts).
-import { deriveHeadroomFromTrack, resolveHeadroom } from '../lib/headroom'
+import { resolveHeadroom } from '../lib/headroom'
+import { usePlanVerdict } from '../lib/planVerdict'
 import { useAppStore } from '../store'
-import { verdictOf } from '../types'
+import { verdictOf, type Eligibility } from '../types'
 import { PassHeadroom, PassHeadroomBadge } from '../ui/PassHeadroom'
 import { fmtHours, missionAt } from './mission'
 import { parseUtc } from './timeline'
@@ -15,6 +16,9 @@ export function MissionPanel({ mission }: { mission: MissionPlayback }) {
   const playing = useAppStore((s) => s.playing)
   const setPlaying = useAppStore((s) => s.setPlaying)
   const run = mission.run
+  // The engine's verdict for this exact plan (Rescue's result, else the canonical assessment). Hooks run before the
+  // early returns below.
+  const assessed = usePlanVerdict(run?.plan, !mission.verdict)
   if (!run) return null
   const { plan, track } = run
   const req = plan.requirements
@@ -50,20 +54,18 @@ export function MissionPanel({ mission }: { mission: MissionPlayback }) {
   }
 
   const m = missionAt(track, t)
-  const pending = track.failures.find((f, i) => i >= run.acknowledged && f.t <= t && f.t < track.end)
+  // A requirement crossed in the observed timeline is only called a mission failure when the engine says FAIL.
+  const verdict = mission.verdict
+  const canonical = assessed?.status === 'done' ? assessed : null
+  const elig: Eligibility | null = verdict ? verdictOf(verdict) : (canonical?.eligibility ?? null)
+  const pending = elig === 'fail' ? track.failures.find((f, i) => i >= run.acknowledged && f.t <= t && f.t < track.end) : undefined
   const ended = t >= track.end
   const darkLevel = m.darkStreak / req.battery_hours
   const gapLevel = m.gapStreak / req.max_comms_gap_hours
   const tone = (x: number) => (x > 1 ? 'text-red-400' : x > 0.75 ? 'text-amber-300' : 'text-emerald-300')
-  const verdict = mission.verdict
-  const headroom = verdict ? resolveHeadroom(verdict) : deriveHeadroomFromTrack(track, req)
-  const elig = verdict
-    ? verdictOf(verdict)
-    : track.failures.length > 0
-      ? 'fail'
-      : track.unknownHours > 0
-        ? 'unknown'
-        : 'pass'
+  // Headroom comes with Rescue's canonical result only; it is never derived from the track.
+  const headroom = verdict ? resolveHeadroom(verdict) : null
+  const notAssessed = assessed?.status === 'error' ? `Not assessed: ${assessed.message}` : 'Not assessed by the viability engine yet'
 
   return (
     <div className={box} role="status" aria-live="polite">
@@ -121,34 +123,43 @@ export function MissionPanel({ mission }: { mission: MissionPlayback }) {
         <div className="mt-2 rounded-lg border border-opal-300 p-2" data-testid="mission-ended-summary">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="font-medium text-calcite-ink">
-              {track.failures.length
-                ? `Mission over: ${track.failures.length} requirement${track.failures.length > 1 ? 's' : ''} broken`
-                : track.unknownHours > 0
-                  ? 'Mission over: coverage gaps leave survival unresolved'
-                  : 'Mission over: passes declared model limits'}
+              {elig === 'fail'
+                ? 'Mission over: the viability engine finds the requirements broken'
+                : elig === 'unknown'
+                  ? 'Mission over: the viability engine cannot decide (missing data)'
+                  : elig === 'pass'
+                    ? 'Mission over: the viability engine finds the requirements met'
+                    : `Mission over: ${notAssessed.toLowerCase()}`}
             </p>
-            <PassHeadroomBadge headroom={headroom} eligibility={elig} surface="planner" />
+            {elig && headroom && <PassHeadroomBadge headroom={headroom} eligibility={elig} surface="planner" />}
           </div>
           <ul className="mt-0.5 list-disc pl-4">
-            {track.failures.map((f) => (
-              <li key={f.constraint} className="text-red-300">
-                {f.message}
+            {elig === 'fail' && canonical?.failed.map((m) => (
+              <li key={m} className="text-red-300">
+                {m}
               </li>
             ))}
+            {track.failures.length > 0 && (
+              <li>Observed in the timeline (descriptive, not the engine's verdict): {track.failures.map((f) => f.message).join(' · ')}</li>
+            )}
             <li>
               Longest darkness {track.longestDark ? fmtH(track.longestDark.hours) : 'none'}, longest without Earth{' '}
               {track.longestBlackout ? fmtH(track.longestBlackout.hours) : 'none'}
               {track.unknownHours ? `, ${track.unknownHours} h unknown (missing terrain data)` : ''}.
             </li>
           </ul>
-          {!verdict && <PassHeadroom headroom={headroom} surface="planner" compact className="mt-2" />}
           <button type="button" className={`${button} mt-1.5`} onClick={mission.start}>
             Play again
           </button>
         </div>
       )}
 
-      {verdict && (
+      {!verdict && (
+        <p className="mt-2 text-[11px] text-slate-400" data-testid="mission-engine-verdict">
+          Viability engine: {canonical ? (elig === 'pass' ? 'requirements met' : elig === 'fail' ? 'requirements broken' : 'cannot decide (missing data)') : notAssessed}
+        </p>
+      )}
+      {verdict && headroom && elig && (
         <div className="mt-2 space-y-1.5" data-testid="mission-verdict-headroom">
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
             <span>Viability engine:</span>

@@ -1,5 +1,7 @@
-// Multi-scenario line chart on the shared time axis (Recharts). One series per scenario, coloured and
-// dashed by scenario, with the selected time drawn as a reference line. Click selects a time.
+// Multi-scenario chart on the shared time axis (Recharts). One series per scenario, coloured and dashed by scenario,
+// with the selected time drawn as a reference line. Click selects a time. Drawn as steps: each sample holds until the
+// next (the engine's sample-and-hold). Unknown data breaks the line (never connected through) and reads "Unknown" in
+// the tooltip; a measured zero stays a zero.
 import { memo, useMemo } from 'react'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
@@ -61,17 +63,17 @@ function ChartInner({ entries, view, align, originMs, value, unit, yLabel, forma
                   title={fmtAxis(Number(label), align, originMs, 0)}
                   rows={withData
                     .map((e) => ({ s: e.scenario, v: payload.find((p) => p.dataKey === e.scenario.id)?.value }))
-                    .filter((r) => r.v !== undefined && r.v !== null)
-                    .map((r) => ({ s: r.s, text: format(Number(r.v)) }))}
+                    .filter((r) => r.v !== undefined)
+                    .map((r) => ({ s: r.s, text: r.v === null ? 'Unknown (no data)' : format(Number(r.v)) }))}
                 />
               ) : null
             }
           />
           {withData.map((e) => (
-            <Line key={e.scenario.id} dataKey={e.scenario.id} name={`Scenario ${e.scenario.label}`} type="linear"
+            <Line key={e.scenario.id} dataKey={e.scenario.id} name={`Scenario ${e.scenario.label}`} type="stepAfter"
               stroke={seriesColor(e.scenario.colorSlot)} strokeDasharray={seriesDash(e.scenario.colorSlot)}
               strokeWidth={2} dot={false} activeDot={{ r: 4, strokeWidth: 2, stroke: STATE.surface }}
-              connectNulls isAnimationActive={false} />
+              connectNulls={false} isAnimationActive={false} />
           ))}
         </LineChart>
       </ResponsiveContainer>

@@ -130,7 +130,7 @@ describe('analysis on real data', () => {
   it('computes deltas against a baseline in the metric’s preferred direction', () => {
     const e = entries()
     const d = deltaVsBaseline(METRIC_BY_ID.dark_longest, e[1], e[0])!
-    expect(d.value).toBe(byKey.B.solar!.longest_dark_hours - byKey.A.solar!.longest_dark_hours)
+    expect(d.value).toBe(byKey.B.solar!.longest_dark_hours! - byKey.A.solar!.longest_dark_hours!)
     expect(d.better).toBe(true) // shorter darkness is better
     expect(deltaVsBaseline(METRIC_BY_ID.dark_longest, e[0], e[0])).toBeNull()
   })
@@ -362,6 +362,15 @@ describe('compare store', () => {
     expect(useAppStore.getState().siteId).toBe('connecting-ridge')
     expect(useAppStore.getState().timeUtc).toBe('2027-01-16T06:00:00.000Z')
   })
+
+  it('mirrors the evaluated (hourly-grid) landing, not the requested one, into the 3D view', () => {
+    // The backend evaluates 00:15 as 00:00 (timegrid), so the charts' hour 5 is 05:00, not 05:15.
+    useCompareStore.setState({ scenarios: [], selectedIds: [] })
+    const id = useCompareStore.getState().addScenario({ site: SITES.C, landing_utc: '2027-01-15T00:15:00Z' })
+    useCompareStore.getState().setActive(id)
+    useCompareStore.getState().setCursor(5)
+    expect(useAppStore.getState().timeUtc).toBe('2027-01-15T05:00:00.000Z')
+  })
 })
 
 describe('components render real results', () => {
@@ -557,7 +566,7 @@ describe('comparison interface (Phase 4)', () => {
 
   it('a negligible change against the baseline is neither better nor worse', () => {
     const [b, c] = entries(['B', 'C'])
-    const close = { ...c, result: { ...c.result!, solar: { ...c.result!.solar!, longest_dark_hours: b.result!.solar!.longest_dark_hours + 1 } } }
+    const close = { ...c, result: { ...c.result!, solar: { ...c.result!.solar!, longest_dark_hours: b.result!.solar!.longest_dark_hours! + 1 } } }
     const d = deltaVsBaseline(METRIC_BY_ID.dark_longest, close, b)!
     expect(d.meaningful).toBe(false)
     expect(d.better).toBeNull()
