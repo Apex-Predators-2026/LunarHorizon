@@ -406,6 +406,10 @@ export function TutorialSpotlightView({
   const count = inPath >= 0 ? steps.length : total
   const progressPct = Math.round((pos / count) * 100)
   const isLast = inPath >= 0 ? inPath === steps.length - 1 : stepIndex === total - 1
+  // A step's own Next label names where the full tour goes next ("Generate the report"); a path that skips ahead
+  // (the quick tour after Science vs engineering) falls back to plain Next. The last step always keeps its label.
+  const pathNext = inPath >= 0 ? steps[inPath + 1] : stepIndex + 1
+  const nextLabel = step.nextLabel && (isLast || pathNext === stepIndex + 1) ? step.nextLabel : isLast ? 'Finish' : 'Next'
   const blocked = !!story && (story.catchingUp || story.model.status === 'working')
   const actSteps = steps.map((idx) => ({ s: TUTORIAL_STEPS[idx], idx })).filter(({ s }) => s.act === step.act)
   const acts = TOUR_ACTS.filter((a) => steps.some((idx) => TUTORIAL_STEPS[idx].act === a.act))
@@ -609,7 +613,7 @@ export function TutorialSpotlightView({
                   data-testid="tutorial-next"
                   className="md-compact bg-coral font-semibold text-slate-950 shadow-sm aria-disabled:cursor-wait aria-disabled:opacity-60"
                 >
-                  {blocked ? 'Working…' : step.nextLabel ?? (isLast ? 'Finish' : 'Next')}
+                  {blocked ? 'Working…' : nextLabel}
                 </button>
               </div>
             </div>
