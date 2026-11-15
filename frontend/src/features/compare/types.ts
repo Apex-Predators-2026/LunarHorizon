@@ -64,6 +64,7 @@ export interface Window {
   end_utc: string
   open_start: boolean
   open_end: boolean
+  kind?: string | null // canonical window kind (e.g. darkness, sun_unknown)
 }
 
 export interface MissionEvent {
@@ -82,14 +83,14 @@ export interface SolarStats {
   max_elevation_deg: number
   min_elevation_lit_deg: number | null
   mean_clearance_lit_deg: number | null
-  longest_dark_hours: number | null
+  longest_dark_hours: number | null // the engine's longest_without_direct_sunlight (geometric)
   windows_count: number | null
 }
 
 export interface EarthStats {
   visible_hours: number
   visible_fraction: number
-  longest_blackout_hours: number | null
+  longest_blackout_hours: number | null // the engine's longest_communication_blackout
   windows_count: number | null
   mean_elevation_visible_deg: number | null
   min_elevation_visible_deg: number | null
@@ -128,7 +129,12 @@ export interface ScienceContext {
 
 /** Decimated mission timeline. `null` = unknown at that sample (terrain or ephemeris gap), never a measurement. */
 export interface TimelineColumns {
-  step_hours: number
+  step_hours: number // spacing of the returned points (source cadence x stride)
+  source_step_hours?: number // cadence of the source data
+  stride?: number // chart decimation (points per source sample)
+  mission_start_utc?: string | null // the evaluated interval; `hour` is measured from its start
+  mission_end_utc?: string | null
+  sun_visible?: (boolean | null)[] // any part of the disk visible (authoritative: a sliver can round to 0)
   hour: number[]
   time_utc: string[]
   sun_elevation_deg: (number | null)[]
@@ -276,8 +282,17 @@ export interface CompareResult {
   dark_windows: Window[]
   earth_windows: Window[]
   blackout_windows: Window[]
-  events: MissionEvent[]
+  unknown_windows?: Window[] // the engine's sun_unknown / earth_unknown windows
+  events: MissionEvent[] // observed rises/sets only (none at a mission edge or next to unknown data)
   timeline: TimelineColumns | null
+  evaluated_start_utc?: string | null // the exact mission interval evaluated (app/mission_time.py)
+  evaluated_end_utc?: string | null
+  evaluated_hours?: number | null
+  sun_known_hours?: number | null // mission hours with a known Sun state
+  earth_known_hours?: number | null
+  withheld?: Record<string, string> // solar / earth / power -> why that whole-mission block is withheld
+  dataset_file?: string | null // site file the result was computed from (relative to data/sites); null for demonstration data
+  dataset_sha256?: string | null // SHA-256 of that file as evaluated; null for demonstration data
 }
 
 export interface CompareResponse {
@@ -287,6 +302,7 @@ export interface CompareResponse {
   pairwise: PairEvidence[]
   viability_source: string
   notes: string[]
+  time_policy?: string | null
 }
 
 /** Client-side state of one scenario's result. */
