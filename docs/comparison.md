@@ -186,11 +186,14 @@ Rescue plans; links in its answers only scroll the page or start the tour.
 | `fallback.ts` | Basic answers without AI (summary, requirements, Rescue, how-to), assembled from the same context and labelled "Basic answer · not AI". Never sent to the AI. |
 | `backend/app/assistant/` | `GET /api/assistant/status`, `POST /api/assistant/chat`. Adds the system instruction and the API key and forwards to an OpenAI-compatible service (OpenRouter by default) using the Python standard library. Failures return 503 with a reason; no answer is ever made up. |
 
-**Setup.** Copy `backend/.env.example` to `backend/.env` and set `OPENROUTER_API_KEY` (optional: `OPENROUTER_MODEL`,
-default `openai/gpt-4o-mini`; `OPENROUTER_BASE_URL`; `ASSISTANT_TIMEOUT_S`). The file is read on every request, so
-press "Check again" in the panel; no restart is needed. `backend/.env` is git-ignored: each machine needs its own copy,
-and without it the panel says "not configured" and gives basic answers. The key never reaches the browser, a log or an
-error message. `LUNAR_OFFLINE=1` turns the assistant off (the comparison itself still works).
+**Setup.** For local development, copy `backend/.env.example` to `backend/.env` and set `OPENROUTER_API_KEY`.
+For a shared deployment, set it once in the backend host's secret/environment settings; users do not need individual
+keys. In a split-origin deployment, set `VITE_API_URL` at frontend build time and `CORS_ALLOW_ORIGINS` on the backend
+to the frontend's exact origin(s). `OPENROUTER_HTTP_REFERER` may be set to the public frontend URL for provider
+attribution. A local `.env` is read on every request, so press "Check again" after saving; hosted environment changes
+usually require a backend restart/redeploy. Without a key the panel says "not configured" and gives basic answers.
+The key never reaches the browser, a log or an error message. `LUNAR_OFFLINE=1` turns the assistant off (the
+comparison itself still works).
 
 **Answer rules** (system prompt in `backend/app/assistant/prompt.py`): the team's required instruction word for word,
 plus how to read the context. UNKNOWN is never FAIL, missing figures are never 0, only eligible PASS scenarios are

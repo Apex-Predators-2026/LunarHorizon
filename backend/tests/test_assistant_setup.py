@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.assistant import config
 from app.assistant.prompt import build_messages
-from app.main import app
+from app.main import app, cors_origins
 
 client = TestClient(app)
 
@@ -20,7 +20,7 @@ def no_key(monkeypatch, tmp_path):
 def test_not_configured_message_says_how_to_turn_the_assistant_on():
     s = client.get("/api/assistant/status").json()
     assert s["available"] is False and s["reason"] == "not_configured"
-    assert "backend/.env" in s["message"] and ".env.example" in s["message"] and "Check again" in s["message"]
+    assert "OPENROUTER_API_KEY" in s["message"] and "backend environment" in s["message"] and "Check again" in s["message"]
 
 
 def test_example_env_file_names_the_key_but_holds_none():
@@ -32,6 +32,13 @@ def test_example_env_file_names_the_key_but_holds_none():
 def test_instruction_explains_withheld_figures():
     system = build_messages([{"role": "user", "content": "q"}], {})[0]["content"]
     assert '"figures_withheld"' in system and "withheld, not zero" in system
+
+
+def test_cors_origins_default_to_local_development_and_accept_deployed_frontends(monkeypatch):
+    monkeypatch.delenv("CORS_ALLOW_ORIGINS", raising=False)
+    assert cors_origins() == ["http://localhost:5173", "http://127.0.0.1:5173"]
+    monkeypatch.setenv("CORS_ALLOW_ORIGINS", " https://app.example.org/ , https://preview.example.org ")
+    assert cors_origins() == ["https://app.example.org", "https://preview.example.org"]
 
 
 def test_instruction_covers_the_mission_report_snapshot():
