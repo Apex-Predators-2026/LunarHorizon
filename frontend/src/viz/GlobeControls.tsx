@@ -14,6 +14,7 @@
 // Registered as the scene's default controls, with the `target` + `update()` that CameraRig's
 // view presets and the camera readout use. Geometry: globeNav.ts (unit-tested).
 import { useFrame, useThree } from '@react-three/fiber'
+import { guardDrag } from './dragGuard'
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { TOP_DOWN_WITHIN_RAD, useCameraTilt, useFlyTo } from './cameraTilt'
@@ -268,7 +269,9 @@ export function GlobeControls({
     }
     window.addEventListener('keydown', onKey)
 
+    let releaseGuard: (() => void) | null = null
     const onDown = (e: PointerEvent) => {
+      releaseGuard ??= guardDrag() // no text selection or native drag of selected text during the gesture
       n.dispatchEvent({ type: 'start' }) // the user takes over (e.g. stops a view flight)
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY })
       el.setPointerCapture(e.pointerId)
@@ -379,6 +382,8 @@ export function GlobeControls({
       pointers.delete(e.pointerId)
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
       if (pointers.size === 0) {
+        releaseGuard?.()
+        releaseGuard = null
         mode = null
         el.style.cursor = 'grab'
       } else if (pointers.size === 1) {
@@ -442,6 +447,7 @@ export function GlobeControls({
       el.removeEventListener('pointercancel', onUp)
       el.removeEventListener('wheel', onWheel)
       el.removeEventListener('contextmenu', onContextMenu)
+      releaseGuard?.()
       window.removeEventListener('keydown', onKey)
       unsubscribe()
       unsubscribeFly()

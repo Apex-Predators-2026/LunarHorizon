@@ -1,4 +1,4 @@
-# Overnight recovery — progress log
+# Overnight recovery - progress log
 
 Resume here. Baseline/SHAs: `docs/integration/overnight-source-manifest.md`. Per-commit disposition:
 `docs/integration/overnight-change-ledger.md`.
@@ -15,8 +15,8 @@ Frontend: `cd frontend && npx vitest run && npx oxlint && npm run build`.
 | vitest (baseline code + G0 lockfile only) | 40 files, 381 tests passed |
 | oxlint | 0 errors (warnings in `src/viz/RoverFlag.tsx`) |
 | `npm run build` (tsc -b + vite) | OK |
-| backend pytest (full) | 2033 passed, 7 failed (451 s) — the 7 listed below |
-| Pre-existing backend failures (verified on a pristine `git archive d200087` copy) | 7: `test_real_sites_phase6_compat.py::{test_rescue_withholds_verdicts_outside_coverage[landing1,landing2], test_canonical_bounded_policy_can_prove_what_rescue_withholds, test_last_sample_hour_is_unknown_never_flipped, test_rescue_past_end_of_data_stays_unknown_on_canonical_engine}`, `test_phase6_rescue_compat.py::test_missions_shorter_than_two_samples_evaluate[0.48,1.44]` — caused by main's `ada6c42`/`3cc2355` (Rescue judges partial missions on covered hours; durations snapped) without updating these tests |
+| backend pytest (full) | 2033 passed, 7 failed (451 s) - the 7 listed below |
+| Pre-existing backend failures (verified on a pristine `git archive d200087` copy) | 7: `test_real_sites_phase6_compat.py::{test_rescue_withholds_verdicts_outside_coverage[landing1,landing2], test_canonical_bounded_policy_can_prove_what_rescue_withholds, test_last_sample_hour_is_unknown_never_flipped, test_rescue_past_end_of_data_stays_unknown_on_canonical_engine}`, `test_phase6_rescue_compat.py::test_missions_shorter_than_two_samples_evaluate[0.48,1.44]` - caused by main's `ada6c42`/`3cc2355` (Rescue judges partial missions on covered hours; durations snapped) without updating these tests |
 
 ## Key audit decisions
 
