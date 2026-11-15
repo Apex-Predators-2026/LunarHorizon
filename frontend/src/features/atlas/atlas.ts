@@ -1,6 +1,6 @@
 // Feasibility Atlas: types for /api/atlas and the pure logic behind the view (tested in atlas.test.ts).
 // "Which landing dates work for this mission length, and why does this boundary appear?"
-import type { MissionRequirements, Scenario, SiteInfo } from '../../types'
+import type { MissionRequirements } from '../../types'
 
 export type CellStatus = 'pass' | 'fail' | 'unknown' | 'not_evaluated'
 
@@ -144,18 +144,101 @@ export function neighbourhood(r: AtlasResponse, row: number, col: number, radius
   return { cells, run, before: col > 0 ? line[col - 1].status : null, after: col < line.length - 1 ? line[col + 1].status : null }
 }
 
-/** One sentence on how robust the selected date is (what changes at the neighbouring tested dates). */
+const stepText = (r: AtlasResponse) => (r.step_hours % 24 === 0 ? `${r.step_hours / 24} d` : `${r.step_hours} h`)
+
+/** What a neighbouring tested date shows, in words. null = there is no tested date on that side (search edge). */
+const NEIGHBOUR_WORD: Record<CellStatus, string> = {
+  pass: 'passes',
+  fail: 'fails',
+  unknown: "can't be decided from the data",
+  not_evaluated: 'was not evaluated (no data)',
+}
+const NEIGHBOURS_WORD: Record<CellStatus, string> = {
+  pass: 'pass',
+  fail: 'fail',
+  unknown: "can't be decided from the data",
+  not_evaluated: 'were not evaluated (no data)',
+}
+
+/** The tested dates either side of the selected one, without turning an edge or an undecided date into a failure. */
+function neighboursText(before: CellStatus | null, after: CellStatus | null, step: string): string {
+  if (before === null && after === null) return 'It is the only tested date, so no neighbouring date was tested.'
+  if (before !== null && before === after) return `The tested dates ${step} before and after both ${NEIGHBOURS_WORD[before]}.`
+  const b = before === null ? 'There is no tested date before it (start of the search)' : `The tested date ${step} before ${NEIGHBOUR_WORD[before]}`
+  const a = after === null ? 'there is no tested date after it (end of the search)' : `the one ${step} after ${NEIGHBOUR_WORD[after]}`
+  return `${b}; ${a}.`
+}
+
+/**
+ * How the selected date compares with its neighbouring tested dates (same duration). Uses the canonical states as
+ * they are: an undecided cell is never described as a failure, an unevaluated one never as assessed, and dates
+ * outside the search are never described at all except as untested.
+ */
 export function robustnessText(r: AtlasResponse, row: number, col: number): string {
+  const line = r.cells[row]
+  const c = line[col]
   const n = neighbourhood(r, row, col)
-  const step = r.step_hours % 24 === 0 ? `${r.step_hours / 24} d` : `${r.step_hours} h`
-  if (n.run) {
-    const edge = n.run.touchesStart || n.run.touchesEnd ? ' (the run reaches the edge of the search: it may continue beyond it)' : ''
-    if (n.run.length === 1) return `Viable only at this tested date: the dates ${step} before and after don't pass.${edge}`
-    return `Viable for ${n.run.length} consecutive tested dates, ${fmtDay(n.run.from)} to ${fmtDay(n.run.to)}${edge}.`
+  const step = stepText(r)
+  const around = neighboursText(n.before, n.after, step)
+  switch (c.status) {
+    case 'pass': {
+      const run = n.run!
+      if (run.length === 1) return `Passes at this tested date only. ${around}`
+      const edges = [run.touchesStart && 'start', run.touchesEnd && 'end'].filter(Boolean).join(' and ')
+      return (
+        `Passes at ${run.length} consecutive tested dates, ${fmtDay(run.from)} to ${fmtDay(run.to)}, one every ${step}: ` +
+        `${run.length} tested opportunities, not a guarantee for the times between them.` +
+        (edges ? ` The run reaches the ${edges} of the search; dates beyond it were not tested.` : '')
+      )
+    }
+    case 'fail': {
+      const q = r.requirements.find((x) => x.id === c.limiting)
+      return `Fails here${q ? `: ${q.name ?? q.id} (${limitText(q)}) is not met` : ': a requirement is not met'}. ${around}`
+    }
+    case 'unknown':
+      return `Feasibility can't be decided here: the data cannot settle at least one requirement (this is not a failure). ${around}`
+    case 'not_evaluated':
+      return `Not assessed: this landing is outside the site's data, so no mission was evaluated. ${around}`
   }
-  const near = [n.before, n.after].filter((s) => s === 'pass').length
-  if (near) return `Not viable here, but a neighbouring tested date (${step} away) passes.`
-  return 'Not viable here or at the neighbouring tested dates.'
+}
+
+/** A grid with no PASS: confirmed failures, undecided and unevaluated cells told apart. */
+export function noPassSummary(r: AtlasResponse): { kind: 'none_evaluated' | 'none_confirmed' | 'failures'; text: string } {
+  const { fail, unknown, not_evaluated: ne } = r.counts
+  const total = r.cells.reduce((a, row) => a + row.length, 0)
+  const parts = [
+    fail && `${fail} fail${fail === 1 ? 's' : ''} a requirement`,
+    unknown && `${unknown} can't be decided from the data`,
+    ne && `${ne} ${ne === 1 ? 'was' : 'were'} not evaluated (outside the site's data)`,
+  ].filter(Boolean).join(', ')
+  if (ne === total)
+    return { kind: 'none_evaluated', text: `Nothing was evaluated: every tested landing is outside this site's data (${fmtDay(r.data_start_utc)} to ${fmtDay(r.data_stop_utc)}). Move the first landing date into that range.` }
+  if (fail === 0)
+    return { kind: 'none_confirmed', text: `No tested mission can be confirmed to pass, and none is shown to fail: of ${total} missions, ${parts}. Undecided is not a failure; more complete data could settle it.` }
+  return { kind: 'failures', text: `No tested mission meets every requirement here: of ${total} missions, ${parts}.` }
+}
+
+/** Per duration row, the passing runs of consecutive tested dates, or what the row shows instead of a pass. */
+export function rowWindowsText(r: AtlasResponse, row: number): string {
+  const line = r.cells[row]
+  const runs: string[] = []
+  let start = -1
+  line.forEach((c, i) => {
+    if (c.status === 'pass' && start < 0) start = i
+    if ((c.status !== 'pass' || i === line.length - 1) && start >= 0) {
+      const end = c.status === 'pass' ? i : i - 1
+      runs.push(start === end ? fmtDay(line[start].landing_utc) : `${fmtDay(line[start].landing_utc)} to ${fmtDay(line[end].landing_utc)}`)
+      start = -1
+    }
+  })
+  if (runs.length) return `pass at tested landings ${runs.join(', ')}`
+  const count = (st: CellStatus) => line.filter((c) => c.status === st).length
+  const parts = [
+    count('fail') && `${count('fail')} fail`,
+    count('unknown') && `${count('unknown')} can't be decided`,
+    count('not_evaluated') && `${count('not_evaluated')} not evaluated`,
+  ].filter(Boolean).join(', ')
+  return `no tested landing passes (${parts})`
 }
 
 /** For a grid with nothing feasible: which requirements rule out the most cells, and the nearest miss. */
@@ -164,16 +247,6 @@ export function noFeasibleSummary(r: AtlasResponse): { requirement: RequirementI
   for (const row of r.cells) for (const c of row) if (c.status === 'fail' && c.limiting) count.set(c.limiting, (count.get(c.limiting) ?? 0) + 1)
   const byId = new Map(r.requirements.map((q) => [q.id, q]))
   return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ requirement: byId.get(id) ?? { id, unit: '' }, cells: n }))
-}
-
-/** The plan the Planner gets for the selected cell: that exact site, landing, duration and requirements. */
-export function cellScenario(r: AtlasResponse, cell: AtlasCell, site: Pick<SiteInfo, 'id' | 'name' | 'lat' | 'lon'>): Scenario {
-  return {
-    site: { id: site.id, name: site.name, lat: site.lat, lon: site.lon },
-    landing_utc: `${cell.landing_utc.slice(0, 16)}:00Z`, // the exact tested instant
-    duration_days: cell.duration_days,
-    requirements: { ...r.requirements_input },
-  }
 }
 
 /** Grid size and time span of a request, for the "search bounds" line. */

@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from app.engine.sites import SITES as ENGINE_SITES
-from app.models import Scenario, Violation
+from app.models import MissionRequirements, Scenario, Violation
 from app.rescue import Evaluator, rescue, sensitivity
 from app.rescue.catalog import NOT_LANDING_SITES, SITES_BY_ID, custom_site, get_site
 from app.rescue.engine import is_real
@@ -316,6 +316,33 @@ def test_demo_scenario_transition():
     assert res.changed.violations[0].actual > res.changed.violations[0].required
     assert res.alternatives and all(a.viability.verdict == "pass" for a in res.alternatives)
     assert res.alternatives[0].rank == 1 and res.stats.passing >= len(res.alternatives)
+    # Version 2: the story's numbers are recorded under "verified" and recomputed here, on real data and the hourly grid.
+    v = d["verified"]
+    assert d["version"] == 2
+    assert res.original.score == v["original"]["score"] and res.original.verdict == v["original"]["verdict"]
+    bad = res.changed.violations[0]
+    assert res.changed.scenario.landing_utc == datetime.fromisoformat(v["delayed"]["landing_utc"].replace("Z", "+00:00"))
+    assert (bad.constraint, bad.actual, bad.required) == (v["delayed"]["constraint"], v["delayed"]["actual_h"],
+                                                          v["delayed"]["limit_h"])
+    first = res.alternatives[0]
+    fa = v["first_alternative"]
+    assert (first.scenario.site.id, first.date_shift_hours, first.viability.verdict, first.viability.score) == (
+        fa["site_id"], fa["date_shift_hours"], fa["verdict"], fa["score"])
+    assert first.scenario.landing_utc == datetime.fromisoformat(fa["landing_utc"].replace("Z", "+00:00"))
+    # The story quotes exactly these numbers; nothing in it is free text a recomputation can't catch.
+    story = d["story"]
+    for quoted in (f"{bad.actual:.0f} h", f"{bad.required:.0f} h", f"{fa['date_shift_hours']:.0f} h",
+                   f"{fa['date_shift_hours'] / 24:g} days", "2027-02-16 12:00 UTC", "2027-02-13"):
+        assert quoted in story, quoted
+
+
+def test_demo_scenario_does_not_depend_on_default_requirements():
+    """Every requirement is written out, so changing MissionRequirements' defaults cannot change the demo."""
+    d = json.loads(DEMO_PATH.read_text(encoding="utf-8"))
+    written = d["original"]["requirements"]
+    assert set(written) == set(MissionRequirements.model_fields)
+    assert _demo_request().original.requirements == MissionRequirements(**written)
+    assert d["verified"]["delayed"]["limit_h"] == written[d["verified"]["delayed"]["constraint"]]
 
 
 def _release_gate(req: RescueRequest) -> None:
