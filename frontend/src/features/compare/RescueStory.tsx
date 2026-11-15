@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { SCREENING_NOTE } from '../../lib/headroom'
 import { PassHeadroom, PassHeadroomBadge } from '../../ui/PassHeadroom'
 import { fmtUtc } from '../rescue/format'
+import { describedWindowText, missionTime } from './missionTime'
 import { eligibilityOf, groupCountOf, headroomOfEntry, isLimitedHeadroom, qualifiedPassClause, rankText, type Entry } from './analysis'
 import { buildDecision } from './decision'
 import { changedChanged, rescueSteps, type AltOutcome, type RescueContext } from './rescueFlow'
@@ -31,7 +32,8 @@ function Step({ n, title, children }: { n: number; title: string; children: Reac
   )
 }
 
-const plan = (e: Entry) => `${e.scenario.site.name}, landing ${fmtUtc(e.scenario.landing_utc)}, ${e.scenario.duration_days} d`
+/** The plan as assessed: its evaluated window, or its request (named as such) while there is no evaluation. */
+const plan = (e: Entry) => `${e.scenario.site.name}, ${describedWindowText(missionTime(e))}`
 
 export function RescueStory({ entries, groups, pairs, rescueContext: ctxProp }: {
   entries: Entry[]
