@@ -13,6 +13,7 @@ import { HorizonCompare } from './HorizonCompare'
 import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
+import { RequirementEvidence } from './ShowWhy'
 import { buildEntries } from './entries'
 import { resultKey, selectionKey, validateScenario } from './scenario'
 import { DecisionOverview } from './DecisionOverview'
@@ -276,6 +277,9 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
 
             <TabPanel base="cmp" id="detail" value={tab}>
               <div className="space-y-4">
+                <Section id="cmp-why" title="Requirement evidence">
+                  <RequirementEvidence entries={entries} />
+                </Section>
                 <Disclosure id="cmp-charts" card lazy level={2} defaultOpen title="Solar and Earth elevation over time"
                   summary="Sun and Earth elevation for each plan, on the shared timeline">
                   {anyData ? <ElevationCharts entries={entries} view={view} align={align} originMs={originMs} /> : <Empty>No data to chart.</Empty>}

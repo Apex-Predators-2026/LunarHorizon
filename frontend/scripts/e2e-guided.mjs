@@ -131,7 +131,7 @@ async function run(viewport) {
   await shot('6-rescue')
   await primary()
   s = await settle('compare', 120_000)
-  check(`${tag} 7 comparison recommends the recovery`, s.status === 'ready' && /recommends the recovery/.test(s.text))
+  check(`${tag} 7 comparison recommends the recovery`, s.status === 'ready' && /recovery ranks first/.test(s.text))
   await shot('7-compare')
   s = await stepTo('report')
   const preview = page.getByTestId('report-preview')

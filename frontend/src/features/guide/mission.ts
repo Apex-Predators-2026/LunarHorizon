@@ -474,8 +474,8 @@ export function stageModel(s: Snapshot): StageModel {
   const working = (lead: string) => base('working', lead, { primary: { label: 'Working…', action: 'next', disabled: true } })
   const failed = (msg: string) => base('error', msg, { primary: { label: 'Retry', action: 'retry' } })
   const outdated = (why: string) =>
-    base('outdated', `This example no longer matches its verified baseline, so the guided story stops here. ${why}`, {
-      note: `Mission ${MISSION.id} v${MISSION.version}. The tools keep showing the actual current results; you can keep exploring them.`,
+    base('outdated', `The results have changed since this example was checked. ${why}`, {
+      note: 'Explore on your own to see the current results.',
       primary: { label: 'Explore on your own', action: 'finish' },
     })
 
@@ -483,19 +483,18 @@ export function stageModel(s: Snapshot): StageModel {
   if (s.guide.stage <= stageIndex('rescue')) {
     const cur = s.rescue.original ? scenarioKey(s.rescue.original) : null
     if (cur !== scenarioKey(o) && s.guide.stage > 0)
-      return base('modified', 'The running plan was changed, so the guided story is paused: it describes the original inputs.', {
-        note: `The story uses ${o.site.name}, landing ${o.landing_utc.slice(0, 10)}, ${o.duration_days} days. Restart the example, or exit and keep exploring your changed plan.`,
+      return base('modified', 'You changed the active plan. Restart to load the tour’s plan again, or exit to keep exploring yours.', {
         primary: { label: 'Restart the example', action: 'restart' },
       })
     const ch = s.rescue.change
     const overrides = Object.values(ch.requirement_overrides ?? {}).some((v) => v !== undefined && v !== null)
     if (s.guide.stage >= stageIndex('delay') && ((ch.launch_delay_days ?? 0) !== MISSION.disruption.launch_delay_days || ch.new_duration_days || overrides))
-      return base('modified', 'The plan change was edited in Mission Rescue, so the guided story is paused: it describes a 4-day launch delay with the same duration and requirements.', {
+      return base('modified', `You changed the Mission Rescue settings. Restart to restore the example’s ${MISSION.disruption.launch_delay_days}-day delay.`, {
         primary: { label: 'Restart the example', action: 'restart' },
       })
   } else {
     const why = comparisonIntegrity(s.guide, s)
-    if (why) return base('modified', `${why} The guided story is paused because it describes the three imported plans.`, { primary: { label: 'Restart the example', action: 'restart' } })
+    if (why) return base('modified', why, { primary: { label: 'Restart the example', action: 'restart' } })
   }
   if (s.view !== stage.view)
     return base('elsewhere', `This step happens in ${VIEW_LABEL[stage.view]}.`, { primary: { label: `Go to ${VIEW_LABEL[stage.view]}`, action: 'view' } })
@@ -503,25 +502,25 @@ export function stageModel(s: Snapshot): StageModel {
 
   switch (stage.id) {
     case 'mission':
-      return base('ready', MISSION.objective, {
+      return base('ready', 'Keep the lander powered and able to communicate with Earth during its mission.', {
         facts: [
           { label: 'Site', value: `${o.site.name} (${Math.abs(o.site.lat).toFixed(2)}° S)` },
           { label: 'Landing', value: utc(o.landing_utc) },
           { label: 'Duration', value: `${o.duration_days} days` },
           ...MISSION.original.requirements_plain.map((r, i) => ({ label: i === 0 ? 'Requirements' : '', value: r })),
         ],
-        note: 'Real JPL Horizons ephemerides and LOLA terrain, assessed by the canonical engine. Nothing in this story is pre-recorded.',
+        note: 'The app checks this plan using NASA’s JPL Horizons positions and LOLA terrain data.',
         primary: { label: 'Assess the original plan', action: 'next' },
       })
     case 'original': {
       const st = s.results[scenarioKey(o)]
       if (st?.status === 'error') return failed(`The assessment failed: ${st.message}`)
-      if (!oa) return working('The canonical engine is assessing the plan against every requirement…')
+      if (!oa) return working('Checking the original plan…')
       const chk = checkOriginal(oa)
       if (!chk.ok) return outdated(chk.reason)
-      return base('ready', `As planned, the mission ${word(oa.eligibility)} every requirement. The margins below are what a delay could eat into.`, {
+      return base('ready', `The original plan ${word(oa.eligibility)} every requirement.`, {
         facts: [{ label: 'Verdict', value: oa.eligibility.toUpperCase(), tone: 'pass' }, ...marginFacts(oa, MISSION.expected.original.margin_constraints)],
-        note: 'Full assessment in Comparison (on the plan card) lists every requirement with its limit, measured value and margin.',
+        note: 'Each margin shows how much room the plan has before it reaches a limit.',
         primary: { label: `Apply the ${MISSION.disruption.launch_delay_days}-day launch delay`, action: 'next' },
       })
     }
@@ -536,7 +535,6 @@ export function stageModel(s: Snapshot): StageModel {
       if (!da) return base('working', MISSION.disruption.description, { facts, note: 'Re-assessing the delayed plan…', primary: { label: 'Working…', action: 'next', disabled: true } })
       return base('ready', MISSION.disruption.description, {
         facts,
-        note: `Entered through Mission Rescue's "Plan change" form (launch delay = ${MISSION.disruption.launch_delay_days} days), so the normal tools show the same change.`,
         primary: { label: 'See what changed', action: 'next' },
       })
     }
@@ -546,8 +544,7 @@ export function stageModel(s: Snapshot): StageModel {
       if (!chk.ok) return outdated(chk.reason)
       const rows = changeRows(oa, da)
       const failing = da.constraints.filter((c) => c.status === 'fail')
-      const others = da.constraints.filter((c) => c.status !== 'not_applicable').length - rows.length
-      return base('ready', `Landing ${MISSION.disruption.launch_delay_days} days later, the same plan ${word(da.eligibility)} ${failing.length === 1 ? 'one requirement' : `${failing.length} requirements`}: ${failing.map(plainName).join('; ')}. ${others > 0 ? `The other ${others} applicable requirements keep their status.` : ''}`.trim(), {
+      return base('ready', `The ${MISSION.disruption.launch_delay_days}-day delay pushes ${failing.length === 1 ? 'one requirement' : `${failing.length} requirements`} past the limit.`, {
         rows,
         facts: failing.map((c) => ({ label: 'Over the limit', value: headroomText(c), tone: 'fail' as const })),
         primary: { label: 'Show me why', action: 'next' },
@@ -561,8 +558,8 @@ export function stageModel(s: Snapshot): StageModel {
       if (!s.guide.evidenceShown || !s.evidenceVisible) return working('Opening the evidence in the 3D view…')
       const hrs = Math.round(w!.duration_s / 360) / 10
       return base('ready',
-        `Earth is hidden from the lander from ${utc(w!.start_utc)} ${w!.clipped_at_end ? 'until the mission ends' : 'until'} ${utc(w!.end_utc)}: ${hrs} h without Earth in line of sight, against a limit of ${limitHours(constraint!)} h. The 3D view looks from the lander toward Earth at that moment; the band on the time strip marks the blackout.`, {
-          note: w!.clipped_at_end ? `The blackout is still going on when the mission ends (the outage itself may last longer), so this mission experiences at least ${hrs} h.` : null,
+        `Earth drops out of view at ${utc(w!.start_utc)}. The blackout exceeds the mission’s limit.`, {
+          note: w!.clipped_at_end ? 'Earth is still out of view when the mission ends.' : `Earth comes back into view at ${utc(w!.end_utc)}.`,
           facts: [{ label: 'Blackout', value: `${withDays(`${hrs} h`)}, limit ${withDays(`${limitHours(constraint!)} h`)}`, tone: 'fail' }],
           secondary: [{ label: 'Show the evidence again', action: 'evidence' }],
           primary: { label: 'Search for a recovery', action: 'next' },
@@ -572,7 +569,7 @@ export function stageModel(s: Snapshot): StageModel {
       if (s.rescue.status === 'error') return failed(`Mission Rescue failed: ${s.rescue.error}`)
       const res = s.rescue.response
       if (!res || s.rescue.status === 'loading' || s.rescue.status === 'idle')
-        return working(`Mission Rescue is searching nearby sites and dates (${MISSION.search.date_window_days} days after the delayed landing, every ${MISSION.search.date_step_hours} h, real data only)…`)
+        return working('Mission Rescue is checking other sites and dates…')
       const m = rescueMatches(res)
       if (!m.ok) return failed(m.reason)
       const cands = recoveryCandidates(res)
@@ -582,19 +579,18 @@ export function stageModel(s: Snapshot): StageModel {
       const ra = done(s.results[scenarioKey(pick)])?.assessment
       const rst = s.results[scenarioKey(pick)]
       if (rst?.status === 'error') return failed(`The canonical check of the recovery failed: ${rst.message}`)
-      if (!ra) return working('The canonical engine is double-checking the recovery…')
+      if (!ra) return working('Checking the suggested recovery against the mission limits…')
       if (ra.eligibility !== 'pass') return outdated(`The canonical engine assesses Rescue’s recovery as ${ra.eligibility.toUpperCase()}.`)
-      const alt = cands[0]
       const moved = res.alternatives.find((a) => scenarioKey(a.scenario) === scenarioKey(pick))?.distance_km
       const sameDate = new Date(pick.landing_utc).getTime() === new Date(d.landing_utc).getTime()
       return base('ready',
-        `Mission Rescue evaluated ${res.stats.candidates_evaluated} candidate landings at ${res.stats.locations_considered} locations; ${res.stats.passing} meet every requirement. The first that keeps the ${pick.duration_days}-day mission and every requirement: ${pick.site.name}, landing ${utc(pick.landing_utc)}${sameDate ? ' (same date, different site)' : ''}. The canonical engine confirms it ${word(ra.eligibility)}.`, {
+        `The recovery ${word(ra.eligibility)} every requirement for the same ${pick.duration_days}-day mission.${sameDate ? ' It keeps the delayed landing date and moves to another site.' : ''}`, {
           facts: [
             { label: 'Recovery', value: `${pick.site.name} · ${utc(pick.landing_utc)}`, tone: 'pass' },
             ...(moved === undefined ? [] : [{ label: 'Moved', value: Math.round(moved) > 0 ? `${Math.round(moved)} km from the original site` : 'stays at the original site' }]),
             ...marginFacts(ra, MISSION.expected.original.margin_constraints),
           ],
-          note: alt.headline ? `Rescue’s note: ${alt.headline}` : null,
+          note: `Mission Rescue found ${res.stats.passing} passing options out of ${res.stats.candidates_evaluated} checked.`,
           primary: { label: 'Compare the three plans', action: 'next' },
         })
     }
@@ -619,18 +615,15 @@ export function stageModel(s: Snapshot): StageModel {
         value: `${e!.scenario.site.name}, ${utc(e!.scenario.landing_utc)} · ${word(els[i]).toLowerCase()}${e!.ranking?.rank ? ` · rank ${e!.ranking.rank} of ${c.groups.find((g) => g.id === e!.ranking?.group)?.ranked_keys.length ?? '?'} passing` : ''}`,
         tone: tone(els[i]),
       }))
-      const rec = ents[2]!
-      const named = (t: string) => ents.reduce((acc, e, i) => acc.split(`Plan ${e!.scenario.label}`).join(`Plan ${e!.scenario.label} (${roles[i].toLowerCase()})`), t)
-      const n = c.groups.find((x) => x.primary)?.ranked_keys.length ?? 0
       if (stage.id === 'compare')
-        return base('ready', `The comparison recommends the recovery, ${rec.scenario.label}: ${rec.scenario.site.name} on ${utc(rec.scenario.landing_utc)}. It passes every requirement and holds canonical rank 1 of ${n} passing plans in one comparable group. ${named(decision.evidence[0] ?? '')} The original plan stays as the reference: after the delay it can no longer be flown.`.replace(/\s+/g, ' ').trim(), {
+        return base('ready', 'The recovery ranks first among the passing plans. Use the original plan as your reference when comparing what changed.', {
           facts,
-          note: 'Every status here is the comparison’s own canonical re-assessment of the imported plans, with the same requirements and duration, so they are ranked in one group.',
+          note: decision.evidence[0] ?? null,
           primary: { label: 'Generate the summary report', action: 'next' },
         })
       return base('ready', s.guide.reportOpened
-        ? 'The summary report freezes exactly these evaluated plans: verdicts, the recommendation and its evidence, margins, sources and limitations. Print it or save it as PDF, or download the matching JSON.'
-        : 'Export the decision from the comparison summary: the JSON and CSV exports carry the same evaluated plans, verdicts and provenance.', {
+        ? 'Save the report as a PDF to share the results and recommendation.'
+        : 'Export the comparison as JSON or CSV to keep a copy of these results.', {
         facts,
         secondary: [{ label: s.guide.reportOpened ? 'Open the report again' : 'Show the summary', action: s.guide.reportOpened ? 'report' : 'section' }],
         primary: { label: 'Finish', action: 'finish' },

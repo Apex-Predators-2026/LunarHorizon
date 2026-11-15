@@ -161,9 +161,10 @@ function Launcher({ buttonRef }: { buttonRef: Ref<HTMLButtonElement> }) {
       <div className="ask-rover">
         {/* Rover waits behind the button and peeks his head over the top when it is hovered. */}
         <div className="ask-rover-peek" aria-hidden="true"><div className="ask-rover-in"><RoverMascot facing="left" size={160} /></div></div>
+        <span id="ask-rover-invitation" className="ask-rover-bubble">If you are confused by the data, ask me!</span>
         <button ref={buttonRef} type="button" data-tour="compare-assistant" onClick={() => { useAssistantLayout.getState().setLayout('side'); setOpen(true) }}
           className="md-pop-fab relative z-[1] flex h-32 w-32 items-center justify-center rounded-[20%] bg-opal-50 shadow-lg shadow-black/40"
-          aria-label="Open the Mission Assistant" data-tip="Ask Rover about this comparison">
+          aria-label="Open the Mission Assistant" aria-describedby="ask-rover-invitation">
           {/* The words are cut out of the mango mesh. */}
           <span aria-hidden className="block h-full w-full" style={{ WebkitMaskImage: mask, maskImage: mask, WebkitMaskSize: '100% 100%', maskSize: '100% 100%' }}>
             <InteractiveGrainGradient className="h-full w-full" />

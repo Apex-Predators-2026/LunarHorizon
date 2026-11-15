@@ -178,19 +178,19 @@ await step('Run a plan: it becomes the active mission and its card shows the can
 
 // The plan card's "Full assessment in Comparison" (the per-plan dialog it replaced moved to the Comparison's Mission
 // assessment section in the branding refresh, 2b69bf2): the same plan's assessment, its evidence in 3D and the way back.
-await step('Plan assessment in the Comparison: Show in 3D, then Back returns to the same assessment', async () => {
+await step('Plan assessment in the Comparison: Show me why, then Back returns to the same assessment', async () => {
   const card = page.getByRole('listitem', { name: 'Plan Smoke Ridge' })
   await card.getByRole('button', { name: /Full assessment/ }).click()
   try {
     await page.waitForFunction(() => location.hash.startsWith('#app/compare'), null, { timeout: 10_000 })
     const panel = page.locator('#cmp-assessment')
     await panel.getByText('Smoke Ridge').first().waitFor({ timeout: 60_000 }) // this plan, not the running one
-    const show = panel.getByRole('button', { name: 'Show in 3D' }).first() // the failing requirement's evidence window
+    const show = panel.getByRole('button', { name: 'Show me why' }).first() // the failing requirement's evidence window
     await show.waitFor({ timeout: 60_000 })
     await show.click()
     const banner = page.locator('[data-testid=evidence-banner]')
     await banner.waitFor({ timeout: 30_000 })
-    if (!(await page.evaluate(() => location.hash)).startsWith('#app/planner')) throw new Error('Show in 3D did not open the 3D view')
+    if (!(await page.evaluate(() => location.hash)).startsWith('#app/planner')) throw new Error('Show me why did not open the 3D view')
     await banner.getByRole('button', { name: /^Back to / }).click()
     await panel.getByText('Smoke Ridge').first().waitFor({ timeout: 30_000 }) // the same plan's assessment again
     await banner.waitFor({ state: 'detached', timeout: 10_000 })
