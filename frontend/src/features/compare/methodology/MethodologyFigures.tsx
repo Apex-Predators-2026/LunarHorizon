@@ -44,7 +44,7 @@ function Readout({ items }: { items: { label: string; value: ReactNode }[] }) {
     <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
       {items.map((it) => (
         <div key={it.label}>
-          <dt className="text-[11px] uppercase tracking-wide text-ink-4">{it.label}</dt>
+          <dt className="text-[11px] text-ink-4">{it.label}</dt>
           <dd className="text-sm tabular-nums text-ink">{it.value}</dd>
         </div>
       ))}
@@ -271,7 +271,7 @@ export function PipelineStepper() {
         ))}
       </ol>
       <div role="tabpanel" id={`${base}-panel`} aria-labelledby={`${base}-${step.id}`} className="mt-4 rounded-xl bg-[var(--color-inset)] p-4">
-        <p className="text-xs uppercase tracking-wide text-ink-4">Step {index + 1} of {PIPELINE.length}</p>
+        <p className="text-xs text-ink-4">Step {index + 1} of {PIPELINE.length}</p>
         <h4 className="mt-0.5 text-base font-medium text-ink">{step.title}</h4>
         <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
           <div><dt className="text-xs font-medium text-ink-2">Goes in</dt><dd className="mt-0.5 leading-relaxed text-ink-3">{step.input}</dd></div>

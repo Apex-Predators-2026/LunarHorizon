@@ -296,13 +296,13 @@ export function MissionPerformance({ entries, groups, ranking = 'ready' }: {
           )}
           {v.unknown.length > 0 && (
             <div>
-              <h4 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">Cannot be decided (UNKNOWN), not ranked</h4>
+              <h4 className="mb-1 text-[11px] font-medium text-slate-400">Cannot be decided (UNKNOWN), not ranked</h4>
               <ul className="space-y-2">{v.unknown.map((e) => <ScenarioRow key={e.scenario.id} e={e} rankLabel={null} />)}</ul>
             </div>
           )}
           {v.failed.length > 0 && (
             <div>
-              <h4 className="mb-1 text-[11px] font-medium uppercase tracking-wide text-slate-400">Fails a requirement, not ranked</h4>
+              <h4 className="mb-1 text-[11px] font-medium text-slate-400">Fails a requirement, not ranked</h4>
               <ul className="space-y-2">{v.failed.map((e) => <ScenarioRow key={e.scenario.id} e={e} rankLabel={null} />)}</ul>
             </div>
           )}

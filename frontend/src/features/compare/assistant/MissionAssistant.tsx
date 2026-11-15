@@ -467,7 +467,7 @@ function Panel({ open, context, onNav, onClose }: {
               {!full && (
                 <div className="flex flex-col items-center gap-2 pt-2 text-center">
                   {!sideRover && <Bounce on={talking} lift={16}><RoverMascot facing="left" size={92} state={talking ? 'talking' : 'idle'} /></Bounce>}
-                  <h3 className="text-lg font-medium text-ink">Hi, I'm Rover!</h3>
+                  <h3 className="text-lg font-medium text-ink">Ask Rover about this comparison</h3>
                   <p className="max-w-[28ch] text-sm text-ink-3">I'm here to help you understand your missions. Ask me anything about your mission data.</p>
                 </div>
               )}
@@ -592,7 +592,7 @@ function Panel({ open, context, onNav, onClose }: {
               <aside aria-label="About Rover" className="hidden w-[300px] shrink-0 flex-col items-center gap-4 overflow-y-auto border-r border-line bg-inset/50 px-6 py-8 text-center md:flex">
                 {fullPos ? <div className="shrink-0" style={{ height: ROVER_H }} aria-hidden="true" /> : <RoverMascot facing="right" size={ROVER_SIZE} state={talking ? 'talking' : 'idle'} />}
                 <div>
-                  <h2 className="text-xl font-medium text-ink">Hi, I'm Rover!</h2>
+                  <h2 className="text-xl font-medium text-ink">Ask Rover about this comparison</h2>
                   <p className="mt-1 text-sm leading-relaxed text-ink-3">Your mission assistant. I explain this comparison and show you around the page. Read-only: I can't change your plans.</p>
                 </div>
                 {messages.length > 0 && (
@@ -623,7 +623,7 @@ function Suggestions({ items, disabled, onPick, compact = false, cards = false }
   if (cards && !compact) {
     return (
       <div>
-        <p className="mb-2 text-center text-[11px] font-medium uppercase tracking-wide text-ink-4">Try asking</p>
+        <p className="mb-2 text-center text-[11px] font-medium text-ink-4">Try asking</p>
         <ul className="grid gap-2 sm:grid-cols-2">
           {items.slice(0, 4).map((q) => (
             <li key={q}>
@@ -639,7 +639,7 @@ function Suggestions({ items, disabled, onPick, compact = false, cards = false }
   }
   return (
     <div>
-      {!compact && <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-ink-4">Suggested questions</p>}
+      {!compact && <p className="mb-1.5 text-[11px] font-medium text-ink-4">Suggested questions</p>}
       <ul className={compact ? 'flex gap-1.5 overflow-x-auto pb-1' : 'flex flex-col items-start gap-1.5'}>
         {items.map((q) => (
           <li key={q} className={compact ? 'shrink-0' : ''}>
