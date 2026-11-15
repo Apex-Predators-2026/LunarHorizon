@@ -83,7 +83,8 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
   return (
     <div className="pointer-events-none flex flex-wrap items-center gap-x-[clamp(16px,3vw,44px)] gap-y-1">
       <a href="#" aria-label="Lunar Horizon Site Navigator: back to the project page" data-tip="Back to the project page" className="pointer-events-auto shrink-0">
-        <LunarHorizonLogo className={`block h-auto ${view === 'planner' ? 'w-[clamp(176px,20vw,240px)]' : 'w-[clamp(144px,15vw,178px)]'}`} />
+        {/* One size on every page: a size change on switching views made the whole bar jump. */}
+        <LunarHorizonLogo className="block h-auto w-[clamp(176px,20vw,240px)]" />
       </a>
       <nav ref={navRef} aria-label="Main" className="pointer-events-auto relative flex gap-[clamp(14px,2vw,32px)] pb-1">
         {VIEWS.map((v) => (
@@ -101,7 +102,7 @@ function TopNav({ view, onView }: { view: View; onView: (v: View) => void }) {
               if (v.id === 'compare') useTutorialStore.getState().recordInteraction('compare-open')
               onView(v.id)
             }}
-            className="flex min-h-10 cursor-pointer items-center font-[var(--font-inter)] text-[clamp(15px,1.9vw,28px)] font-bold leading-tight tracking-[-0.06em] text-opal-50 transition-colors duration-200 hover:text-opal-300"
+            className="flex min-h-10 cursor-pointer items-center font-[var(--font-inter)] text-[clamp(15px,1.9vw,28px)] font-bold leading-tight tracking-[-0.06em] pr-[0.06em] text-opal-50 transition-colors duration-200 hover:text-opal-300"
           >
             {v.id === 'method' ? (
               <span className="grid min-w-10 place-items-center">
@@ -142,6 +143,20 @@ export default function App() {
   const [plannerKept, setPlannerKept] = useState(view === 'planner')
   if (view === 'planner' && route.page === 'app' && !plannerKept) setPlannerKept(true)
 
+  // The pages below the header start at its measured height (--app-header-h), so the bar never covers them.
+  const shellRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
+  useLayoutEffect(() => {
+    const header = headerRef.current
+    const shell = shellRef.current
+    if (!header || !shell) return
+    const measure = () => shell.style.setProperty('--app-header-h', `${header.offsetHeight}px`)
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(header, { box: 'border-box' })
+    return () => ro.disconnect()
+  }, [route.page])
+
   const tourLaunchedRef = useRef(false)
 
   useEffect(() => {
@@ -167,13 +182,13 @@ export default function App() {
   )
 
   return (
-    <div className="relative h-full overflow-hidden bg-black" data-ui-hidden={uiHidden && !pageView}>
+    <div ref={shellRef} className="relative h-full overflow-hidden bg-black" data-ui-hidden={uiHidden && !pageView}>
       <UiHiddenNotice />
       {/* One tooltip host for every view: data-tip labels on Comparison, Atlas and Methodology need it too. */}
       <TooltipHost />
       {/* The header is rendered once for both pages (floating over the 3D view, or above the comparison). */}
       <GlassDefs />
-      <header className={`ui-chrome md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${pageView ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
+      <header ref={headerRef} className={`ui-chrome md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${pageView ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>
         <div className="flex flex-wrap items-center gap-x-[clamp(16px,3vw,44px)] gap-y-2">
           <TopNav view={view} onView={goToView} />
         </div>
@@ -202,15 +217,15 @@ export default function App() {
         </main>
       )}
       {compare ? (
-        <main key="compare" className="md-fade-through absolute inset-0 overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
+        <main key="compare" className="md-fade-through absolute inset-0 overflow-y-auto pt-[var(--app-header-h,calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px))]">
           <ComparisonDashboard onOpen3D={() => goToView('planner')} section={route.section} onSection={rememberSection} />
         </main>
       ) : view === 'atlas' ? (
-        <main key="atlas" className="md-fade-through absolute inset-0 overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
+        <main key="atlas" className="md-fade-through absolute inset-0 overflow-y-auto pt-[var(--app-header-h,calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px))]">
           <AtlasView />
         </main>
       ) : view === 'method' ? (
-        <main key="method" className="md-fade-through absolute inset-0 overflow-y-auto pt-[calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px)]">
+        <main key="method" className="md-fade-through absolute inset-0 overflow-y-auto pt-[var(--app-header-h,calc(clamp(14px,2.5vw,34px)+clamp(22px,2.7vw,40px)+28px))]">
           <MethodologyView />
         </main>
       ) : null}
