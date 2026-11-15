@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-import { TUTORIAL_STEPS, type TutorialActionKey } from './steps'
+import { TUTORIAL_STEPS, actStart, type TourAct, type TutorialActionKey } from './steps'
 
 export const TUTORIAL_STORAGE_KEY = 'lunar-tutorial-prefs'
 
@@ -66,10 +66,15 @@ export interface TutorialState {
   completed: boolean
   /** Incremented whenever a step needs UI prep synced into Scene/App/MiniMap/Sidebar. */
   prepNonce: number
+  /** True while the current step is still working (e.g. a story stage); blocks Next/ArrowRight. Reset on every step change. */
+  nextBlocked: boolean
   startTour: (startIndex?: number) => void
   nextStep: () => void
   prevStep: () => void
   goToStep: (index: number) => void
+  /** Jumps to the first step of the given act. */
+  goToAct: (act: TourAct) => void
+  setNextBlocked: (blocked: boolean) => void
   skipTour: () => void
   dismissOffer: (persistDontShow?: boolean) => void
   recordInteraction: (action: TutorialActionKey) => void
@@ -86,6 +91,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
   dontShowAgain: initialPrefs.dontShowAgain,
   completed: initialPrefs.completed,
   prepNonce: 0,
+  nextBlocked: false,
 
   startTour: (startIndex = 0) => {
     clearAdvanceTimer()
@@ -94,6 +100,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
       open: true,
       stepIndex: clamped,
       actionDone: false,
+      nextBlocked: false,
       offerDismissed: true,
       prepNonce: s.prepNonce + 1,
     }))
@@ -108,6 +115,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
         open: false,
         stepIndex: 0,
         actionDone: false,
+        nextBlocked: false,
         completed: true,
         offerDismissed: true,
       })
@@ -116,6 +124,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
     set((s) => ({
       stepIndex: s.stepIndex + 1,
       actionDone: false,
+      nextBlocked: false,
       prepNonce: s.prepNonce + 1,
     }))
   },
@@ -125,6 +134,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
     set((s) => ({
       stepIndex: Math.max(0, s.stepIndex - 1),
       actionDone: false,
+      nextBlocked: false,
       prepNonce: s.prepNonce + 1,
     }))
   },
@@ -135,8 +145,17 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
     set((s) => ({
       stepIndex: clamped,
       actionDone: false,
+      nextBlocked: false,
       prepNonce: s.prepNonce + 1,
     }))
+  },
+
+  goToAct: (act: TourAct) => {
+    get().goToStep(actStart(act))
+  },
+
+  setNextBlocked: (blocked: boolean) => {
+    if (get().nextBlocked !== blocked) set({ nextBlocked: blocked })
   },
 
   skipTour: () => {
@@ -144,6 +163,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
     set({
       open: false,
       actionDone: false,
+      nextBlocked: false,
       offerDismissed: true,
     })
   },
@@ -188,6 +208,7 @@ export const useTutorialStore = create<TutorialState>((set, get) => ({
       open: false,
       stepIndex: 0,
       actionDone: false,
+      nextBlocked: false,
       offerDismissed: false,
       dontShowAgain: false,
       completed: false,
@@ -226,5 +247,6 @@ export function resetTutorialStoreForTests(storage?: StorageLike | null) {
     dontShowAgain: prefs.dontShowAgain,
     completed: prefs.completed,
     prepNonce: 0,
+    nextBlocked: false,
   })
 }
