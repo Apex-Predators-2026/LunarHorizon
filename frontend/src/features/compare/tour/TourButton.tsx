@@ -1,4 +1,4 @@
-// Entry point on the Scenario Comparison page: "How to compare missions" opens the site's guided tour at Act 2
+// Entry point on the Plan Comparison page: "How to compare plans" opens the site's guided tour at Act 2
 // (making the decision), which walks through this page on the live mission story.
 import { actStart } from '../../tutorial/steps'
 import { useTutorialStore } from '../../tutorial/useTutorialStore'
