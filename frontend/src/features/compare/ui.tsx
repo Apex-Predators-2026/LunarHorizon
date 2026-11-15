@@ -139,7 +139,7 @@ export function RankBadge({ text }: { text: string }) {
   return (
     <span title="Canonical rank from the viability engine, among comparable passing scenarios"
       className="inline-flex items-center rounded-md bg-sky-950 px-2 py-0.5 text-xs font-medium tabular-nums text-sky-200 ring-1 ring-sky-800">
-      Rank {text}
+      {text.startsWith('#') ? `Rank ${text}` : text}
     </span>
   )
 }
