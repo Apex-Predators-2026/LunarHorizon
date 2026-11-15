@@ -49,8 +49,9 @@ def test_coverage_ends_at_the_last_sample():
     ok = ev.evaluate(Scenario(site=site, landing_utc=end - timedelta(hours=168)))
     late = ev.evaluate(Scenario(site=site, landing_utc=end - timedelta(hours=167)))
     assert is_real(ok) and ok.verdict in ("pass", "fail")
-    assert late.verdict == "unknown" and late.violations[0].constraint == "data_coverage"
-    assert late.violations[0].actual == pytest.approx(167.0)  # hours covered, not 168
+    # One hour past the last sample: the canonical engine judges the real hours that exist (one policy with the
+    # Comparison and the Atlas, app.timegrid). It may prove a fail, never a pass, and never gives a score.
+    assert late.verdict in ("fail", "unknown") and is_real(late) and late.score is None
 
 
 @needs_data
