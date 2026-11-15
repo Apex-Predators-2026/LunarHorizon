@@ -10,9 +10,10 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { AlternativeCard, DateSlipChecks } from './AlternativeCard'
 import { evaluatedTimeNote, fmtShift, fmtUtc, planInfo } from './format'
 import { SensitivityView } from './SensitivityView'
-import { buildWalkthrough, GLOSSARY } from './walkthrough'
+import { buildWalkthrough, GLOSSARY, requirementLabel } from './walkthrough'
+import { goToView } from '../../appRoute'
 import { usePlansStore } from '../plans/usePlansStore'
-import { verdictOf, type Scenario } from '../../types'
+import { verdictOf, type Eligibility, type Scenario, type ViabilityResult } from '../../types'
 import type { RescueResponse, RescueStatus, SensitivityResponse } from './types'
 import { useRescueStore } from './useRescueStore'
 
@@ -189,6 +190,88 @@ export function Walkthrough({ res }: { res: RescueResponse }) {
   )
 }
 
+const VERDICT_CHIP: Record<Eligibility, string> = {
+  pass: 'border-emerald-800 bg-emerald-950 text-emerald-200',
+  fail: 'border-red-800 bg-red-950 text-red-200',
+  unknown: 'border-slate-600 bg-slate-800 text-slate-200',
+}
+const VERDICT_WORD: Record<Eligibility, string> = { pass: 'PASS', fail: 'FAIL', unknown: 'UNKNOWN' }
+
+/** Requirement-level difference between the original and the changed plan. Pure: built only from the two results. */
+export function whatChanged(res: RescueResponse) {
+  const decided = (v: ViabilityResult) => v.violations.filter((x) => !x.is_unknown)
+  const before = new Set(decided(res.original).map((v) => v.constraint))
+  const after = decided(res.changed)
+  const afterSet = new Set(after.map((v) => v.constraint))
+  return {
+    from: verdictOf(res.original),
+    to: verdictOf(res.changed),
+    newlyBroken: after.filter((v) => !before.has(v.constraint)),
+    stillBroken: after.filter((v) => before.has(v.constraint)),
+    fixed: decided(res.original).filter((v) => !afterSet.has(v.constraint)),
+    undecided: res.changed.violations.filter((v) => v.is_unknown),
+  }
+}
+
+/** Original plan -> changed plan: the two canonical verdicts and the requirements that broke, recovered or became
+ *  undecided. The Explain walkthrough tells the same story in prose; this is the always-visible summary. */
+export function WhatChanged({ res }: { res: RescueResponse }) {
+  const d = whatChanged(res)
+  const chip = (e: Eligibility) => (
+    <span className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${VERDICT_CHIP[e]}`}>{VERDICT_WORD[e]}</span>
+  )
+  const row = (label: string, v: ViabilityResult, e: Eligibility) => (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="w-24 shrink-0 text-slate-500">{label}</span>
+      {chip(e)}
+      <span className="text-slate-300">
+        {v.scenario.site.name}, {fmtUtc(v.scenario.landing_utc)}, {v.scenario.duration_days} d
+      </span>
+    </div>
+  )
+  return (
+    <section aria-label="What changed" data-testid="rescue-what-changed"
+      className="space-y-1.5 rounded-md border border-slate-800 bg-slate-900/40 p-3 text-xs">
+      <h3 className="text-sm font-medium text-slate-200">What changed</h3>
+      {row('Original plan', res.original, d.from)}
+      {row('After the change', res.changed, d.to)}
+      {d.from === d.to && d.newlyBroken.length === 0 && d.fixed.length === 0 && d.undecided.length === 0 && (
+        <p className="text-slate-400">The canonical verdict did not change.</p>
+      )}
+      {(d.newlyBroken.length > 0 || d.stillBroken.length > 0) && (
+        <ul className="space-y-0.5 text-red-300">
+          {d.newlyBroken.map((v) => (
+            <li key={v.constraint}>
+              <span aria-hidden="true">✕ </span>Newly broken: {requirementLabel(v.constraint)}. {v.message}
+            </li>
+          ))}
+          {d.stillBroken.map((v) => (
+            <li key={v.constraint}>
+              <span aria-hidden="true">✕ </span>Still broken: {requirementLabel(v.constraint)}. {v.message}
+            </li>
+          ))}
+        </ul>
+      )}
+      {d.fixed.length > 0 && (
+        <ul className="space-y-0.5 text-emerald-300">
+          {d.fixed.map((v) => (
+            <li key={v.constraint}><span aria-hidden="true">✓ </span>No longer broken: {requirementLabel(v.constraint)}</li>
+          ))}
+        </ul>
+      )}
+      {d.undecided.length > 0 && (
+        <ul className="space-y-0.5 text-slate-300">
+          {d.undecided.map((v) => (
+            <li key={v.constraint}>
+              <span aria-hidden="true">? </span>Undecided, not a failure: {requirementLabel(v.constraint)}. {v.message.replace(/^UNKNOWN: /, '')}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 interface ResultsProps {
   res: RescueResponse
   /** The landing time the user entered (before rounding to the hourly grid). */
@@ -244,13 +327,22 @@ export function RescueResults({ res, requestedLanding, explain, selected, sensit
         </p>
       </div>
 
+      <WhatChanged res={res} />
+
       <DataNote assumptions={res.assumptions} />
 
       {explain && <Walkthrough res={res} />}
 
       {res.alternatives.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-medium text-slate-200">Recommended alternatives</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-medium text-slate-200">Recommended alternatives (meet every original requirement)</h3>
+            <button type="button" onClick={() => goToView('compare')}
+              data-tip="Open Scenario Comparison, where you can bring in the original, the changed plan and these alternatives"
+              className="shrink-0 rounded border border-slate-700 px-2 py-0.5 text-xs hover:bg-slate-800">
+              Compare them
+            </button>
+          </div>
           {res.alternatives.map((a) => (
             <AlternativeCard
               key={`${a.scenario.site.id}@${a.scenario.landing_utc}`}
@@ -268,7 +360,8 @@ export function RescueResults({ res, requestedLanding, explain, selected, sensit
 
       {res.loosening.length > 0 && (
         <div className="rounded-md border border-slate-800 bg-slate-900/40 p-3 text-xs">
-          <h3 className="text-sm font-medium text-slate-200">Or relax a requirement</h3>
+          <h3 className="text-sm font-medium text-slate-200">Or relax a requirement (engineering compromise)</h3>
+          <p className="mt-1 text-[11px] text-slate-500">These plans pass only under the relaxed requirement shown, not the original ones.</p>
           <ul className="mt-2 space-y-2">
             {res.loosening.map((l) => (
               <li key={l.message} className="flex items-start justify-between gap-3 text-slate-300">

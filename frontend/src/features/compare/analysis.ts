@@ -235,27 +235,46 @@ function firstEndText(r: CompareResult, kind: 'sunlight' | 'earth'): string | nu
   return inexactText(m, 'h')
 }
 
+/**
+ * A whole-mission statistic, or the engine's canonical metric when the statistic is withheld for incomplete data.
+ * `value` is a number only when it is exact (a known canonical metric is exact); otherwise `text` says what the data
+ * can prove: a range (bounded), or why there is no number. `scale` converts the canonical unit to the row's unit
+ * ('hours' = percent of the evaluated mission in hours).
+ */
+function withCanonical(own: number | null | undefined, r: CompareResult, key: string, scale: number | 'hours', unit: MetricDef['unit'], body: 'solar' | 'earth' | 'power') {
+  if (own !== null && own !== undefined && Number.isFinite(own)) return { value: own, text: null as string | null }
+  const m = cm(r, key)
+  const k = scale === 'hours' ? (r.evaluated_hours ?? 0) / 100 : scale
+  if (m?.status === 'known' && m.value !== null) return { value: m.value * k, text: null }
+  if (m?.status === 'bounded' && m.lower !== null && m.upper !== null)
+    return { value: null, text: `${fmtMetric(m.lower * k, unit)} – ${fmtMetric(m.upper * k, unit)} (bounds: data incomplete)` }
+  return { value: null, text: r.withheld?.[body] ? 'Unknown (data incomplete)' : null }
+}
+
+/** Text for a statistic with no canonical counterpart that is withheld for incomplete data (never a number). */
+const withheldText = (r: CompareResult, body: 'solar' | 'earth' | 'power') => (r.withheld?.[body] ? 'Unknown (data incomplete)' : null)
+
 export const METRICS: MetricDef[] = [
   // ---- solar (from Horizons + LOLA timelines)
   { id: 'sunlit_hours', group: 'solar', label: 'Total sunlight', unit: 'h', better: 'higher', provenance: 'derived',
-    get: (r) => r.solar?.sunlit_hours ?? null, hint: 'Hours with any part of the solar disk above the local terrain.' },
+    get: (r) => withCanonical(r.solar?.sunlit_hours, r, 'sunlight_percent', 'hours', 'h', 'solar').value, text: (r) => withCanonical(r.solar?.sunlit_hours, r, 'sunlight_percent', 'hours', 'h', 'solar').text, hint: 'Hours with any part of the solar disk above the local terrain.' },
   { id: 'sunlit_pct', group: 'solar', label: 'Mission illuminated', unit: '%', better: 'higher', provenance: 'derived',
-    get: (r) => pct(r.solar?.sunlit_fraction) },
+    get: (r) => withCanonical(pct(r.solar?.sunlit_fraction), r, 'sunlight_percent', 1, '%', 'solar').value, text: (r) => withCanonical(pct(r.solar?.sunlit_fraction), r, 'sunlight_percent', 1, '%', 'solar').text },
   { id: 'mean_disk', group: 'solar', label: 'Mean visible solar disk', unit: '%', better: 'higher', provenance: 'derived',
-    get: (r) => pct(r.solar?.mean_visible_fraction), hint: 'Average share of the Sun’s disk above the terrain (partial Sun counts partially).' },
+    get: (r) => withCanonical(pct(r.solar?.mean_visible_fraction), r, 'mean_solar_disk_fraction', 100, '%', 'solar').value, text: (r) => withCanonical(pct(r.solar?.mean_visible_fraction), r, 'mean_solar_disk_fraction', 100, '%', 'solar').text, hint: 'Average share of the Sun’s disk above the terrain (partial Sun counts partially).' },
   { id: 'sun_el_mean', group: 'solar', label: 'Average solar elevation', unit: 'deg', better: null, provenance: 'measured',
-    get: (r) => r.solar?.mean_elevation_deg ?? null },
+    get: (r) => withCanonical(r.solar?.mean_elevation_deg, r, 'mean_solar_elevation_deg', 1, 'deg', 'solar').value, text: (r) => withCanonical(r.solar?.mean_elevation_deg, r, 'mean_solar_elevation_deg', 1, 'deg', 'solar').text },
   { id: 'sun_el_max', group: 'solar', label: 'Maximum solar elevation', unit: 'deg', better: null, provenance: 'measured',
-    get: (r) => r.solar?.max_elevation_deg ?? null },
+    get: (r) => r.solar?.max_elevation_deg ?? null, text: (r) => withheldText(r, 'solar') },
   { id: 'sun_el_min_lit', group: 'solar', label: 'Minimum solar elevation while lit', unit: 'deg', better: null,
-    provenance: 'measured', get: (r) => r.solar?.min_elevation_lit_deg ?? null },
+    provenance: 'measured', get: (r) => r.solar?.min_elevation_lit_deg ?? null, text: (r) => withheldText(r, 'solar') },
   { id: 'sun_clear', group: 'solar', label: 'Mean Sun clearance above terrain (lit)', unit: 'deg', better: 'higher',
-    provenance: 'derived', get: (r) => r.solar?.mean_clearance_lit_deg ?? null,
+    provenance: 'derived', get: (r) => withCanonical(r.solar?.mean_clearance_lit_deg, r, 'mean_sun_clearance_deg', 1, 'deg', 'solar').value, text: (r) => withCanonical(r.solar?.mean_clearance_lit_deg, r, 'mean_sun_clearance_deg', 1, 'deg', 'solar').text,
     hint: 'How far the Sun sits above the local terrain horizon. Small values mean terrain is close to blocking it.' },
   { id: 'dark_longest', group: 'solar', label: 'Longest continuous darkness', unit: 'h', better: 'lower', provenance: 'derived',
-    get: (r) => r.solar?.longest_dark_hours ?? null, hint: 'Geometric: no part of the solar disk visible.' },
+    get: (r) => withCanonical(r.solar?.longest_dark_hours, r, 'longest_without_sun_h', 1, 'h', 'solar').value, text: (r) => withCanonical(r.solar?.longest_dark_hours, r, 'longest_without_sun_h', 1, 'h', 'solar').text, hint: 'Geometric: no part of the solar disk visible.' },
   { id: 'sun_windows', group: 'solar', label: 'Sunlight windows', unit: 'count', better: null, provenance: 'derived',
-    get: (r) => r.solar?.windows_count ?? null },
+    get: (r) => r.solar?.windows_count ?? null, text: (r) => withheldText(r, 'solar') },
   { id: 'initial_sun_hours', group: 'solar', label: 'Initial illumination (from landing)', unit: 'h', better: 'higher', provenance: 'derived',
     get: (r) => knownValue(initialWindowMetric(r, 'sunlight')),
     text: (r) => {
@@ -269,30 +288,30 @@ export const METRICS: MetricDef[] = [
     hint: 'Hours after landing until the first lit-to-dark transition (first sunset).' },
   // ---- idealised power
   { id: 'incidence', group: 'power', label: 'Mean incidence factor', unit: 'factor', better: 'higher', provenance: 'idealized',
-    get: (r) => r.power?.mean_incidence_factor ?? null, hint: 'visible disk × max(0, cos θ). 1 = full Sun on the panel face.' },
+    get: (r) => r.power?.mean_incidence_factor ?? null, text: (r) => withheldText(r, 'power'), hint: 'visible disk × max(0, cos θ). 1 = full Sun on the panel face.' },
   { id: 'eq_hours', group: 'power', label: 'Equivalent full-power hours', unit: 'h', better: 'higher', provenance: 'idealized',
-    get: (r) => r.power?.equivalent_full_power_hours ?? null },
+    get: (r) => r.power?.equivalent_full_power_hours ?? null, text: (r) => withheldText(r, 'power') },
   { id: 'p_mean', group: 'power', label: 'Idealised mean power ceiling', unit: 'W', better: 'higher', provenance: 'idealized',
-    get: (r) => r.power?.idealized_mean_power_w ?? null },
+    get: (r) => r.power?.idealized_mean_power_w ?? null, text: (r) => withheldText(r, 'power') },
   { id: 'e_ratio', group: 'power', label: 'Idealised energy ÷ load', unit: 'x', better: 'higher', provenance: 'idealized',
-    get: (r) => r.power?.idealized_energy_to_load_ratio ?? null, hint: 'Above 1 means the ideal ceiling covers the load; real output is lower.' },
+    get: (r) => r.power?.idealized_energy_to_load_ratio ?? null, text: (r) => withheldText(r, 'power'), hint: 'Above 1 means the ideal ceiling covers the load; real output is lower.' },
   { id: 'endurance', group: 'power', label: 'Battery endurance (capacity ÷ load)', unit: 'h', better: null, provenance: 'config',
     get: (r) => r.power?.battery_endurance_hours ?? null },
   // ---- Earth (geometric line of sight)
   { id: 'earth_hours', group: 'earth', label: 'Earth visibility', unit: 'h', better: 'higher', provenance: 'derived',
-    get: (r) => r.earth?.visible_hours ?? null },
+    get: (r) => withCanonical(r.earth?.visible_hours, r, 'earth_visible_percent', 'hours', 'h', 'earth').value, text: (r) => withCanonical(r.earth?.visible_hours, r, 'earth_visible_percent', 'hours', 'h', 'earth').text },
   { id: 'earth_pct', group: 'earth', label: 'Mission with Earth in view', unit: '%', better: 'higher', provenance: 'derived',
-    get: (r) => pct(r.earth?.visible_fraction) },
+    get: (r) => withCanonical(pct(r.earth?.visible_fraction), r, 'earth_visible_percent', 1, '%', 'earth').value, text: (r) => withCanonical(pct(r.earth?.visible_fraction), r, 'earth_visible_percent', 1, '%', 'earth').text },
   { id: 'blackout_longest', group: 'earth', label: 'Longest communication blackout', unit: 'h', better: 'lower',
-    provenance: 'derived', get: (r) => r.earth?.longest_blackout_hours ?? null },
+    provenance: 'derived', get: (r) => withCanonical(r.earth?.longest_blackout_hours, r, 'longest_blackout_h', 1, 'h', 'earth').value, text: (r) => withCanonical(r.earth?.longest_blackout_hours, r, 'longest_blackout_h', 1, 'h', 'earth').text },
   { id: 'earth_windows', group: 'earth', label: 'Communication windows', unit: 'count', better: null, provenance: 'derived',
-    get: (r) => r.earth?.windows_count ?? null },
+    get: (r) => r.earth?.windows_count ?? null, text: (r) => withheldText(r, 'earth') },
   { id: 'earth_el_mean', group: 'earth', label: 'Mean Earth elevation (visible)', unit: 'deg', better: 'higher',
-    provenance: 'measured', get: (r) => r.earth?.mean_elevation_visible_deg ?? null },
+    provenance: 'measured', get: (r) => r.earth?.mean_elevation_visible_deg ?? null, text: (r) => withheldText(r, 'earth') },
   { id: 'earth_el_min', group: 'earth', label: 'Minimum Earth elevation (visible)', unit: 'deg', better: 'higher',
-    provenance: 'measured', get: (r) => r.earth?.min_elevation_visible_deg ?? null },
+    provenance: 'measured', get: (r) => r.earth?.min_elevation_visible_deg ?? null, text: (r) => withheldText(r, 'earth') },
   { id: 'earth_margin_min', group: 'earth', label: 'Minimum Earth margin above terrain', unit: 'deg', better: 'higher',
-    provenance: 'derived', get: (r) => r.earth?.min_margin_visible_deg ?? null,
+    provenance: 'derived', get: (r) => r.earth?.min_margin_visible_deg ?? null, text: (r) => withheldText(r, 'earth'),
     hint: 'Smallest clearance between Earth and the terrain while in view. Near 0° = marginal line of sight.' },
   { id: 'initial_comms_hours', group: 'earth', label: 'Initial Earth contact (from landing)', unit: 'h', better: 'higher', provenance: 'derived',
     get: (r) => knownValue(initialWindowMetric(r, 'earth')),
@@ -912,8 +931,10 @@ export function fmtAxis(x: number, align: Align, originMs: number, span: number)
 
 export interface Conditions {
   index: number
-  met: number
-  time_utc: string
+  met: number // hours after landing of the data sample shown
+  time_utc: string // that sample's time
+  selectedMet: number // the selected moment (the sample holds there: sample-and-hold, never interpolated)
+  held: boolean // true when the selected moment is after the sample's own time
   sunEl: number | null
   sunAz: number | null
   sunHorizon: number | null
@@ -927,11 +948,23 @@ export interface Conditions {
   earthReason: string
 }
 
+/**
+ * The point that represents `met` hours after landing under the project's sample-and-hold policy (the hourly grid,
+ * backend app/timegrid.py): the last point at or before it, if `met` is within one point spacing of it. Never a later
+ * point and never interpolated, so the conditions shown are the ones the viability engine used.
+ */
 export function sampleIndex(tl: TimelineColumns, met: number): number | null {
-  if (!tl.hour.length || met < 0) return null
-  const last = tl.hour[tl.hour.length - 1]
-  if (met > last + tl.step_hours) return null
-  return Math.min(tl.hour.length - 1, Math.max(0, Math.round(met / tl.step_hours)))
+  if (!tl.hour.length || met < 0 || !Number.isFinite(met)) return null
+  let lo = 0
+  let hi = tl.hour.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (tl.hour[mid] <= met + 1e-9) lo = mid + 1
+    else hi = mid
+  }
+  const i = lo - 1
+  if (i < 0 || met - tl.hour[i] >= tl.step_hours - 1e-9) return null
+  return i
 }
 
 const deg = (v: number) => `${v.toFixed(2)}°`
@@ -945,19 +978,21 @@ export function conditionsAt(e: Entry, x: number): Conditions | null {
   if (i === null) return null
   const sunEl = tl.sun_elevation_deg[i], sunHorizon = tl.sun_horizon_deg[i], f = tl.sun_visible_fraction[i]
   const earthEl = tl.earth_elevation_deg[i], earthHorizon = tl.earth_horizon_deg[i], vis = tl.earth_visible[i]
+  const sunFlag = tl.sun_visible?.[i] // authoritative any-disk flag, when the response carries it
   let sunReason: string
-  if (f === null || sunEl === null || sunHorizon === null) sunReason = 'Unknown: no terrain or ephemeris data for the Sun at this time'
+  if (f === null || sunEl === null || sunHorizon === null || sunFlag === null) sunReason = 'Unknown: no terrain or ephemeris data for the Sun at this time (not darkness)'
+  else if (sunFlag === true && f === 0) sunReason = 'A sliver of the Sun is visible (less than the data’s rounding of the disk share): not darkness'
   else if (f >= 0.999) sunReason = `Full Sun: Sun centre ${deg(sunEl - sunHorizon)} above the terrain horizon`
   else if (f > 0) sunReason = `Partial Sun: ${Math.round(f * 100)}% of the disk clears the terrain (horizon ${deg(sunHorizon)})`
   else if (sunHorizon > sunEl) sunReason = `Dark: terrain at ${deg(sunHorizon)} hides the Sun at ${deg(sunEl)}`
   else sunReason = `Dark: Sun at ${deg(sunEl)} is below the horizon`
   let earthReason: string
-  if (vis === null || earthEl === null || earthHorizon === null) earthReason = 'Unknown: no terrain or ephemeris data for Earth at this time'
+  if (vis === null || earthEl === null || earthHorizon === null) earthReason = 'Unknown: no terrain or ephemeris data for Earth at this time (not a blackout)'
   else if (vis) earthReason = `Earth in line of sight, ${deg(earthEl - earthHorizon)} above the terrain`
   else if (earthEl > 0) earthReason = `Blocked: terrain at ${deg(earthHorizon)} hides Earth at ${deg(earthEl)}`
   else earthReason = `Below horizon: Earth at ${deg(earthEl)}, terrain ${deg(earthHorizon)}`
   return {
-    index: i, met: tl.hour[i], time_utc: tl.time_utc[i], sunEl, sunAz: tl.sun_azimuth_deg[i], sunHorizon, sunFraction: f,
+    index: i, met: tl.hour[i], time_utc: tl.time_utc[i], selectedMet: met, held: met - tl.hour[i] > 1e-6, sunEl, sunAz: tl.sun_azimuth_deg[i], sunHorizon, sunFraction: f,
     incidence: tl.incidence_factor[i], earthEl, earthAz: tl.earth_azimuth_deg[i], earthHorizon, earthVisible: vis,
     sunReason, earthReason,
   }
@@ -991,9 +1026,30 @@ export function mergeSeries(
     }
   }
   const rows = [...map.values()].sort((a, b) => a.x - b.x)
+  // Fill each scenario's rows between its own samples with the held value, inside its sample span only.
+  for (const e of entries) {
+    const tl = e.result?.timeline
+    if (!tl || !tl.hour.length) continue
+    const id = e.scenario.id
+    const first = e.offsetHours + tl.hour[0]
+    const last = e.offsetHours + tl.hour[tl.hour.length - 1] + tl.step_hours
+    let held: number | null | undefined = undefined
+    for (const row of rows) {
+      if (row.x < first - 1e-9 || row.x >= last - 1e-9) continue
+      if (id in row) held = row[id]
+      else if (held !== undefined) row[id] = held
+    }
+  }
   if (rows.length <= maxRows) return rows
   const k = Math.ceil(rows.length / maxRows)
-  return rows.filter((_, i) => i % k === 0)
+  const out: Row[] = []
+  for (let i = 0; i < rows.length; i += k) {
+    const row = { ...rows[i] }
+    // A dropped unknown value is carried into the row kept for it, so a short unknown interval is never hidden.
+    for (const r of rows.slice(i + 1, i + k)) for (const [key, v] of Object.entries(r)) if (key !== 'x' && v === null) row[key] = null
+    out.push(row)
+  }
+  return out
 }
 
 // ---------------------------------------------------------------- written summary

@@ -259,36 +259,52 @@ PNS = "peak-near-shackleton"
     ("landing", "days", "label"),
     [
         (DATA_START - timedelta(days=2), 7, "begins before the data"),
-        (DATA_END - timedelta(days=4), 7, "runs past the data"),
-        (DATA_END - timedelta(days=12), 14, "runs past the data"),
         (AFTER_DATA, 7, "entirely outside"),
     ],
 )
 def test_rescue_withholds_verdicts_outside_coverage(
     landing: datetime, days: int, label: str, canonical: Evaluator
 ) -> None:
-    """Default mode never falls back to synthetic data. A mission that starts outside the data is answered UNKNOWN
-    before the engine runs; one that starts inside but runs past the end is judged on the real hours that exist
-    (app.timegrid policy): it can prove a FAIL, never a PASS, and it never gets an exact score."""
+    """A mission that does not start inside the data is never sent to the engine and never falls back to synthetic
+    data: rescue's coverage check answers UNKNOWN."""
     sc = make(Scenario, site=get_site(PNS).to_site(), landing_utc=landing, duration_days=days)
     r = canonical.evaluate(sc)
-    assert not r.passes and r.score is None and "synthetic" not in r.data_source, label
-    if label == "runs past the data":
-        assert r.eligibility in ("fail", "unknown"), label
-        assert r.data_source != NO_DATA_SOURCE, label  # real hours were used
-        if r.eligibility == "fail":  # a fail is proven from the covered part, never from the missing part
-            assert r.violations and not any(v.is_unknown for v in r.violations), label
-        return
-    assert r.eligibility == "unknown", label
+    assert r.eligibility == "unknown" and not r.passes and r.score is None, label
     assert r.source == "rescue-coverage-check" and r.data_source == NO_DATA_SOURCE
     assert [(v.constraint, v.is_unknown) for v in r.violations] == [("data_coverage", True)]
+    assert "synthetic" not in r.data_source
 
 
-def test_canonical_bounded_policy_can_prove_what_rescue_withholds(canonical: Evaluator) -> None:
-    """Expected policy difference (documented, not forced equal): applied to the whole site file, the
-    canonical engine bounds a partially covered mission and may PROVE a failure from the covered part;
-    rescue answers UNKNOWN for a mission that starts outside the data and judges one that starts inside it the same
-    way (bounded). Neither ever reports an unproven verdict."""
+def _assert_bounded_verdict(r, label: str = "") -> None:
+    """A mission judged on partial real data: canonical engine, real samples only, never an exact score, and a
+    verdict only where the bounds prove it (a FAIL needs a decided violation, a PASS none at all)."""
+    assert r.source == SOURCE and is_real(r) and "synthetic" not in r.data_source, label
+    assert r.score is None, label  # the missing hours rule out an exact score
+    if r.verdict == "fail":
+        assert any(not v.is_unknown for v in r.violations), label
+    elif r.verdict == "pass":
+        assert r.violations == [], label
+    else:
+        assert r.verdict == "unknown" and any(v.is_unknown for v in r.violations), label
+
+
+@pytest.mark.parametrize(("landing", "days"), [(DATA_END - timedelta(days=4), 7), (DATA_END - timedelta(days=12), 14)])
+def test_missions_running_past_the_data_are_judged_on_the_real_hours(
+    landing: datetime, days: int, canonical: Evaluator
+) -> None:
+    """One time policy (app.timegrid, main ada6c42): a mission that starts inside the data and runs past its end is
+    judged by the canonical engine on the real hours that exist, as the Comparison and the Atlas do."""
+    sc = make(Scenario, site=get_site(PNS).to_site(), landing_utc=landing, duration_days=days)
+    r = canonical.evaluate(sc)
+    _assert_bounded_verdict(r)
+    assert r.verdict == "fail"  # days of the mission are missing; the covered part already proves a failure
+
+
+def test_canonical_bounded_policy_matches_rescue_on_partial_missions(canonical: Evaluator) -> None:
+    """Applied to the whole site file, the canonical engine bounds a partially covered mission and may PROVE a
+    failure from the covered part. Rescue asks the same engine for missions that start inside the data, so the
+    verdicts agree; missions that start outside the data stay UNKNOWN in rescue. Neither reports an unproven
+    verdict."""
     series = load_site_file(SITES_DIR / f"{PNS}.json")
     site = get_site(PNS).to_site()
     eligibilities = set()
@@ -310,11 +326,12 @@ def test_canonical_bounded_policy_can_prove_what_rescue_withholds(canonical: Eva
                 assert lo is not None and hi is not None and c.threshold is not None
                 assert (lo > c.threshold) if c.comparison and c.comparison.value == "at_most" else (hi < c.threshold)
         eligibilities.add(direct.eligibility)
-        verdict = canonical.evaluate(sc).verdict
-        if DATA_START <= landing < DATA_END:
-            assert verdict == direct.eligibility.value  # starts inside the data: same bounded verdict
+        r = canonical.evaluate(sc)
+        if DATA_START <= landing < DATA_END:  # starts inside the data: judged on the real hours, same engine
+            _assert_bounded_verdict(r, str(landing))
+            assert r.verdict == direct.eligibility.value, landing
         else:
-            assert verdict == "unknown"  # starts outside the data: withheld before the engine runs
+            assert r.verdict == "unknown" and r.source == "rescue-coverage-check", landing
     assert Eligibility.FAIL in eligibilities and Eligibility.UNKNOWN in eligibilities
 
 
@@ -349,20 +366,19 @@ def _boundary_cases() -> Iterator[tuple[Site, int, RescueRequirements]]:
                 yield cs.to_site(), days, req
 
 
-def test_last_sample_hour_is_unknown_never_flipped(canonical: Evaluator, placeholder: Evaluator) -> None:
-    """Finding 3, fixed in rescue: a mission must end by the file's final instant (DATA_END) to be scored.
-    The landing that would need one more hour after it is judged on the real hours only (app.timegrid policy):
-    the canonical engine gives it no exact score, and a PASS there is only allowed when the score is bounded
-    (the missing hour cannot change the verdict under any value). One hour earlier, the latest landing
-    rescue accepts, both engines agree exactly and the canonical score is exact."""
+def test_last_sample_hour_is_bounded_never_flipped(canonical: Evaluator, placeholder: Evaluator) -> None:
+    """Finding 3: a fully covered mission must end by the file's final instant (DATA_END). The landing that would
+    need one more hour after it runs past the data, so (one time policy, main ada6c42) the canonical engine judges it
+    on the real hours: that final hour is unknown, so there is never an exact score, and a verdict only where the
+    bounds prove it. A PASS is possible when even a dark, out-of-contact final hour keeps every requirement (e.g.
+    Connecting Ridge, 12 h longest darkness against a 50 h battery). The legacy engine reaches the same verdict, so
+    nothing flips at the boundary. One hour earlier, the latest fully covered landing, both engines agree exactly
+    and the canonical score is exact."""
     for site, days, req in _boundary_cases():
         last = DATA_END - timedelta(hours=days * 24 - 1)
-        for ev in (placeholder, canonical):
-            r = ev.evaluate_many(site, [last], days, req)[0]
-            assert "synthetic" not in r.data_source
-        c = canonical.evaluate_many(site, [last], days, req)[0]
-        assert c.score is None  # never an exact score on partial data
-        assert c.verdict in ("unknown", "fail") or c.score_status == "bounded"
+        r = canonical.evaluate_many(site, [last], days, req)[0]
+        _assert_bounded_verdict(r, f"{site.id} {days} d")
+        assert placeholder.evaluate_many(site, [last], days, req)[0].verdict == r.verdict, (site.id, days)
         earlier = last - timedelta(hours=1)
         a2, b2 = (
             placeholder.evaluate_many(site, [earlier], days, req)[0],
@@ -581,13 +597,16 @@ def test_rescue_with_robustness_runs_on_canonical_engine(canonical: Evaluator) -
         assert a.robustness.pass_rate is None or 0.0 <= a.robustness.pass_rate <= 1.0
 
 
-def test_rescue_past_end_of_data_is_never_a_pass_on_canonical_engine(canonical: Evaluator) -> None:
+def test_rescue_past_end_of_data_is_judged_on_real_hours_on_canonical_engine(canonical: Evaluator) -> None:
+    # The delay moves the 7-day plan to two days before the end of the data: judged on the real hours left, it is
+    # a proven failure. Later candidate dates fall outside the data and stay undecided; nothing is synthetic.
     plan = make(Scenario, site=get_site(PNS).to_site(), landing_utc=DATA_END - timedelta(days=22))
     r = rescue(make(RescueRequest, original=plan, change=make(PlanChange, launch_delay_days=20)), canonical)
-    # The changed plan runs past the data: judged on the real hours that exist, so never a PASS.
-    assert r.changed.verdict in ("unknown", "fail") and not r.changed.passes
-    assert not any(s.keeps_original_plan for s in r.loosening)
-    assert "synthetic" not in r.data_source and not r.assumptions[0].startswith("SYNTHETIC")
+    _assert_bounded_verdict(r.changed)
+    assert r.changed.verdict == "fail" and r.alternatives == []
+    assert r.stats.undecided > 0 and not any(s.keeps_original_plan for s in r.loosening)
+    assert not any("synthetic" in part for part in r.data_source.split(", "))
+    assert not r.assumptions[0].startswith("SYNTHETIC")
 
 
 def test_sensitivity_matches_placeholder(canonical: Evaluator, placeholder: Evaluator) -> None:

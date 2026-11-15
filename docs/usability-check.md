@@ -16,7 +16,7 @@ results; use P1, P2 and so on.
 1. Start the app with the backend (`uvicorn` on :8000) and the frontend (`vite` on :5173). Open
    http://localhost:5173 in a fresh browser window.
 2. Click **Open the navigator**. In the Plans panel, create the demo plan:
-   **Connecting Ridge, landing 2027-02-08 00:00 UTC, 7 days, default requirements.**
+   **Connecting Ridge, landing 2027-02-08 00:00 UTC, 7 days, default requirements** (the file writes them out).
    This is the verified demo case in `backend/app/rescue/demo_scenario.json`. It passes as planned and
    fails after a 5-day delay, and rescue finds passing alternatives.
 3. Put the rescue panel back to its defaults (launch delay 0, Explain off).
