@@ -334,6 +334,8 @@ export function MapTools({
   sites,
   sitesError,
   sitesLoading,
+  pinIds,
+  onDeletePin,
   timeUtc,
   view,
   onView,
@@ -355,6 +357,8 @@ export function MapTools({
   sites: SiteInfo[] | null // every landing site, for the Select site menu
   sitesError: string | null
   sitesLoading: boolean
+  pinIds: ReadonlySet<string>
+  onDeletePin: (site: SiteInfo) => void
   timeUtc: string
   view: ViewMode
   onView: (v: ViewMode) => void
@@ -433,7 +437,7 @@ export function MapTools({
         <span className="mx-1 h-6 w-px bg-opal-300" aria-hidden />
         <ToolMenu tourId="site-select" openId={openMenu} setOpenId={setOpenMenu} id="site" label="Select site"
           tip="Select site: choose the landing site shown in the 3D view and used for the timeline" icon={ICON.site}>
-          {(close) => <SiteMenuRows sites={sites} error={sitesError} loading={sitesLoading} onPicked={close} />}
+          {(close) => <SiteMenuRows sites={sites} error={sitesError} loading={sitesLoading} onPicked={close} pinIds={pinIds} onDeletePin={onDeletePin} />}
         </ToolMenu>
         <ToolMenu tourId="camera-menu" openId={openMenu} setOpenId={setOpenMenu} id="camera" hover={!armed && !measureOpen} onActivate={() => {
             onGoToView()
