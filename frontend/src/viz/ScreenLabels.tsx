@@ -89,6 +89,13 @@ export function ScreenLabels({
         if (p.declutter !== pass) continue
         const text = p.el.textContent ?? ''
         let s = sizes.get(p.el)
+        // A fixed label whose text changes every data hour (the Sun's elevation, say) only matters
+        // here as an obstacle for the declutterable ones: keep its measured size while the length is
+        // about the same, rather than a forced layout plus an extra frame at every tick.
+        if (s && s.text !== text && !p.declutter && Math.abs(s.text.length - text.length) <= 2) {
+          s = { ...s, text }
+          sizes.set(p.el, s)
+        }
         if (!s || s.text !== text) {
           s = { w: 6.5 * text.length + 14, h: 20, text } // estimate until measured
           toMeasure.push(p.el)

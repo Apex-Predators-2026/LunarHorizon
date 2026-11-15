@@ -1072,10 +1072,7 @@ export interface Summary {
 const lbl = (e: Entry) => `Scenario ${e.scenario.label}`
 
 function pick(list: Entry[], f: (e: Entry) => number | null | undefined, better: 'higher' | 'lower') {
-  const all = list.map((e) => ({ e, v: f(e) }))
-  // A scenario without an exact value could be the best or the worst: it never silently leaves the comparison.
-  if (all.some((x) => x.v === null || x.v === undefined || !Number.isFinite(x.v))) return null
-  const vals = all as { e: Entry; v: number }[]
+  const vals = list.map((e) => ({ e, v: f(e) })).filter((x): x is { e: Entry; v: number } => x.v !== null && x.v !== undefined)
   if (vals.length < 2) return null
   vals.sort((a, b) => (better === 'higher' ? b.v - a.v : a.v - b.v))
   return { best: vals[0], second: vals[1], worst: vals[vals.length - 1], all: vals }
@@ -1089,50 +1086,58 @@ const h = (v: number) => (v >= 72 ? `${Math.round(v)} h (${(v / 24).toFixed(1)} 
 const p = (v: number) => `${(v * 100).toFixed(1)}%`
 
 export function buildSummary(entries: Entry[]): Summary {
-  const list = comparableEntries(entries)
+  // Scenarios of one data kind (real, else demonstration); never mixed.
+  const comparable = comparableEntries(entries)
+  // Narrative numbers need both bodies' statistics and the engine's longest-gap values.
+  const list = comparable.filter((e) => e.result!.solar && e.result!.earth &&
+    e.result!.solar.longest_dark_hours != null && e.result!.earth.longest_blackout_hours != null)
   const pool = bestPool(entries)
   const caveats: string[] = []
-  // null = the engine withheld the value (incomplete data); it is never read as zero.
-  const darkOf = (r: CompareResult): number | null => r.solar?.longest_dark_hours ?? null
-  const blackOf = (r: CompareResult): number | null => r.earth?.longest_blackout_hours ?? null
-  const incomplete = list.filter((e) => !e.result!.solar || !e.result!.earth)
-  if (incomplete.length) {
-    const cov = (e: Entry) => {
-      const r = e.result!
-      const total = r.evaluated_hours ?? e.scenario.duration_days * 24
-      const parts = [
-        !r.solar && r.sun_known_hours != null ? `Sun known ${Math.round(r.sun_known_hours)} of ${Math.round(total)} h` : null,
-        !r.earth && r.earth_known_hours != null ? `Earth known ${Math.round(r.earth_known_hours)} of ${Math.round(total)} h` : null,
-      ].filter(Boolean)
-      return `${lbl(e)}${parts.length ? ` (${parts.join(', ')})` : ''}`
-    }
-    caveats.push(`Incomplete data for ${incomplete.map(cov).join('; ')}: whole-mission statistics are withheld there, so no “best” is claimed for a quantity a scenario lacks. The viability engine’s bounds are in the metrics table.`)
-  }
+  // Non-null: `list` below keeps only scenarios whose longest-gap values are known.
+  const darkOf = (r: CompareResult): number => r.solar!.longest_dark_hours as number
+  const blackOf = (r: CompareResult): number => r.earth!.longest_blackout_hours as number
   const unavailable = entries.filter((e) => e.state?.state === 'done' && !e.result)
   if (unavailable.length) caveats.push(`${unavailable.map(lbl).join(', ')} ${unavailable.length > 1 ? 'have' : 'has'} no scientific data for the chosen site/dates and ${unavailable.length > 1 ? 'are' : 'is'} not included.`)
-  const demoOut = okEntries(entries).filter((e) => !list.includes(e))
+  // Only the other data kind is "demonstration": a real scenario with withheld statistics is not.
+  const demoOut = okEntries(entries).filter((e) => !comparable.includes(e))
   if (demoOut.length) caveats.push(`${demoOut.map(lbl).join(', ')} use demonstration data and are not compared with real-data scenarios.`)
-  if (list.length && list[0].result!.data_kind === 'demonstration') caveats.push('All compared scenarios use demonstration data: the statements below illustrate the tool, not the real Moon.')
+  // Comparable scenarios without complete statistics (withheld or unavailable): they are not dropped to make a winner.
+  const incomplete = comparable.filter((e) => !list.includes(e))
+  if (incomplete.length) caveats.push(`${incomplete.map(lbl).join(', ')} ${incomplete.length > 1 ? 'have' : 'has'} withheld or unavailable Sun/Earth statistics (incomplete data), so no scenario is called best or worst on those measures.`)
+  if (comparable.length && comparable[0].result!.data_kind === 'demonstration') caveats.push('All compared scenarios use demonstration data: the statements below illustrate the tool, not the real Moon.')
   caveats.push('Earth visibility is geometric line of sight; it does not guarantee a working radio link.')
   caveats.push(SCREENING_NOTE)
 
   const empty: Summary = { bests: [], highlights: [], overall: [], caveats }
-  if (list.length < 2) {
-    if (list.length === 1) empty.overall.push('Add at least one more scenario with data to generate a comparison.')
+  if (comparable.length < 2) {
+    if (comparable.length === 1) empty.overall.push('Add at least one more scenario with data to generate a comparison.')
     if (pool.note) caveats.unshift(pool.note)
     return empty
   }
-  // "Best" statements compare only the fair pool (bestPool); with no fair pool none are made.
-  const cmp = pool.entries
-  if (pool.note && pool.basis === 'none') caveats.unshift(pool.note)
+  // "Best" statements compare only the fair pool (bestPool), and only when every member of it has the statistics:
+  // a member with withheld statistics could be the best (or the worst), so then none are made.
+  const poolIncomplete = pool.entries.some((e) => !list.includes(e))
+  const cmp = poolIncomplete ? [] : pool.entries
+  if (pool.note && (pool.basis === 'none' || cmp.length < 2)) caveats.unshift(pool.note)
+  if (cmp.length < 2) {
+    // No fair pool: no comparative claims, but each scenario's own violations and the ranking-group caveat stay.
+    const noPool = comparable.map((e) => {
+      const weaknesses: string[] = [], uncertain: string[] = []
+      for (const v of e.result!.viability?.violations ?? []) (v.is_unknown ? uncertain : weaknesses).push(v.message)
+      return { entry: e, strengths: [], cautions: [], weaknesses, uncertain }
+    })
+    const groups = new Set(comparable.map((e) => e.ranking?.group).filter(Boolean))
+    if (groups.size > 1) caveats.push(`These scenarios fall into ${groups.size} separate ranking groups (different data basis, requirements or mission duration). Canonical ranks only compare scenarios inside the same group.`)
+    return { bests: [], highlights: noPool, overall: [], caveats }
+  }
 
-  const solar = pick(cmp, (e) => e.result!.solar?.mean_visible_fraction, 'higher')
-  const comms = pick(cmp, (e) => e.result!.earth?.visible_fraction, 'higher')
-  const dark = pick(cmp, (e) => e.result!.solar?.longest_dark_hours, 'lower')
-  const black = pick(cmp, (e) => e.result!.earth?.longest_blackout_hours, 'lower')
+  const solar = pick(cmp, (e) => e.result!.solar!.mean_visible_fraction, 'higher')!
+  const comms = pick(cmp, (e) => e.result!.earth!.visible_fraction, 'higher')!
+  const dark = pick(cmp, (e) => darkOf(e.result!), 'lower')!
+  const black = pick(cmp, (e) => blackOf(e.result!), 'lower')!
 
   const tied = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol
-  const winners = (x: ReturnType<typeof pick>, tol: number) => (x ? x.all.filter((y) => tied(y.v, x.best.v, tol)).map((y) => y.e) : [])
+  const winners = (x: NonNullable<ReturnType<typeof pick>>, tol: number) => x.all.filter((y) => tied(y.v, x.best.v, tol)).map((y) => y.e)
   const bestSolar = winners(solar, 0.005), bestComms = winners(comms, 0.005)
   const bestDark = winners(dark, 0.5), bestBlack = winners(black, 0.5)
 
@@ -1140,10 +1145,10 @@ export function buildSummary(entries: Entry[]): Summary {
   const add = (label: string, es: Entry[], detail: string, all: number) => {
     if (es.length < all) bests.push({ label, ids: es.map((e) => e.scenario.id), detail })
   }
-  if (solar) add('Best solar performance', bestSolar, `${p(solar.best.v)} mean visible solar disk`, cmp.length)
-  if (comms) add('Best Earth communication', bestComms, `Earth in view ${p(comms.best.v)} of the mission`, cmp.length)
-  if (dark) add('Shortest darkness', bestDark, `longest darkness ${h(dark.best.v)}`, cmp.length)
-  if (black) add('Shortest blackout', bestBlack, `longest blackout ${h(black.best.v)}`, cmp.length)
+  add('Best solar performance', bestSolar, `${p(solar.best.v)} mean visible solar disk`, cmp.length)
+  add('Best Earth communication', bestComms, `Earth in view ${p(comms.best.v)} of the mission`, cmp.length)
+  add('Shortest darkness', bestDark, `longest darkness ${h(dark.best.v)}`, cmp.length)
+  add('Shortest blackout', bestBlack, `longest blackout ${h(black.best.v)}`, cmp.length)
   // Top canonical rank: only rank 1 of the primary group, and only when it was ranked against other PASS scenarios.
   const top = list.find((e) => e.ranking?.rank === 1 && e.ranking.group === 'G1' && e.ranking.ranked_in_group > 1)
   if (top) {
@@ -1168,10 +1173,10 @@ export function buildSummary(entries: Entry[]): Summary {
       }
     }
     // Only call something a weakness when the gap to the best is meaningful.
-    if (solar && solar.worst.e === e && solar.best.v - solar.worst.v >= SIGNIFICANT_FRACTION && r.solar) weaknesses.push(`Least solar availability (${p(r.solar.mean_visible_fraction)})`)
-    if (comms && comms.worst.e === e && comms.best.v - comms.worst.v >= SIGNIFICANT_FRACTION && r.earth) weaknesses.push(`Least Earth visibility (${p(r.earth.visible_fraction)})`)
-    if (dark && dark.worst.e === e && significantHours(dark.best.v, dark.worst.v)) weaknesses.push(`Longest darkness (${h(dark.worst.v)})`)
-    if (black && black.worst.e === e && significantHours(black.best.v, black.worst.v)) weaknesses.push(`Longest blackout (${h(black.worst.v)})`)
+    if (solar.worst.e === e && solar.best.v - solar.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least solar availability (${p(r.solar!.mean_visible_fraction)})`)
+    if (comms.worst.e === e && comms.best.v - comms.worst.v >= SIGNIFICANT_FRACTION) weaknesses.push(`Least Earth visibility (${p(r.earth!.visible_fraction)})`)
+    if (dark.worst.e === e && significantHours(dark.best.v, dark.worst.v)) weaknesses.push(`Longest darkness (${h(darkOf(r))})`)
+    if (black.worst.e === e && significantHours(black.best.v, black.worst.v)) weaknesses.push(`Longest blackout (${h(blackOf(r))})`)
     const uncertain: string[] = []
     for (const v of r.viability?.violations ?? []) (v.is_unknown ? uncertain : weaknesses).push(v.message)
     return { entry: e, strengths, cautions, weaknesses, uncertain }
@@ -1179,15 +1184,6 @@ export function buildSummary(entries: Entry[]): Summary {
 
   // ---- overall narrative, only from numbers above
   const overall: string[] = []
-  const blackText = (c: Entry, s: Entry) => {
-    const bc = blackOf(c.result!), bs = blackOf(s.result!)
-    return bc !== null && bs !== null ? `; longest blackout ${h(bc)} vs ${h(bs)}` : ''
-  }
-  if (!solar || !comms) {
-    overall.push(pool.basis === 'none' && pool.note
-      ? `No overall power-versus-communication comparison is made. ${pool.note}`
-      : 'No overall power-versus-communication comparison is made: at least one scenario lacks a complete whole-mission value (see the caveats).')
-  } else {
   const S = solar.best.e, C = comms.best.e
   const sameSolarComms = bestSolar.length === 1 && bestComms.length === 1 && S === C
   if (sameSolarComms) {
@@ -1197,32 +1193,30 @@ export function buildSummary(entries: Entry[]): Summary {
       const darkS = darkOf(S.result!)
       const other = bestComms.length === 1 ? C : solar.second.e
       const darkO = darkOf(other.result!)
-      const darkCmp = darkS === null || darkO === null ? ''
-        : darkS < darkO - 0.5 ? `, with a shorter continuous darkness (${h(darkS)} vs ${h(darkO)} for ${lbl(other)})`
+      const darkCmp = darkS < darkO - 0.5 ? `, with a shorter continuous darkness (${h(darkS)} vs ${h(darkO)} for ${lbl(other)})`
         : darkS > darkO + 0.5 ? `, although its longest darkness is longer (${h(darkS)} vs ${h(darkO)} for ${lbl(other)})` : ''
       overall.push(`${lbl(S)} provides the greatest solar availability (${p(solar.best.v)} mean visible solar disk vs ${p(solar.second.v)} for the next best)${darkCmp}.`)
     } else {
       overall.push(`Solar availability is similar across ${bestSolar.map(lbl).join(' and ')} (${p(solar.best.v)}).`)
     }
     if (bestComms.length === 1 && C !== S) {
-      overall.push(`However, ${lbl(C)} has longer geometric Earth visibility (${p(comms.best.v)} vs ${p(S.result!.earth?.visible_fraction ?? NaN)} for ${lbl(S)}${blackText(C, S)}).`)
+      overall.push(`However, ${lbl(C)} has longer geometric Earth visibility (${p(comms.best.v)} vs ${p(S.result!.earth!.visible_fraction)} for ${lbl(S)}; longest blackout ${h(blackOf(C.result!))} vs ${h(blackOf(S.result!))}).`)
       if (bestSolar.length === 1) overall.push(`${lbl(S)} may therefore suit power-constrained operations, while ${lbl(C)} offers a communication advantage.`)
     } else if (bestComms.length > 1) {
       overall.push(`Earth visibility is similar for ${bestComms.map(lbl).join(' and ')} (${p(comms.best.v)}).`)
     }
-  }
   }
 
   // ---- why: only mechanisms the data shows directly
   const sameSite = cmp.length > 1 && new Set(cmp.map((e) => e.scenario.site.id)).size === 1
   const sameStart = cmp.length > 1 && new Set(cmp.map((e) => placement(e).landingMs)).size === 1 // evaluated landings
   if (sameSite && !sameStart) {
-    const el = pick(cmp, (e) => e.result!.solar?.mean_elevation_deg, 'higher')
-    if (el) overall.push(`All scenarios use the same site, so the differences come from where the Sun and Earth are on those dates, not from the terrain: mean solar elevation ranges from ${el.worst.v.toFixed(2)}° (${lbl(el.worst.e)}) to ${el.best.v.toFixed(2)}° (${lbl(el.best.e)}).`)
+    const el = pick(cmp, (e) => e.result!.solar!.mean_elevation_deg, 'higher')!
+    overall.push(`All scenarios use the same site, so the differences come from where the Sun and Earth are on those dates, not from the terrain: mean solar elevation ranges from ${el.worst.v.toFixed(2)}° (${lbl(el.worst.e)}) to ${el.best.v.toFixed(2)}° (${lbl(el.best.e)}).`)
   } else if (sameStart && !sameSite) {
     overall.push('All scenarios share the same landing time, so the Sun and Earth sit in almost the same part of the sky for each; the differences come mainly from each site’s local terrain horizon.')
   }
-  const clear = pick(cmp, (e) => e.result!.solar?.mean_clearance_lit_deg, 'higher')
+  const clear = pick(cmp, (e) => e.result!.solar!.mean_clearance_lit_deg, 'higher')
   if (clear && clear.best.v - clear.worst.v > 0.5) {
     overall.push(`While lit, the Sun stays on average ${clear.best.v.toFixed(2)}° above the local terrain at ${lbl(clear.best.e)} but only ${clear.worst.v.toFixed(2)}° at ${lbl(clear.worst.e)}, so at ${lbl(clear.worst.e)} small changes in the Sun’s height are enough for the terrain to block it.`)
   }

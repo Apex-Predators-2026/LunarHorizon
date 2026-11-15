@@ -1,13 +1,22 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppStore } from '../store'
 import { LoadingIndicator } from '../ui/LoadingIndicator'
 import { MangoRange } from '../ui/MangoRange'
 import type { SiteInfo, TimelineStep } from '../types'
 import { DatePopup } from './DatePopup'
-import { HOUR_MS, longestRun, parseUtc, roundHour, runs, sunUp, toIsoMinute } from './timeline'
+import { HOUR_MS, longestRun, parseUtc, roundHour, runs, sunKnown, sunUp, toIsoMinute } from './timeline'
 import { useTutorialStore } from '../features/tutorial'
 
-const COLORS = { sun: '#e8b84a', earth: '#5aa9f0', dark: '#111a2e', gap: '#d03b3b', grid: '#22304d', axis: '#5b6168' }
+const COLORS = {
+  sun: '#e8b84a',
+  earth: '#5aa9f0',
+  dark: '#111a2e',
+  gap: '#d03b3b',
+  grid: '#22304d',
+  axis: '#5b6168',
+  unknown: '#5b6475', // hatch stripes: no data (never drawn as darkness)
+  unknownBg: '#262b36',
+}
 const SPEEDS = [
   { label: '1 h/s', hoursPerSec: 1 },
   { label: '6 h/s', hoursPerSec: 6 },
@@ -41,7 +50,15 @@ function useWidth<T extends HTMLElement>(): [React.RefObject<T | null>, number] 
   return [ref, w]
 }
 
-/** Advances the shared time while playing (one store update per data hour, not per frame). */
+/** Store updates while playing at most this often: each one re-renders the whole 3D view. */
+const PLAYBACK_UPDATE_MS = 80
+
+/**
+ * Advances the shared time while playing: one store update per data hour, and at fast speeds (more
+ * than ~12 data hours a second) no more than every PLAYBACK_UPDATE_MS, not on every frame. Hours in
+ * between are skipped, as frames already skipped them; mission playback checks failures by time
+ * (f.t <= now), so it still stops at each one.
+ */
 function usePlayback(hoursPerSec: number, dataStop: number) {
   const playing = useAppStore((s) => s.playing)
   useEffect(() => {
@@ -50,6 +67,7 @@ function usePlayback(hoursPerSec: number, dataStop: number) {
     let acc = parseUtc(useAppStore.getState().timeUtc)
     let lastSet = useAppStore.getState().timeUtc
     let prev = performance.now()
+    let lastSetAt = -Infinity
     let raf = 0
     const tick = (now: number) => {
       const cur = useAppStore.getState().timeUtc
@@ -62,8 +80,9 @@ function usePlayback(hoursPerSec: number, dataStop: number) {
         return
       }
       const next = toIsoMinute(Math.floor(acc / HOUR_MS) * HOUR_MS)
-      if (next !== lastSet) {
+      if (next !== lastSet && now - lastSetAt >= PLAYBACK_UPDATE_MS) {
         lastSet = next
+        lastSetAt = now
         setTime(next)
       }
       raf = requestAnimationFrame(tick)
@@ -120,39 +139,54 @@ function Strip({
   const data = useMemo(() => {
     const t = steps.map((s) => parseUtc(s.time_utc))
     const earth = steps.map((s) => s.earth.visible === true)
-    // Gaps only count hours known to be dark / blocked; unknown hours (custom sites with missing
-    // terrain) neither extend nor break a gap's "known" status.
-    const dark = steps.map((s) => s.sun.visible_fraction !== null && !sunUp(s.sun))
+    // Unknown (terrain data missing in that direction, custom sites) is its own state: never drawn
+    // or counted as darkness / blackout. Gaps only count hours known to be dark / blocked.
+    const sunKnownFlags = steps.map((s) => sunKnown(s.sun))
+    const earthKnownFlags = steps.map((s) => s.earth.visible !== null && s.earth.visible !== undefined)
+    const dark = steps.map((s, i) => sunKnownFlags[i] && !sunUp(s.sun))
     const blocked = steps.map((s) => s.earth.visible === false)
-    const sunUnknown = steps.map((s) => s.sun.visible_fraction === null || s.sun.visible === null)
-    const earthUnknown = steps.map((s) => s.earth.visible === null)
     return {
-      t, earthRuns: runs(earth), longDark: longestRun(dark), longBlackout: longestRun(blocked),
-      sunUnknownRuns: runs(sunUnknown), earthUnknownRuns: runs(earthUnknown),
+      t,
+      earthRuns: runs(earth),
+      sunKnownRuns: runs(sunKnownFlags),
+      earthBlockedRuns: runs(blocked),
+      sunUnknownRuns: runs(sunKnownFlags, false),
+      earthUnknownRuns: runs(earthKnownFlags, false),
+      sunUnknownHours: sunKnownFlags.filter((k) => !k).length,
+      earthUnknownHours: earthKnownFlags.filter((k) => !k).length,
+      longDark: longestRun(dark),
+      longBlackout: longestRun(blocked),
     }
   }, [steps])
 
-  // A run of samples covers [first sample, last sample + 1 h): each sample holds until the next (sample-and-hold).
+  // A run of samples covers [first sample, last sample + 1 h): each sample holds until the next (sample-and-hold,
+  // backend app/timegrid.py), so the strip shows what the engine used.
   const span = (r: [number, number]) => {
     const a = data.t[r[0]]
     const b = (data.t[r[1] - 1] ?? data.t[r[0]]) + HOUR_MS
     return { x: x(a), w: Math.max(1, x(b) - x(a)), hours: (b - a) / HOUR_MS }
   }
 
+  // Sunlight over known hours only (one closed shape per run): an unknown hour is not a 0 % hour.
   const sunPath = useMemo(() => {
-    if (!data.t.length) return ''
-    const pts: string[] = []
-    data.t.forEach((t, i) => {
-      const f = steps[i].sun.visible_fraction
-      // Unknown draws no sunlight (the unknown band marks it); a visible sliver that rounds to 0 is not darkness.
-      const frac = f === null ? 0 : f === 0 && steps[i].sun.visible === true ? 0.03 : f
-      const y = SUN_H - frac * SUN_H
-      pts.push(`${x(t).toFixed(1)},${y.toFixed(1)}`, `${x(t + HOUR_MS).toFixed(1)},${y.toFixed(1)}`)
-    })
-    return `M${pts[0].split(',')[0]},${SUN_H} L${pts.join(' L')} L${pts[pts.length - 1].split(',')[0]},${SUN_H} Z`
+    let d = ''
+    for (const [a, b] of data.sunKnownRuns) {
+      const pts: string[] = []
+      for (let i = a; i < b; i++) {
+        const f = steps[i].sun.visible_fraction ?? (sunUp(steps[i].sun) ? 1 : 0)
+        const y = SUN_H - (f === 0 && steps[i].sun.visible === true ? 0.03 : f) * SUN_H // a visible sliver that rounds to 0 is not darkness
+        pts.push(`${x(data.t[i]).toFixed(1)},${y.toFixed(1)}`, `${x(data.t[i] + HOUR_MS).toFixed(1)},${y.toFixed(1)}`)
+      }
+      d += `M${pts[0].split(',')[0]},${SUN_H} L${pts.join(' L')} L${pts[pts.length - 1].split(',')[0]},${SUN_H} Z `
+    }
+    return d
     // x depends on win and width
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, steps, win, width])
+  const hatchId = `unknown-hatch-${useId().replace(/:/g, '')}`
+  // With data loaded, the lanes start as "no data" and only known hours are painted over it, so
+  // hours with no sample at all show as unknown too. While loading: the plain background.
+  const laneFill = steps.length ? `url(#${hatchId})` : COLORS.dark
 
   const days = (win[1] - win[0]) / (24 * HOUR_MS)
   const tickEvery = days <= 8 ? 1 : days <= 15 ? 2 : 4
@@ -209,10 +243,41 @@ function Strip({
         onPointerMove={(ev) => dragging.current && seekAt(ev)}
         onPointerUp={() => (dragging.current = false)}
       >
+        <defs>
+          <pattern id={hatchId} width={6} height={6} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width={6} height={6} fill={COLORS.unknownBg} />
+            <line x1={0} y1={0} x2={0} y2={6} stroke={COLORS.unknown} strokeWidth={2} />
+          </pattern>
+        </defs>
         <text x={0} y={SUN_H / 2 + 4} fontSize={10} fill={COLORS.axis}>Sun</text>
         <text x={0} y={earthTop + EARTH_H / 2 + 4} fontSize={10} fill={COLORS.axis}>Earth</text>
-        <rect x={GUTTER} y={0} width={w} height={SUN_H} fill={COLORS.dark} />
-        <rect x={GUTTER} y={earthTop} width={w} height={EARTH_H} fill={COLORS.dark} />
+        <rect x={GUTTER} y={0} width={w} height={SUN_H} fill={laneFill} />
+        <rect x={GUTTER} y={earthTop} width={w} height={EARTH_H} fill={laneFill} />
+        {/* Known hours: dark first (the Sun's shape goes on top), Earth known blocked. */}
+        {data.sunKnownRuns.map((r) => {
+          const s = span(r)
+          return <rect key={`sk${r[0]}`} x={s.x} y={0} width={s.w} height={SUN_H} fill={COLORS.dark} />
+        })}
+        {data.earthBlockedRuns.map((r) => {
+          const s = span(r)
+          return <rect key={`eb${r[0]}`} x={s.x} y={earthTop} width={s.w} height={EARTH_H} fill={COLORS.dark} />
+        })}
+        {data.sunUnknownRuns.map((r) => {
+          const s = span(r)
+          return (
+            <rect key={`su${r[0]}`} x={s.x} y={0} width={s.w} height={SUN_H} fill="transparent">
+              <title>Sun unknown for {fmtDur(s.hours)}: terrain data is missing in that direction. Not darkness.</title>
+            </rect>
+          )
+        })}
+        {data.earthUnknownRuns.map((r) => {
+          const s = span(r)
+          return (
+            <rect key={`eu${r[0]}`} x={s.x} y={earthTop} width={s.w} height={EARTH_H} fill="transparent">
+              <title>Earth visibility unknown for {fmtDur(s.hours)}: terrain data is missing in that direction. Not a blackout.</title>
+            </rect>
+          )
+        })}
         {ticks.map((t) => (
           <g key={t}>
             <line x1={x(t)} x2={x(t)} y1={0} y2={earthTop + EARTH_H + 3} stroke={COLORS.grid} />
@@ -225,15 +290,6 @@ function Strip({
         {data.earthRuns.map((r) => {
           const s = span(r)
           return <rect key={r[0]} x={s.x} y={earthTop} width={s.w} height={EARTH_H} fill={COLORS.earth} opacity={0.85} />
-        })}
-        {/* Unknown data: its own labelled band, never drawn as darkness or blackout */}
-        {data.sunUnknownRuns.map((r) => {
-          const s = span(r)
-          return <rect key={`su${r[0]}`} data-testid="strip-unknown" x={s.x} y={0} width={s.w} height={SUN_H} fill={MISSING_COLOR} opacity={0.55}><title>Sun unknown (missing data, not darkness)</title></rect>
-        })}
-        {data.earthUnknownRuns.map((r) => {
-          const s = span(r)
-          return <rect key={`eu${r[0]}`} data-testid="strip-unknown" x={s.x} y={earthTop} width={s.w} height={EARTH_H} fill={MISSING_COLOR} opacity={0.55}><title>Earth unknown (missing data, not a blackout)</title></rect>
         })}
         {dark && (
           <g>
@@ -307,18 +363,26 @@ function Strip({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
           <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: COLORS.sun }} />Sunlight (height = % of solar disk visible)</span>
           <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: COLORS.earth }} />Earth in view</span>
+          {(data.sunUnknownHours > 0 || data.earthUnknownHours > 0) && (
+            <span>
+              <span
+                className="mr-1 inline-block h-2 w-3 align-middle"
+                style={{ background: `repeating-linear-gradient(45deg, ${COLORS.unknown} 0 2px, ${COLORS.unknownBg} 2px 4px)` }}
+              />
+              Unknown, not dark
+              {data.sunUnknownHours > 0 ? ` · Sun ${fmtDur(data.sunUnknownHours)}` : ''}
+              {data.earthUnknownHours > 0 ? ` · Earth ${fmtDur(data.earthUnknownHours)}` : ''}
+            </span>
+          )}
           <span><span className="mr-1 inline-block h-2 w-3 border align-middle" style={{ borderColor: COLORS.gap }} />
             Longest gap in window{dark ? ` · dark ${fmtDur(dark.hours)}` : ''}{blackout ? ` · blackout ${fmtDur(blackout.hours)}` : ''}</span>
-          {mission && (
-            <span><span className="mr-1 inline-block h-2 w-3 border border-dashed align-middle" style={{ borderColor: '#ff634a' }} />
-              {mission.label ?? 'Mission'}{mission.failures.length ? <> · <span className="text-red-400">▼</span> requirement broken</> : ''}</span>
-          )}
-          {(data.sunUnknownRuns.length > 0 || data.earthUnknownRuns.length > 0) && (
-            <span><span className="mr-1 inline-block h-2 w-3 align-middle" style={{ background: MISSING_COLOR, opacity: 0.55 }} />Unknown (missing data: neither dark nor blocked)</span>
-          )}
           {evidence && (
             <span><span className="mr-1 inline-block h-2 w-3 border align-middle" style={{ borderColor: evidence.dataMissing ? MISSING_COLOR : EVIDENCE_COLOR, background: `${evidence.dataMissing ? MISSING_COLOR : EVIDENCE_COLOR}33` }} />
               {evidence.dataMissing ? 'Missing data (unknown, not dark or blocked)' : evidence.point ? 'Evidence moment' : 'Evidence window'}</span>
+          )}
+          {mission && (
+            <span><span className="mr-1 inline-block h-2 w-3 border border-dashed align-middle" style={{ borderColor: '#ff634a' }} />
+              {mission.label ?? 'Mission'}{mission.failures.length ? <> · <span className="text-red-400">▼</span> requirement broken</> : ''}</span>
           )}
         </div>
         {rightSlot}

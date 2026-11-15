@@ -6,7 +6,7 @@ import { routeHash } from '../../appRoute'
 
 import { GlassSurface } from '../../ui/GlassSurface'
 
-import { axisOffsets, axisOrigin, fullDomain, type Entry } from './analysis'
+import { axisOrigin, fullDomain, type Entry } from './analysis'
 import { AtAGlance } from './AtAGlance'
 import { ConditionsPanel } from './ConditionsPanel'
 import { axisPlacement, missionTime } from './missionTime'
@@ -15,8 +15,9 @@ import { HorizonCompare } from './HorizonCompare'
 import { MetricsTable } from './MetricsTable'
 import { OverviewCards } from './OverviewCards'
 import { AvailabilityCharts, MissionPerformance } from './PerformancePanels'
+import { buildEntries } from './entries'
 import { resultKey, selectionKey, validateScenario } from './scenario'
-import { ExportButtons } from './ExportButtons'
+import { DecisionOverview } from './DecisionOverview'
 import { RescueStory } from './RescueStory'
 import { ScenarioManager } from './ScenarioManager'
 import { SummaryPanel } from './SummaryPanel'
@@ -29,6 +30,7 @@ import { useCompareStore } from './useCompareStore'
 import { useView } from './useTimeAxis'
 import { COMPARE_SECTIONS } from './sections'
 import { MissionAssistant } from './assistant/MissionAssistant'
+import { useAssistantLayout } from './assistant/layout'
 import { useAssistant } from './assistant/useAssistant'
 import { CompareTour } from './tour/CompareTour'
 import { TourButton, TourOffer } from './tour/TourButton'
@@ -72,7 +74,9 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   const notes = useCompareStore((s) => s.notes)
   const sitesStatus = useCompareStore((s) => s.sitesStatus)
   const { setAllowDemo, setEducational, setAlign, loadSites, refresh } = useCompareStore.getState()
-  const assistantOpen = useAssistant((s) => s.open)
+  const assistantIsOpen = useAssistant((s) => s.open)
+  const assistantLayout = useAssistantLayout((s) => s.layout)
+  const assistantOpen = assistantIsOpen && assistantLayout === 'side' // the page only makes room for the side panel
 
   useEffect(() => {
     if (sitesStatus === 'idle') loadSites()
@@ -93,19 +97,8 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   // A canonical ranking belongs to one selected set; while the set is being re-ranked no rank is shown.
   const rankingCurrent = rankingSetKey === selectionKey(selected.filter((s) => !validateScenario(s).length), allowDemo)
 
-  const entries: Entry[] = useMemo(() => {
-    // Results are cached by resultKey (the scenario's inputs), so an edited scenario never shows the old result.
-    const items = selected.map((s) => ({ scenario: s, state: results[resultKey(s, allowDemo)] }))
-    // The shared axis is laid out on the windows the backend evaluated (missionTime.ts).
-    const offsets = axisOffsets(items, align)
-    return items.map(({ scenario: s, state }) => {
-      const result = state?.state === 'done' && state.result.status === 'ok' ? state.result : null
-      // Unassessed scenarios (e.g. no data) still carry their UNKNOWN ranking entry.
-      const raw = state?.state === 'done' ? state.result : null
-      const ranking = rankingCurrent && raw ? raw.ranking : null
-      return { scenario: s, state, result, offsetHours: offsets[s.id] ?? 0, ranking }
-    })
-  }, [selected, results, allowDemo, align, rankingCurrent])
+  const entries: Entry[] = useMemo(() => buildEntries(selected, results, allowDemo, align, rankingCurrent),
+    [selected, results, allowDemo, align, rankingCurrent])
 
   const full = useMemo(() => fullDomain(entries), [entries])
   const view = useView(full)
@@ -168,7 +161,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   return (
     <div ref={pageRef} data-tour="compare-dashboard" className="cmp-page lp-light md-host min-h-full">
       {/* With the Mission Assistant open on a wide screen, the page makes room for it instead of being covered. */}
-      <div className={`mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8 ${assistantOpen ? 'min-[1100px]:mr-[416px]' : ''}`}>
+      <div className="cmp-dashboard-content mx-auto max-w-[1500px] px-6 pb-16 pt-8 lg:px-8" data-assistant-open={assistantOpen}>
         <header className="mb-6 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-2xl">
             <h1 className="text-[28px] font-medium leading-tight text-ink">Scenario comparison</h1>
@@ -232,6 +225,11 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
           ) : (
             <>
               <Section id="cmp-overview" title={`At a glance${sameSite && differentDates ? ': landing dates' : !differentDates && !sameSite ? ': landing sites' : ''}`}>
+                {/* Decision first: the supported recommendation (or why there is none), the decisive requirement, the next action. */}
+                <div className="mb-6" data-tour="compare-decision">
+                  <DecisionOverview entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
+                    rankingCurrent={rankingCurrent} notes={notes} />
+                </div>
                 <AtAGlance entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
                   ready={rankingCurrent} onJump={jumpTo} />
                 <RescueStory entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
@@ -242,10 +240,7 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
                 {anyData ? <MetricsTable entries={entries} /> : <Empty>No scientific data for the selected scenarios yet.</Empty>}
               </Section>
 
-              <Section id="cmp-summary" title="Decision and trade-offs" actions={
-                <ExportButtons entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []}
-                  notes={notes} ready={rankingCurrent && entries.every((e) => e.state?.state !== 'loading')} />
-              }>
+              <Section id="cmp-summary" title="Decision and trade-offs">
                 <SummaryPanel entries={entries} groups={rankingCurrent ? rankingGroups : []} pairs={rankingCurrent ? rankingPairs : []} />
               </Section>
 
