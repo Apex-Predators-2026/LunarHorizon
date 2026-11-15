@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 import { goToView } from '../../appRoute'
 import { GlassDefs, GlassSurface } from '../../ui/GlassSurface'
 import { InteractiveGrainGradient } from '../../ui/InteractiveGrainGradient'
+import { LunarHorizonLogo } from '../../ui/LunarHorizonLogo'
 import { RoverMascot } from '../../ui/RoverMascot'
 import { ChevronRightIcon, ExternalIcon } from '../../ui/icons'
 import { useAssistant } from '../compare/assistant/useAssistant'
@@ -47,7 +48,7 @@ function Nav({ onOpen }: { onOpen: () => void }) {
     <header className="lnd-nav" data-tone={tone}>
       <GlassSurface radius="0px" interactive={false} enabled={scrolled} className="lnd-nav-bar lnd-glass-dark">
         <a className="lnd-wordmark" href="#" onClick={toBeat('top')}>
-          Site Navigator
+          <LunarHorizonLogo variant="wordmark" />
         </a>
         <nav aria-label="Mission" className="lnd-nav-links">
           <a href="#preview" onClick={toBeat('preview')}>The app</a>
@@ -225,7 +226,7 @@ function Footer() {
   return (
     <footer className="lnd-footer">
       <div className="lnd-wrap">
-        <p className="lnd-close-name">Site Navigator</p>
+        <LunarHorizonLogo variant="wordmark" className="lnd-footer-logo" />
         <div className="lnd-close-meta">
           <span>Built by Team B.A.J.A.N for NASA Space Apps Challenge 2026</span>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
@@ -239,7 +240,7 @@ function Footer() {
 }
 
 /** The opening picture: the Moon with Earth rising behind it, with the project's headline over it. */
-function Hero({ onOpen, onTry }: { onOpen: () => void; onTry?: () => void }) {
+function Hero({ onOpen }: { onOpen: () => void }) {
   // The Moon settles into place once its pixels exist, so the move never plays over an empty frame.
   const moon = useRef<HTMLImageElement>(null)
   const [moonReady, setMoonReady] = useState(false)
@@ -249,8 +250,8 @@ function Hero({ onOpen, onTry }: { onOpen: () => void; onTry?: () => void }) {
   return (
     <section className="lnd-hero-photo" aria-labelledby="lnd-title">
       <img
+        className={moonReady ? 'lnd-hero-moon is-ready' : 'lnd-hero-moon'}
         ref={moon}
-        className={moonReady ? 'is-ready' : undefined}
         src="/landing/moon.jpg"
         alt="A crescent Moon, its craters lit along the terminator, with a small crescent Earth rising behind its edge."
         fetchPriority="high"
@@ -259,6 +260,7 @@ function Hero({ onOpen, onTry }: { onOpen: () => void; onTry?: () => void }) {
       <div className="lnd-scrim" aria-hidden="true" />
       <div className="lnd-hero-photo-copy">
         <div className="lnd-hero-copy">
+          <LunarHorizonLogo className="lnd-hero-logo" />
           <h1 id="lnd-title">
             {HERO.headlineLines.map((line) => (
               <span key={line} className="lnd-line">
@@ -269,15 +271,6 @@ function Hero({ onOpen, onTry }: { onOpen: () => void; onTry?: () => void }) {
           <p className="lnd-hero-lead">{HERO.lead}</p>
           <div className="lnd-hero-actions">
             <OpenNavigatorButton onOpen={onOpen} />
-            {onTry && (
-              <button type="button" className="lnd-btn lnd-btn-glass" data-testid="landing-try-mission" onClick={onTry}
-                title="A guided, real-data mission: a plan, a launch delay, the evidence, a recovery, the comparison and a report">
-                Try a mission
-              </button>
-            )}
-            <a className="lnd-btn lnd-btn-glass" href="#preview" onClick={toBeat('preview')}>
-              See the app
-            </a>
           </div>
           <div className="lnd-live-inline">
             <LiveNow idPrefix="lnd-live-inline" />
@@ -294,15 +287,14 @@ function Hero({ onOpen, onTry }: { onOpen: () => void; onTry?: () => void }) {
   )
 }
 
-/** `onTryMission` starts the guided real-data mission ("Try a mission") in the navigator. */
-export default function Landing({ onOpen, onTryMission }: { onOpen: () => void; onTryMission?: () => void }) {
+export default function Landing({ onOpen }: { onOpen: () => void }) {
   const root = useRef<HTMLDivElement>(null)
   return (
     <div ref={root} id="top" className="lnd md-host">
       <GlassDefs />
       <Nav onOpen={onOpen} />
       <main>
-        <Hero onOpen={onOpen} onTry={onTryMission} />
+        <Hero onOpen={onOpen} />
         <FeatureCarousel />
         <MeetRover />
         <Data />

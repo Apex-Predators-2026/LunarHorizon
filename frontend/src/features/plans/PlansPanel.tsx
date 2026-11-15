@@ -6,7 +6,6 @@ import { createPortal } from 'react-dom'
 
 import { headroomTone, resolveHeadroom } from '../../lib/headroom'
 import { usePlanVerdict } from '../../lib/planVerdict'
-import { AssessmentDialog } from '../assessment'
 import { useAppStore } from '../../store'
 import {
   DEFAULT_REQUIREMENTS,
@@ -23,7 +22,8 @@ import { PassHeadroomBadge } from '../../ui/PassHeadroom'
 import { DatePopup } from '../../viz/DatePopup'
 import { showSnackbar } from '../../viz/snackbarStore'
 import { verdictFor } from '../../viz/useMissionPlayback'
-import { EvidenceBanner, MissionAssessment } from '../assessment/MissionAssessment'
+import { routeHash } from '../../appRoute'
+import { EvidenceBanner } from '../assessment/MissionAssessment'
 import { sendToComparison } from '../compare'
 import { EligibilityBadge } from '../compare/ui'
 import { fetchRescueCatalog } from '../rescue/api'
@@ -206,7 +206,6 @@ export function PlanCard({
   const compare = usePlansStore((s) => s.compareIds.includes(plan.id))
   const toggle = usePlansStore((s) => s.toggleCompare)
   const remove = usePlansStore((s) => s.remove)
-  const [details, setDetails] = useState(false)
   const rescue = useRescueStore((s) => s.rescue)
   const compromise = useRescueStore((s) => s.compromise)
   const sc = plan.scenario
@@ -262,12 +261,14 @@ export function PlanCard({
       <button
         type="button"
         className="mt-1.5 text-[11px] font-medium text-sky-400 underline decoration-dotted underline-offset-2 hover:text-sky-300"
-        data-tip="Every requirement with its measured value, margin and evidence, plus data provenance and limitations"
-        onClick={() => setDetails(true)}
+        data-tip="Open Scenario Comparison with this plan: every requirement with its measured value, margin and evidence, plus the data and assumptions behind it"
+        onClick={() => {
+          sendToComparison([sc], { origin: 'user', names: [plan.name], replaceSelection: true, baselineIndex: 0 })
+          window.location.hash = routeHash('compare', 'cmp-assessment')
+        }}
       >
-        Full assessment: why, margins, evidence
+        Full assessment in Comparison
       </button>
-      {details && <AssessmentDialog title={plan.name} scenario={sc} onClose={() => setDetails(false)} />}
       <div className="plan-card-actions mt-2 flex flex-wrap items-center justify-between gap-2">
         <label className="flex items-center gap-3 text-xs text-slate-400" data-tip="Tick two or more plans, then press Compare to see them side by side.">
           <input type="checkbox" checked={compare} onChange={() => toggle(plan.id)} />
@@ -375,8 +376,7 @@ export function PlansPanel({ onCompare }: { onCompare: () => void }) {
       )}
 
     </section>
-    {/* The canonical assessment of the running plan, and the floating explanation while "Show why" evidence is open. */}
-    <MissionAssessment />
+    {/* The floating explanation over the 3D view while "Show why" evidence is open. */}
     <EvidenceBanner />
     </>
   )

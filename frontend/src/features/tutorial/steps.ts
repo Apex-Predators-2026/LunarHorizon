@@ -128,11 +128,11 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Viability & Mission Rescue',
     badge: 'Optimization',
     whyItMatters:
-      'When launch windows slip or power budgets tighten, Mission Rescue scans nearby terrain and alternate dates, plus Science vs. Engineering compromise options.',
-    tryPrompt: 'Switch Rescue tabs, tweak requirements, or run Find Rescue / Science vs Engineering.',
+      'When launch windows slip or power budgets tighten, Mission Rescue scans nearby terrain and alternate dates for a plan that still works.',
+    tryPrompt: 'Tweak a requirement or a launch delay, then run Find Rescue.',
     targetSelectors: ['[data-tour="mission-rescue"]', '[data-tour="sidebar-card"]'],
     preferredPlacement: 'left',
-    triggers: ['rescue-run', 'rescue-tab', 'compromise-run'],
+    triggers: ['rescue-run'],
     prep: { appView: 'planner', sidebarOpen: true },
   },
   {

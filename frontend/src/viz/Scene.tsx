@@ -58,7 +58,7 @@ import { PERF_ENABLED, PERF_RENDER_ALWAYS } from './perf'
 import { PerfOverlay, PerfProbe } from './PerfProbe'
 import { HorizonProbe } from './HorizonProbe'
 import { attachEvidenceViewer, clearEvidence, evidenceBand, markEvidenceProblem, markEvidenceShown, resolveEvidence, useEvidence, type ActiveEvidence } from './evidence'
-import { SiteSelect, TopInfo, useViewerSetup } from './ViewerHud'
+import { TopInfo, useViewerSetup } from './ViewerHud'
 
 const SHADOW_HALF_WIDTH_M = 6000 // shadow map covers ~12 km around the lander
 const CURTAIN_RADIUS_M = 28000 // engine skyline (from 300 km of terrain), drawn this far out in eye views
@@ -874,10 +874,7 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
             />
           )}
           <FloatingSidebar>
-            <div className="space-y-4">
-              <SiteSelect sites={sites.data} error={error} loading={loading} />
-              {sidebar}
-            </div>
+            <div className="space-y-4">{sidebar}</div>
           </FloatingSidebar>
         </div>
         {/* Floating + (new plan): 32 px above the timeline panel, near its right edge; drops to the corner when the panel is hidden. */}
@@ -908,6 +905,9 @@ export function Scene({ sidebar, fab }: { sidebar?: ReactNode; fab?: ReactNode }
               }}
               onCoordinates={analyseSpot}
               siteId={siteId}
+              sites={sites.data}
+              sitesError={error}
+              sitesLoading={loading}
               timeUtc={timeUtc}
               view={view}
               onView={setView}
