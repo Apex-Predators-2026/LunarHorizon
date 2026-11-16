@@ -37,7 +37,7 @@ describe('phone width (375 px)', () => {
   it('the Methodology check grid has a shrinkable column, so wide cards do not scroll the page sideways', async () => {
     const view = await source('./features/methodology/MethodologyView.tsx')
     expect(view).toContain('<div className="grid grid-cols-1 gap-4 xl:grid-cols-2">')
-    expect(view).toContain('<article className="min-w-0 rounded-2xl bg-inset p-5">')
+    expect(view).toContain('<article className="cmp-method-card min-w-0">')
   })
 })
 

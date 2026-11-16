@@ -109,11 +109,18 @@ describe('preview document', () => {
     expect(html).not.toMatch(/NaN|undefined/)
   })
 
-  it('has section navigation with the current page, and the technical record as an appendix', () => {
+  it('has a contents column with the current page beside the report, and the technical record as an appendix', () => {
     const html = renderToString(<MissionReportBody snapshot={snapshot(['A', 'B'])} scrollRef={createRef<HTMLDivElement>()} />)
     expect(html).toContain('aria-label="Report sections"')
     expect(html).toContain(`Page <!-- -->1<!-- --> of <!-- -->${PAGE_COUNT}`)
-    for (const s of SECTIONS.filter((x) => x.id !== 'rc-disclaimer')) expect(html).toContain(s.title)
+    // The contents sit beside the report (the layout wraps both), list every section and the appendix, in order.
+    expect(html.indexOf('class="report-layout"')).toBeLessThan(html.indexOf('aria-label="Report sections"'))
+    expect(html.indexOf('aria-label="Report sections"')).toBeLessThan(html.indexOf('class="report-main"'))
+    const nav = html.slice(html.indexOf('aria-label="Report sections"'), html.indexOf('</nav>'))
+    const titles = [...SECTIONS.map((s) => s.title), 'Appendix']
+    for (const t of titles) expect(nav).toContain(t)
+    expect(titles.map((t) => nav.indexOf(t))).toEqual([...titles.map((t) => nav.indexOf(t))].sort((a, b) => a - b))
+    expect(nav).not.toContain('aria-current') // nothing is marked as being read before the report is scrolled
     expect(html).toContain('Appendix: technical record')
     expect(html).toContain('id="rpt-appendix"')
   })
