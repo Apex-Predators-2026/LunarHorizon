@@ -92,13 +92,27 @@ export function TutorialSpotlight({ uiHidden }: { uiHidden: boolean }) {
   // Keyboard and screen-reader users follow the tour: focus moves to the step heading when the tour opens, and on
   // each step change while focus was in the card (or was dropped to the page).
   const wasOpen = useRef(false)
+  // Where focus was before the tour took it, so closing the tour gives it back (accessibility: focus is never dropped
+  // to the page). If that control is gone (the offer chip that started the tour), the tour's home in the planner
+  // toolbar's More menu takes it.
+  const returnFocus = useRef<HTMLElement | null>(null)
   useEffect(() => {
     if (!open || uiHidden) {
+      if (!open && wasOpen.current && typeof document !== 'undefined') {
+        const active = document.activeElement
+        // Only when the tour's own card took focus with it: never pull focus from where the user has moved it.
+        if (active === null || active === document.body) {
+          const back = returnFocus.current?.isConnected ? returnFocus.current : document.querySelector<HTMLElement>('[data-tour="more-menu"] button')
+          back?.focus({ preventScroll: true })
+        }
+        returnFocus.current = null
+      }
       wasOpen.current = false
       return
     }
     const active = typeof document !== 'undefined' ? document.activeElement : null
     const inCard = !!active && !!cardRef.current?.contains(active)
+    if (!wasOpen.current && !inCard && active instanceof HTMLElement && active !== document.body) returnFocus.current = active
     if (!wasOpen.current || inCard || active === document.body || active === null) headRef.current?.focus({ preventScroll: true })
     wasOpen.current = true
   }, [open, uiHidden, stepIndex])

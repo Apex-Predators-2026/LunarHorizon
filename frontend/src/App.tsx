@@ -203,6 +203,8 @@ export default function App() {
           aria-hidden={pageView || undefined}
           inert={pageView}
         >
+          {/* The page's heading for screen readers and heading navigation (the 3D view has no visible title). */}
+          <h1 className="sr-only">Mission Planner</h1>
           {/* Full-screen 3D simulation; the sidebar content is Member 5's mission-rescue panel. */}
           <Scene
             active={!pageView}

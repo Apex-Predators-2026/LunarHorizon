@@ -15,7 +15,7 @@ import { useAppStore } from '../../store'
 import type { MissionRequirements, Scenario } from '../../types'
 import { usePlansStore, type Plan } from '../plans/usePlansStore'
 import { WEIGHT_PRESETS, axisOrigin, type Align, type Weights } from './analysis'
-import { errorMessage, fetchSites, postCompare } from './api'
+import { errorMessage, fetchSites, isUnreachable, postCompare } from './api'
 import { MAX_COMPARED } from './palette'
 import type { RescueContext } from './rescueFlow'
 import {
@@ -429,11 +429,15 @@ export const useCompareStore = create<CompareState>()(
           if (ctrl.signal.aborted) return
           const failed = { ...get().results }
           const msg = errorMessage(e)
-          const offline = /fetch|network|ECONNREFUSED|50[0-4]/i.test(msg)
+          // Only a request that never reached the backend is "unavailable"; an error the backend sent back is shown
+          // as that error (it is running, it could not evaluate these plans).
+          const offline = isUnreachable(e)
           for (const s of valid) {
             failed[resultKey(s, allowDemo)] = {
               state: 'error',
-              message: offline ? `Backend unavailable (${msg}). No scientific data is shown for this plan.` : msg,
+              message: offline
+                ? `Backend unavailable (${msg}). No scientific data is shown for this plan.`
+                : `The backend could not evaluate this plan (${msg}). No scientific data is shown for it.`,
             }
           }
           set({ results: failed, rankingGroups: [], rankingMethod: null, rankingSetKey: null })
