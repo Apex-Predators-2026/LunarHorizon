@@ -1,10 +1,11 @@
 import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { TourButton } from '../compare/tour/TourButton'
 import type { StageModel } from '../guide/mission'
 import { TOUR_ACTS, TOUR_PATHS, TUTORIAL_STEPS, actStart, pathSteps } from './steps'
 import { TutorialOfferChip } from './TutorialOfferChip'
-import { TutorialSpotlight, TutorialSpotlightView } from './TutorialSpotlight'
+import { TutorialSpotlight, TutorialSpotlightView, findTargetElement } from './TutorialSpotlight'
 import { computeCoachmarkPosition, handleTutorialKeyDown } from './utils'
 import {
   TUTORIAL_STORAGE_KEY,
@@ -389,6 +390,59 @@ describe('Guided Mission Briefing Tutorial', () => {
       expect(renderToString(<TutorialSpotlightView {...base} stepIndex={ev} step={TUTORIAL_STEPS[ev]} />)).not.toContain('<mask')
       const last = TUTORIAL_STEPS.length - 1
       expect(nextButton(renderToString(<TutorialSpotlightView {...base} stepIndex={last} step={TUTORIAL_STEPS[last]} />))?.[1]).toBe('Explore on my own')
+    })
+  })
+
+  describe('alignment with recent Plan, pin, and backgrounded-Planner updates', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('accommodates unified plans, Manage plans presets, deletable pins, and zero stale labels or em dashes', () => {
+      for (const act of TOUR_ACTS) {
+        expect(`${act.label} ${act.title}`).not.toContain('\u2014')
+      }
+      for (const s of TUTORIAL_STEPS) {
+        const text = `${s.title} ${s.badge} ${s.whyItMatters} ${s.tryPrompt} ${s.nextLabel ?? ''}`
+        expect(text).not.toContain('\u2014')
+        expect(text).not.toMatch(/Scenario Comparison|Manage scenarios|How to compare missions/i)
+      }
+
+      const compare = TUTORIAL_STEPS[indexOf('compare')]
+      expect(compare.whyItMatters).toContain('Mission Planner')
+      expect(`${compare.whyItMatters} ${compare.tryPrompt}`).toContain('Manage plans')
+
+      const yourTurn = TUTORIAL_STEPS[indexOf('your-turn')]
+      expect(yourTurn.whyItMatters).toMatch(/remove/i)
+      expect(yourTurn.tryPrompt).toContain('Select site')
+      expect(yourTurn.tryPrompt).toContain('Drop pin')
+      expect(yourTurn.tryPrompt).toContain('Play plan')
+
+      const tourBtnHtml = renderToString(<TourButton />)
+      expect(tourBtnHtml).toContain('How to compare plans')
+      expect(tourBtnHtml).not.toContain('How to compare missions')
+    })
+
+    it('findTargetElement skips targets inside hidden Planner ([inert]/[aria-hidden]) and collapsed [hidden] panels', () => {
+      const fakeEl = (blockedBy: string | null) => ({
+        closest: (selector: string) => (blockedBy && selector.includes(blockedBy) ? {} : null),
+        getBoundingClientRect: () => ({ width: 120, height: 48 }),
+      })
+      const inertEl = fakeEl('[inert]')
+      const hiddenTabEl = fakeEl('[hidden]')
+      const ariaHiddenEl = fakeEl('[aria-hidden="true"]')
+      const visibleEl = fakeEl(null)
+
+      vi.stubGlobal('document', {
+        querySelectorAll: (sel: string) => {
+          if (sel === '[data-tour="sidebar-card"]') return [inertEl]
+          if (sel === '[data-tour="compare-verdict"]') return [hiddenTabEl, ariaHiddenEl, visibleEl]
+          return []
+        },
+      })
+
+      expect(findTargetElement(['[data-tour="sidebar-card"]'])).toBeNull()
+      expect(findTargetElement(['[data-tour="compare-verdict"]'])).toBe(visibleEl)
     })
   })
 })
