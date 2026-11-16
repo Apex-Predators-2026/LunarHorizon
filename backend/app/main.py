@@ -8,10 +8,10 @@ import json
 import os
 
 import numpy as np
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from . import security, store
+from . import store
 from .assistant.config import load_env_file
 from .engine.ephem_local import LocalEphemerisUnavailable
 from .engine.net import OfflineError
@@ -45,28 +45,15 @@ def cors_origins() -> list[str]:
     if configured is None:
         configured = load_env_file().get("CORS_ALLOW_ORIGINS", "")
     if configured.strip():
-        return [
-            origin.strip().rstrip("/")
-            for origin in configured.split(",")
-            if origin.strip() and origin.strip() != "*"
-        ]
+        return [origin.strip().rstrip("/") for origin in configured.split(",") if origin.strip()]
     return ["http://localhost:5173", "http://127.0.0.1:5173"]
-
-
-@app.middleware("http")
-async def security_middleware(request: Request, call_next):
-    limited = security.check_rate_limit(request)
-    if limited is not None:
-        return limited
-    response = await call_next(request)
-    return security.apply_security_headers(request, response)
 
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins(),
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Accept"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 app.include_router(rescue_router)  # Member 5: /api/rescue/*
 app.include_router(compare_router)  # Member 4: /api/compare
@@ -191,8 +178,8 @@ def create_custom_site(req: CustomSiteRequest) -> SiteInfo:
             "A new pin here needs terrain that isn't stored yet, and the backend is in offline mode. Pick one "
             "of the listed sites, or a point near one (their terrain is stored).",
         )
-    except OSError:  # Moon Trek / JPL unreachable or too busy
-        raise HTTPException(502, "Terrain or ephemeris source unavailable, try again shortly.")
+    except OSError as e:  # Moon Trek / JPL unreachable or too busy
+        raise HTTPException(502, f"Terrain or ephemeris source unavailable, try again shortly: {e}")
 
 
 @app.get("/api/sites/{site_id}")
@@ -270,8 +257,8 @@ def verify_site(site_id: str, time: str = Query(..., description="ISO UTC time")
         )
     except LocalEphemerisUnavailable as e:  # before RuntimeError: JPL is fine, our second opinion is missing
         raise HTTPException(503, f"The independent Skyfield check can't run. {e}")
-    except (OSError, RuntimeError):
-        raise HTTPException(502, "Couldn't reach JPL Horizons for the live check; try again in a minute.")
+    except (OSError, RuntimeError) as e:
+        raise HTTPException(502, f"Couldn't reach JPL Horizons for the live check ({type(e).__name__}); try again in a minute.")
 
 
 @app.get("/api/validation")

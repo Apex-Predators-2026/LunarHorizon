@@ -5,10 +5,9 @@ Mirrored in frontend/src/types/rescue.ts and documented in docs/interfaces.md.
 from __future__ import annotations
 
 from datetime import datetime
-import math
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 from ..models import MissionRequirements, Scenario, Site, ViabilityResult
 
@@ -46,10 +45,10 @@ class SearchOptions(BaseModel):
     date_step_hours: float = Field(12, ge=1, le=240)
     allow_earlier_dates: bool = Field(False, description="Also search before the delayed date (e.g. requirements changed, not the launch)")
     earlier_window_days: float = Field(0, ge=0, le=365)
-    candidate_site_ids: list[str] | None = Field(None, max_length=50, description="Catalog sites to consider; None = all")
+    candidate_site_ids: list[str] | None = Field(None, description="Catalog sites to consider; None = all")
     max_site_distance_km: float | None = Field(None, gt=0, description="Ignore catalog sites farther than this from the original")
     include_nearby_points: bool = Field(True, description="Also try custom points around the original site")
-    nearby_radii_km: list[float] = Field(default_factory=lambda: [2.0, 5.0], max_length=10)
+    nearby_radii_km: list[float] = Field(default_factory=lambda: [2.0, 5.0])
     nearby_bearings: int = Field(8, ge=1, le=36)
     top_n: int = Field(5, ge=1, le=20)
     min_separation_hours: float = Field(48, ge=0, description="Alternatives at the same place must be at least this far apart in time")
@@ -59,22 +58,6 @@ class SearchOptions(BaseModel):
     robustness_check: bool = True
     include_synthetic: bool | None = Field(
         None, description="Simulation mode: use synthetic placeholder data where there is no real data. Off (None/false) = real data only; anything real data doesn't fully cover is reported as UNKNOWN")
-
-    @field_validator("nearby_radii_km")
-    @classmethod
-    def _valid_radii(cls, v: list[float]) -> list[float]:
-        for radius in v:
-            if not math.isfinite(radius) or radius <= 0 or radius > 100:
-                raise ValueError("nearby_radii_km values must be finite and between 0 and 100 km")
-        return v
-
-    @model_validator(mode="after")
-    def _bounded_time_steps(self) -> "SearchOptions":
-        span_hours = (self.date_window_days + (self.earlier_window_days if self.allow_earlier_dates else 0.0)) * 24.0
-        steps = span_hours / self.date_step_hours + 1.0
-        if steps > 400:
-            raise ValueError("search time grid exceeds 400 steps; increase date_step_hours or narrow the date window")
-        return self
 
 
 class RescueRequest(BaseModel):
