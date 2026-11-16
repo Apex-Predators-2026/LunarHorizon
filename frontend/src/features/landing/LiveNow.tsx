@@ -13,11 +13,12 @@ const SITES = [
 
 // One request per site and hour, shared by every LiveNow on the page.
 const cache = new Map<string, Promise<Status>>()
-function fetchStatus(site: string, time: string) {
-  const key = `${site}@${time}`
+export function fetchStatus(site: string, time: string) {
+  const apiBase: string = import.meta.env.VITE_API_URL ?? ''
+  const key = `${apiBase}|${site}@${time}`
   let p = cache.get(key)
   if (!p) {
-    p = fetch(`/api/sites/${site}/status?time=${encodeURIComponent(time)}`).then((r) =>
+    p = fetch(`${apiBase}/api/sites/${site}/status?time=${encodeURIComponent(time)}`).then((r) =>
       r.ok ? r.json() : Promise.reject(new Error(String(r.status))),
     )
     p.catch(() => cache.delete(key))

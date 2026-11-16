@@ -50,7 +50,7 @@ class SiteInfo(Site):
 class CustomSiteRequest(BaseModel):
     lat: float = Field(ge=-90, le=90, description="Anywhere on the Moon (degrees, negative = south)")
     lon: float = Field(ge=-360, le=360)
-    name: str | None = None
+    name: str | None = Field(None, max_length=120)
 
 
 class Horizon(BaseModel):
