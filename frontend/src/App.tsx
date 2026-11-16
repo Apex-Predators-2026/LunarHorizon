@@ -185,7 +185,7 @@ export default function App() {
     <div ref={shellRef} className="relative h-full overflow-hidden bg-black" data-ui-hidden={uiHidden && !pageView}>
       <UiHiddenNotice />
       {/* One tooltip host for every view: data-tip labels on Comparison, Atlas and Methodology need it too. */}
-      <TooltipHost />
+      {!(uiHidden && !pageView) && <TooltipHost />}
       {/* The header is rendered once for both pages (floating over the 3D view, or above the comparison). */}
       <GlassDefs />
       <header ref={headerRef} className={`ui-chrome md-host absolute inset-x-0 top-0 z-30 pb-3 ${NAV_PAD} ${pageView ? 'border-b border-line bg-black' : 'pointer-events-none'}`}>

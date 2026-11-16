@@ -2,8 +2,7 @@ import { useEffect } from 'react'
 import { useUiPrefs } from './uiPrefs'
 
 /**
- * "Interface hidden" notice, and the Esc handler that brings the interface back. Lives outside the
- * hidden chrome so it is still there when everything else has faded away.
+ * Shows the Esc shortcut before the interface fades, and listens for Esc while the UI is hidden.
  */
 export function UiHiddenNotice() {
   const notice = useUiPrefs((s) => s.notice)
@@ -25,6 +24,7 @@ export function UiHiddenNotice() {
     <div
       role="status"
       aria-live="polite"
+      aria-hidden={!notice}
       className={`pointer-events-none absolute inset-x-0 bottom-10 z-50 flex justify-center px-4 transition-opacity duration-300 ${notice ? 'opacity-100' : 'opacity-0'}`}
     >
       {notice && (

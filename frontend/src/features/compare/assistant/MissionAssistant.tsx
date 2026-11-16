@@ -157,7 +157,7 @@ function Launcher({ buttonRef }: { buttonRef: Ref<HTMLButtonElement> }) {
   const { setOpen } = useAssistant.getState()
   const mask = useAskMask()
   return (
-    <div className={`${SCOPE} fixed bottom-5 right-12 z-[70]`} style={SCOPE_STYLE}>
+    <div className={`${SCOPE} fixed bottom-5 right-12 z-[70] max-sm:bottom-4 max-sm:right-4`} style={SCOPE_STYLE}>
       <div className="ask-rover">
         {/* Rover waits behind the button and peeks his head over the top when it is hovered. */}
         <div className="ask-rover-peek" aria-hidden="true"><div className="ask-rover-in"><RoverMascot facing="left" size={160} /></div></div>

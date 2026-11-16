@@ -1,7 +1,7 @@
 // Plans in the Mission Planner sidebar: a list of saved plans (run / compare / edit / delete) and an M3
 // floating action button that opens the "New plan" dialog.
 // https://m3.material.io/components/floating-action-button
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
 import { headroomTone, resolveHeadroom } from '../../lib/headroom'
@@ -17,6 +17,7 @@ import {
   type ViabilityResult,
 } from '../../types'
 import { InteractiveGrainGradient } from '../../ui/InteractiveGrainGradient'
+import { useModalKeys } from '../../ui/modalKeys'
 import { DateField, SelectField, TextField } from '../../ui/MdFields'
 import { PassHeadroomBadge } from '../../ui/PassHeadroom'
 import { DatePopup } from '../../viz/DatePopup'
@@ -107,6 +108,9 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
   const site = savedSite?.id === siteId ? savedSite : catalog?.sites.find((s) => s.id === siteId)
   const valid = !!site && name.trim().length > 0 && duration > 0 && duration <= 365
   const close = () => setClosing(true)
+  // Escape closes the date picker first, then the dialog; Tab stays inside the dialog (not the page behind it).
+  const formRef = useRef<HTMLFormElement>(null)
+  useModalKeys(formRef, () => (calendar ? setCalendar(false) : close()), !calendar)
 
   const save = (e: React.FormEvent) => {
     e.preventDefault()
@@ -125,9 +129,10 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
   }
 
   return createPortal(
-    <div className={`fixed inset-0 z-[60] flex items-center justify-center p-4 ${closing ? 'md-snack-out' : ''}`} onAnimationEnd={(e) => closing && e.target === e.currentTarget && onClose()}>
+    <div className={`ui-chrome fixed inset-0 z-[60] flex items-center justify-center p-4 ${closing ? 'md-snack-out' : ''}`} onAnimationEnd={(e) => closing && e.target === e.currentTarget && onClose()}>
       <div className="absolute inset-0 bg-black/40" onClick={close} aria-hidden />
       <form
+        ref={formRef}
         role="dialog"
         aria-modal="true"
         aria-label={plan ? 'Edit plan' : 'New plan'}
