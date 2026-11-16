@@ -25,12 +25,13 @@ describe('methodology route', () => {
 })
 
 describe('comparison page', () => {
-  it('ends with a single Explore Methodology button and no other methodology content', () => {
+  it('ends with a short callout and a single methodology button', () => {
     const html = renderToString(<ComparisonDashboard />)
     const start = html.indexOf(`id="${METHODOLOGY_INTRO_ID}"`)
     expect(start).toBeGreaterThan(html.indexOf('Select at least two plans')) // after every comparison block
     const bottom = html.slice(start, html.indexOf('</div>', start) + 6)
-    expect(bottom).toContain('Explore Methodology')
+    expect(bottom).toContain('See the thought behind the analysis')
+    expect(bottom).toContain('Explore methodology')
     expect(bottom.match(/<button/g)).toHaveLength(1)
     expect(bottom).not.toMatch(/<(p|h2|h3|ul|li|section)[\s>]/)
     expect(html).not.toContain('How This Analysis Was Built')
@@ -43,7 +44,7 @@ describe('comparison page', () => {
     expect(html).toContain('Back to Plan Comparison')
     expect(html).toContain('data-testid="comparison-methodology"')
     expect(html).not.toContain('Comparison views') // the comparison's own tabs are not on the subpage
-    expect(html).not.toContain('Explore Methodology')
+    expect(html).not.toContain('Explore methodology')
   })
 })
 
