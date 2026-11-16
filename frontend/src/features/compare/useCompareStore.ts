@@ -11,6 +11,7 @@ import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
 import rescueDemo from '../../../../backend/app/rescue/demo_scenario.json'
+import { guardedMerge, isComparisonScenario, isRescueContext, isString } from '../../lib/persistGuard'
 import { useAppStore } from '../../store'
 import type { MissionRequirements, Scenario } from '../../types'
 import { usePlansStore, type Plan } from '../plans/usePlansStore'
@@ -170,6 +171,15 @@ function reconcilePlans(state: CompareState, plans: Plan[], previous?: Plan[]) {
 }
 
 let inflight: AbortController | null = null
+
+type SavedWorkspace = Pick<CompareState, 'scenarios' | 'selectedIds' | 'activeId' | 'baselineId' | 'rescueContext'>
+
+/** The saved workspace with every malformed field or scenario dropped (lib/persistGuard). */
+function guardWorkspace<T extends object>(persisted: unknown, current: T): T {
+  return guardedMerge<T>({
+    scenarios: isComparisonScenario, selectedIds: isString, activeId: isString, baselineId: isString, rescueContext: isRescueContext,
+  })(persisted, current)
+}
 
 export const useCompareStore = create<CompareState>()(
   persist(
@@ -447,7 +457,7 @@ export const useCompareStore = create<CompareState>()(
       version: 2,
       storage: createJSONStorage(() => sessionStorage),
       migrate: (persisted) => {
-        const workspace = persisted as Pick<CompareState, 'scenarios' | 'selectedIds' | 'activeId' | 'baselineId' | 'rescueContext'>
+        const workspace = guardWorkspace<SavedWorkspace>(persisted, { scenarios: [], selectedIds: [], activeId: null, baselineId: null, rescueContext: null })
         const store = usePlansStore.getState()
         const ids = new Map<string, string>()
         const migrated = new Map<string, ComparisonScenario>()
@@ -477,6 +487,8 @@ export const useCompareStore = create<CompareState>()(
           },
         }
       },
+      // The workspace is reconciled with the saved plans at import time: a malformed one must not stop the app loading.
+      merge: (persisted, current) => guardWorkspace(persisted, current),
       partialize: (s) => ({
         scenarios: s.scenarios, selectedIds: s.selectedIds, activeId: s.activeId, baselineId: s.baselineId,
         allowDemo: s.allowDemo, educational: s.educational, align: s.align, weights: s.weights, traverseKm: s.traverseKm,

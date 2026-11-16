@@ -4,6 +4,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
+import { guardedMerge, isChatMessage, isString } from '../../../lib/persistGuard'
 import { AssistantError, fetchAssistantStatus, postAssistantChat, type ChatTurn } from './api'
 import { contextLine, contextSignature, verdictChips, type AssistantContext } from './context'
 import { basicAnswer } from './fallback'
@@ -190,6 +191,7 @@ export const useAssistant = create<AssistantState>()(
       name: 'lunar-compare-assistant',
       storage: createJSONStorage(() => sessionStorage),
       partialize: (s) => ({ open: s.open, messages: s.messages, lastSignature: s.lastSignature }),
+      merge: guardedMerge<AssistantState>({ messages: isChatMessage, lastSignature: isString }),
     },
   ),
 )

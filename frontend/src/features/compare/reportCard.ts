@@ -245,9 +245,17 @@ function metricRows(defs: MetricDef[], scenarios: ExportedScenario[]): MetricRow
 
 function bestOf(d: MetricDef, scenarios: ExportedScenario[], nums: Record<string, number | null>): string[] {
   if (!d.better) return []
-  // Real data competes with real data only, unless nothing is real.
-  const real = scenarios.filter((s) => nums[s.label] !== null && s.data.kind === 'real')
-  const pool = (real.length >= 2 ? real : scenarios.filter((s) => nums[s.label] !== null)).map((s) => ({ l: s.label, v: nums[s.label]! }))
+  // The comparison page's rules (analysis.ts bestPool): real data competes with real data only; one real plan next to
+  // demonstration plans gives no winner; demonstration plans compete only when nothing is real; and plans with
+  // different durations or requirements are described, never ranked by a metric.
+  const measured = scenarios.filter((s) => nums[s.label] !== null)
+  const real = measured.filter((s) => s.data.kind === 'real')
+  const demo = measured.filter((s) => s.data.kind !== 'real')
+  if (real.length === 1 && demo.length) return []
+  const comparable = real.length >= 2 ? real : demo
+  if (new Set(comparable.map((s) => s.duration_days)).size > 1) return []
+  if (new Set(comparable.map((s) => JSON.stringify(s.requirements))).size > 1) return []
+  const pool = comparable.map((s) => ({ l: s.label, v: nums[s.label]! }))
   if (pool.length < 2) return []
   const sorted = [...pool].sort((a, b) => (d.better === 'higher' ? b.v - a.v : a.v - b.v))
   const top = sorted.filter((x) => x.v === sorted[0].v)
