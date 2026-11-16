@@ -89,9 +89,9 @@ export function RoverFlagTag({ ref }: { ref: Ref<HTMLDivElement> }) {
       <div className="rover-flag-sprite" />
       {/* Dotted outline of the same frame; shown only over the parts of the flag that something hides. */}
       <div className="rover-flag-sprite rover-flag-ghost" />
-      <div className="rover-flag-text">YOUR ROVER</div>
+      <div className="ui-chrome rover-flag-text">YOUR ROVER</div>
       {/* Outlined copy of the tag: shown only over the part of it that the ground hides. */}
-      <div className="rover-flag-text rover-flag-text-ghost" aria-hidden>YOUR ROVER</div>
+      <div className="ui-chrome rover-flag-text rover-flag-text-ghost" aria-hidden>YOUR ROVER</div>
     </div>
   )
 }

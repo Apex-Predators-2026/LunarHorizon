@@ -875,7 +875,7 @@
 .ui-chrome {
   transition: opacity 300ms var(--md-ease-standard), visibility 0s 0s;
 }
-[data-ui-hidden='true'] .ui-chrome {
+:is([data-ui-hidden='true'] .ui-chrome, body:has([data-ui-hidden='true']) > .ui-chrome) {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
