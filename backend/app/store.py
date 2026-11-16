@@ -1,6 +1,7 @@
 """Loads precomputed site records (data/sites/*.json) and computes custom sites on demand."""
 
 import json
+import os
 import threading
 from functools import lru_cache
 from pathlib import Path
