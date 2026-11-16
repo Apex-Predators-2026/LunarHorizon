@@ -58,8 +58,10 @@ export interface ValidationSummary {
   illumination_observed?: IlluminationCheck
 }
 
+const API_URL: string = import.meta.env.VITE_API_URL ?? ''
+
 export async function fetchValidation(signal?: AbortSignal): Promise<ValidationSummary> {
-  const r = await fetch('/api/validation', { signal })
+  const r = await fetch(`${API_URL}/api/validation`, { signal })
   if (!r.ok) throw new Error(r.status === 404 ? 'No validation report has been generated yet.' : `The backend answered ${r.status}.`)
   const body = (await r.json()) as { summary: ValidationSummary }
   return body.summary
@@ -133,7 +135,7 @@ export type ViabilityValidationState =
 export async function fetchViabilityValidation(signal?: AbortSignal): Promise<ViabilityValidationState> {
   let r: Response
   try {
-    r = await fetch('/api/viability/validation-summary', { signal })
+    r = await fetch(`${API_URL}/api/viability/validation-summary`, { signal })
   } catch (e) {
     if ((e as Error).name === 'AbortError') throw e
     return { status: 'unavailable', detail: 'The backend could not be reached.' }
