@@ -140,6 +140,10 @@
   clip-path: polygon(0 0, 100% 0, 100% 100%);
 }
 .ask-rover:hover .ask-rover-bubble, .ask-rover:has(button:focus-visible) .ask-rover-bubble { visibility: visible; }
+/* Phones: the whole launcher (button, peeking Rover, bubble) at 80 px, so it doesn't cover the tour offer or links. */
+@media (max-width: 639px) {
+  .ask-rover { transform: scale(0.625); transform-origin: 100% 100%; }
+}
 
 /* Rover's own voice: titles and the "Rover says..." label use a rounded display face (SIL OFL Fredoka). */
 .cmp-ai-babydoll { font-family: 'Fredoka', var(--font-inter, sans-serif); font-weight: 500; letter-spacing: 0.01em; }

@@ -8,6 +8,8 @@ import { useStore } from 'zustand'
 import { useAppStore } from '../../store'
 import { DEFAULT_REQUIREMENTS, type MissionRequirements, type SiteInfo } from '../../types'
 import { LoadingIndicator } from '../../ui/LoadingIndicator'
+import { DateField } from '../../ui/MdFields'
+import { DatePopup } from '../../viz/DatePopup'
 import { fetchSites } from '../../viz/api'
 import '../compare/compare.css'
 import { Disclosure } from '../compare/disclosure'
@@ -89,6 +91,7 @@ export function AtlasView() {
     requirements: { ...DEFAULT_REQUIREMENTS },
   }))
   const [durationsText, setDurationsText] = useState('3, 7, 14, 28')
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const snapshot = useStore(atlasSession, (s) => s.snapshot)
   const pending = useStore(atlasSession, (s) => s.pending)
   const error = useStore(atlasSession, (s) => s.error)
@@ -132,7 +135,11 @@ export function AtlasView() {
   const durations = durationsText.split(/[,\s]+/).map(Number).filter((d) => Number.isFinite(d) && d > 0)
   const bounds = searchBounds({ ...form, durations_days: durations })
   const tooMany = bounds.cells > MAX_CELLS
-  const valid = !!site && durations.length > 0 && durations.length <= 8 && form.count >= 1 && form.count <= 120 && !tooMany
+  const firstDay = form.start_utc.slice(0, 10)
+  const minDay = site?.data_start_utc.slice(0, 10) ?? '0001-01-01'
+  const maxDay = site?.data_stop_utc.slice(0, 10) ?? '9999-12-31'
+  const dateInRange = firstDay >= minDay && firstDay <= maxDay
+  const valid = !!site && dateInRange && durations.length > 0 && durations.length <= 8 && form.count >= 1 && form.count <= 120 && !tooMany
   const edited = normalizeRequest(form, durations)
   // What the edited search changes relative to the map shown ([] = the map shows this search).
   const diffs = snapshot ? requestDiffs(edited, snapshot.request) : []
@@ -201,12 +208,16 @@ export function AtlasView() {
                 {curated.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </label>
-            <label className="block">
-              First landing date (UTC)
-              <input type="date" className={input} value={form.start_utc.slice(0, 10)}
-                min={site?.data_start_utc.slice(0, 10)} max={site?.data_stop_utc.slice(0, 10)}
-                onChange={(e) => e.target.value && setForm({ ...form, start_utc: `${e.target.value}T00:00:00Z` })} />
-            </label>
+            <div className="[--md-field-surface:var(--color-surface)] [&_.md-field-control]:h-10 [&_.md-field-trailing]:top-5">
+              <DateField label="First landing date (UTC)" tip="Choose the first date the Atlas will test."
+                value={firstDay} expanded={calendarOpen} onOpen={() => setCalendarOpen((open) => !open)} />
+              {calendarOpen && (
+                <DatePopup timeUtc={form.start_utc} dateOnly
+                  min={`${minDay}T00:00:00Z`} max={`${maxDay}T00:00:00Z`}
+                  onPick={(start_utc) => setForm((current) => ({ ...current, start_utc }))}
+                  onClose={() => setCalendarOpen(false)} />
+              )}
+            </div>
             <label className="block">
               Sampling interval
               <select className={input} value={form.step_hours} onChange={(e) => setForm({ ...form, step_hours: Number(e.target.value) })}>
@@ -234,6 +245,7 @@ export function AtlasView() {
             Landings tested from <b className="text-slate-200">{fmtUtc(bounds.first)}</b> to <b className="text-slate-200">{fmtUtc(bounds.last)}</b>,{' '}
             {STEP_OPTIONS.find((o) => o.hours === form.step_hours)?.label ?? `every ${form.step_hours} h`}; {durations.length} mission length{durations.length === 1 ? '' : 's'}; {bounds.cells} plans.
             {site && <> Site data: {fmtDay(site.data_start_utc)} to {fmtDay(site.data_stop_utc)}.</>}
+            {!dateInRange && <span className="block text-red-400">Choose a first landing date within the site’s data range.</span>}
             {tooMany && <span className="block text-red-400">At most {MAX_CELLS} plans per map: fewer dates or lengths.</span>}
           </p>
           {loading && <p role="status" className="mt-1 text-slate-400">Evaluating your search: the map shown will be replaced when it is ready.</p>}
