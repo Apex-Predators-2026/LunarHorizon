@@ -78,6 +78,8 @@ export function AtlasView() {
   const appTime = useAppStore((s) => s.timeUtc)
   const [sites, setSites] = useState<SiteInfo[] | null>(null)
   const [siteError, setSiteError] = useState<string | null>(null)
+  const [sitesAttempt, setSitesAttempt] = useState(0) // bumped by Retry: loads the site list again
+  const sitesLoading = !sites && !siteError
   const [form, setForm] = useState<AtlasRequest>(() => ({
     site_id: 'connecting-ridge',
     start_utc: `${(appTime || '2027-01-01T00:00:00Z').slice(0, 10)}T00:00:00Z`,
@@ -120,8 +122,12 @@ export function AtlasView() {
       })
       .catch((e: unknown) => (e as Error).name !== 'AbortError' && setSiteError(e instanceof Error ? e.message : String(e)))
     return () => ctl.abort()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on opening the Atlas
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- on opening the Atlas, and again on Retry
+  }, [sitesAttempt])
+  const retrySites = () => {
+    setSiteError(null)
+    setSitesAttempt((n) => n + 1)
+  }
 
   const durations = durationsText.split(/[,\s]+/).map(Number).filter((d) => Number.isFinite(d) && d > 0)
   const bounds = searchBounds({ ...form, durations_days: durations })
@@ -190,7 +196,8 @@ export function AtlasView() {
           <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.3fr)_repeat(2,minmax(0,1fr))_minmax(0,0.7fr)_minmax(0,1fr)_auto]">
             <label className="block">
               Site
-              <select className={input} value={form.site_id} onChange={(e) => setForm({ ...form, site_id: e.target.value })} disabled={!sites}>
+              <select className={input} value={form.site_id} onChange={(e) => setForm({ ...form, site_id: e.target.value })} disabled={!sites} aria-busy={sitesLoading}>
+                {!sites && <option value={form.site_id}>{siteError ? 'Sites unavailable' : 'Loading sites…'}</option>}
                 {curated.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </label>
@@ -217,7 +224,12 @@ export function AtlasView() {
             </label>
             <button type="submit" className={btnPrimary} disabled={!valid || loading}>{loading ? 'Mapping…' : 'Map these plans'}</button>
           </div>
-          {siteError && <p role="alert" className="mt-2 text-red-400">Couldn't load sites: {siteError}</p>}
+          {siteError && (
+            <div role="alert" className="mt-2 flex flex-wrap items-center gap-3 text-red-400">
+              <p>Couldn't load sites: {siteError}</p>
+              <button type="button" className={btn} onClick={retrySites}>Retry</button>
+            </div>
+          )}
           <p id="atlas-bounds" className="mt-2 leading-snug text-slate-400">
             Landings tested from <b className="text-slate-200">{fmtUtc(bounds.first)}</b> to <b className="text-slate-200">{fmtUtc(bounds.last)}</b>,{' '}
             {STEP_OPTIONS.find((o) => o.hours === form.step_hours)?.label ?? `every ${form.step_hours} h`}; {durations.length} mission length{durations.length === 1 ? '' : 's'}; {bounds.cells} plans.
@@ -265,10 +277,21 @@ export function AtlasView() {
             {loading && !result && (
               <div className="flex items-center gap-3 py-10 text-sm text-slate-400"><LoadingIndicator size={36} /> Evaluating every plan…</div>
             )}
-            {!loading && !result && !error && (
+            {sitesLoading && !loading && !result && (
+              <div role="status" className="flex items-center gap-3 py-10 text-sm text-slate-400"><LoadingIndicator size={36} /> Loading the landing sites…</div>
+            )}
+            {siteError && !loading && !result && !error && (
+              <p className="py-6 text-sm text-slate-400">No map: the landing sites could not be loaded. Retry above.</p>
+            )}
+            {sites && !loading && !result && !error && (
               <p className="py-6 text-sm text-slate-400">No map yet. Choose a site, dates and mission lengths, then press "Map these plans".</p>
             )}
-            {error && <p role="alert" className="rounded border border-red-900 bg-red-950/40 p-2 text-xs text-red-300">The Atlas couldn't be made: {error}</p>}
+            {error && (
+              <div role="alert" className="flex flex-wrap items-center gap-3 rounded border border-red-900 bg-red-950/40 p-2 text-xs text-red-300">
+                <p className="min-w-0 flex-1">The Atlas couldn't be made: {error}</p>
+                <button type="button" className={btn} onClick={() => void atlasSession.getState().retry()}>Retry</button>
+              </div>
+            )}
             {result && (
               <div className={loading ? 'opacity-60 transition-opacity' : 'transition-opacity'} aria-busy={loading}>
                 {result.time_note && <p className="mb-2 text-xs text-slate-400">{result.time_note}</p>}

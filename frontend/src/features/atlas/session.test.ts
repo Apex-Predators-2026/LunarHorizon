@@ -125,6 +125,31 @@ describe('Atlas transfer comes from one evaluated snapshot', () => {
     expect(s.getState().transfer().ok).toBe(true)
   })
 
+  it('Retry sends exactly the search that failed again, and clears the error once it succeeds', async () => {
+    const { fetcher, calls } = manualFetcher()
+    const s = createAtlasSession(fetcher)
+    const req = reqFor('connecting-ridge', { count: 9 })
+    const first = s.getState().submit(req, RIDGE)
+    calls[0].reject(new Error('Request failed (500)'))
+    await first
+    expect(s.getState().failed).toEqual({ request: req, site: RIDGE })
+    const retried = s.getState().retry()
+    expect(calls).toHaveLength(2)
+    expect(calls[1].req).toEqual(req)
+    expect(s.getState().error).toBeNull() // pending again, no stale error
+    calls[1].resolve(ridgeResponse())
+    await retried
+    expect(s.getState().failed).toBeNull()
+    expect(s.getState().snapshot?.request).toEqual(req)
+  })
+
+  it('Retry does nothing when no search has failed', async () => {
+    const { fetcher, calls } = manualFetcher()
+    const s = createAtlasSession(fetcher)
+    await s.getState().retry()
+    expect(calls).toHaveLength(0)
+  })
+
   it('refuses a response for a different site than requested, and a snapshot whose site does not match', async () => {
     const { fetcher, calls } = manualFetcher()
     const s = createAtlasSession(fetcher)

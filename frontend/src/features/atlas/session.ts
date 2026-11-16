@@ -94,8 +94,11 @@ export interface AtlasSession {
   snapshot: AtlasSnapshot | null // the map shown
   pending: { seq: number; request: AtlasRequest } | null // a newer search being evaluated
   error: string | null
+  /** The search that failed (with `error`), so Retry sends exactly that request again. */
+  failed: { request: AtlasRequest; site: SiteRef | null } | null
   sel: [number, number]
   submit: (request: AtlasRequest, site: SiteRef | null) => Promise<void>
+  retry: () => Promise<void>
   select: (row: number, col: number) => void
   transfer: () => Transfer // the selected cell of the map shown
 }
@@ -107,13 +110,14 @@ export function createAtlasSession(fetcher: Fetcher) {
     snapshot: null,
     pending: null,
     error: null,
+    failed: null,
     sel: [0, 0],
     submit: async (request, site) => {
       const seq = get().seq + 1
       ctl?.abort()
       const mine = new AbortController()
       ctl = mine
-      set({ seq, pending: { seq, request }, error: null })
+      set({ seq, pending: { seq, request }, error: null, failed: null })
       try {
         const response = await fetcher(request, mine.signal)
         if (get().seq !== seq) return // superseded: a newer search owns the map
@@ -121,8 +125,12 @@ export function createAtlasSession(fetcher: Fetcher) {
         set({ snapshot: { seq, request, response, site: site && site.id === request.site_id ? site : null }, pending: null, sel: firstCell(response) })
       } catch (e) {
         if (get().seq !== seq || (e as Error).name === 'AbortError') return
-        set({ pending: null, error: e instanceof Error ? e.message : String(e) }) // the previous map stays, still labelled
+        set({ pending: null, error: e instanceof Error ? e.message : String(e), failed: { request, site } }) // the previous map stays, still labelled
       }
+    },
+    retry: async () => {
+      const { failed, submit } = get()
+      if (failed) await submit(failed.request, failed.site)
     },
     select: (row, col) => set({ sel: [row, col] }),
     transfer: () => {
