@@ -262,7 +262,7 @@ function Hero({ onOpen, onTour }: { onOpen: () => void; onTour?: () => void }) {
       <img
         className={moonReady ? 'lnd-hero-moon is-ready' : 'lnd-hero-moon'}
         ref={moon}
-        src="/landing/moon.jpg"
+        src={`${import.meta.env.BASE_URL}landing/moon.jpg`}
         alt="A crescent Moon, its craters lit along the terminator, with a small crescent Earth rising behind its edge."
         fetchPriority="high"
         onLoad={() => setMoonReady(true)}
