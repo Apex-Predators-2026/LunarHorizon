@@ -29,7 +29,8 @@ const HANDLES: { dir: Dir; cls: string; cursor: string }[] = [
  */
 export function FloatingSidebar({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null)
-  const [open, setOpen] = useState(true)
+  // Starts collapsed on phones, where the open panel would cover most of the 3D view.
+  const [open, setOpen] = useState(() => typeof window === 'undefined' || !window.matchMedia?.('(max-width: 767px)').matches)
   const { pos, setPos, size, setSize, dragging, handlers, consumeClick, refit } = useDraggable(rootRef)
   const [openHeight, setOpenHeight] = useState(0) // height while expanded, kept across collapse / moves
   const [userSized, setUserSized] = useState(false) // true once resized by hand: then height is exact, not a max
