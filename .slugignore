@@ -1,0 +1,6 @@
+# Left out of the Heroku build: the backend only needs backend/ and data/.
+frontend
+release-gate
+scripts
+.github
+.vscode

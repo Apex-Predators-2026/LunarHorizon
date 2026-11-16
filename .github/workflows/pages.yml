@@ -34,7 +34,9 @@ jobs:
       - run: npm run build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/ # a project site lives in a subfolder named after the repo
-          VITE_API_URL: https://lunarhorizon-api.onrender.com # the backend (render.yaml)
+          # The backend. Set the repository variable API_URL (Settings -> Secrets and variables -> Actions ->
+          # Variables) to switch hosts without editing this file; the Render backend is the fallback.
+          VITE_API_URL: ${{ vars.API_URL || 'https://lunarhorizon-api.onrender.com' }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/dist

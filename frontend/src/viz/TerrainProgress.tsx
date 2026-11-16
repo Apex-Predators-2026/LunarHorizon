@@ -22,7 +22,10 @@ export function TerrainLoadingOverlay({ problem = null, retryInS = null, onRetry
         <div role="alert" className="md-reveal pointer-events-auto flex w-72 flex-col items-center gap-2 rounded-2xl bg-black/70 px-4 py-4 text-center text-sm text-white backdrop-blur">
           <p className="font-semibold">Can't reach the Lunar Horizon server</p>
           <p className="text-[11px] text-white/70">
-            The site list didn't load ({problem}). Check that the backend is running on port 8000.
+            The site list didn't load ({problem}).{' '}
+            {import.meta.env.DEV
+              ? 'Check that the backend is running on port 8000.'
+              : 'The server may be starting up after being idle; this can take about a minute.'}
           </p>
           <p className="text-[11px] text-white/70" aria-live="polite">
             {retryInS === null ? 'Trying again…' : `Trying again automatically in about ${retryInS} s.`}

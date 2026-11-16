@@ -49,9 +49,13 @@ def cors_origins() -> list[str]:
     return ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 
+# The team's published frontends, always allowed on top of CORS_ALLOW_ORIGINS, so a deployed site works even before
+# the host's environment variable is updated.
+PUBLISHED_FRONTENDS = ("https://lunarhorizon-flax.vercel.app", "https://apex-predators-2026.github.io")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins(),
+    allow_origins=list(dict.fromkeys([*cors_origins(), *PUBLISHED_FRONTENDS])),
     allow_methods=["*"],
     allow_headers=["*"],
 )
