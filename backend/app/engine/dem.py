@@ -27,6 +27,7 @@ import rasterio
 import rasterio.errors
 
 from .geo import latlon_to_xy, latlon_to_xy_np
+from ..memory import cache_size
 from .net import CACHE_DIR, OfflineError, offline, require_online
 from .terrain import INVALID_BELOW, TREK
 
@@ -34,7 +35,7 @@ BLOCK = 1024  # pixels per block side (at most)
 DEM_CACHE = CACHE_DIR / "dem"
 # Each block is at most 4 MB in memory (float32). One polar horizon touches ~40 blocks, so a smaller
 # cache would make horizons and tiles keep evicting each other's blocks (~380 MB at most).
-MAX_BLOCKS_IN_MEMORY = 96
+MAX_BLOCKS_IN_MEMORY = cache_size(96, 12)  # up to 4 MB each (1024^2 float32): ~384 MB, or ~48 MB with LOW_MEMORY
 
 # Moon Trek downloads at once, across every request (the per-call pools below would otherwise
 # multiply: 40 server threads x 8). When Moon Trek stalls, requests queue here instead of piling up

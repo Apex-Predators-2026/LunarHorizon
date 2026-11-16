@@ -30,6 +30,7 @@ from ..store import SITES_DIR
 from ..viability.adapters import load_site_file
 from ..viability.compat.rescue import scenario_to_mission
 from ..viability.conventions import ENGINE_VERSION
+from ..memory import cache_size
 from ..viability.engine import evaluate_scenario
 from ..viability.enums import Unit
 from ..viability.inputs import ScientificTimeSeries
@@ -43,7 +44,7 @@ def _iso(t: datetime) -> str:
     return t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%MZ")
 
 
-@lru_cache(maxsize=8)
+@lru_cache(maxsize=cache_size(8, 2))
 def _series(site_id: str) -> ScientificTimeSeries:
     path = SITES_DIR / f"{site_id}.json"
     if not path.exists():

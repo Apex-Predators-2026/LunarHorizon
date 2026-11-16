@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Final
 from ..adapters import load_site_file
 from ..conventions import SCHEMA_VERSION
 from ..engine import ENGINE_VERSION, evaluate_scenario
+from ...memory import cache_size
 from ..explain import EXPLANATION_METHOD_VERSION, STANDARD_LIMITATIONS, explain_assessment_details
 from ..mission import LandingSite, MissionScenario
 from ..outputs import ViabilityAssessment
@@ -54,7 +55,7 @@ VALIDATION_REPORT: Final = REPO_ROOT / "data" / "validation" / "viability_valida
 REGENERATE_COMMAND: Final = (
     "cd backend && python -m app.viability.validation --out ../data/validation/viability_validation.json"
 )
-PREPARED_CACHE_SIZE: Final = 4  # about 150 MB per prepared 5-year hourly file
+PREPARED_CACHE_SIZE: Final = cache_size(4, 1)  # about 150 MB per prepared 5-year hourly file
 
 
 _SITE_ID: Final = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")  # same pattern as schemas.SiteId

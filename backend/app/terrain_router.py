@@ -14,6 +14,7 @@ from .engine import psr
 from .engine.imagery import IMAGERY_MAX_ZOOM, TEXTURE_PX, imagery_tile, png_gray
 from .engine.dem import SOURCES, DownloadBusy
 from .engine.tiles import FACES, MAX_ZOOM, N, max_zoom_for, tile_heights, validate_tile
+from .memory import cache_size
 
 router = APIRouter(prefix="/api")
 
@@ -31,7 +32,7 @@ def terrain_info() -> dict:
     }
 
 
-@lru_cache(maxsize=4096)  # ~70 MB of recently served tiles; failures are not cached
+@lru_cache(maxsize=cache_size(4096, 256))  # ~70 MB of recently served tiles (~4 MB with LOW_MEMORY); failures are not cached
 def _tile_payload(face: int, z: int, x: int, y: int, pad: int) -> tuple[bytes, float, float, bool]:
     heights = tile_heights(face, z, x, y, pad=pad)
     inner = heights[pad : pad + N, pad : pad + N]
@@ -73,7 +74,7 @@ def terrain_tile(
     )
 
 
-@lru_cache(maxsize=1024)  # ~40 MB of recently served PNGs
+@lru_cache(maxsize=cache_size(1024, 128))  # ~40 MB of recently served PNGs (~5 MB with LOW_MEMORY)
 def _imagery_png(face: int, z: int, x: int, y: int) -> bytes:
     return png_gray(imagery_tile(face, z, x, y))
 
