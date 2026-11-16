@@ -39,7 +39,7 @@ jobs:
           echo "Backend: $url"
           echo "VITE_API_URL=$url" >> "$GITHUB_ENV"
         env:
-          RAW_API_URL: ${{ vars.API_URL || 'https://lunarhorizon-api.onrender.com' }}
+          RAW_API_URL: ${{ vars.API_URL || 'https://lunarhorizon-api-aget.onrender.com' }}
       - run: npm run build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/ # a project site lives in a subfolder named after the repo
