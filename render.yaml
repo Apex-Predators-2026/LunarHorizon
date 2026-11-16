@@ -2,7 +2,7 @@ services:
   - type: web
     name: lunarhorizon-api
     runtime: python
-    plan: free            # change to "starter" ($7/mo) to avoid the ~50 s cold start after idle
+    plan: starter         # paid: always on (no cold start). 512 MB, hence LOW_MEMORY below; "standard" has 2 GB
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
@@ -10,9 +10,11 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
-      - key: SITE_CACHE_SIZE   # keep memory under the free plan's 512 MB
+      - key: LOW_MEMORY        # shrink caches to fit 512 MB (app/memory.py); can be removed on a 2 GB plan
+        value: "1"
+      - key: SITE_CACHE_SIZE   # keep memory under 512 MB
         value: "4"
       - key: CORS_ALLOW_ORIGINS
-        value: https://lunarhorizonsite.xyz,https://www.lunarhorizonsite.xyz,https://apex-predators-2026.github.io
+        value: https://lunarhorizon-flax.vercel.app,https://apex-predators-2026.github.io,https://lunarhorizonsite.xyz,https://www.lunarhorizonsite.xyz
       - key: OPENROUTER_API_KEY   # optional: enables the Ask Rover AI answers
         sync: false
