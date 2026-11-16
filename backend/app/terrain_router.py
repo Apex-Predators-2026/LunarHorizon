@@ -6,6 +6,8 @@ GET /api/imagery/tile/{face}/{z}/{x}/{y}  LRO WAC imagery of a tile (8-bit grays
 GET /api/psr                              PSR points and surface-ice detections near the south pole
 """
 
+import threading
+from contextlib import contextmanager
 from functools import lru_cache
 
 from fastapi import APIRouter, HTTPException, Query, Response
@@ -17,6 +19,23 @@ from .engine.tiles import FACES, MAX_ZOOM, N, max_zoom_for, tile_heights, valida
 from .memory import cache_size
 
 router = APIRouter(prefix="/api")
+
+# Tiles (heights and imagery) built at once. Each build holds every DEM block it touches (up to 4 MB each) until it
+# finishes, outside the block cache's limit, so a burst of requests from a few viewers could otherwise take hundreds
+# of MB at the same moment and get the process killed on a 512 MB host. Extra requests wait; one that waits longer
+# than BUILD_WAIT_S gets a 503 (below the host's 30 s request timeout), which the 3D view retries.
+_builds = threading.BoundedSemaphore(cache_size(16, 3))
+BUILD_WAIT_S = 20.0
+
+
+@contextmanager
+def _build_slot():
+    if not _builds.acquire(timeout=BUILD_WAIT_S):
+        raise HTTPException(503, "Terrain server busy, try again shortly")
+    try:
+        yield
+    finally:
+        _builds.release()
 
 
 @router.get("/terrain/info")
@@ -56,7 +75,8 @@ def terrain_tile(
     except ValueError as e:
         raise HTTPException(404, str(e))
     try:
-        content, hmin, hmax, leaf = _tile_payload(face, z, x, y, pad)
+        with _build_slot():
+            content, hmin, hmax, leaf = _tile_payload(face, z, x, y, pad)
     except DownloadBusy as e:  # Moon Trek slow: too many downloads waiting (the 3D view retries)
         raise HTTPException(503, f"Terrain source busy, try again shortly: {e}")
     except OSError as e:  # Moon Trek unreachable or refused the request
@@ -90,7 +110,8 @@ def imagery_tile_png(face: int, z: int, x: int, y: int) -> Response:
     except ValueError as e:
         raise HTTPException(404, str(e))
     try:
-        content = _imagery_png(face, z, x, y)
+        with _build_slot():
+            content = _imagery_png(face, z, x, y)
     except DownloadBusy as e:
         raise HTTPException(503, f"Imagery source busy, try again shortly: {e}")
     except OSError as e:
