@@ -114,6 +114,19 @@ describe('Mission Report Card', () => {
     expect(disk.best).toEqual(['B'])
   })
 
+  it('never marks a "best" when only one plan uses real data: demonstration plans never compete with real ones', () => {
+    const s = structuredClone(snapshot(['A', 'B', 'C']))
+    for (const e of s.export.scenarios) if (e.label !== 'A') e.data = { ...e.data, kind: 'demonstration', is_synthetic: true }
+    const c = buildReportCard(s)
+    for (const row of [...c.performance.solar, ...c.performance.communication]) expect(row.best).toEqual([])
+    expect(c.analysis.findings.find((x) => x.topic === 'Sunlight')!.text).not.toMatch(/has the most/)
+  })
+
+  it('never marks a "best" across plans with different mission durations', () => {
+    const c = buildReportCard(snapshot(['B', 'E'])) // both real, 7 d vs 3 d
+    for (const row of [...c.performance.solar, ...c.performance.communication]) expect(row.best).toEqual([])
+  })
+
   it('lists strengths and weaknesses from the evidence only', () => {
     const c = buildReportCard(snapshot(['A', 'B', 'C', 'D']))
     const sw = Object.fromEntries(c.strengths.map((x) => [x.label, x]))
