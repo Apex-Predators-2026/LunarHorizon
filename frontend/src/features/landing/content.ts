@@ -156,10 +156,10 @@ export const PICTURES: Picture[] = [
   },
   {
     id: 'sky',
-    title: 'Sky plot and timeline',
+    title: 'Curiosity rover in 3D',
     caption: 'Scrub the timeline to see when the Sun or Earth drops below the local horizon.',
     src: `${import.meta.env.BASE_URL}landing/sky.jpg`,
-    alt: 'Polar sky plot and an hourly visibility timeline',
+    alt: "3D model of NASA's Curiosity rover at the landing site, with the polar sky plot and visibility timeline",
   },
   {
     id: 'compare',
