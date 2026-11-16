@@ -55,7 +55,15 @@ def _site_files() -> dict[str, Path]:
     return files
 
 
-@lru_cache(maxsize=32)
+def _cache_size() -> int:
+    """Parsed sites kept in memory. Each is ~25 MB, so small hosts (Render free: 512 MB) set SITE_CACHE_SIZE=4."""
+    try:
+        return max(1, int(os.environ.get("SITE_CACHE_SIZE", "32")))
+    except ValueError:
+        return 32
+
+
+@lru_cache(maxsize=_cache_size())
 def _load(path: str, mtime: float) -> SiteData:
     return SiteData(json.loads(Path(path).read_text()))
 
