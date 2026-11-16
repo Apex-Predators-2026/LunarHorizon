@@ -3,12 +3,14 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/lunar-horizon-favicon.png" />
-    <script src="/theme-init.js"></script>
+    <script>
+      try {
+        document.documentElement.classList.toggle('lp-dark', localStorage.getItem('lunar-dark-mode') === '1')
+      } catch {
+        // Use the default theme when storage is unavailable.
+      }
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Explore lunar south pole illumination, terrain shadows, Earth visibility, and Artemis III landing site viability with NASA LOLA and JPL Horizons data." />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="Lunar Landing Site Navigator" />
-    <meta property="og:description" content="Interactive 3D lunar south pole terrain, sunlight, Earth line-of-sight, and mission viability planner." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
