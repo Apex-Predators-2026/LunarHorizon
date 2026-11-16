@@ -105,6 +105,18 @@ export const PIPELINE: PipelineStep[] = [
     where: 'frontend report.ts, ReportCardPdf.tsx; backend /api/assistant' },
 ]
 
+// ---- subpage views --------------------------------------------------------------------------------
+
+export type MethodologyTab = 'overview' | 'models' | 'criteria' | 'limits'
+
+/** The page's views, in the same sticky bar as the comparison's Overview / Evidence / Detailed analysis. */
+export const METHODOLOGY_TABS: readonly { id: MethodologyTab; label: string; hint: string }[] = [
+  { id: 'overview', label: 'Overview', hint: 'From a plan to a recommendation, and the data behind it' },
+  { id: 'models', label: 'Models', hint: 'Terrain horizon, the solar disk, Earth line of sight and the metrics' },
+  { id: 'criteria', label: 'Evaluation', hint: 'Pass / Fail / Unknown, requirements, score, fair groups and the decision' },
+  { id: 'limits', label: 'Limits & system', hint: 'Assumptions, limitations and how the system is built' },
+]
+
 // ---- navigation ------------------------------------------------------------------------------
 
 /** Set while the subpage was opened from the comparison in this tab, so Back can return to that exact entry. */

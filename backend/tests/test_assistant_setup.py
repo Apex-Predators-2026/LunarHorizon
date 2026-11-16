@@ -56,7 +56,7 @@ def test_report_is_sent_as_its_own_message_with_its_state_first():
     # No report: the note applies only to report questions; comparison summaries still use the comparison.
     assert none[1]["content"].startswith("Mission Report status: no Mission Report has been generated yet.")
     assert "including summaries of the comparison, is answered from the comparison context" in none[1]["content"]
-    assert none[2]["content"].startswith("Current Scenario Comparison context")  # the comparison comes last
+    assert none[2]["content"].startswith("Current Plan Comparison context")  # the comparison comes last
     fresh = build_messages(q, {"state": "ready", "report": {"snapshot_id": "rpt-1", "out_of_date": False, "plans": []}})
     assert '"report"' not in fresh[2]["content"]  # not duplicated in the comparison context
     assert fresh[1]["content"].startswith("MISSION REPORT: the user HAS generated") and "Status: CURRENT" in fresh[1]["content"]
@@ -68,6 +68,6 @@ def test_report_is_sent_as_its_own_message_with_its_state_first():
 def test_instruction_has_answer_layouts_for_report_questions():
     system = build_messages([{"role": "user", "content": "q"}], {})[0]["content"]
     for rule in ('"Summarize my report": ### Report status', '"Explain the final assessment"', "never name a winner it does not name",
-                 '"Strengths / weaknesses of Scenario X"', "(UNKNOWN is not a failure)", '"Explain the communication (or solar) section"',
+                 '"Strengths / weaknesses of Plan X"', "(UNKNOWN is not a failure)", '"Explain the communication (or solar) section"',
                  '"What does the report mean by UNKNOWN"', '"Which section shows ...": name the report section'):
         assert rule in system, rule
