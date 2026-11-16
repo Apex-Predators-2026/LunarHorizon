@@ -13,6 +13,6 @@ services:
       - key: SITE_CACHE_SIZE   # keep memory under the free plan's 512 MB
         value: "4"
       - key: CORS_ALLOW_ORIGINS
-        value: https://lunarhorizonsite.xyz,https://www.lunarhorizonsite.xyz
+        value: https://lunarhorizonsite.xyz,https://www.lunarhorizonsite.xyz,https://apex-predators-2026.github.io
       - key: OPENROUTER_API_KEY   # optional: enables the Ask Rover AI answers
         sync: false
