@@ -333,7 +333,7 @@ export function ReportPreview() {
   const stale = live !== snapshot.selection.key
   const download = () => downloadText(`lunar-decision-${snapshot.snapshot_id}.json`, JSON.stringify(snapshot, null, 2) + '\n', 'application/json')
   return createPortal(
-    <div className="report-portal lp-light" role="dialog" aria-modal={tourOpen ? 'false' : 'true'} aria-labelledby="rpt-dialog-title" data-testid="report-preview" data-snapshot={snapshot.snapshot_id}>
+    <div className="report-portal ui-chrome lp-light" role="dialog" aria-modal={tourOpen ? 'false' : 'true'} aria-labelledby="rpt-dialog-title" data-testid="report-preview" data-snapshot={snapshot.snapshot_id}>
       <div className="report-toolbar">
         <div className="report-toolbar-text">
           <h2 id="rpt-dialog-title" ref={headRef} tabIndex={-1}>Mission Report preview</h2>

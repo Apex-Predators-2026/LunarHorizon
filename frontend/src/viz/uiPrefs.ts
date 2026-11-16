@@ -2,7 +2,6 @@ import { create } from 'zustand'
 
 const DARK_KEY = 'lunar-dark-mode'
 const ANNOUNCE_MS = 1100 // how long the "press Esc" notice shows before the interface disappears
-const NOTICE_MS = 3800 // total time the notice stays up (it keeps showing for a moment after the UI is gone)
 
 const readDark = () => {
   try {
@@ -43,8 +42,7 @@ export const useUiPrefs = create<UiPrefs>((set) => ({
   hideUi: () => {
     clearTimers()
     set({ notice: true })
-    timers.push(window.setTimeout(() => set({ uiHidden: true }), ANNOUNCE_MS))
-    timers.push(window.setTimeout(() => set({ notice: false }), NOTICE_MS))
+    timers.push(window.setTimeout(() => set({ uiHidden: true, notice: false }), ANNOUNCE_MS))
   },
   showUi: () => {
     clearTimers()

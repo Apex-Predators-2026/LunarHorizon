@@ -53,7 +53,7 @@ export function DateField({
 }) {
   return (
     <div className="md-field md-field-floated" data-tip={tip}>
-      <button type="button" onClick={onOpen} aria-expanded={expanded} aria-haspopup="dialog" className="md-field-control">
+      <button type="button" onClick={onOpen} aria-label={`${label}, ${value}`} aria-expanded={expanded} aria-haspopup="dialog" className="md-field-control">
         {value}
       </button>
       <span className="md-field-label">{label}</span>
