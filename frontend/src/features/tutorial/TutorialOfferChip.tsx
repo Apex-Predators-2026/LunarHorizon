@@ -129,7 +129,7 @@ export function TutorialOfferChip({
       aria-label="Guided tour offer"
       data-testid="tutorial-offer-chip"
       className={`lp-light md-reveal pointer-events-auto fixed z-40 flex w-[min(340px,calc(100vw-32px))] flex-col gap-2.5 rounded-[22px] border border-opal-300 bg-opal-50/95 p-3.5 text-slate-100 shadow-xl shadow-black/35 backdrop-blur-md ${
-        anchored ? 'recede-behind-menu' : compareActive ? 'bottom-5 left-[clamp(16px,4.5vw,65px)]' : 'bottom-5 left-4'
+        anchored ? 'recede-behind-menu' : compareActive ? 'bottom-5 left-[clamp(16px,4.5vw,65px)] max-sm:bottom-28' /* phones: above Ask Rover */ : 'bottom-5 left-4'
       }`}
       style={{ fontFamily: 'var(--font-inter)', ...(anchored ? { left: cardLeft, top: cardTop } : null) }}
     >
