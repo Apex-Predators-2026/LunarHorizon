@@ -55,3 +55,26 @@ describe('M3 fields', () => {
     expect(css).toContain('--md-field-bg: var(--md-field-surface, var(--color-opal-100));')
   })
 })
+
+describe('accessibility', () => {
+  it('the Mission Planner has a page heading (h1) for screen readers, inside the planner view', async () => {
+    const app = await source('./App.tsx')
+    const planner = app.slice(app.indexOf('{plannerKept && ('), app.indexOf('<Scene'))
+    expect(planner).toContain('<h1 className="sr-only">Mission Planner</h1>')
+  })
+
+  it('the "Hiding the interface" notice is only in the page while it is shown; its live region stays for announcements', async () => {
+    const { renderToString } = await import('react-dom/server')
+    const { createElement } = await import('react')
+    const { UiHiddenNotice } = await import('./viz/UiHiddenNotice')
+    const html = renderToString(createElement(UiHiddenNotice)) // no notice by default
+    expect(html).toMatch(/role="status"[^>]*aria-live="polite"/)
+    expect(html).not.toMatch(/Hiding the interface|Interface hidden|Esc/)
+  })
+
+  it('closing the guided tour gives focus back to where it was (or the tour’s More menu), not to the page', async () => {
+    const tour = await source('./features/tutorial/TutorialSpotlight.tsx')
+    expect(tour).toContain('returnFocus.current = active')
+    expect(tour).toContain(`document.querySelector<HTMLElement>('[data-tour="more-menu"] button')`)
+  })
+})

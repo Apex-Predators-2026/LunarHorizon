@@ -244,6 +244,11 @@ const TONE: Record<'ok' | 'warn' | 'bad' | 'none', string> = {
   ok: 'bg-emerald-600', warn: 'bg-amber-500', bad: 'bg-red-600', none: 'bg-slate-400',
 }
 
+/** Loads a report again after it failed, in the page's own text-button style. */
+function RetryButton({ onClick }: { onClick: () => void }) {
+  return <button type="button" className="cmp-btn-text mt-1 !h-8" onClick={onClick}>Retry</button>
+}
+
 function Fact({ title, tone = 'none', children }: { title: string; tone?: 'ok' | 'warn' | 'bad' | 'none'; children: React.ReactNode }) {
   return (
     <div className="cmp-method-card min-w-0">
@@ -261,6 +266,9 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
   const [engine, setEngine] = useState<ViabilityValidationState>({ status: 'loading' })
   const [tab, setTab] = useState<MethodTab>(initialTab)
   const reveal = useReveal((s) => s.reveal)
+  // Each report loads on opening, and again when its Retry is pressed (the counters), independently of the other.
+  const [validationAttempt, setValidationAttempt] = useState(0)
+  const [engineAttempt, setEngineAttempt] = useState(0)
   useEffect(() => {
     const ctrl = new AbortController()
     fetchValidation(ctrl.signal)
@@ -268,13 +276,25 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
       .catch((e: Error) => {
         if (e.name !== 'AbortError') setState({ error: e.message })
       })
+    return () => ctrl.abort()
+  }, [validationAttempt])
+  useEffect(() => {
+    const ctrl = new AbortController()
     fetchViabilityValidation(ctrl.signal)
       .then(setEngine)
       .catch((e: Error) => {
         if (e.name !== 'AbortError') setEngine({ status: 'unavailable', detail: e.message })
       })
     return () => ctrl.abort()
-  }, [])
+  }, [engineAttempt])
+  const retryValidation = () => {
+    setState({})
+    setValidationAttempt((n) => n + 1)
+  }
+  const retryEngine = () => {
+    setEngine({ status: 'loading' })
+    setEngineAttempt((n) => n + 1)
+  }
   const run = state.data?.run
   const checkCount = state.data ? [state.data.ephemeris_agreement, state.data.horizon_method, state.data.illumination_observed].filter(Boolean).length : 0
   const eng = engineStatus(engine)
@@ -309,13 +329,17 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Fact title="Scientific validation">
               {state.error
-                ? <p role="status">The stored results could not be loaded ({state.error}); the method and limitations still apply.</p>
+                ? <>
+                    <p role="status">The stored results could not be loaded ({state.error}); the method and limitations still apply.</p>
+                    <RetryButton onClick={retryValidation} />
+                  </>
                 : !state.data
                   ? <p>Loading the stored validation results…</p>
                   : <p>{checkCount} independent {checkCount === 1 ? 'check' : 'checks'} against another ephemeris, another horizon method and LROC sunlight observations.</p>}
             </Fact>
             <Fact title="Engine verification (software)" tone={eng.tone}>
               <p role="status">{eng.text}</p>
+              {engine.status === 'unavailable' && <RetryButton onClick={retryEngine} />}
             </Fact>
             <Fact title="Scope and freshness">
               <p>
@@ -357,10 +381,13 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
                 camera observed from orbit.
               </p>
               {state.error && (
-                <p role="status" className="rounded-xl bg-inset p-4 text-sm text-ink-2">
-                  The validation results could not be loaded ({state.error}). The method and limitations still apply; the full
-                  report is in docs/validation-engine.md.
-                </p>
+                <div role="status" className="rounded-xl bg-inset p-4 text-sm text-ink-2">
+                  <p>
+                    The validation results could not be loaded ({state.error}). The method and limitations still apply; the full
+                    report is in docs/validation-engine.md.
+                  </p>
+                  <RetryButton onClick={retryValidation} />
+                </div>
               )}
               {!state.data && !state.error && <p className="text-sm text-ink-3">Loading the stored validation results…</p>}
               {state.data && <Checks s={state.data} />}
@@ -376,7 +403,7 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
                 missing data, scores and ranking. They show the software does what it specifies; they do not show the data or the
                 model match the real Moon (that is the Scientific validation tab).
               </p>
-              <ViabilityChecks state={engine} />
+              <ViabilityChecks state={engine} onRetry={retryEngine} />
             </section>
           </TabPanel>
 

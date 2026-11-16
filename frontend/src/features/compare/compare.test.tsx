@@ -344,6 +344,37 @@ describe('compare store', () => {
     expect(r.state === 'error' && r.message).toMatch(/Backend unavailable/)
   })
 
+  it('calls a proxy 502 (backend not running) unavailable, but shows an error the backend sent back as that error', async () => {
+    const run = async (res: Response) => {
+      useCompareStore.setState({ scenarios: [], selectedIds: [], results: {}, rankingSetKey: null })
+      useCompareStore.getState().addScenario({ site: SITES.A, landing_utc: '2027-01-15T00:00:00Z' })
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(res))
+      await useCompareStore.getState().refresh()
+      const r = Object.values(useCompareStore.getState().results)[0]
+      return r.state === 'error' ? r.message : ''
+    }
+    // The dev proxy answers 502 with an empty body when nothing listens on port 8000.
+    expect(await run(new Response('', { status: 502, statusText: 'Bad Gateway' }))).toMatch(/^Backend unavailable/)
+    // A running backend that fails: its own message, never "unavailable" (even for 500 or 503).
+    const internal = await run(new Response(JSON.stringify({ detail: 'Horizon data missing for site' }), { status: 500 }))
+    expect(internal).toMatch(/^The backend could not evaluate this plan \(500: Horizon data missing for site\)/)
+    expect(internal).not.toMatch(/unavailable/i)
+    const busy = await run(new Response(JSON.stringify({ detail: 'Data store is loading' }), { status: 503 }))
+    expect(busy).toMatch(/^The backend could not evaluate this plan \(503: Data store is loading\)/)
+  })
+
+  it('retries a failed comparison when asked: the same plans are requested again', async () => {
+    useCompareStore.setState({ scenarios: [], selectedIds: [], results: {}, rankingSetKey: null })
+    useCompareStore.getState().addScenario({ site: SITES.A, landing_utc: '2027-01-15T00:00:00Z' })
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.stubGlobal('fetch', fetchMock)
+    await useCompareStore.getState().refresh()
+    expect(Object.values(useCompareStore.getState().results)[0].state).toBe('error')
+    await useCompareStore.getState().refresh() // the Retry button
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[1][1].body).toBe(fetchMock.mock.calls[0][1].body)
+  })
+
   it('accepts scenarios from Mission Rescue with the first as baseline', () => {
     useCompareStore.setState({ scenarios: [], selectedIds: [] })
     const base = { site: SITES.B, landing_utc: '2027-02-15T00:00:00Z', duration_days: 7, requirements: DEFAULT_REQUIREMENTS }

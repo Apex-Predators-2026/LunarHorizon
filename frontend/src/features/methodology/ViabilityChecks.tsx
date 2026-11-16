@@ -58,7 +58,7 @@ function Banner({ s }: { s: ViabilityValidationSummary }) {
 }
 
 /** The viability engine's validation report, or exactly why it cannot be shown. */
-export function ViabilityChecks({ state }: { state: ViabilityValidationState }) {
+export function ViabilityChecks({ state, onRetry }: { state: ViabilityValidationState; onRetry?: () => void }) {
   if (state.status === 'loading') return <p className="text-sm text-ink-3">Loading the stored viability-engine report…</p>
   if (state.status === 'missing')
     return (
@@ -68,10 +68,13 @@ export function ViabilityChecks({ state }: { state: ViabilityValidationState }) 
     )
   if (state.status === 'unavailable')
     return (
-      <p role="status" className="rounded-xl bg-inset p-4 text-sm text-ink-2">
-        The viability-engine report could not be loaded ({state.detail}) No verification result is shown; the stored report
-        and how to regenerate it are described in docs/member2-part2-validation.md.
-      </p>
+      <div role="status" className="rounded-xl bg-inset p-4 text-sm text-ink-2">
+        <p>
+          The viability-engine report could not be loaded ({state.detail}) No verification result is shown; the stored report
+          and how to regenerate it are described in docs/member2-part2-validation.md.
+        </p>
+        {onRetry && <button type="button" className="cmp-btn-text mt-1 !h-8" onClick={onRetry}>Retry</button>}
+      </div>
     )
   const s = state.summary
   const realCases = s.cases.filter((c) => !c.synthetic)

@@ -19,16 +19,20 @@ export function UiHiddenNotice() {
     return () => window.removeEventListener('keydown', onKey)
   }, [uiHidden, notice, showUi])
 
+  // The live region stays mounted (so a change is announced), but holds text only while the notice is shown: an
+  // invisible "Hiding the interface…" must not be read out or reached by a screen reader when nothing is happening.
   return (
     <div
       role="status"
       aria-live="polite"
       className={`pointer-events-none absolute inset-x-0 bottom-10 z-50 flex justify-center px-4 transition-opacity duration-300 ${notice ? 'opacity-100' : 'opacity-0'}`}
     >
-      <div className="rounded-full bg-[#322f35] px-5 py-3 text-sm text-[#f5eff7] shadow-lg shadow-black/50" style={{ fontFamily: 'var(--font-inter)' }}>
-        {uiHidden ? 'Interface hidden. ' : 'Hiding the interface. '}
-        Press <kbd className="rounded bg-white/15 px-1.5 py-0.5 text-xs font-semibold">Esc</kbd> to bring it back.
-      </div>
+      {notice && (
+        <div className="rounded-full bg-[#322f35] px-5 py-3 text-sm text-[#f5eff7] shadow-lg shadow-black/50" style={{ fontFamily: 'var(--font-inter)' }}>
+          {uiHidden ? 'Interface hidden. ' : 'Hiding the interface. '}
+          Press <kbd className="rounded bg-white/15 px-1.5 py-0.5 text-xs font-semibold">Esc</kbd> to bring it back.
+        </div>
+      )}
     </div>
   )
 }

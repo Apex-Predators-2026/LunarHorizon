@@ -24,7 +24,7 @@ import { TradeoffPanel } from './TradeoffPanel'
 import { Disclosure, TabPanel, Tabs, useReveal } from './disclosure'
 import { ScenarioStrip } from './ScenarioStrip'
 import './compare.css'
-import { Empty, Explain, Icon, Section } from './ui'
+import { btn, Empty, Explain, Icon, Section } from './ui'
 import { useCompareStore } from './useCompareStore'
 import { useView } from './useTimeAxis'
 import { COMPARE_TABS, TAB_ENTRY, tabOfSection, useCompareView } from './sections'
@@ -92,6 +92,8 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
   const hasDemo = entries.some((e) => e.result?.data_kind === 'demonstration')
   const loading = entries.some((e) => e.state?.state === 'loading')
   const backendDown = entries.some((e) => e.state?.state === 'error' && /Backend unavailable/.test(e.state.message))
+  // The backend answered, but with an error (it is running): its message, not "not reachable".
+  const serverError = backendDown ? null : entries.find((e) => e.state?.state === 'error' && /^The backend could not evaluate/.test(e.state.message))?.state as { state: 'error'; message: string } | undefined
   const sameSite = selected.length > 1 && new Set(selected.map((s) => s.site.id)).size === 1
   // Evaluated landings: two requests that the grid evaluates at the same hour are the same date.
   const differentDates = new Set(entries.map((e) => originOf(e))).size > 1
@@ -211,8 +213,15 @@ export function ComparisonDashboard({ onOpen3D, section = null, onSection }: {
           </div>
         )}
         {backendDown && (
-          <div role="alert" className="mb-4 rounded-xl bg-red-950 p-4 text-sm text-red-200">
-            The backend is not reachable, so no scientific data can be shown. Start it with <code>uvicorn app.main:app --port 8000</code> in <code>backend/</code>. Plans are kept for this session.
+          <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-red-950 p-4 text-sm text-red-200">
+            <p className="min-w-0 flex-1">The backend is not reachable, so no scientific data can be shown. Start it with <code>uvicorn app.main:app --port 8000</code> in <code>backend/</code>. Plans are kept for this session.</p>
+            <button type="button" className={btn} onClick={() => void refresh()} disabled={loading}>{loading ? 'Retrying…' : 'Retry'}</button>
+          </div>
+        )}
+        {serverError && (
+          <div role="alert" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-red-950 p-4 text-sm text-red-200">
+            <p className="min-w-0 flex-1">{serverError.message}</p>
+            <button type="button" className={btn} onClick={() => void refresh()} disabled={loading}>{loading ? 'Retrying…' : 'Retry'}</button>
           </div>
         )}
 

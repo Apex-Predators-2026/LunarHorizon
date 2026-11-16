@@ -95,6 +95,14 @@ describe('viability-engine verification (software, not scientific validation)', 
     }
     expect(html({ status: 'missing', detail: 'Run: x' })).toContain('No viability-engine validation report has been generated')
   })
+
+  it('offers Retry when the report could not be loaded, and only then (a missing report is not a loading failure)', () => {
+    const view = (state: ViabilityValidationState) => renderToString(<ViabilityChecks state={state} onRetry={() => {}} />)
+    expect(view({ status: 'unavailable', detail: 'The backend could not be reached.' })).toContain('>Retry</button>')
+    expect(view({ status: 'missing', detail: 'Run: x' })).not.toContain('Retry')
+    expect(view({ status: 'loading' })).not.toContain('Retry')
+    expect(html({ status: 'unavailable', detail: 'x' })).not.toContain('Retry') // no handler, no button
+  })
 })
 
 describe('methodology page', () => {
