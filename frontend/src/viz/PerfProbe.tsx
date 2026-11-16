@@ -59,7 +59,7 @@ export function PerfOverlay() {
     return () => clearInterval(id)
   }, [])
   return (
-    <pre className="pointer-events-none absolute left-2 top-2 z-50 rounded bg-black/70 px-2 py-1 font-mono text-[10px] leading-tight text-lime-300">
+    <pre className="ui-chrome pointer-events-none absolute left-2 top-2 z-50 rounded bg-black/70 px-2 py-1 font-mono text-[10px] leading-tight text-lime-300">
       {text}
     </pre>
   )

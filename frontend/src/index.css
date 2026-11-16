@@ -296,7 +296,9 @@
   30% { opacity: 0; }
   100% { opacity: 1; }
 }
-.md-reveal { animation: md-reveal var(--md-dur-medium2) var(--md-ease-emph-decel) both; }
+/* `backwards`, not `both`: a fill that outlives the animation keeps transform/opacity applied, which makes every
+   revealed element (e.g. each plan card) its own stacking context and traps its menus under the next sibling. */
+.md-reveal { animation: md-reveal var(--md-dur-medium2) var(--md-ease-emph-decel) backwards; }
 .md-pop { animation: md-pop var(--md-dur-medium2) var(--md-ease-emph-decel) both; }
 .md-dialog-in { animation: md-dialog-in var(--md-dur-medium2) var(--md-ease-emph-decel) both; transform-origin: top left; }
 .md-dialog-out { animation: md-dialog-out var(--md-dur-short3) var(--md-ease-emph-accel) both; transform-origin: top left; }
@@ -875,7 +877,7 @@
 .ui-chrome {
   transition: opacity 300ms var(--md-ease-standard), visibility 0s 0s;
 }
-[data-ui-hidden='true'] .ui-chrome {
+:is([data-ui-hidden='true'] .ui-chrome, body:has([data-ui-hidden='true']) > .ui-chrome) {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;

@@ -49,6 +49,7 @@ import { MissionPanel } from './MissionPlayback'
 import { useMissionPlayback } from './useMissionPlayback'
 import { SnackbarHost } from './Snackbar'
 import { TerrainLoadingOverlay, TerrainProgressBar } from './TerrainProgress'
+import { sitesRetryDelayMs } from './sitesRetry'
 import { CoverageBadge } from './CoverageBadge'
 import { TUTORIAL_STEPS, useTutorialStore } from '../features/tutorial'
 import { showSnackbar } from './snackbarStore'
@@ -125,7 +126,27 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
   const [pinPrefs, setPinPrefs] = useState(readPinPrefs)
   const setSite = useAppStore((s) => s.setSite)
 
-  const fetchedSites = useAsync('sites', (sig) => fetchSites(sig))
+  // The site list gates the whole view (no site, no terrain). If the backend is down it is retried with a backoff
+  // (and at once when the browser comes back online or Retry is pressed) instead of loading forever.
+  const [sitesAttempt, setSitesAttempt] = useState(0)
+  const fetchedSites = useAsync(`sites#${sitesAttempt}`, (sig) => fetchSites(sig))
+  const retrySites = useCallback(() => setSitesAttempt((n) => n + 1), [])
+  const sitesFailed = !!fetchedSites.error && !fetchedSites.data
+  // The last failure, kept while a retry is in flight (useAsync clears its error when a new attempt starts).
+  const [sitesProblem, setSitesProblem] = useState<string | null>(null)
+  useEffect(() => {
+    if (fetchedSites.data) setSitesProblem(null)
+    else if (fetchedSites.error) setSitesProblem(String(fetchedSites.error))
+  }, [fetchedSites.data, fetchedSites.error])
+  useEffect(() => {
+    if (!sitesFailed) return
+    const t = window.setTimeout(retrySites, sitesRetryDelayMs(sitesAttempt))
+    window.addEventListener('online', retrySites)
+    return () => {
+      window.clearTimeout(t)
+      window.removeEventListener('online', retrySites)
+    }
+  }, [sitesFailed, sitesAttempt, retrySites])
   const catalog = useMemo(() => {
     if (!fetchedSites.data && !createdSites.length) return null
     return [...new Map([...(fetchedSites.data ?? []), ...createdSites].map((site) => [site.id, site])).values()]
@@ -209,6 +230,18 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
   const compassRingRef = useRef<SVGGElement>(null)
   const compassNorthRef = useRef<SVGTextElement>(null)
   const [viewShiftPx, setViewShiftPx] = useState(0)
+  // Phones (below md): the readout spans the width and the side column starts just below it (see the layout below).
+  const topInfoRef = useRef<HTMLDivElement>(null)
+  const [topInfoBottom, setTopInfoBottom] = useState(220)
+  useEffect(() => {
+    const el = topInfoRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const measure = () => setTopInfoBottom(Math.round(el.offsetTop + el.offsetHeight + 12))
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   useEffect(() => {
     const side = sideRef.current
     const host = side?.parentElement
@@ -789,17 +822,17 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
       {PERF_ENABLED && <PerfOverlay />}
 
       {/* Labels pinned to 3D points by <ScreenLabels> */}
-      <div ref={sunLabel} className={`${labelClass} bg-black/60`}>
+      <div ref={sunLabel} className={`ui-chrome ${labelClass} bg-black/60`}>
         {s && `Sun ${fmtDeg(s.sun.elevation_deg)} · ${fmtPct(s.sun.visible_fraction, s.sun.visible)} visible`}
       </div>
-      <div ref={earthLabel} className={`${labelClass} bg-black/60`}>
+      <div ref={earthLabel} className={`ui-chrome ${labelClass} bg-black/60`}>
         {s &&
           `Earth ${fmtDeg(s.earth.elevation_deg)} · ${
             s.earth.visible === null ? 'unknown' : s.earth.visible ? 'in view' : 'blocked'
           } (${fmtDeg(s.earth.margin_deg, 2, true)})`}
       </div>
       <RoverFlagTag ref={flagRef} />
-      <div ref={landerLabel} data-site-label className={`${labelClass} z-[1] bg-orange-500/80 font-medium`}>
+      <div ref={landerLabel} data-site-label className={`ui-chrome ${labelClass} z-[1] bg-orange-500/80 font-medium`}>
         {site && pinIds.has(site.id) ? (
           <div className="pointer-events-auto inline-flex items-center gap-1">
             <span>{site.name}</span>
@@ -812,7 +845,7 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
           key={x.id}
           ref={siteLabelRefs.get(x.id)}
           data-site-label
-          className={`absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 text-[10px] text-slate-100 hover:bg-slate-800 ${pinIds.has(x.id) ? 'z-[1]' : ''}`}
+          className={`ui-chrome absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 text-[10px] text-slate-100 hover:bg-slate-800 ${pinIds.has(x.id) ? 'z-[1]' : ''}`}
           style={{ borderColor: siteColor(x) }}
         >
           <div className="flex items-center">
@@ -836,7 +869,7 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
       {blockerRefs.map((ref, k) => {
         const b = blockers[k]
         return (
-          <div key={k} ref={ref} className={`${labelClass} ${b?.body === 'sun' ? 'bg-red-900/80' : 'bg-blue-900/80'}`}>
+          <div key={k} ref={ref} className={`ui-chrome ${labelClass} ${b?.body === 'sun' ? 'bg-red-900/80' : 'bg-blue-900/80'}`}>
             {b &&
               `${b.body === 'sun' ? 'Sun' : 'Earth'} blocked by terrain ${fmtDistance(b.distanceM)} away (${Math.abs(
                 b.marginDeg,
@@ -860,7 +893,7 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
               setMeasureDrawer('points')
             }}
             data-tip={`Waypoint ${wp.label}${wp.name ? ` (${wp.name})` : ''}: click to inspect or rename`}
-            className="group pointer-events-auto absolute left-0 top-0 hidden cursor-pointer select-none"
+            className="ui-chrome group pointer-events-auto absolute left-0 top-0 hidden cursor-pointer select-none"
           >
             <div
               className={`flex origin-bottom items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums text-white shadow-md transition-[transform,background-color,border-color,box-shadow] duration-150 ease-out group-hover:scale-[1.07] group-hover:shadow-lg ${
@@ -894,14 +927,14 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
         <div
           key={`seg-${idx}`}
           ref={segmentLabelRefs[idx]}
-          className="pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded border border-slate-600/80 bg-slate-950/85 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-slate-100"
+          className="ui-chrome pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded border border-slate-600/80 bg-slate-950/85 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-slate-100"
         >
           {fmtDistance(seg.surfaceDistanceM)} · {seg.maxSlopeDeg.toFixed(1)}° max
         </div>
       ))}
       <div
         ref={hoverLabelRef}
-        className="pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded border border-white/80 bg-slate-950/90 px-2 py-0.5 font-mono text-[10px] tabular-nums text-white shadow"
+        className="ui-chrome pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded border border-white/80 bg-slate-950/90 px-2 py-0.5 font-mono text-[10px] tabular-nums text-white shadow"
       >
         {hoveredSample &&
           `${fmtDistance(hoveredSample.distanceM)} · ${Math.round(hoveredSample.heightM)} m · ${hoveredSample.slopeDeg.toFixed(1)}°`}
@@ -914,7 +947,11 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
       >
         {/* Only while shown: a message raised on another page waits in the queue until the Planner is back. */}
         {active && <SnackbarHost />}
-        <TerrainLoadingOverlay />
+        <TerrainLoadingOverlay
+          problem={sitesProblem}
+          retryInS={sitesFailed ? Math.round(sitesRetryDelayMs(sitesAttempt) / 1000) : null}
+          onRetry={retrySites}
+        />
         <div
           className="pointer-events-none absolute bottom-2 right-[4vw] flex flex-col items-end gap-2 text-[10px] tabular-nums text-white"
           style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
@@ -949,14 +986,24 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
           <CoverageBadge />
           </div>
         </div>
-        <div className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(104px,7.2vw,136px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))]">
+        {/* Phones: full width (beside the side column it was squeezed to one word per line); the colour key is left out. */}
+        <div ref={topInfoRef} className="absolute left-[clamp(16px,4.5vw,65px)] top-[clamp(104px,7.2vw,136px)] max-w-[min(34rem,calc(100vw-var(--lp-side-w)-12vw))] max-md:right-4 max-md:max-w-none">
           <TopInfo sites={sites.data} current={s} events={events} terrainStats={terrainStats} />
-          <ColorKey layers={layers} />
+          <div className="max-md:hidden">
+            <ColorKey layers={layers} />
+          </div>
         </div>
         {/* On viewports narrower than ~1760 px the navigation row (tabs + "Try a mission") reaches over this column, so
             the column starts below the header there (at 1366x768 the Map/Sky tabs used to cover "Methodology"). */}
-        <div ref={sideRef} className="absolute bottom-44 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4 max-[1760px]:top-[100px]">
+        {/* Phones: below the readout, full width, above the toolbar and timeline (z-10) so an opened Plans panel isn't
+            drawn under them; the mini map is left out (no room), and the panel starts collapsed (FloatingSidebar). */}
+        <div
+          ref={sideRef}
+          className="absolute bottom-44 right-[4vw] top-[clamp(14px,2.5vw,34px)] flex w-[var(--lp-side-w)] flex-col gap-4 max-[1760px]:top-[100px] max-md:left-4 max-md:right-4 max-md:z-10 max-md:w-auto max-md:top-[var(--side-top-sm)]!"
+          style={{ ['--side-top-sm' as string]: `${topInfoBottom}px` }}
+        >
           {site && (
+            <div className="contents max-md:hidden">
             <MiniMapPanel
               horizon={horizon.data}
               steps={timeline.data ?? []}
@@ -966,6 +1013,7 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
               siteId={siteId}
               frame={frame}
             />
+            </div>
           )}
           <FloatingSidebar>
             <div className="space-y-4">{sidebar}</div>

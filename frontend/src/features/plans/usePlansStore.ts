@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
+import { guardedMerge, isPlan, isString } from '../../lib/persistGuard'
 import type { Scenario } from '../../types'
 import type { ScenarioOrigin, SpacecraftConfig } from '../compare/types'
 
@@ -57,7 +58,12 @@ export const usePlansStore = create<PlansState>()(
       toggleCompare: (id) =>
         set((s) => ({ compareIds: s.compareIds.includes(id) ? s.compareIds.filter((x) => x !== id) : [...s.compareIds, id] })),
     }),
-    { name: 'lunar-plans', storage: createJSONStorage(() => localStorage) },
+    {
+      name: 'lunar-plans',
+      storage: createJSONStorage(() => localStorage),
+      // The comparison reads saved plans at startup: a malformed one must not stop the app from loading.
+      merge: guardedMerge<PlansState>({ plans: isPlan, activeId: isString, compareIds: isString }),
+    },
   ),
 )
 
