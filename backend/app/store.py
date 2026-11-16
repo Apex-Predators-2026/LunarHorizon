@@ -1,6 +1,7 @@
 """Loads precomputed site records (data/sites/*.json) and computes custom sites on demand."""
 
 import json
+import os
 import threading
 from functools import lru_cache
 from pathlib import Path
@@ -77,6 +78,20 @@ def custom_site_id(lat: float, lon: float) -> str:
     return f"custom_{lat:.4f}_{lon % 360:.4f}".replace("-", "m")
 
 
+def _prune_custom_sites(keep_path: Path) -> None:
+    """Keep custom site cache on disk bounded by MAX_CUSTOM_SITES using oldest-mtime eviction."""
+    try:
+        cap = max(1, int(os.environ.get("MAX_CUSTOM_SITES", "100")))
+    except ValueError:
+        cap = 100
+    files = [p for p in CUSTOM_DIR.glob("*.json") if p.is_file()]
+    if len(files) <= cap:
+        return
+    removable = sorted((p for p in files if p != keep_path), key=lambda p: p.stat().st_mtime)
+    for victim in removable[: max(0, len(files) - cap)]:
+        victim.unlink(missing_ok=True)
+
+
 def create_custom_site(lat: float, lon: float, name: str | None) -> SiteData:
     """Run the full pipeline for any point on the Moon. Uses the local ephemeris (no Horizons
     round trip); the first call for a new area may still download terrain blocks."""
@@ -97,7 +112,9 @@ def create_custom_site(lat: float, lon: float, name: str | None) -> SiteData:
             ephemeris="local",
         )
         CUSTOM_DIR.mkdir(parents=True, exist_ok=True)
-        (CUSTOM_DIR / f"{site_id}.json").write_text(json.dumps(record, separators=(",", ":")))
+        out_path = CUSTOM_DIR / f"{site_id}.json"
+        out_path.write_text(json.dumps(record, separators=(",", ":")))
+        _prune_custom_sites(out_path)
     return get_site(site_id)
 
 
