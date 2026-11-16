@@ -190,10 +190,10 @@ async function run(viewport) {
   await primary() // Explore on my own
   check(`${tag} finish leaves the tour`, (await card.count()) === 0)
 
-  // A live edit after generation: return to Scenario Comparison, verify the report flags a changed comparison, and regenerate.
-  await page.locator('nav[aria-label=Main]').getByRole('button', { name: 'Scenario Comparison', exact: true }).click()
+  // A live edit after generation: return to Plan Comparison, verify the report flags a changed comparison, and regenerate.
+  await page.locator('nav[aria-label=Main]').getByRole('button', { name: 'Plan Comparison', exact: true }).click()
   await page.locator('#cmp-scenarios').waitFor({ timeout: 30_000 })
-  // The scenario checkboxes live in the "Manage scenarios" disclosure, collapsed once two scenarios are compared.
+  // The plan checkboxes live in the "Manage plans" disclosure, collapsed once two plans are compared.
   const manage = page.locator('#cmp-scenarios').getByRole('button', { name: /Manage plans/ })
   if ((await manage.getAttribute('aria-expanded')) !== 'true') await manage.click()
   await page.locator('#cmp-scenarios').getByRole('checkbox', { checked: true }).first().uncheck()

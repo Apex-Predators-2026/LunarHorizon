@@ -5,9 +5,11 @@
 //      ViabilityChecks.tsx); missing / stale / failed reports are said to be so.
 //   Methods & sources: where an answer comes from, what it can establish, a reproducible mission, sources.
 // Tables, plots and methodology sit behind explicit disclosures. Wording follows docs/validation-engine.md; numbers come from the API, never typed in.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
+import { GlassSurface } from '../../ui/GlassSurface'
 import '../compare/compare.css'
+import '../compare/methodology/methodology.css' // the same cards as Plan Comparison's methodology page
 import { Disclosure, TabPanel, Tabs, useReveal, type TabDef } from '../compare/disclosure'
 import {
   fetchValidation,
@@ -82,7 +84,7 @@ function Check({ label, scope, reference, children, limitation, detail }: {
   detail?: { title: string; summary: string; children: React.ReactNode }
 }) {
   return (
-    <article className="min-w-0 rounded-2xl bg-inset p-5">
+    <article className="cmp-method-card min-w-0">
       <h3 className="text-base font-medium text-ink">{label}</h3>
       <div className="mt-3 text-sm text-ink-2">{children}</div>
       <Disclosure level={4} className="mt-3" title="Scope, reference and limitation" summary="what was compared, against what, and where it falls short">
@@ -244,7 +246,7 @@ const TONE: Record<'ok' | 'warn' | 'bad' | 'none', string> = {
 
 function Fact({ title, tone = 'none', children }: { title: string; tone?: 'ok' | 'warn' | 'bad' | 'none'; children: React.ReactNode }) {
   return (
-    <div className="min-w-0 rounded-xl border border-line bg-inset p-3">
+    <div className="cmp-method-card min-w-0">
       <h3 className="flex items-center gap-2 text-xs font-medium text-ink-3">
         <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${TONE[tone]}`} />
         {title}
@@ -276,6 +278,15 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
   const run = state.data?.run
   const checkCount = state.data ? [state.data.ephemeris_agreement, state.data.horizon_method, state.data.illumination_observed].filter(Boolean).length : 0
   const eng = engineStatus(engine)
+  const tabIndex = METHOD_TABS.findIndex((t) => t.id === tab)
+  const nextTab = METHOD_TABS[tabIndex + 1]
+  const rootRef = useRef<HTMLDivElement>(null)
+  /** Back to the top of the page (the view's own scroll area), for the next view. */
+  const toTop = () => {
+    let el = rootRef.current?.parentElement ?? null
+    while (el && !/auto|scroll/.test(getComputedStyle(el).overflowY)) el = el.parentElement
+    ;(el ?? document.scrollingElement)?.scrollTo({ top: 0 })
+  }
   const open = (t: MethodTab, id?: string) => {
     setTab(t)
     if (id) reveal(id)
@@ -283,7 +294,7 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
   }
 
   return (
-    <div className="cmp-page lp-light md-host min-h-full">
+    <div ref={rootRef} className="cmp-page lp-light md-host min-h-full">
       <div className="mx-auto max-w-[1500px] px-6 pb-16 pt-6 lg:px-8">
         <header className="mb-4 max-w-3xl">
           <h1 className="text-2xl font-medium leading-tight text-ink">Validation & Methodology</h1>
@@ -293,8 +304,8 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
         </header>
 
         {/* The credibility overview: what was checked, how fresh the reports are, and what remains uncertain. */}
-        <section aria-labelledby="meth-overview-h" data-tour="method-overview" className="cmp-section !p-4">
-          <h2 id="meth-overview-h" className="mb-3 text-base font-medium text-ink">What was checked</h2>
+        <section aria-labelledby="meth-overview-h" data-tour="method-overview" className="cmp-section">
+          <h2 id="meth-overview-h" className="mb-4 text-lg font-medium text-ink">What was checked</h2>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Fact title="Scientific validation">
               {state.error
@@ -328,9 +339,15 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
           </p>
         </section>
 
-        <Tabs base="meth" label="Validation and methodology" tabs={METHOD_TABS} value={tab} onChange={setTab} className="mt-4" />
+        {/* The three views, in the same sticky glass bar as Plan Comparison and its methodology page. */}
+        <nav aria-label="Validation and methodology views" className="cmp-method-views sticky top-2 z-40 my-4">
+          <GlassSurface radius="9999px" className="px-3 py-1">
+            <Tabs base="meth" label="Validation and methodology" tabs={METHOD_TABS} value={tab} onChange={setTab}
+              trailing={<span className="ml-auto hidden whitespace-nowrap pl-4 text-xs sm:inline">{tabIndex + 1} of {METHOD_TABS.length}</span>} />
+          </GlassSurface>
+        </nav>
 
-        <div className="mt-3 space-y-4">
+        <div className="space-y-4">
           <TabPanel base="meth" id="science" value={tab}>
             <section aria-labelledby="meth-science-h" className="cmp-section">
               <h2 id="meth-science-h" className="text-lg font-medium text-ink">Scientific validation</h2>
@@ -368,7 +385,7 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
               <Disclosure id="meth-pipeline" card level={2} defaultOpen title="Where an answer comes from" summary="Five steps, from NASA data to a verdict">
                 <ol className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                   {PIPELINE.map((p, i) => (
-                    <li key={p.title} className="rounded-2xl bg-inset p-4">
+                    <li key={p.title} className="cmp-method-card">
                       <p className="text-xs text-ink-3">Step {i + 1}</p>
                       <h3 className="mt-1 text-sm font-medium text-ink">{p.title}</h3>
                       <p className="mt-1 text-xs leading-relaxed text-ink-2">{p.body}</p>
@@ -429,6 +446,14 @@ export function MethodologyView({ initialTab = 'science' }: { initialTab?: Metho
             </div>
           </TabPanel>
         </div>
+
+        {nextTab && (
+          <div className="mt-6 flex justify-end">
+            <button type="button" className="cmp-btn" onClick={() => { setTab(nextTab.id); toTop() }}>
+              Next: {nextTab.label} <span aria-hidden="true">→</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
