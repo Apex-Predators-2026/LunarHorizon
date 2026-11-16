@@ -125,7 +125,7 @@ function PlanDialog({ plan, nextName, onClose }: { plan: Plan | null; nextName: 
   }
 
   return createPortal(
-    <div className={`fixed inset-0 z-[60] flex items-center justify-center p-4 ${closing ? 'md-snack-out' : ''}`} onAnimationEnd={(e) => closing && e.target === e.currentTarget && onClose()}>
+    <div className={`ui-chrome fixed inset-0 z-[60] flex items-center justify-center p-4 ${closing ? 'md-snack-out' : ''}`} onAnimationEnd={(e) => closing && e.target === e.currentTarget && onClose()}>
       <div className="absolute inset-0 bg-black/40" onClick={close} aria-hidden />
       <form
         role="dialog"

@@ -642,7 +642,7 @@ export function MapTools({
               <button
                 type="button"
                 role="menuitem"
-                data-tip="Hide all UI: everything fades away so only the Moon is left. Press Esc to bring it back."
+                data-tip="Hide labels and controls for a clear view of the Moon and rover flag. Press Esc to bring them back."
                 onClick={() => {
                   close()
                   hideUi()

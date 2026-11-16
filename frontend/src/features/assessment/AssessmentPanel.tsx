@@ -333,7 +333,7 @@ export function AssessmentDialog({ title, scenario, onClose, onReopen }: { title
   const close = () => setClosing(true)
   return createPortal(
     <div
-      className={`fixed inset-0 z-[60] flex items-center justify-center p-4 ${closing ? 'md-snack-out' : ''}`}
+      className={`ui-chrome fixed inset-0 z-[60] flex items-center justify-center p-4 ${closing ? 'md-snack-out' : ''}`}
       onAnimationEnd={(e) => closing && e.target === e.currentTarget && onClose()}
       onKeyDown={(e) => e.key === 'Escape' && close()}
     >

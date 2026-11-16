@@ -41,12 +41,14 @@ export function DatePopup({
   timeUtc,
   min,
   max,
+  dateOnly = false,
   onPick,
   onClose,
 }: {
   timeUtc: string // "2027-01-01T12:00:00Z"
   min: string
   max: string
+  dateOnly?: boolean
   onPick: (iso: string) => void
   onClose: () => void
 }) {
@@ -84,7 +86,7 @@ export function DatePopup({
 
   const ok = () => {
     const chosen = mode === 'input' ? typed : day
-    onPick(clampIso(`${chosen}T${hhmm || '00:00'}:00Z`))
+    onPick(clampIso(`${chosen}T${dateOnly ? '00:00' : hhmm || '00:00'}:00Z`))
     setClosing(true)
   }
   const toggleInput = () => {
@@ -117,8 +119,8 @@ export function DatePopup({
     <div
       ref={ref}
       role="dialog"
-      aria-label="Select date and time (UTC)"
-      className={`lp-light pointer-events-auto z-[70] w-[328px] select-none overflow-hidden rounded-[28px] bg-opal-50 text-calcite-ink shadow-2xl shadow-black/50 ${closing ? 'md-dialog-out' : 'md-dialog-in'}`}
+      aria-label={dateOnly ? 'Select date (UTC)' : 'Select date and time (UTC)'}
+      className={`ui-chrome lp-light pointer-events-auto z-[70] w-[328px] select-none overflow-hidden rounded-[28px] bg-opal-50 text-calcite-ink shadow-2xl shadow-black/50 ${closing ? 'md-dialog-out' : 'md-dialog-in'}`}
       style={{ textShadow: 'none', position: 'fixed', ...(pos ? { left: pos.x, top: pos.y } : { left: 'clamp(16px,4.5vw,65px)', top: 150 }) }}
       onAnimationEnd={(e) => {
         if (closing && e.target === e.currentTarget) onClose()
@@ -231,9 +233,11 @@ export function DatePopup({
           </>
         )}
 
-        <div className="mt-2 px-3" style={{ ['--md-field-bg' as string]: 'var(--color-opal-50)' }}>
-          <TextField label="Time (UTC)" type="time" value={hhmm} onChange={(e) => setHhmm(e.target.value)} tip="Time of day in UTC" />
-        </div>
+        {!dateOnly && (
+          <div className="mt-2 px-3" style={{ ['--md-field-bg' as string]: 'var(--color-opal-50)' }}>
+            <TextField label="Time (UTC)" type="time" value={hhmm} onChange={(e) => setHhmm(e.target.value)} tip="Time of day in UTC" />
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end gap-2 px-3 pb-3 pt-3">

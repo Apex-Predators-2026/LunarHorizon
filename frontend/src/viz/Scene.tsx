@@ -789,17 +789,17 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
       {PERF_ENABLED && <PerfOverlay />}
 
       {/* Labels pinned to 3D points by <ScreenLabels> */}
-      <div ref={sunLabel} className={`${labelClass} bg-black/60`}>
+      <div ref={sunLabel} className={`ui-chrome ${labelClass} bg-black/60`}>
         {s && `Sun ${fmtDeg(s.sun.elevation_deg)} · ${fmtPct(s.sun.visible_fraction, s.sun.visible)} visible`}
       </div>
-      <div ref={earthLabel} className={`${labelClass} bg-black/60`}>
+      <div ref={earthLabel} className={`ui-chrome ${labelClass} bg-black/60`}>
         {s &&
           `Earth ${fmtDeg(s.earth.elevation_deg)} · ${
             s.earth.visible === null ? 'unknown' : s.earth.visible ? 'in view' : 'blocked'
           } (${fmtDeg(s.earth.margin_deg, 2, true)})`}
       </div>
       <RoverFlagTag ref={flagRef} />
-      <div ref={landerLabel} data-site-label className={`${labelClass} z-[1] bg-orange-500/80 font-medium`}>
+      <div ref={landerLabel} data-site-label className={`ui-chrome ${labelClass} z-[1] bg-orange-500/80 font-medium`}>
         {site && pinIds.has(site.id) ? (
           <div className="pointer-events-auto inline-flex items-center gap-1">
             <span>{site.name}</span>
@@ -812,7 +812,7 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
           key={x.id}
           ref={siteLabelRefs.get(x.id)}
           data-site-label
-          className={`absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 text-[10px] text-slate-100 hover:bg-slate-800 ${pinIds.has(x.id) ? 'z-[1]' : ''}`}
+          className={`ui-chrome absolute left-0 top-0 hidden whitespace-nowrap rounded border bg-slate-950/75 text-[10px] text-slate-100 hover:bg-slate-800 ${pinIds.has(x.id) ? 'z-[1]' : ''}`}
           style={{ borderColor: siteColor(x) }}
         >
           <div className="flex items-center">
@@ -836,7 +836,7 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
       {blockerRefs.map((ref, k) => {
         const b = blockers[k]
         return (
-          <div key={k} ref={ref} className={`${labelClass} ${b?.body === 'sun' ? 'bg-red-900/80' : 'bg-blue-900/80'}`}>
+          <div key={k} ref={ref} className={`ui-chrome ${labelClass} ${b?.body === 'sun' ? 'bg-red-900/80' : 'bg-blue-900/80'}`}>
             {b &&
               `${b.body === 'sun' ? 'Sun' : 'Earth'} blocked by terrain ${fmtDistance(b.distanceM)} away (${Math.abs(
                 b.marginDeg,
@@ -860,7 +860,7 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
               setMeasureDrawer('points')
             }}
             data-tip={`Waypoint ${wp.label}${wp.name ? ` (${wp.name})` : ''}: click to inspect or rename`}
-            className="group pointer-events-auto absolute left-0 top-0 hidden cursor-pointer select-none"
+            className="ui-chrome group pointer-events-auto absolute left-0 top-0 hidden cursor-pointer select-none"
           >
             <div
               className={`flex origin-bottom items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums text-white shadow-md transition-[transform,background-color,border-color,box-shadow] duration-150 ease-out group-hover:scale-[1.07] group-hover:shadow-lg ${
@@ -894,14 +894,14 @@ export function Scene({ sidebar, fab, active = true }: { sidebar?: ReactNode; fa
         <div
           key={`seg-${idx}`}
           ref={segmentLabelRefs[idx]}
-          className="pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded border border-slate-600/80 bg-slate-950/85 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-slate-100"
+          className="ui-chrome pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded border border-slate-600/80 bg-slate-950/85 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-slate-100"
         >
           {fmtDistance(seg.surfaceDistanceM)} · {seg.maxSlopeDeg.toFixed(1)}° max
         </div>
       ))}
       <div
         ref={hoverLabelRef}
-        className="pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded border border-white/80 bg-slate-950/90 px-2 py-0.5 font-mono text-[10px] tabular-nums text-white shadow"
+        className="ui-chrome pointer-events-none absolute left-0 top-0 hidden whitespace-nowrap rounded border border-white/80 bg-slate-950/90 px-2 py-0.5 font-mono text-[10px] tabular-nums text-white shadow"
       >
         {hoveredSample &&
           `${fmtDistance(hoveredSample.distanceM)} · ${Math.round(hoveredSample.heightM)} m · ${hoveredSample.slopeDeg.toFixed(1)}°`}
